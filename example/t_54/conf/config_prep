@@ -1,0 +1,10 @@
+data_dir = "/local/bfrosik/temp/test/example/exp_data"
+darkfield_filename = "/local/bfrosik/temp/test/example/dark.tif"
+whitefield_filename = "/local/bfrosik/temp/test/example/whitefield.tif"
+roi = [
+0,
+256,
+0,
+256,
+1
+]

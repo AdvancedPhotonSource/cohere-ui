@@ -1,0 +1,3 @@
+scan = "54"
+working_dir = "/local/bfrosik/temp/test/example"
+experiment_id = "t"

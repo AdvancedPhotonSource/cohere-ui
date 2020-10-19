@@ -1,0 +1,14 @@
+algorithm_sequence = ((2,("ER",10),("HIO",80)),(1,("ER",10)))
+amp_support_trigger = (1,1)
+support_type = "GAUSS"
+support_threshold = 0.1
+support_sigma = 1.0
+support_area = (0.5,0.5,0.5)
+pcdi_trigger = (20,50)
+partial_coherence_type = "LUCY"
+partial_coherence_iteration_num = 20
+partial_coherence_normalize = True
+partial_coherence_roi = (32,32,32)
+twin_trigger = (2)
+twin_halves = (0,0)
+progress_trigger = (0,20)
