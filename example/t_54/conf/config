@@ -1,3 +1,4 @@
 scan = "54"
-working_dir = "/local/bfrosik/temp/test/example"
+working_dir = "./example"
 experiment_id = "t"
+spec_file = "./example/example.spec
