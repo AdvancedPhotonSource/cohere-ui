@@ -1,4 +1,4 @@
-results_dir = "/local/bfrosik/temp/test/example/t_54/results"
+results_dir = "./example/t_54/results"
 energy = 9.0
 delta = 32.174
 gamma = 12.6346
