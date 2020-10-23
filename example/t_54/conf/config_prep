@@ -1,6 +1,7 @@
 data_dir = "./example/exp_data"
 darkfield_filename = "./example/dark.tif"
 whitefield_filename = "./example/whitefield.tif"
+detector = "34idcTIM2:"
 roi = [
 0,
 256,
