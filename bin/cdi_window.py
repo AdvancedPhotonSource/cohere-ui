@@ -379,7 +379,7 @@ class cdi_gui(QWidget):
 
         try:
             specfile = conf_map.specfile
-            if os.isfile(specfile):
+            if os.path.isfile(specfile):
                 self.specfile = conf_map.specfile
                 self.spec_file_button.setStyleSheet("Text-align:left")
                 self.spec_file_button.setText(self.specfile)
@@ -474,6 +474,7 @@ class cdi_gui(QWidget):
                     return
             conf_map['scan'] = '"' + self.scan + '"'
             self.exp_id = self.id + '_' + self.scan
+            
         else:
             self.exp_id = self.id
         self.experiment_dir = os.path.join(self.working_dir, self.exp_id)
@@ -485,6 +486,7 @@ class cdi_gui(QWidget):
         conf_map['experiment_id'] = '"' + self.id + '"'
         if self.specfile is not None:
             conf_map['specfile'] = '"' + str(self.specfile).strip() + '"'
+            self.t.parse_spec()
         self.write_conf(conf_map, os.path.join(self.experiment_dir, 'conf'), 'config')
 
         # save prep config
@@ -752,7 +754,8 @@ class cdi_conf_tab(QTabWidget):
         ulayout.addWidget(self.rec_id)
         self.rec_id.hide()
         self.proc = QComboBox()
-        self.proc.addItem("cuda")
+        if sys.platform is not 'Darwin':
+            self.proc.addItem("cuda")
         self.proc.addItem("opencl")
         self.proc.addItem("cpu")
         ulayout.addRow("processor type", self.proc)
@@ -987,7 +990,7 @@ class cdi_conf_tab(QTabWidget):
             self.data_dir_button.setText('')
         try:
             darkfield_filename = conf_map.darkfield_filename
-            if os.isfile(darkfield_filename):
+            if os.path.isfile(darkfield_filename):
                 self.darkfield_filename = conf_map.darkfield_filename
                 self.dark_file_button.setStyleSheet("Text-align:left")
                 self.dark_file_button.setText(self.darkfield_filename)
@@ -998,7 +1001,7 @@ class cdi_conf_tab(QTabWidget):
             self.dark_file_button.setText('')
         try:
             whitefield_filename = conf_map.whitefield_filename
-            if os.isfile(whitefield_filename):
+            if os.path.isfile(whitefield_filename):
                 self.whitefield_filename = conf_map.whitefield_filename
                 self.white_file_button.setStyleSheet("Text-align:left")
                 self.white_file_button.setText(self.whitefield_filename)
@@ -1214,6 +1217,8 @@ class cdi_conf_tab(QTabWidget):
             self.detector.setStyleSheet('color: black')
         except AttributeError:
             pass
+        if self.main_win.specfile is not None:
+            self.parse_spec()
 
 
     def get_prep_config(self):
@@ -1906,7 +1911,7 @@ class cdi_conf_tab(QTabWidget):
             generations = int(ga_feat.generations.text())
             # if only one reconstruction, it will be saved in gen dir, otherwise,
             # the directories will be enumerated
-            if int(self.reconstructions.text()) > 1:
+            if len(self.reconstructions.text()) > 0 and int(self.reconstructions.text()) > 1:
                 self.results_dir = os.path.join(self.main_win.experiment_dir, res_file,
                                                 'g_' + str(generations-1), '0')
             else:
