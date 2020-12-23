@@ -21,9 +21,11 @@ __all__ = ['save_CX',
            'main']
 
 import reccdi.src_py.utilities.viz_util as vu
-import reccdi.src_py.beamlines.aps_34id.viz as v
+import reccdi.src_py.beamlines.viz as v
 import reccdi.src_py.utilities.utils as ut
 import reccdi.src_py.utilities.parse_ver as ver
+import beamlines.aps_34id.detectors as det
+import beamlines.aps_34id.diffractometers as diff
 import argparse
 import sys
 import os
@@ -53,6 +55,24 @@ def save_CX(conf_dict, image, support, coh, save_dir):
     nothing
     """
     params = v.DispalyParams(conf_dict)
+    det_name = params.detector
+    if det_name is None:
+        try:
+            det_name = conf_dict['detector']
+        except:
+            print ('detector name not parsed from spec file and not defined in config file')
+            return
+    if not det.verify_detector(det_name):
+        return
+    try:
+        diff_name = conf_dict['diffractometer']
+    except:
+        print ('diffractometer name not in config file')
+        return
+    if not diff.verify_diffractometer(diff_name):
+        return
+    params.set_instruments(det.create_detector(det_name), diff.create_diffractometer(diff_name))
+
     if support is not None:
         image, support = vu.center(image, support)
     if 'rampups' in conf_dict:

@@ -23,15 +23,10 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 import importlib
-#import format_data as run_dt
-#import run_rec as run_rc
-#import run_disp as run_dp
-#import run_prep_34idc as prep
 import reccdi.src_py.utilities.utils as ut
 import reccdi.src_py.utilities.parse_ver as ver
-#import reccdi.src_py.beamlines.aps_34id.spec as spec
-import reccdi.src_py.beamlines.aps_34id.diffractometer as dif
-import reccdi.src_py.beamlines.aps_34id.detectors as det
+import beamlines.aps_34id.diffractometers as dif
+
 
 def select_file(start_dir):
     """
@@ -1501,7 +1496,7 @@ class cdi_conf_tab(QTabWidget):
         -------
         nothing
         """
-        import reccdi.src_py.beamlines.aps_34id.spec as spec
+        import reccdi.src_py.beamlines.spec as spec
 
         if not self.main_win.is_exp_exists():
             # do not parse on initial assignment
@@ -1540,7 +1535,7 @@ class cdi_conf_tab(QTabWidget):
                 self.scanmot_del.setText(str(scanmot_del))
                 self.scanmot_del.setStyleSheet('color: blue')
             if detector_name is not None:
-                self.detector.setText(str(detector_name))
+                self.detector.setText(str(detector_name)[:-1])
                 self.detector.setStyleSheet('color: blue')
         except Exception as e:
             print(str(e))
@@ -1983,8 +1978,7 @@ class cdi_conf_tab(QTabWidget):
             return
         else:
             # check if the diffractometer is defined
-            diffObj = dif.getdiffclass(self.diffractometer.text())
-            if diffObj is None:
+            if not dif.verify_diffractometer(self.diffractometer.text()):
                 msg_window('the diffractometer is not defined')
                 return
         # check if the results exist

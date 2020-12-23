@@ -38,8 +38,8 @@ import os
 import sys
 import glob
 import tifffile as tif
-import reccdi.src_py.beamlines.aps_34id.spec as spec
-import reccdi.src_py.beamlines.aps_34id.detectors as det
+import reccdi.src_py.beamlines.spec as spec
+import beamlines.aps_34id.detectors as det
 import reccdi.src_py.utilities.utils as ut
 from multiprocessing import Pool
 from multiprocessing import cpu_count
@@ -323,6 +323,8 @@ class PrepData:
             # parse det name and saved roi from spec
             # get_det_from_spec is already a try block.  So maybe this is not needed?
             det_name, self.roi = spec.get_det_from_spec(specfile, scan_end)
+            if det_name is not None and det_name.endswith(':'):
+                det_name = det_name[:-1]
         except AttributeError:
             print("specfile not configured")
         except:
@@ -337,9 +339,10 @@ class PrepData:
                 det_name = "default"
 
         # The detector attributes for background/whitefield/etc need to be set to read frames
-        self.detector = det.getdetclass(det_name)
+        self.detector = det.create_detector(det_name)
         if self.detector is None:
             print ('no detector class ' + det_name + ' defined')
+            return
         else:
             # if anything in config file has the same name as a required detector attribute, copy it to
             # the detector
