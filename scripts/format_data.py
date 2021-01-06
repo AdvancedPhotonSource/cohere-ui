@@ -13,8 +13,8 @@ import sys
 import argparse
 import os
 import numpy as np
-import reccdi.src_py.utilities.utils as ut
-import reccdi.src_py.utilities.parse_ver as ver
+import cohere.src_py.utilities.utils as ut
+import cohere.src_py.utilities.parse_ver as ver
 
 __author__ = "Barbara Frosik"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."

@@ -24,11 +24,11 @@ import signal
 import os
 import argparse
 from multiprocessing import Process, Queue
-import reccdi.src_py.controller.reconstruction as rec
-import reccdi.src_py.controller.gen_rec as gen_rec
-import reccdi.src_py.controller.reconstruction_multi as mult_rec
-import reccdi.src_py.utilities.utils as ut
-import reccdi.src_py.utilities.parse_ver as ver
+import cohere.src_py.controller.reconstruction as rec
+import cohere.src_py.controller.gen_rec as gen_rec
+import cohere.src_py.controller.reconstruction_multi as mult_rec
+import cohere.src_py.utilities.utils as ut
+import cohere.src_py.utilities.parse_ver as ver
 import time
 from functools import reduce
 

@@ -1,6 +1,6 @@
-import reccdi.src_py.utilities.utils as ut
+import cohere.src_py.utilities.utils as ut
 import numpy as np
-from reccdi.src_py.beamlines.detector import Detector
+from cohere.src_py.beamlines.detector import Detector
 
 class Detector_34idcTIM1(Detector):
     """

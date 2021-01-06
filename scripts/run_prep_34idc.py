@@ -38,9 +38,9 @@ import os
 import sys
 import glob
 import tifffile as tif
-import reccdi.src_py.beamlines.spec as spec
+import cohere.src_py.beamlines.spec as spec
 import beamlines.aps_34id.detectors as det
-import reccdi.src_py.utilities.utils as ut
+import cohere.src_py.utilities.utils as ut
 from multiprocessing import Pool
 from multiprocessing import cpu_count
 import re
