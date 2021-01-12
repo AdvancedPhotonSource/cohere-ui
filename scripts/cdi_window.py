@@ -973,6 +973,9 @@ class cdi_conf_tab(QTabWidget):
         -------
         nothing
         """
+        if not is_exp_set():
+            msg_window('info: the experiment is not set, press the "set experiment" button')
+            return
         if not os.path.isfile(conf):
             msg_window('info: the load directory does not contain config_prep file')
             return
@@ -1078,6 +1081,9 @@ class cdi_conf_tab(QTabWidget):
         -------
         nothing
         """
+        if not is_exp_set():
+            msg_window('info: the experiment is not set, press the "set experiment" button')
+            return
         if not os.path.isfile(conf):
             msg_window('info: the load directory does not contain config_data file')
             return
@@ -1134,6 +1140,9 @@ class cdi_conf_tab(QTabWidget):
         -------
         nothing
         """
+        if not is_exp_set():
+            msg_window('info: the experiment is not set, press the "set experiment" button')
+            return
         if not os.path.isfile(conf):
             msg_window('info: the load directory does not contain config_rec file')
             return
@@ -1200,6 +1209,9 @@ class cdi_conf_tab(QTabWidget):
         -------
         nothing
         """
+        if not is_exp_set():
+            msg_window('info: the experiment is not set, press the "set experiment" button')
+            return
         if not os.path.isfile(conf):
             msg_window('info: the load directory does not contain config_disp file')
             return
