@@ -130,9 +130,9 @@ class cdi_gui(QWidget):
         vbox.addWidget(self.t)
 
         downlayout = QFormLayout()
-        self.set_conf_from_button = QPushButton("Load conf from")
-        self.set_conf_from_button.setStyleSheet("background-color:rgb(205,178,102)")
-        downlayout.addWidget(self.set_conf_from_button)
+        self.set_exp_button = QPushButton("Load experiment")
+        self.set_exp_button.setStyleSheet("background-color:rgb(205,178,102)")
+        downlayout.addWidget(self.set_exp_button)
         self.create_exp_button = QPushButton('set experiment')
         self.create_exp_button.setStyleSheet("background-color:rgb(120,180,220)")
         downlayout.addWidget(self.create_exp_button)
@@ -144,7 +144,7 @@ class cdi_gui(QWidget):
         self.setLayout(vbox)
         self.setWindowTitle("CDI Reconstruction")
 
-        self.set_conf_from_button.clicked.connect(self.load_conf_dir)
+        self.set_exp_button.clicked.connect(self.load_experiment)
         self.set_work_dir_button.clicked.connect(self.set_working_dir)
         self.spec_file_button.clicked.connect(self.set_spec_file)
         self.run_button.clicked.connect(self.run_everything)
@@ -250,9 +250,9 @@ class cdi_gui(QWidget):
         return True
 
 
-    def load_conf_dir(self):
+    def load_experiment(self):
         """
-        It shows the select dialog for user to select directory to load configuration from configuration files in that directory. If no configuration files are found user will see info message.
+        It shows a dialog for user to select previously created experiment directory. If no main configuration file is found user will see info message.
 
         Parameters
         ----------
@@ -263,39 +263,34 @@ class cdi_gui(QWidget):
         nothing
         """
         load_dir = select_dir(os.getcwd())
-        missing = 0
         if load_dir is not None:
             # load the experiment info only if no id is entered
-            if os.path.isfile(os.path.join(load_dir, 'config')) and str(self.Id_widget.text()).strip() == '':
+            if os.path.isfile(os.path.join(load_dir, 'conf', 'config')) and str(self.Id_widget.text()).strip() == '':
                 self.load_main(load_dir)
             else:
-                missing += 1
-            conf_prep_file = os.path.join(load_dir, 'config_prep')
+                msg_window('missing conf/config file, not experiment directory')
+                return
+            
+            self.t.clear_configs()
+            conf_prep_file = os.path.join(load_dir, 'conf', 'config_prep')
             if os.path.isfile(conf_prep_file):
                 self.t.load_prep_tab(conf_prep_file)
-            else:
-                missing += 1
-            conf_data_file = os.path.join(load_dir, 'config_data')
+
+            conf_data_file = os.path.join(load_dir, 'conf', 'config_data')
             if os.path.isfile(conf_data_file):
                 self.t.load_data_tab(conf_data_file)
-            else:
-                missing += 1
-            conf_rec_file = os.path.join(load_dir, 'config_rec')
+
+            conf_rec_file = os.path.join(load_dir, 'conf', 'config_rec')
             if os.path.isfile(conf_rec_file):
                 self.t.load_rec_tab(conf_rec_file)
-            else:
-                missing += 1
-            conf_disp_file = os.path.join(load_dir, 'config_disp')
+
+            conf_disp_file = os.path.join(load_dir, 'conf', 'config_disp')
             if os.path.isfile(conf_disp_file):
                 self.t.load_disp_tab(conf_disp_file)
-            else:
-                missing += 1
-            if missing == 5:
-                msg_window('info: no configuration file found in load directory')
-            else:
-                self.set_conf_from_button.setStyleSheet("Text-align:left")
-                self.set_conf_from_button.setText('config loaded')
-                self.set_conf_from_button.setStyleSheet("background-color:rgb(205,178,102)")
+
+            self.set_exp_button.setStyleSheet("Text-align:left")
+            self.set_exp_button.setText('experiment loaded')
+            self.set_exp_button.setStyleSheet("background-color:rgb(205,178,102)")
         else:
             msg_window('please select valid conf directory')
 
@@ -335,12 +330,30 @@ class cdi_gui(QWidget):
         -------
         nothing
         """
-        conf = os.path.join(load_dir, 'config')
+        conf = os.path.join(load_dir, 'conf', 'config')
         try:
             conf_map = ut.read_config(conf)
         except Exception:
             msg_window('please check configuration file ' + conf + '. Cannot parse, ')
             return
+
+        try:
+            self.scan = conf_map.scan
+            self.scan_widget.setText(self.scan)
+        except:
+            self.scan = None
+        try:
+            self.id = conf_map.experiment_id
+            self.Id_widget.setText(self.id)
+            if self.scan != None:
+                self.exp_id = self.id + '_' + self.scan
+            else:
+                self.exp_id = self.id
+        except:
+            self.scan = None
+            self.id = None
+            self.exp_id = None
+            msg_window('id is not configured in ' + conf + ' file.')
 
         try:
             working_dir = conf_map.working_dir
@@ -355,22 +368,8 @@ class cdi_gui(QWidget):
         except:
             pass
 
-        try:
-            self.scan = conf_map.scan
-            self.scan_widget.setText(self.scan)
-        except:
-            self.scan = None
-
-        try:
-            self.id = conf_map.experiment_id
-            self.Id_widget.setText(self.id)
-            if self.scan != None:
-                self.exp_id = self.id + '_' + self.scan
-            else:
-                self.exp_id = self.id
+        if self.working_dir is not None and self.exp_id is not None:
             self.experiment_dir = os.path.join(self.working_dir, self.exp_id)
-        except:
-            pass
 
         try:
             specfile = conf_map.specfile
@@ -747,7 +746,7 @@ class cdi_conf_tab(QTabWidget):
         ulayout.addWidget(self.add_conf_button)
         self.rec_id = QComboBox()
         self.rec_id.InsertAtBottom
-        self.rec_id.addItem("")
+        self.rec_id.addItem("main")
         ulayout.addWidget(self.rec_id)
         self.rec_id.hide()
         self.proc = QComboBox()
@@ -943,6 +942,24 @@ class cdi_conf_tab(QTabWidget):
         self.layout4 = layout
 
 
+    def clear_configs(self):
+        self.clear_prep_conf()
+        self.clear_data_conf()
+        self.clear_rec_conf()
+        self.clear_disp_conf()
+    
+    
+    def clear_prep_conf(self):
+        self.separate_scans.setChecked(False)
+        self.data_dir_button.setText('')
+        self.dark_file_button.setText('')
+        self.white_file_button.setText('')
+        self.Imult.setText('')
+        self.min_files.setText('')
+        self.exclude_scans.setText('')
+        self.roi.setText('')
+    
+    
     def load_prep_tab(self, conf):
         """
         It verifies given configuration file, reads the parameters, and fills out the window.
@@ -972,8 +989,10 @@ class cdi_conf_tab(QTabWidget):
             separate_scans = conf_map.separate_scans
             if separate_scans:
                 self.separate_scans.setChecked(True)
+            else:
+                self.separate_scans.setChecked(False)
         except:
-            pass
+            self.separate_scans.setChecked(False)
         try:
             data_dir = conf_map.data_dir
             if os.path.isdir(data_dir):
@@ -993,6 +1012,8 @@ class cdi_conf_tab(QTabWidget):
                 self.dark_file_button.setText(self.darkfield_filename)
             else:
                 msg_window('The darkfield file ' + darkfield_filename + ' in config_prep file does not exist')
+                self.darkfield_filename = None
+                self.dark_file_button.setText('')
         except:
             self.darkfield_filename = None
             self.dark_file_button.setText('')
@@ -1003,6 +1024,8 @@ class cdi_conf_tab(QTabWidget):
                 self.white_file_button.setStyleSheet("Text-align:left")
                 self.white_file_button.setText(self.whitefield_filename)
             else:
+                self.whitefield_filename = None
+                self.white_file_button.setText('')
                 msg_window('The whitefield file ' + whitefield_filename + ' in config_prep file does not exist')
         except:
             self.whitefield_filename = None
@@ -1033,6 +1056,14 @@ class cdi_conf_tab(QTabWidget):
             self.ready_prep.setStyleSheet("Text-align:left")
             self.ready_prep.setText(prep_file)
 
+
+    def clear_data_conf(self):
+        self.aliens.setText('')
+        self.amp_intensity.setText('')
+        self.binning.setText('')
+        self.center_shift.setText('')
+        self.adjust_dimensions.setText('')
+        
 
     def load_data_tab(self, conf):
         """
@@ -1081,6 +1112,15 @@ class cdi_conf_tab(QTabWidget):
             pass
 
 
+    def clear_rec_conf(self):
+        self.device.setText('')
+        self.reconstructions.setText('')
+        self.alg_seq.setText('')
+        self.beta.setText('')
+        for feat_id in self.features.feature_dir:
+            self.features.feature_dir[feat_id].active.setChecked(False)
+    
+    
     def load_rec_tab(self, conf):
         """
         It verifies given configuration file, reads the parameters, and fills out the window.
@@ -1131,6 +1171,22 @@ class cdi_conf_tab(QTabWidget):
             self.init_results_dir()
 
 
+    def clear_disp_conf(self):
+        self.diffractometer.setText('')
+        self.crop.setText('')
+        self.rampups.setText('')
+        self.energy.setText('')
+        self.delta.setText('')
+        self.gamma.setText('')
+        self.detdist.setText('')
+        self.theta.setText('')
+        self.chi.setText('')
+        self.phi.setText('')
+        self.scanmot.setText('')
+        self.scanmot_del.setText('')
+        self.detector.setText('')
+        
+    
     def load_disp_tab(self, conf):
         """
         It verifies given configuration file, reads the parameters, and fills out the window.
