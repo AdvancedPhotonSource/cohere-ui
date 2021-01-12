@@ -973,7 +973,7 @@ class cdi_conf_tab(QTabWidget):
         -------
         nothing
         """
-        if not is_exp_set():
+        if not self.main_win.is_exp_exists():
             msg_window('info: the experiment is not set, press the "set experiment" button')
             return
         if not os.path.isfile(conf):
@@ -1081,7 +1081,7 @@ class cdi_conf_tab(QTabWidget):
         -------
         nothing
         """
-        if not is_exp_set():
+        if not self.main_win.is_exp_exists():
             msg_window('info: the experiment is not set, press the "set experiment" button')
             return
         if not os.path.isfile(conf):
@@ -1140,7 +1140,7 @@ class cdi_conf_tab(QTabWidget):
         -------
         nothing
         """
-        if not is_exp_set():
+        if not self.main_win.is_exp_exists():
             msg_window('info: the experiment is not set, press the "set experiment" button')
             return
         if not os.path.isfile(conf):
@@ -1209,7 +1209,7 @@ class cdi_conf_tab(QTabWidget):
         -------
         nothing
         """
-        if not is_exp_set():
+        if not self.main_win.is_exp_exists():
             msg_window('info: the experiment is not set, press the "set experiment" button')
             return
         if not os.path.isfile(conf):
