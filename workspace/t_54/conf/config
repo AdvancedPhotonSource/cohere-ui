@@ -1,4 +1,4 @@
 scan = "54"
-working_dir = "/Users/bfrosik/cdisupp/workspace"
+working_dir = "CUR_DIR/workspace"
 experiment_id = "t"
-specfile = "/Users/bfrosik/cdisupp/example/example.spec"
+specfile = "CUR_DIR/example/example.spec"
