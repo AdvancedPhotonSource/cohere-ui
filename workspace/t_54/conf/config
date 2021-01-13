@@ -1,4 +1,4 @@
 scan = "54"
 working_dir = "CUR_DIR/workspace"
-experiment_id = "t"
+experiment_id = "scan"
 specfile = "CUR_DIR/example/example.spec"
