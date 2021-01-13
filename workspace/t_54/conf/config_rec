@@ -1,6 +1,6 @@
 algorithm_sequence = ((3,("ER",20),("HIO",180)),(1,("ER",20)))
-amp_support_trigger = (1,1)
-support_type = "GAUSS"
+shrink_wrap_trigger = (1,1)
+shrink_wrap_type = "GAUSS"
 support_threshold = 0.1
 support_sigma = 1.0
 support_area = (0.5,0.5,0.5)

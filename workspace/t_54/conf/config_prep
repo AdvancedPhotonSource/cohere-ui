@@ -1,10 +1,4 @@
 data_dir = "./example/exp_data"
 darkfield_filename = "./example/dark.tif"
 whitefield_filename = "./example/whitefield.tif"
-roi = [
-0,
-256,
-0,
-256,
-1
-]
+roi = [0, 256, 0, 256, 1]
