@@ -1,4 +1,4 @@
-data_dir = "./example/exp_data"
-darkfield_filename = "./example/dark.tif"
-whitefield_filename = "./example/whitefield.tif"
+data_dir = "/Users/bfrosik/cdisupp/example/exp_data"
+darkfield_filename = "/Users/bfrosik/cdisupp/example/dark.tif"
+whitefield_filename = "/Users/bfrosik/cdisupp/example/whitefield.tif"
 roi = [0, 256, 0, 256, 1]
