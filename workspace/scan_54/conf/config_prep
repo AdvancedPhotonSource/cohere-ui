@@ -1,0 +1,4 @@
+data_dir = "CUR_DIR/example/exp_data"
+darkfield_filename = "CUR_DIR/example/dark.tif"
+whitefield_filename = "CUR_DIR/example/whitefield.tif"
+

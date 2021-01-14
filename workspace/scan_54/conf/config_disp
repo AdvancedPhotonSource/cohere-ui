@@ -1,0 +1,4 @@
+diffractometer = "34idc"
+crop = (0.5,0.5,0.5)
+rampups = 1
+
