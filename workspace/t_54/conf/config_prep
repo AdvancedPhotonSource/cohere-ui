@@ -1,4 +1,3 @@
-data_dir = "/Users/bfrosik/cdisupp/example/exp_data"
-darkfield_filename = "/Users/bfrosik/cdisupp/example/dark.tif"
-whitefield_filename = "/Users/bfrosik/cdisupp/example/whitefield.tif"
-roi = [0, 256, 0, 256, 1]
+data_dir = "CUR_DIR/example/exp_data"
+darkfield_filename = "CUR_DIR/example/dark.tif"
+whitefield_filename = "CUR_DIR/example/whitefield.tif"
