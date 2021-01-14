@@ -1,7 +1,0 @@
-algorithm_sequence = ((3,("ER",20),("HIO",180)),(1,("ER",20)))
-support_threshold = 0.1
-support_sigma = 1.0
-support_area = (0.5,0.5,0.5)
-twin_trigger = (2)
-twin_halves = (0,0)
-progress_trigger = (0,20)
