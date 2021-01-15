@@ -45,10 +45,19 @@ def copy_conf(src, dest):
     try:
         main_conf = os.path.join(src, 'config_prep')
         shutil.copy(main_conf, dest)
+    except:
+        pass
+    try:
         conf_data = os.path.join(src, 'config_data')
         shutil.copy(conf_data, dest)
+    except:
+        pass
+    try:
         conf_rec = os.path.join(src, 'config_rec')
         shutil.copy(conf_rec, dest)
+    except:
+        pass
+    try:
         conf_disp = os.path.join(src, 'config_disp')
         shutil.copy(conf_disp, dest)
     except:
