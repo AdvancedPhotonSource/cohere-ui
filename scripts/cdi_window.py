@@ -129,7 +129,7 @@ class cdi_gui(QWidget):
         self.t = cdi_conf_tab(self)
         vbox.addWidget(self.t)
 
-        downlayout = QVBoxLayout()
+        downlayout = QHBoxLayout()
         downlayout.setAlignment(Qt.AlignCenter)
         self.set_exp_button = QPushButton("load experiment")
         self.set_exp_button.setStyleSheet("background-color:rgb(205,178,102)")
@@ -289,9 +289,9 @@ class cdi_gui(QWidget):
             if os.path.isfile(conf_disp_file):
                 self.t.load_disp_tab(conf_disp_file)
 
-            self.set_exp_button.setStyleSheet("Text-align:left")
-            self.set_exp_button.setText('experiment loaded')
-            self.set_exp_button.setStyleSheet("background-color:rgb(205,178,102)")
+#            self.set_exp_button.setStyleSheet("Text-align:left")
+#            self.set_exp_button.setText('experiment loaded')
+#            self.set_exp_button.setStyleSheet("background-color:rgb(205,178,102)")
         else:
             msg_window('please select valid conf directory')
 
