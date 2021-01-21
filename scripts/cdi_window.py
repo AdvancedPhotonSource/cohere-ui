@@ -289,9 +289,9 @@ class cdi_gui(QWidget):
             if os.path.isfile(conf_disp_file):
                 self.t.load_disp_tab(conf_disp_file)
 
-#            self.set_exp_button.setStyleSheet("Text-align:left")
-#            self.set_exp_button.setText('experiment loaded')
-#            self.set_exp_button.setStyleSheet("background-color:rgb(205,178,102)")
+            self.set_exp_button.setStyleSheet("Text-align:left")
+            self.set_exp_button.setText('experiment loaded')
+            self.set_exp_button.setStyleSheet("background-color:rgb(205,178,102)")
         else:
             msg_window('please select valid conf directory')
 
@@ -770,6 +770,12 @@ class cdi_conf_tab(QTabWidget):
         # TODO add logic to show this only if HIO is in sequence
         self.beta = QLineEdit()
         ulayout.addRow("beta", self.beta)
+        self.support_area = QLineEdit()
+        ulayout.addRow("starting support area", self.support_area)
+        self.threshold = QLineEdit()
+        ulayout.addRow("threshold", self.threshold)
+        self.sigma = QLineEdit()
+        ulayout.addRow("sigma", self.sigma)
         self.rec_default_button = QPushButton('set to defaults', self)
         ulayout.addWidget(self.rec_default_button)
 
@@ -1128,6 +1134,9 @@ class cdi_conf_tab(QTabWidget):
         self.reconstructions.setText('')
         self.alg_seq.setText('')
         self.beta.setText('')
+        self.support_area.setText('')
+        self.sigma.setText('')
+        self.threshold.setText('')
         for feat_id in self.features.feature_dir:
             self.features.feature_dir[feat_id].active.setChecked(False)
     
@@ -1176,7 +1185,19 @@ class cdi_conf_tab(QTabWidget):
             self.beta.setText(str(conf_map.beta).replace(" ", ""))
         except AttributeError:
             pass
-
+        try:
+            self.support_area.setText(str(conf_map.support_area).replace(" ", ""))
+        except AttributeError:
+            pass
+        try:
+            self.threshold.setText(str(conf_map.support_threshold).replace(" ", ""))
+        except AttributeError:
+            pass
+        try:
+            self.sigma.setText(str(conf_map.support_sigma).replace(" ", ""))
+        except AttributeError:
+            pass
+            
         for feat_id in self.features.feature_dir:
             self.features.feature_dir[feat_id].init_config(conf_map)
 
@@ -1389,6 +1410,12 @@ class cdi_conf_tab(QTabWidget):
             conf_map['algorithm_sequence'] = str(self.alg_seq.text()).replace('\n','')
         if len(self.beta.text()) > 0:
             conf_map['beta'] = str(self.beta.text())
+        if len(self.threshold.text()) > 0:
+            conf_map['support_threshold'] = str(self.threshold.text())
+        if len(self.sigma.text()) > 0:
+            conf_map['support_sigma'] = str(self.sigma.text())
+        if len(self.support_area.text()) > 0:
+            conf_map['support_area'] = str(self.support_area.text()).replace('\n','')
         if self.cont.isChecked():
             conf_map['continue_dir'] = str(self.cont_dir.text())
 
@@ -2106,6 +2133,9 @@ class cdi_conf_tab(QTabWidget):
             self.alg_seq.setText('((3,("ER",20),("HIO",180)),(1,("ER",20)))')
             self.beta.setText('.9')
             self.cont.setChecked(False)
+            self.support_area.setText('(.5,.5,.5)')
+            self.sigma.setText('1.0')
+            self.threshold.setText('0.1')
 
 
 class Feature(object):
@@ -2519,18 +2549,6 @@ class shrink_wrap(Feature):
             self.shrink_wrap_type.setText(str(conf_map.shrink_wrap_type).replace(" ", ""))
         except AttributeError:
             pass
-        try:
-            self.support_area.setText(str(conf_map.support_area).replace(" ", ""))
-        except AttributeError:
-            pass
-        try:
-            self.threshold.setText(str(conf_map.support_threshold).replace(" ", ""))
-        except AttributeError:
-            pass
-        try:
-            self.sigma.setText(str(conf_map.support_sigma).replace(" ", ""))
-        except AttributeError:
-            pass
 
 
     def fill_active(self, layout):
@@ -2550,12 +2568,6 @@ class shrink_wrap(Feature):
         layout.addRow("shrink wrap triggers", self.shrink_wrap_triggers)
         self.shrink_wrap_type = QLineEdit()
         layout.addRow("shrink wrap algorithm", self.shrink_wrap_type)
-        self.support_area = QLineEdit()
-        layout.addRow("starting support area", self.support_area)
-        self.threshold = QLineEdit()
-        layout.addRow("threshold", self.threshold)
-        self.sigma = QLineEdit()
-        layout.addRow("sigma", self.sigma)
 
 
     def rec_default(self):
@@ -2572,9 +2584,6 @@ class shrink_wrap(Feature):
         """
         self.shrink_wrap_triggers.setText('(1,1)')
         self.shrink_wrap_type.setText('GAUSS')
-        self.support_area.setText('(.5,.5,.5)')
-        self.sigma.setText('1.0')
-        self.threshold.setText('0.1')
 
 
     def add_feat_conf(self, conf_map):
@@ -2592,9 +2601,6 @@ class shrink_wrap(Feature):
         """
         conf_map['shrink_wrap_trigger'] = str(self.shrink_wrap_triggers.text()).replace('\n','')
         conf_map['shrink_wrap_type'] = '"' + str(self.shrink_wrap_type.text()) + '"'
-        conf_map['support_threshold'] = str(self.threshold.text())
-        conf_map['support_sigma'] = str(self.sigma.text())
-        conf_map['support_area'] = str(self.support_area.text()).replace('\n','')
 
 
 class phase_support(Feature):
