@@ -1,7 +1,7 @@
-# cdisupp
+# cohere-scripts
 User files
 
-This repository contains supplementary files to the cohere https://github.com/advancedPhotonSource/cdi tools.
+This repository contains supplementary files to the cohere tools https://github.com/advancedPhotonSource/cohere.
 
 After installing this repository run setup.py script:
 
