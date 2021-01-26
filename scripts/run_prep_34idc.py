@@ -14,20 +14,17 @@ This script is written for a specific APS beamline. It reads multiple raw data f
 
 __author__ = "Ross Harder"
 __docformat__ = 'restructuredtext en'
-__all__ = ['get_dir_dict2'
-           'read_scan',
-           'shift_ftarr',
-           'shift',
+__all__ = ['get_dirs'
            'fast_shift',
            'shift_to_ref_array',
+           'estimate_no_proc',
            'set_prep'
            'main',
            'PrepData.__init__',
-           'PrepData.single_scan',
-           'PrepData.write_split_scan',
-           'PrepData.write_sum_scan',
+           'PrepData.read_scan',
+           'PrepData.write_prep_arr',
            'PrepData.read_align',
-           'PrepData.estimate_nconcurrent',
+           'PrepData.read_write',
            'PrepData.prep_data']
 
 import argparse
@@ -47,8 +44,7 @@ import re
 import psutil
 
 
-####################################################################################
-def get_dir_dict2(scans, main_map, prep_map):
+def get_dirs(scans, main_map, prep_map):
     """
     Finds directories with data files.
     
@@ -67,6 +63,8 @@ def get_dir_dict2(scans, main_map, prep_map):
     -------
     dirs : list
         list of directories with raw data that will be included in prepared data
+    scans : list
+        list of scan numbers corresponding to the directories in the dirs list
     """
     try:
         min_files = prep_map.min_files
@@ -82,7 +80,8 @@ def get_dir_dict2(scans, main_map, prep_map):
         print('please provide data_dir')
         return
 
-    dirs = {}
+    dirs = []
+    scans = []
     for name in os.listdir(data_dir):
         subdir = os.path.join(data_dir, name)
         if os.path.isdir(subdir):
@@ -91,109 +90,18 @@ def get_dir_dict2(scans, main_map, prep_map):
                 continue
             last_digits = re.search(r'\d+$', name)
             if last_digits is not None:
-                index = int(last_digits.group())
-                if index >= scans[0] and index <= scans[1] and not index in exclude_scans:
-                   dirs[index] = subdir
-    return dirs
+                scan = int(last_digits.group())
+                if scan >= scans[0] and scan <= scans[1] and not scan in exclude_scans:
+                    dirs.append(subdir)
+                    scans.append(scan)
+    scans_order = np.argsort(scans).tolist()
+    first_index = scans.pop(scans_order[0])
+    first_dir = dirs.pop(scans_order[0])
+    scans.insert(0, first_index)
+    dirs.insert(0, first_index)
+    return dirs, scans
 
 
-###################################################################################
-def read_scan(dir, detector, det_area, Imult):
-    """
-    Reads raw data files from scan directory, applies correction, and returns 3D corrected data for a single scan directory.
-    
-    The correction is detector dependent. It can be darkfield and/ot whitefield correction.
-
-    Parameters
-    ----------
-    dir : str
-        directory to read the raw files from
-    detector : str
-        name of detector used to take the images. The detector should have a dedicated class that extends Detector class.
-    det_area : list
-        a list of integer defining detector area in pixels. The list (x0, x1, y0, y1) are as follows: X0, y0 - starting point, x1, y1 - distance.
-        The det_area is typically read from scan file. If not given it will default to detector's entire area.
-
-    Returns
-    -------
-    arr : ndarray
-        3D array containing corrected data for one scan.
-    """
-    files = []
-    files_dir = {}
-    for file in os.listdir(dir):
-        if file.endswith('tif'):
-            fnbase = file[:-4]
-        elif file.endswith('tiff'):
-            fnbase = file[:-4]
-        else:
-            continue
-        last_digits = re.search(r'\d+$', fnbase)
-        if last_digits is not None:
-            key = int(last_digits.group())
-            files_dir[key] = file
-
-    ordered_keys = sorted(list(files_dir.keys()))
-
-    for key in ordered_keys:
-        file = files_dir[key]
-        files.append(os.path.join(dir, file))
-
-    # look at slice0 to find out shape
-    n = 0
-    slice0 = detector.get_frame(files[n], det_area, Imult)
-    shape = (slice0.shape[0], slice0.shape[1], len(files))
-    arr = np.zeros(shape, dtype=slice0.dtype)
-    arr[:, :, 0] = slice0
-
-    for file in files[1:]:
-        n = n + 1
-        slice = detector.get_frame(file, det_area, Imult)
-        arr[:, :, n] = slice
-    return arr
-
-
-###################################################################################
-def shift_ftarr(ftarr, shifty):
-    """
-    Not used
-    """
-# pass the FT of the fftshifted array you want to shift
-    # you get back the actual array, not the FT.
-    dims = ftarr.shape
-    r = []
-    for d in dims:
-        r.append(slice(int(np.ceil(-d / 2.)), int(np.ceil(d / 2.)), None))
-    idxgrid = np.mgrid[r]
-    for d in range(len(dims)):
-        ftarr *= np.exp(-1j * 2 * np.pi * shifty[d] * np.fft.fftshift(idxgrid[d]) / float(dims[d]))
-
-    shifted_arr = np.fft.ifftn(ftarr)
-    return shifted_arr
-
-
-###################################################################################
-def shift(arr, shifty):
-    """
-    Not used
-    """
-    # you get back the actual array, not the FT.
-    dims = arr.shape
-    # scipy does normalize ffts!
-    ftarr = np.fft.fftn(arr)
-    r = []
-    for d in dims:
-        r.append(slice(int(np.ceil(-d / 2.)), int(np.ceil(d / 2.)), None))
-    idxgrid = np.mgrid[r]
-    for d in range(len(dims)):
-        ftarr *= np.exp(-1j * 2 * np.pi * shifty[d] * np.fft.fftshift(idxgrid[d]) / float(dims[d]))
-
-    shifted_arr = np.fft.ifftn(ftarr)
-    del ftarr
-    return shifted_arr
-
-
-###################################################################################
 # supposedly this is faster than np.roll or scipy interpolation shift.
 # https://stackoverflow.com/questions/30399534/shift-elements-in-a-numpy-array
 def fast_shift(arr, shifty, fill_val=0):
@@ -234,7 +142,6 @@ def fast_shift(arr, shifty, fill_val=0):
     return result
 
 
-###################################################################################
 def shift_to_ref_array(fft_ref, array):
     """
     Returns an array shifted to align with ref, only single pixel resolution pass fft of ref array to save doing that a lot.
@@ -265,14 +172,31 @@ def shift_to_ref_array(fft_ref, array):
     return shifted_arr
 
 
-###################################################################################
-# https://www.edureka.co/community/1245/splitting-a-list-into-chunks-in-python
-# this returns a generator, like range()
-# def chunks(l, n):
-#    for i in range(0, len(l), n):
-#        yield l[i:i + n]
+def estimate_no_proc(arr_size, factor):
+    """
+    Estimates number of processes the prep can be run on. Determined by number of available cpus and size of array
 
-###################################################################################
+    Parameters
+    ----------
+    arr_size : int
+        size of array
+    factor : int
+        an estimate of how much memory is required to process comparing to array size
+
+    Returns
+    -------
+    number of processes
+    """
+    ncpu = cpu_count()
+    freemem = psutil.virtual_memory().available
+    nmem = freemem / (factor * arr_size)
+    # decide what limits, ncpu or nmem
+    if nmem > ncpu:
+        return ncpu
+    else:
+        return int(nmem)
+
+
 class PrepData:
     """
     This class contains fields needed for the data preparation, parsed from configuration file. The class uses helper functions to prepare the data.
@@ -371,7 +295,7 @@ class PrepData:
         if len(scans) == 1:
             scans.append(scans[0])
 
-        self.dirs = get_dir_dict2(scans, main_conf_map, prep_conf_map)
+        self.dirs, self.scans = get_dirs(scans, main_conf_map, prep_conf_map)
 
         if len(self.dirs) == 0:
             print('no data directories found')
@@ -379,136 +303,98 @@ class PrepData:
             if not os.path.exists(experiment_dir):
                 os.makedirs(experiment_dir)
 
-    ########################################
-    def single_scan(self):
+
+    def read_scan(self, dir):
         """
-        Not used
+        Reads raw data files from scan directory, applies correction, and returns 3D corrected data for a single scan directory.
+        
+        The correction is detector dependent. It can be darkfield and/ot whitefield correction.
+
+        Parameters
+        ----------
+        dir : str
+            directory to read the raw files from
+
+        Returns
+        -------
+        arr : ndarray
+            3D array containing corrected data for one scan.
         """
-        # handle the easy case of a single scan
-        arr = read_scan(self.dirs[scan], self.detector, self.roi, self.Imult)
-        prep_data_dir = os.path.join(self.experiment_dir, 'prep')
+        files = []
+        files_dir = {}
+        for file in os.listdir(dir):
+            if file.endswith('tif'):
+                fnbase = file[:-4]
+            elif file.endswith('tiff'):
+                fnbase = file[:-4]
+            else:
+                continue
+            last_digits = re.search(r'\d+$', fnbase)
+            if last_digits is not None:
+                key = int(last_digits.group())
+                files_dir[key] = file
+
+        ordered_keys = sorted(list(files_dir.keys()))
+
+        for key in ordered_keys:
+            file = files_dir[key]
+            files.append(os.path.join(dir, file))
+
+        # look at slice0 to find out shape
+        n = 0
+        slice0 = self.detector.get_frame(files[n], self.roi, self.Imult)
+        shape = (slice0.shape[0], slice0.shape[1], len(files))
+        arr = np.zeros(shape, dtype=slice0.dtype)
+        arr[:, :, 0] = slice0
+
+        for file in files[1:]:
+            n = n + 1
+            slice = self.detector.get_frame(file, self.roi, self.Imult)
+            arr[:, :, n] = slice
+        return arr
+
+
+    def write_prep_arr(self, arr, index=None):
+        """
+        This clear the seam dependable on detector from the prepared array and saves the prepared data in <experiment_dir>/prep directory of
+        experiment or <experiment_dir>/<scan_dir>/prep if writing for separate scans.
+        """
+        if index is None:
+            prep_data_dir = os.path.join(self.experiment_dir, 'prep')
+        else:
+            prep_data_dir = os.path.join(self.experiment_dir, *('scan_' + str(index), 'prep'))
         data_file = os.path.join(prep_data_dir, 'prep_data.tif')
         if not os.path.exists(prep_data_dir):
             os.makedirs(prep_data_dir)
+        arr = self.detector.clear_seam(arr, self.roi)
         ut.save_tif(arr, data_file)
 
-    ########################################
-    def write_split_scan(self, scan_arrs):
-        """
-        This function is used when the scans are treated as separate data, i.e the "separate_scans" configuration parameter is set to true.
-        
-        Prepared data for ech scan is saved in <experiment_dir>/<scan_dir>/prep
 
-        Parameters
-        ----------
-        scan_arrs : list of arrays
-            list of prepared data, each for a scan
-
-        Returns
-        -------
-        nothing
-        """
-        n = 0
-        for scan in scan_arrs:
-            # write array.  filename based on scan number (scan_arrs[n][0])
-            prep_data_dir = os.path.join(self.experiment_dir, *('scan_' + str(scan[0]), 'prep'))
-            data_file = os.path.join(prep_data_dir, 'prep_data.tif')
-            if not os.path.exists(prep_data_dir):
-                os.makedirs(prep_data_dir)
-            ut.save_tif(scan[1], data_file)
-            n += 1  # this needs to be at top because of the continues in the ifs below.
-
-    ########################################
-    # Scan arrs is a list of tuples containing scan number and the array
-    def write_sum_scan(self, scan_arrs):
-        """
-        Sums the 3D data from all scans and saves the data in <experiment_dir>/prep.
-
-        Parameters
-        ----------
-        scan_arrs : list of arrays
-            list of prepared data, each for a scan
-
-        Returns
-        -------
-        nothing
-        """
-        prep_data_dir = os.path.join(self.experiment_dir, 'prep')
-        data_file = os.path.join(prep_data_dir, 'prep_data.tif')
-        temp_file = os.path.join(prep_data_dir, 'temp.tif')
-        if not os.path.exists(prep_data_dir):
-            os.makedirs(prep_data_dir)
-        if os.path.isfile(temp_file):
-            sumarr = ut.read_tif(temp_file)
-        else:
-            sumarr = np.zeros_like(scan_arrs[0][1])
-        for arr in scan_arrs:
-            sumarr = sumarr + arr[1]
-        if (len(self.dirs) == 0):
-            # i looked at it a little and decided it was better to insert the seam if
-            # needed before the alignment.  Now need to blank it out after
-            # all of the shifts made them nonzero.
-
-            sumarr = self.detector.clear_seam(sumarr, self.roi)
-            ut.save_tif(sumarr, data_file)
-            if os.path.isfile(temp_file):
-                os.remove(temp_file)
-        else:
-            ut.save_tif(sumarr, temp_file)
-
-    ########################################
-    def read_align(self, scan):  # this can have only single argument for Pool.
+    def read_align(self, dir):
         """
         Aligns scan with reference array.  Referrence array is field of this class.
 
         Parameters
         ----------
-        scan : list
-            list containing scan number and directory to the raw data
+        dir : str
+            directory to the raw data
 
         Returns
         -------
-        scan[0] : int
-            scan number that was aligned
         aligned_array : array
             aligned array
         """
-        scan_arr = read_scan(scan[1], self.detector, self.roi, self.Imult)
-        shifted_arr = shift_to_ref_array(self.fft_refarr, scan_arr)
-        aligned_arr = np.abs(shifted_arr)
-        del shifted_arr
-        return (scan[0], aligned_arr)
+        # read
+        arr = read_scan(dir, self.detector, self.roi, self.Imult)
+        # align
+        return np.abs(shift_to_ref_array(self.fft_refarr, arr))
 
-    ########################################
-    def estimate_nconcurrent(self):
-        """
-        Estimates number of processes the prep can be run on. Determined by number of available cpus and size of array
 
-        Parameters
-        ----------
-        none
+    def read_write(self, index):
+        arr = read_scan(self.dirs[index])
+        self.write_prep_arr(arr, self.scans[index])
 
-        Returns
-        -------
-        number of processes
-        """
-        # guess this takes about 11 arrays to complete a single data set!
-        # counting complex arrs as 2 arrays
-        # fastshift should be more efficient
-        # running out of ram for system pipe to hold results
-        # need to write intermediate results to temp file.
-        ncpu = cpu_count()
-        narrs = len(self.dirs)
-        freemem = psutil.virtual_memory().available
-        arrsize = sys.getsizeof(self.fft_refarr) / 2  # fft_refarr is comples arr!
-        nmem = freemem / (15 * arrsize)  # use 15 to leave some room
-        # decide what limits, ncpu or nmem
-        if nmem > ncpu:
-            return ncpu
-        else:
-            return nmem
 
-    ########################################
     # Pooling the read and align since that takes a while for each array
     def prep_data(self):
         """
@@ -522,50 +408,48 @@ class PrepData:
         -------
         nothing
         """
-        self.scan_list = list(self.dirs)
-        # scan_list is used for writing arrays if separate scans
-        # because dirs.keys gets the arrays popped out.
-        firstscan = list(self.dirs)[0]
-        refarr = read_scan(self.dirs.pop(firstscan), self.detector, self.roi, self.Imult)
-
-        # write the first scan to temp or if only scan, we are done here.
-        if self.separate_scans:
-            self.write_split_scan([(firstscan, refarr), ])  # if you say separate scans and only pass one scan you get a new dir.
+        if len(self.dirs) == 1:
+            arr = read_scan(self.dirs[0])
+            self.write_prep_arr(arr)
+        elif self.separate_scans:
+            with Pool(processes=min(len(self.dirs), cpu_count())) as pool:
+                pool.map_async(self.read_write, self.scans)
+                pool.close()
+                pool.join()
         else:
-            self.write_sum_scan([(firstscan, refarr), ])  # this works for single scan as well
-
-        if len(self.dirs) >= 1:
+            first_dir = self.dirs.pop(0)
+            refarr = read_scan(first_dir)
+            sumarr = np.zeros_like(refarr)
+            sumarr = sumarr + refarr
             self.fft_refarr = np.fft.fftn(refarr)
+            arr_size = sys.getsizeof(refarr)
+            
+            # https://www.edureka.co/community/1245/splitting-a-list-into-chunks-in-python
             # Need to further chunck becauase the result queue needs to hold N arrays.
             # if there are a lot of them and they are big, it runs out of ram.
-            # since process takes 10-12 arrays, maybe divide nscans/12 and make that many chunks
-            # to pool?  Can also ask between pools how much ram is avaiable and modify nproc.
-            while (len(list(self.dirs)) > 0):
-                nproc = int(self.estimate_nconcurrent())
-                chunklist = list(self.dirs)[0:nproc]
-                # by using pop the dirs dict gets shorter
-                poollist = [(s, self.dirs.pop(s)) for s in chunklist]
+            # since process takes 10-12 arrays, divide nscans/15 (to be safe) and make that many
+            # chunks to pool.  Also ask between pools how much ram is avaiable and modify nproc.
+            
+            while (len(self.dirs) > 0):
+                nproc = estimate_no_proc(arr_size, 15)
+                chunklist = self.dirs[0:min(len(self.dirs), nproc)]
+                poollist = [self.dirs.pop(0) for i in range (len(chunklist))]
                 with Pool(processes=nproc) as pool:
-                    # read_align return (scan, aligned_arr)
                     res = pool.map_async(self.read_align, poollist)
                     pool.close()
                     pool.join()
-                # should also process the result queues after each pool completes.
-                # maybe work sums directly onto disk to save ram.  Can't hold all of the
-                # large arrays in ram to add when done. This is all done.
-                scan_arrs = [arr for arr in res.get()]
-                if self.separate_scans:
-                    self.write_split_scan(scan_arrs)  # if you say separate scans and only pass one scan you get a new dir.
-                else:
-                    self.write_sum_scan(scan_arrs)  # this works for single scan as well
+                for arr in res.get():
+                    sumarr = sumarr + arr
+            self.write_prep_arr(sumarr)
+
         print ('done with prep')
 
 
-#################################################################################
 
 def set_prep(experiment_dir):
     """
-    Reads the configuration files and accrdingly creates prep_data.tif file in <experiment_dir>/prep directory or multiple prep_data.tif in <experiment_dir>/<scan_<scan_no>>/prep directories.
+    Reads the configuration files and accrdingly creates prep_data.tif file in <experiment_dir>/prep directory or multiple
+    prep_data.tif in <experiment_dir>/<scan_<scan_no>>/prep directories.
 
     Parameters
     ----------
@@ -577,6 +461,8 @@ def set_prep(experiment_dir):
     experimnent_dir : str
         directory with experiment files
     """
+    import time
+
     prep_conf = os.path.join(experiment_dir, 'conf/config_prep')
     if os.path.isfile(prep_conf):
         p = PrepData(experiment_dir)
@@ -585,7 +471,10 @@ def set_prep(experiment_dir):
         elif p.detector is None:
             print ('detector with configured name is not defined')
         else:
+            s_t = time.time()
             p.prep_data()
+            r_t = time.time()-s_t
+            print ('took ' + str(r_t) + ' sec to prepare')
     else:
         print('missing ' + prep_conf + ' file')
     return experiment_dir
