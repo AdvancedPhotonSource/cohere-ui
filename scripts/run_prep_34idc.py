@@ -63,7 +63,7 @@ def get_dirs(scans, main_map, prep_map):
     -------
     dirs : list
         list of directories with raw data that will be included in prepared data
-    scans : list
+    scan_inxs : list
         list of scan numbers corresponding to the directories in the dirs list
     """
     try:
@@ -81,7 +81,7 @@ def get_dirs(scans, main_map, prep_map):
         return
 
     dirs = []
-    scans = []
+    scan_inxs = []
     for name in os.listdir(data_dir):
         subdir = os.path.join(data_dir, name)
         if os.path.isdir(subdir):
@@ -93,13 +93,13 @@ def get_dirs(scans, main_map, prep_map):
                 scan = int(last_digits.group())
                 if scan >= scans[0] and scan <= scans[1] and not scan in exclude_scans:
                     dirs.append(subdir)
-                    scans.append(scan)
-    scans_order = np.argsort(scans).tolist()
-    first_index = scans.pop(scans_order[0])
+                    scan_inxs.append(scan)
+    scans_order = np.argsort(scan_inxs).tolist()
+    first_index = scan_inxs.pop(scans_order[0])
     first_dir = dirs.pop(scans_order[0])
-    scans.insert(0, first_index)
-    dirs.insert(0, first_index)
-    return dirs, scans
+    scan_inxs.insert(0, first_index)
+    dirs.insert(0, first_dir)
+    return dirs, scan_inxs
 
 
 # supposedly this is faster than np.roll or scipy interpolation shift.
@@ -385,13 +385,13 @@ class PrepData:
             aligned array
         """
         # read
-        arr = read_scan(dir, self.detector, self.roi, self.Imult)
+        arr = self.read_scan(dir, self.detector, self.roi, self.Imult)
         # align
         return np.abs(shift_to_ref_array(self.fft_refarr, arr))
 
 
     def read_write(self, index):
-        arr = read_scan(self.dirs[index])
+        arr = self.read_scan(self.dirs[index])
         self.write_prep_arr(arr, self.scans[index])
 
 
@@ -409,7 +409,7 @@ class PrepData:
         nothing
         """
         if len(self.dirs) == 1:
-            arr = read_scan(self.dirs[0])
+            arr = self.read_scan(self.dirs[0])
             self.write_prep_arr(arr)
         elif self.separate_scans:
             with Pool(processes=min(len(self.dirs), cpu_count())) as pool:
@@ -418,7 +418,7 @@ class PrepData:
                 pool.join()
         else:
             first_dir = self.dirs.pop(0)
-            refarr = read_scan(first_dir)
+            refarr = self.read_scan(first_dir)
             sumarr = np.zeros_like(refarr)
             sumarr = sumarr + refarr
             self.fft_refarr = np.fft.fftn(refarr)
@@ -461,8 +461,6 @@ def set_prep(experiment_dir):
     experimnent_dir : str
         directory with experiment files
     """
-    import time
-
     prep_conf = os.path.join(experiment_dir, 'conf/config_prep')
     if os.path.isfile(prep_conf):
         p = PrepData(experiment_dir)
@@ -471,10 +469,7 @@ def set_prep(experiment_dir):
         elif p.detector is None:
             print ('detector with configured name is not defined')
         else:
-            s_t = time.time()
             p.prep_data()
-            r_t = time.time()-s_t
-            print ('took ' + str(r_t) + ' sec to prepare')
     else:
         print('missing ' + prep_conf + ' file')
     return experiment_dir
