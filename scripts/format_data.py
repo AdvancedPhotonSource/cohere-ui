@@ -15,6 +15,8 @@ import os
 import numpy as np
 import cohere.src_py.utilities.utils as ut
 import cohere.src_py.utilities.parse_ver as ver
+import AlienTools as at
+import pylibconfig2
 
 __author__ = "Barbara Frosik"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
@@ -22,7 +24,6 @@ __docformat__ = 'restructuredtext en'
 __all__ = ['prep',
            'data',
            'main']
-
 
 def prep(fname, conf_info):
     """
@@ -77,9 +78,20 @@ def prep(fname, conf_info):
         return
 
     try:
+        data_dir = config_map.data_dir
+    except AttributeError:
+        data_dir = 'data'
+        if experiment_dir is not None:
+            data_dir = os.path.join(experiment_dir, data_dir)
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir)
+
+    try:
         aliens = config_map.aliens
+        if aliens == 'AutoAlien1':
+            data = at.auto_dealien(data, config_map, data_dir)
         # the parameter was entered as a list
-        if issubclass(type(aliens), list):
+        elif issubclass(type(aliens), list):
             for alien in aliens:
                 # The ImageJ swaps the x and y axis, so the aliens coordinates needs to be swapped, since ImageJ is used
                 # to find aliens
@@ -152,15 +164,6 @@ def prep(fname, conf_info):
             print ('check "binning" configuration')
     except AttributeError:
         pass
-
-    try:
-        data_dir = config_map.data_dir
-    except AttributeError:
-        data_dir = 'data'
-        if experiment_dir is not None:
-            data_dir = os.path.join(experiment_dir, data_dir)
-    if not os.path.exists(data_dir):
-        os.makedirs(data_dir)
 
     # save data
     data_file = os.path.join(data_dir, 'data.tif')
