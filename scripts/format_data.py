@@ -88,27 +88,11 @@ def prep(fname, conf_info):
 
     try:
         aliens = config_map.aliens
-        if aliens == 'AutoAlien1':
-            data = at.auto_dealien(data, config_map, data_dir)
-        # the parameter was entered as a list
-        elif issubclass(type(aliens), list):
-            for alien in aliens:
-                # The ImageJ swaps the x and y axis, so the aliens coordinates needs to be swapped, since ImageJ is used
-                # to find aliens
-                data[alien[0]:alien[3], alien[1]:alien[4], alien[2]:alien[5]] = 0
-        # the parameter was entered as a file name (mask)
-        else:
-            if os.path.isfile(aliens):
-                mask = np.load(aliens)
-                for i in range(len(mask.shape)):
-                    if mask.shape[i] != data.shape[i]:
-                        print ('exiting, mask must be of the same shape as data:', data.shape)
-                        return
-                data = np.where((mask==1), data, 0.0)
+        data = at.remove_aliens(aliens, data, config_map, data_dir)
     except AttributeError:
         pass
     except Exception as e:
-        print ('exiting, error in aliens configuration ', str(e))
+        print ('exiting, error in aliens removal ', str(e))
         return
 
     try:

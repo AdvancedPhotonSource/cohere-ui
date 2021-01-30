@@ -307,6 +307,29 @@ def auto_dealien(data, config, data_dir=None):
     return cuboid
 
 
+def remove_aliens(aliens, data, config_map, data_dir=None):
+    print (aliens)
+    if aliens == 'AutoAlien1':
+        data = auto_dealien(data, config_map, data_dir)
+    # the parameter was entered as a list
+    elif issubclass(type(aliens), list):
+        for alien in aliens:
+            # The ImageJ swaps the x and y axis, so the aliens coordinates needs to be swapped, since ImageJ is used
+            # to find aliens
+            data[alien[0]:alien[3], alien[1]:alien[4], alien[2]:alien[5]] = 0
+    # the parameter was entered as a file name (mask)
+    elif os.path.isfile(aliens):
+        mask = np.load(aliens)
+        for i in range(len(mask.shape)):
+            if mask.shape[i] != data.shape[i]:
+                print ('exiting, mask must be of the same shape as data:', data.shape)
+                return
+        data = np.where((mask==1), data, 0.0)
+
+    return data
+
+
+
 ## https://stackoverflow.com/questions/51503672/decorator-for-timeit-timeit-method/51503837#51503837
 #from functools import wraps
 #from time import time
