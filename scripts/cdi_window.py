@@ -31,12 +31,10 @@ import beamlines.aps_34id.diffractometers as dif
 def select_file(start_dir):
     """
     Shows dialog interface allowing user to select file from file system.
-
     Parameters
     ----------
     start_dir : str
         directory where to start selecting the file
-
     Returns
     -------
     str
@@ -54,12 +52,10 @@ def select_file(start_dir):
 def select_dir(start_dir):
     """
     Shows dialog interface allowing user to select directory from file system.
-
     Parameters
     ----------
     start_dir : str
         directory where to start selecting
-
     Returns
     -------
     str
@@ -77,12 +73,10 @@ def select_dir(start_dir):
 def msg_window(text):
     """
     Shows message with requested information (text)).
-
     Parameters
     ----------
     text : str
         string that will show on the screen
-
     Returns
     -------
     noting
@@ -98,11 +92,9 @@ class cdi_gui(QWidget):
     def __init__(self, parent=None):
         """
         Constructor, initializes GUI.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         noting
@@ -156,11 +148,9 @@ class cdi_gui(QWidget):
         """
         Calls selection dialog. The selected spec file is parsed.
         The specfile is saved in config.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         noting
@@ -180,11 +170,9 @@ class cdi_gui(QWidget):
     def run_everything(self):
         """
         Runs everything.py user script in bin directory.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -204,11 +192,9 @@ class cdi_gui(QWidget):
         """
         Determines if minimum information for creating the experiment space exists, i.e the working directory and experiment id must be set.
         Resolves the experiment name, and create experiment directory if it does not exist.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         boolean
@@ -230,11 +216,9 @@ class cdi_gui(QWidget):
     def is_exp_set(self):
         """
         The GUI can be used to load an experiment, and then change the parameters, such id or scan. This function will return True if information in class are the same as in the GUI.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         boolean
@@ -254,11 +238,9 @@ class cdi_gui(QWidget):
     def load_experiment(self):
         """
         It shows a dialog for user to select previously created experiment directory. If no main configuration file is found user will see info message.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -289,9 +271,9 @@ class cdi_gui(QWidget):
             if os.path.isfile(conf_disp_file):
                 self.t.load_disp_tab(conf_disp_file)
 
-            self.set_exp_button.setStyleSheet("Text-align:left")
-            self.set_exp_button.setText('experiment loaded')
-            self.set_exp_button.setStyleSheet("background-color:rgb(205,178,102)")
+#            self.set_exp_button.setStyleSheet("Text-align:left")
+#            self.set_exp_button.setText('experiment loaded')
+#            self.set_exp_button.setStyleSheet("background-color:rgb(205,178,102)")
         else:
             msg_window('please select valid conf directory')
 
@@ -299,11 +281,9 @@ class cdi_gui(QWidget):
     def set_working_dir(self):
         """
         It shows the select dialog for user to select working directory. If the selected directory does not exist user will see info message.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -321,12 +301,10 @@ class cdi_gui(QWidget):
     def load_main(self, load_dir):
         """
         It reads 'config' file from the given directory, parses all parameters, verifies, and sets the display in window and class members to parsed values.
-
         Parameters
         ----------
         load_dir : str
             a directory to load the main configuration from
-
         Returns
         -------
         nothing
@@ -396,11 +374,9 @@ class cdi_gui(QWidget):
     def update_rec_configs_choice(self):
         """
         Looks for alternate reconstruction configurations, and updates window with that information.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -419,11 +395,9 @@ class cdi_gui(QWidget):
     def assure_experiment_dir(self):
         """
         It creates experiment directory, and experiment configuration directory if they dp not exist.
-
         Parameters
         ----------
         nothing
-
         Returns
         -------
         nothing
@@ -440,11 +414,9 @@ class cdi_gui(QWidget):
     def set_experiment(self):
         """
         Reads the parameters in the window, and sets the experiment to this values, i.e. creates experiment directory, and saves all configuration files with parameters from window.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -513,7 +485,6 @@ class cdi_gui(QWidget):
     def write_conf(self, conf_map, dir, file):
         """
         It creates configuration file from the parameters included in dictionary, verifies, and saves in the configuration directory.
-
         Parameters
         ----------
         conf_map : dict
@@ -522,7 +493,6 @@ class cdi_gui(QWidget):
             a directory where the configuration file will be saved
         file : str
             name of the configuration file to save
-
         Returns
         -------
         nothing
@@ -602,11 +572,9 @@ class cdi_conf_tab(QTabWidget):
     def tab1UI(self):
         """
         Creates and initializes the 'prep' tab.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -661,12 +629,10 @@ class cdi_conf_tab(QTabWidget):
     def load_prep(self, layout):
         """
         Loads additional fields in the 'prep' tab when the prep type selected is different than 34-IDC.
-
         Parameters
         ----------
         layout : QFormLayout
             layout to add the wigets
-
         Returns
         -------
         nothing
@@ -692,11 +658,9 @@ class cdi_conf_tab(QTabWidget):
     def tab2UI(self):
         """
         Creates and initializes the 'data' tab.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -731,11 +695,9 @@ class cdi_conf_tab(QTabWidget):
     def tab3UI(self):
         """
         Creates and initializes the 'reconstruction' tab.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -770,12 +732,6 @@ class cdi_conf_tab(QTabWidget):
         # TODO add logic to show this only if HIO is in sequence
         self.beta = QLineEdit()
         ulayout.addRow("beta", self.beta)
-        self.support_area = QLineEdit()
-        ulayout.addRow("starting support area", self.support_area)
-        self.threshold = QLineEdit()
-        ulayout.addRow("threshold", self.threshold)
-        self.sigma = QLineEdit()
-        ulayout.addRow("sigma", self.sigma)
         self.rec_default_button = QPushButton('set to defaults', self)
         ulayout.addWidget(self.rec_default_button)
 
@@ -810,7 +766,6 @@ class cdi_conf_tab(QTabWidget):
     def toggle_cont(self, layout):
         """
         Invoked when the 'cont' checkbox is selected, indicating this reconstruction is continuation.
-
         Parameters
         ----------
         layout : QFormLayout
@@ -850,7 +805,6 @@ class cdi_conf_tab(QTabWidget):
     def toggle_conf(self):
         """
         Invoked when the configuration to use in the reconstruction was changed, i.e. alternate config was selected or main. This will bring the parameters from the previous config to be saved, and the new ones retrieved and showed in window.
-
         Parameters
         ----------
         layout : QFormLayout
@@ -889,11 +843,9 @@ class cdi_conf_tab(QTabWidget):
     def tab4UI(self):
         """
         Creates and initializes the 'disp' tab.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -974,12 +926,10 @@ class cdi_conf_tab(QTabWidget):
     def load_prep_tab(self, conf):
         """
         It verifies given configuration file, reads the parameters, and fills out the window.
-
         Parameters
         ----------
         conf : str
             configuration file (config_prep)
-
         Returns
         -------
         nothing
@@ -1082,12 +1032,10 @@ class cdi_conf_tab(QTabWidget):
     def load_data_tab(self, conf):
         """
         It verifies given configuration file, reads the parameters, and fills out the window.
-
         Parameters
         ----------
         conf : str
             configuration file (config_data)
-
         Returns
         -------
         nothing
@@ -1134,9 +1082,6 @@ class cdi_conf_tab(QTabWidget):
         self.reconstructions.setText('')
         self.alg_seq.setText('')
         self.beta.setText('')
-        self.support_area.setText('')
-        self.sigma.setText('')
-        self.threshold.setText('')
         for feat_id in self.features.feature_dir:
             self.features.feature_dir[feat_id].active.setChecked(False)
     
@@ -1144,12 +1089,10 @@ class cdi_conf_tab(QTabWidget):
     def load_rec_tab(self, conf):
         """
         It verifies given configuration file, reads the parameters, and fills out the window.
-
         Parameters
         ----------
         conf : str
             configuration file (config_rec)
-
         Returns
         -------
         nothing
@@ -1185,19 +1128,7 @@ class cdi_conf_tab(QTabWidget):
             self.beta.setText(str(conf_map.beta).replace(" ", ""))
         except AttributeError:
             pass
-        try:
-            self.support_area.setText(str(conf_map.support_area).replace(" ", ""))
-        except AttributeError:
-            pass
-        try:
-            self.threshold.setText(str(conf_map.support_threshold).replace(" ", ""))
-        except AttributeError:
-            pass
-        try:
-            self.sigma.setText(str(conf_map.support_sigma).replace(" ", ""))
-        except AttributeError:
-            pass
-            
+
         for feat_id in self.features.feature_dir:
             self.features.feature_dir[feat_id].init_config(conf_map)
 
@@ -1225,12 +1156,10 @@ class cdi_conf_tab(QTabWidget):
     def load_disp_tab(self, conf):
         """
         It verifies given configuration file, reads the parameters, and fills out the window.
-
         Parameters
         ----------
         conf : str
             configuration file (config_disp)
-
         Returns
         -------
         nothing
@@ -1319,11 +1248,9 @@ class cdi_conf_tab(QTabWidget):
     def get_prep_config(self):
         """
         It reads parameters related to preparation from the window and adds them to dictionary.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         conf_map : dict
@@ -1360,11 +1287,9 @@ class cdi_conf_tab(QTabWidget):
     def get_data_config(self):
         """
         It reads parameters related to formatting data from the window and adds them to dictionary.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         conf_map : dict
@@ -1391,11 +1316,9 @@ class cdi_conf_tab(QTabWidget):
     def get_rec_config(self):
         """
         It reads parameters related to reconstruction from the window and adds them to dictionary.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         conf_map : dict
@@ -1410,12 +1333,6 @@ class cdi_conf_tab(QTabWidget):
             conf_map['algorithm_sequence'] = str(self.alg_seq.text()).replace('\n','')
         if len(self.beta.text()) > 0:
             conf_map['beta'] = str(self.beta.text())
-        if len(self.threshold.text()) > 0:
-            conf_map['support_threshold'] = str(self.threshold.text())
-        if len(self.sigma.text()) > 0:
-            conf_map['support_sigma'] = str(self.sigma.text())
-        if len(self.support_area.text()) > 0:
-            conf_map['support_area'] = str(self.support_area.text()).replace('\n','')
         if self.cont.isChecked():
             conf_map['continue_dir'] = str(self.cont_dir.text())
 
@@ -1428,11 +1345,9 @@ class cdi_conf_tab(QTabWidget):
     def get_disp_config(self):
         """
         It reads parameters related to visualization from the window and adds them to dictionary.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         conf_map : dict
@@ -1475,11 +1390,9 @@ class cdi_conf_tab(QTabWidget):
         """
         TODO: combine all load conf files in one function
         It display a select dialog for user to select a configuration file for preparation. When selected, the parameters from that file will be loaded to the window.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -1497,11 +1410,9 @@ class cdi_conf_tab(QTabWidget):
     def load_data_conf(self):
         """
         It display a select dialog for user to select a configuration file. When selected, the parameters from that file will be loaded to the window.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -1521,11 +1432,9 @@ class cdi_conf_tab(QTabWidget):
     def load_rec_conf_dir(self):
         """
         It display a select dialog for user to select a configuration file. When selected, the parameters from that file will be loaded to the window.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -1546,11 +1455,9 @@ class cdi_conf_tab(QTabWidget):
     def load_disp_conf(self):
         """
         It display a select dialog for user to select a configuration file. When selected, the parameters from that file will be loaded to the window.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -1572,11 +1479,9 @@ class cdi_conf_tab(QTabWidget):
     def set_overriden(self, item):
         """
         Helper function that will set the text color to black.
-
         Parameters
         ----------
         item : widget
-
         Returns
         -------
         nothing
@@ -1587,11 +1492,9 @@ class cdi_conf_tab(QTabWidget):
     def parse_spec(self):
         """
         Calls utility function to parse spec file. Displas the parsed parameters in the window with blue text.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -1645,11 +1548,9 @@ class cdi_conf_tab(QTabWidget):
     def set_dark_file(self):
         """
         It display a select dialog for user to select a darkfield file.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -1665,11 +1566,9 @@ class cdi_conf_tab(QTabWidget):
     def set_white_file(self):
         """
         It display a select dialog for user to select a whitefield file.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -1685,11 +1584,9 @@ class cdi_conf_tab(QTabWidget):
     def set_data_dir(self):
         """
         It display a select dialog for user to select a directory with raw data file.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -1705,11 +1602,9 @@ class cdi_conf_tab(QTabWidget):
     def set_prep_file(self):
         """
         It display a select dialog for user to select a prepared data file.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -1729,11 +1624,9 @@ class cdi_conf_tab(QTabWidget):
     def set_prep_script(self):
         """
         It display a select dialog for user to select a user provided script.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -1753,11 +1646,9 @@ class cdi_conf_tab(QTabWidget):
         """
         There is a choice for the user to obtain prepare data. User can use a script written for the 34-IDC beamline, if applies,or can get the prepared file by copying already prepared file from file system. Another option is to use own script.
         This function determines the choice and calls appropriate function.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -1779,11 +1670,9 @@ class cdi_conf_tab(QTabWidget):
     def prepare_custom(self, conf_map):
         """
         Determines custom script, module, and parameters for the script, adds import to the module, and calls the custom script.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -1855,7 +1744,6 @@ class cdi_conf_tab(QTabWidget):
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -1898,11 +1786,9 @@ class cdi_conf_tab(QTabWidget):
     def prepare_copy(self, conf_map):
         """
         Reads the parameters needed by prep script. Saves the config_prep configuration file with parameters from the window and runs the prep script.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -1921,11 +1807,9 @@ class cdi_conf_tab(QTabWidget):
     def format_data(self):
         """
         Reads the parameters needed by format data script. Saves the config_data configuration file with parameters from the window and runs the format script.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -1952,11 +1836,9 @@ class cdi_conf_tab(QTabWidget):
     def reconstruction(self):
         """
         Reads the parameters needed by reconstruction script. Saves the config_rec configuration file with parameters from the window and runs the reconstruction script.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -1993,11 +1875,9 @@ class cdi_conf_tab(QTabWidget):
     def init_results_dir(self):
         """
         Results directory is a parameter in display tab. It defines a directory tree that the display script will search for reconstructed image files and will process them for visualization. This function initializes it in typical situation to experiment directory. In case of active genetic algorithm it will be initialized to the generation directory with best results, and in case of alternate reconstruction configuration, it will be initialized to the last directory where the results were saved.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -2031,11 +1911,9 @@ class cdi_conf_tab(QTabWidget):
     def set_results_dir(self):
         """
         Results directory is a parameter in display tab. It defines a directory tree that the display script will search for reconstructed image files and will process them for visualization. This function displays the dialog selection window for the user to select the results directory.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -2056,11 +1934,9 @@ class cdi_conf_tab(QTabWidget):
     def display(self):
         """
         Reads the parameters needed by format display script. Saves the config_disp configuration file with parameters from the window and runs the display script.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -2115,11 +1991,9 @@ class cdi_conf_tab(QTabWidget):
     def rec_default(self):
         """
         Sets the basic parameters in the reconstruction tab main part to hardcoded defaults.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -2133,9 +2007,6 @@ class cdi_conf_tab(QTabWidget):
             self.alg_seq.setText('((3,("ER",20),("HIO",180)),(1,("ER",20)))')
             self.beta.setText('.9')
             self.cont.setChecked(False)
-            self.support_area.setText('(.5,.5,.5)')
-            self.sigma.setText('1.0')
-            self.threshold.setText('0.1')
 
 
 class Feature(object):
@@ -2145,11 +2016,9 @@ class Feature(object):
     def __init__(self):
         """
         Constructor, each feature object contains QWidget.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -2160,14 +2029,12 @@ class Feature(object):
     def stackUI(self, item, feats):
         """
         Used by all sub-classes (features) when initialized.
-
         Parameters
         ----------
         item : item from QListWidget
             item represents a feature
         feats : Features object
             Features object is a composition of features
-
         Returns
         -------
         nothing
@@ -2183,14 +2050,12 @@ class Feature(object):
     def toggle(self, layout, item, feats):
         """
         Used by sub-classes (features) when a feature is activated or deactivated.
-
         Parameters
         ----------
         item : item from QListWidget
             item represents a feature
         feats : Features object
             Features object is a composition of features
-
         Returns
         -------
         nothing
@@ -2212,12 +2077,10 @@ class Feature(object):
     def fill_active(self, layout):
         """
         This function is overriden in concrete class. It displays the feature's parameters when the feature becomes active.
-
         Parameters
         ----------
         layout : Layout widget
             a layout with the feature
-
         Returns
         -------
         nothing
@@ -2228,11 +2091,9 @@ class Feature(object):
     def rec_default(self):
         """
         This function is overriden in concrete class. It sets feature's parameters to hardcoded default values.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -2243,12 +2104,10 @@ class Feature(object):
     def add_config(self, conf_map):
         """
         This function calls all of the subclasses to add feature's parameters to dictionary.
-
         Parameters
         ----------
         conf_map : dict
             contains parameters for reconstruction
-
         Returns
         -------
         nothing
@@ -2260,12 +2119,10 @@ class Feature(object):
     def add_feat_conf(self, conf_map):
         """
         This function is overriden in concrete class. It adds feature's parameters to dictionary.
-
         Parameters
         ----------
         conf_map : dict
             contains parameters for reconstruction
-
         Returns
         -------
         nothing
@@ -2276,12 +2133,10 @@ class Feature(object):
     def init_config(self, conf_map):
         """
         This function is overriden in concrete class. It sets feature's parameters to parameters in dictionary and displays in the window.
-
         Parameters
         ----------
         conf_map : dict
             contains parameters for reconstruction
-
         Returns
         -------
         nothing
@@ -2305,12 +2160,10 @@ class GA(Feature):
     def init_config(self, conf_map):
         """
         This function sets GA feature's parameters to parameters in dictionary and displays in the window.
-
         Parameters
         ----------
         conf_map : dict
             contains parameters for reconstruction
-
         Returns
         -------
         nothing
@@ -2351,12 +2204,10 @@ class GA(Feature):
     def fill_active(self, layout):
         """
         This function displays the feature's parameters when the feature becomes active.
-
         Parameters
         ----------
         layout : Layout widget
             a layout with the feature
-
         Returns
         -------
         nothing
@@ -2380,11 +2231,9 @@ class GA(Feature):
     def rec_default(self):
         """
         This function sets GA feature's parameters to hardcoded default values.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -2402,12 +2251,10 @@ class GA(Feature):
     def add_feat_conf(self, conf_map):
         """
         This function adds GA feature's parameters to dictionary.
-
         Parameters
         ----------
         conf_map : dict
             contains parameters for reconstruction
-
         Returns
         -------
         nothing
@@ -2433,12 +2280,10 @@ class low_resolution(Feature):
     def init_config(self, conf_map):
         """
         This function sets low resolution feature's parameters to parameters in dictionary and displays in the window.
-
         Parameters
         ----------
         conf_map : dict
             contains parameters for reconstruction
-
         Returns
         -------
         nothing
@@ -2463,12 +2308,10 @@ class low_resolution(Feature):
     def fill_active(self, layout):
         """
         This function displays the feature's parameters when the feature becomes active.
-
         Parameters
         ----------
         layout : Layout widget
             a layout with the feature
-
         Returns
         -------
         nothing
@@ -2484,11 +2327,9 @@ class low_resolution(Feature):
     def rec_default(self):
         """
         This function sets low resolution feature's parameters to hardcoded default values.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -2501,12 +2342,10 @@ class low_resolution(Feature):
     def add_feat_conf(self, conf_map):
         """
         This function adds low resolution feature's parameters to dictionary.
-
         Parameters
         ----------
         conf_map : dict
             contains parameters for reconstruction
-
         Returns
         -------
         nothing
@@ -2528,12 +2367,10 @@ class shrink_wrap(Feature):
     def init_config(self, conf_map):
         """
         This function sets support feature's parameters to parameters in dictionary and displays in the window.
-
         Parameters
         ----------
         conf_map : dict
             contains parameters for reconstruction
-
         Returns
         -------
         nothing
@@ -2549,17 +2386,27 @@ class shrink_wrap(Feature):
             self.shrink_wrap_type.setText(str(conf_map.shrink_wrap_type).replace(" ", ""))
         except AttributeError:
             pass
+        try:
+            self.support_area.setText(str(conf_map.support_area).replace(" ", ""))
+        except AttributeError:
+            pass
+        try:
+            self.threshold.setText(str(conf_map.support_threshold).replace(" ", ""))
+        except AttributeError:
+            pass
+        try:
+            self.sigma.setText(str(conf_map.support_sigma).replace(" ", ""))
+        except AttributeError:
+            pass
 
 
     def fill_active(self, layout):
         """
         This function displays the feature's parameters when the feature becomes active.
-
         Parameters
         ----------
         layout : Layout widget
             a layout with the feature
-
         Returns
         -------
         nothing
@@ -2568,39 +2415,47 @@ class shrink_wrap(Feature):
         layout.addRow("shrink wrap triggers", self.shrink_wrap_triggers)
         self.shrink_wrap_type = QLineEdit()
         layout.addRow("shrink wrap algorithm", self.shrink_wrap_type)
+        self.support_area = QLineEdit()
+        layout.addRow("starting support area", self.support_area)
+        self.threshold = QLineEdit()
+        layout.addRow("threshold", self.threshold)
+        self.sigma = QLineEdit()
+        layout.addRow("sigma", self.sigma)
 
 
     def rec_default(self):
         """
         This function sets support feature's parameters to hardcoded default values.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
         """
         self.shrink_wrap_triggers.setText('(1,1)')
         self.shrink_wrap_type.setText('GAUSS')
+        self.support_area.setText('(.5,.5,.5)')
+        self.sigma.setText('1.0')
+        self.threshold.setText('0.1')
 
 
     def add_feat_conf(self, conf_map):
         """
         This function adds support feature's parameters to dictionary.
-
         Parameters
         ----------
         conf_map : dict
             contains parameters for reconstruction
-
         Returns
         -------
         nothing
         """
         conf_map['shrink_wrap_trigger'] = str(self.shrink_wrap_triggers.text()).replace('\n','')
         conf_map['shrink_wrap_type'] = '"' + str(self.shrink_wrap_type.text()) + '"'
+        conf_map['support_threshold'] = str(self.threshold.text())
+        conf_map['support_sigma'] = str(self.sigma.text())
+        conf_map['support_area'] = str(self.support_area.text()).replace('\n','')
 
 
 class phase_support(Feature):
@@ -2615,12 +2470,10 @@ class phase_support(Feature):
     def init_config(self, conf_map):
         """
         This function sets phase support feature's parameters to parameters in dictionary and displays in the window.
-
         Parameters
         ----------
         conf_map : dict
             contains parameters for reconstruction
-
         Returns
         -------
         nothing
@@ -2645,12 +2498,10 @@ class phase_support(Feature):
     def fill_active(self, layout):
         """
         This function displays the feature's parameters when the feature becomes active.
-
         Parameters
         ----------
         layout : Layout widget
             a layout with the feature
-
         Returns
         -------
         nothing
@@ -2666,11 +2517,9 @@ class phase_support(Feature):
     def rec_default(self):
         """
         This function sets phase support feature's parameters to hardcoded default values.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -2683,12 +2532,10 @@ class phase_support(Feature):
     def add_feat_conf(self, conf_map):
         """
         This function adds phase support feature's parameters to dictionary.
-
         Parameters
         ----------
         conf_map : dict
             contains parameters for reconstruction
-
         Returns
         -------
         nothing
@@ -2710,12 +2557,10 @@ class pcdi(Feature):
     def init_config(self, conf_map):
         """
         This function sets pcdi feature's parameters to parameters in dictionary and displays in the window.
-
         Parameters
         ----------
         conf_map : dict
             contains parameters for reconstruction
-
         Returns
         -------
         nothing
@@ -2748,12 +2593,10 @@ class pcdi(Feature):
     def fill_active(self, layout):
         """
         This function displays the feature's parameters when the feature becomes active.
-
         Parameters
         ----------
         layout : Layout widget
             a layout with the feature
-
         Returns
         -------
         nothing
@@ -2773,11 +2616,9 @@ class pcdi(Feature):
     def rec_default(self):
         """
         This function sets pcdi feature's parameters to hardcoded default values.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -2792,12 +2633,10 @@ class pcdi(Feature):
     def add_feat_conf(self, conf_map):
         """
         This function adds pcdi feature's parameters to dictionary.
-
         Parameters
         ----------
         conf_map : dict
             contains parameters for reconstruction
-
         Returns
         -------
         nothing
@@ -2821,12 +2660,10 @@ class twin(Feature):
     def init_config(self, conf_map):
         """
         This function sets twin feature's parameters to parameters in dictionary and displays in the window.
-
         Parameters
         ----------
         conf_map : dict
             contains parameters for reconstruction
-
         Returns
         -------
         nothing
@@ -2847,12 +2684,10 @@ class twin(Feature):
     def fill_active(self, layout):
         """
         This function displays the feature's parameters when the feature becomes active.
-
         Parameters
         ----------
         layout : Layout widget
             a layout with the feature
-
         Returns
         -------
         nothing
@@ -2866,11 +2701,9 @@ class twin(Feature):
     def rec_default(self):
         """
         This function sets twin feature's parameters to hardcoded default values.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -2882,12 +2715,10 @@ class twin(Feature):
     def add_feat_conf(self, conf_map):
         """
         This function adds twin feature's parameters to dictionary.
-
         Parameters
         ----------
         conf_map : dict
             contains parameters for reconstruction
-
         Returns
         -------
         nothing
@@ -2908,12 +2739,10 @@ class average(Feature):
     def init_config(self, conf_map):
         """
         This function sets average feature's parameters to parameters in dictionary and displays in the window.
-
         Parameters
         ----------
         conf_map : dict
             contains parameters for reconstruction
-
         Returns
         -------
         nothing
@@ -2930,12 +2759,10 @@ class average(Feature):
     def fill_active(self, layout):
         """
         This function displays the feature's parameters when the feature becomes active.
-
         Parameters
         ----------
         layout : Layout widget
             a layout with the feature
-
         Returns
         -------
         nothing
@@ -2947,11 +2774,9 @@ class average(Feature):
     def rec_default(self):
         """
         This function sets average feature's parameters to hardcoded default values.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -2962,12 +2787,10 @@ class average(Feature):
     def add_feat_conf(self, conf_map):
         """
         This function adds average feature's parameters to dictionary.
-
         Parameters
         ----------
         conf_map : dict
             contains parameters for reconstruction
-
         Returns
         -------
         nothing
@@ -2987,12 +2810,10 @@ class progress(Feature):
     def init_config(self, conf_map):
         """
         This function sets progress feature's parameters to parameters in dictionary and displays in the window.
-
         Parameters
         ----------
         conf_map : dict
             contains parameters for reconstruction
-
         Returns
         -------
         nothing
@@ -3009,12 +2830,10 @@ class progress(Feature):
     def fill_active(self, layout):
         """
         This function displays the feature's parameters when the feature becomes active.
-
         Parameters
         ----------
         layout : Layout widget
             a layout with the feature
-
         Returns
         -------
         nothing
@@ -3026,11 +2845,9 @@ class progress(Feature):
     def rec_default(self):
         """
         This function sets progress feature's parameters to hardcoded default values.
-
         Parameters
         ----------
         none
-
         Returns
         -------
         nothing
@@ -3041,12 +2858,10 @@ class progress(Feature):
     def add_feat_conf(self, conf_map):
         """
         This function adds progress feature's parameters to dictionary.
-
         Parameters
         ----------
         conf_map : dict
             contains parameters for reconstruction
-
         Returns
         -------
         nothing
