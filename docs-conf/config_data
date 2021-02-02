@@ -3,17 +3,66 @@
                              // directory where prepared data is saved, default <experiment_dir>/data
 
 // PARAMETER FOR DATA PREPARATION
+alien_alg = 'block_aliens'
+                             // optional, name of method used to remove aliens.
+                             // possible options are:
+                             // 'block_aliens', 'alien_file', and 'AutoAlien1'
+                             // "block_aliens' algorithm will zero out defined blocks
+                             // 'alien_file' will use given file as a mask
+                             // 'AutoAlien1' will use auto mechanism to remove aliens.
+                             // each of these algorithms require different parameters
 aliens = ((170,220,112,195,245,123), (50,96,10,60,110,20))
+                             // needed for the 'block_aliens' method
                              // comment out aliens for no removal, otherwise input them as
                              // aliens=((x0,y0,z0,x1,y1,z1),(x2,y2,z2,x3,y3,z3))
                              // will remove two instances of aliens given by the pairs
                              // #0 and #1 and another given by #2,#3. Accepts as
                              // many as you like.
-
+alien_file = "AlienImg.npy"  
+                             // needed for the 'alien_file' method
+                             // file in npy format, containing 0s and 1s. The 0s indicate
+                             // aliens and will zero out data
+AA1_size_threshold = 0.01    
+                             // used in the 'AutoAliens1' method, if not given will
+                             // default to 0.01. 
+                             // The AutoAlien1 algorithm will calculate relative 
+                             // sizes of all clusters to the biggest cluster and
+                             // the clusters with relative size smaller than the given
+                             // threshold will be possibly determine aliens. It also
+                             // depends on asymmetry.
+AA1_asym_threshold = 1.75    
+                             // used in the 'AutoAliens1' method, if not given will
+                             // default to 1.75. 
+                             // The AutoAlien1 algorithm will calculate average
+                             // asymmetry of all clusters and the clusters with 
+                             // average asymmetry greater than the given
+                             // threshold will be possibly determine aliens. It also
+                             // depends on relative size
+AA1_min_pts = 5
+                             // used in the 'AutoAliens1' method, if not given will
+                             // default to 5. 
+                             // Defines minimum non zero points in neighborhood to
+                             // treat the area of data as cluster
+AA1_eps = 1.1
+                             // used in the 'AutoAliens1' method, if not given will
+                             // default to 1.1.
+                             // Used in the clustering algorithm.
+AA1_amp_threshold = 6 
+                             // used in the 'AutoAliens1' method, mandatory.
+                             // Used to zero put data below that threshold value and 
+                             // in the clustering algorithm.
+AA1_save_arrs = True
+                             // used in the 'AutoAliens1' method, optional.
+                             // If given and set to True multiple results of alien
+                             // analysis will be saved in arrays
+AA1_expandcleanedsigma = 5.0 
+                             // used in the 'AutoAliens1' method, optional.
+                             // If given the algorithm will apply last step of cleaning
+                             // the data using the configured sigma
 amp_threshold = 2.0
                              // mandatory
-                             // min data threshold.  Values below this are set to 0. The threshold is applied
-                             // after removing.
+                             // min data threshold.  Values below this are set to 0. The 
+                             // threshold is applied after removing aliens.
 
 adjust_dimensions = (-13, -13, -65, -65, -65, -65)
                              // optional

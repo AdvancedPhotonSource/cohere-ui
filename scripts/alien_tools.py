@@ -26,7 +26,10 @@ __all__ = ['get_asymmetry',
            'crop_center',
            'save_arr',
            'save_arrays',
-           'auto_dealien']
+           'auto_alien1',
+           'filter_aliens',
+           'remove_blocks',
+           'remove_aliens']
 
 def get_asymmetry(arr):
     """
@@ -216,7 +219,7 @@ def save_arrays(arrs, iter, thresh, eps, dir):
     save_arr(arrs[9], dir, "db%d_%3.2f_abs_clustersizes%3.2f.tif" % (iter, thresh, eps))
 
 
-def auto_dealien(data, config, data_dir=None):
+def auto_alien1(data, config, data_dir=None):
     """
     Removes aliens from experimental CDI data using iterative algorithm and returns the result.
     
@@ -247,25 +250,57 @@ def auto_dealien(data, config, data_dir=None):
     cuboid : ndarray
         data array with removed aliens
     """
+    try:
+        size_threshold = config.AA1_size_threshold
+    except AttributeError:
+        size_threshold = 0.01
+    except  Exception as e:
+        print ('error parsing AA1_size_threshold ', str(e))
+    try:
+        asym_threshold = config.AA1_asym_threshold
+    except AttributeError:
+        asym_threshold = 1.75
+    except  Exception as e:
+        print ('error parsing AA1_asym_threshold ', str(e))
+    try:
+        min_pts = config.AA1_min_pts
+    except AttributeError:
+        min_pts = 5
+    except  Exception as e:
+        print ('error parsing AA1_min_pts ', str(e))
+    try:
+        eps = config.AA1_eps
+    except AttributeError:
+        eps = 1.1
+    except  Exception as e:
+        print ('error parsing AA1_eps ', str(e))
+    try:
+        threshold = config.AA1_amp_threshold
+    except AttributeError:
+        print ('AA1_amp_threshold parameter not configured, not removing aliens')
+        return data
+    except  Exception as e:
+        print ('error parsing AA1_amp_threshold ', str(e))
+    try:
+        save_arrs = config.AA1_save_arrs
+        if save_arrs:
+            save_dir = os.path.join(data_dir, 'alien_analysis')
+            if not os.path.exists(save_dir):
+                os.makedirs(save_dir)
+    except AttributeError:
+        save_arrs = False
+    except Exception as e:
+        print ('error parsing save_arrs ', str(e))
 
-    size_threshold = config.AA1_size_threshold
-    asym_threshold = config.AA1_asym_threshold
-    min_pts = config.AA1_min_pts
-    eps = config.AA1_eps
-    threshold = config.AA1_amp_threshold
-    if config.AA1_save_arrs:
-        save_arrs = True
-        save_dir = os.path.join(data_dir, 'alien_analysis')
-        if not os.path.exists(save_dir):
-            os.makedirs(save_dir)
     try:
         expandcleanedsig = config.AA1_expandcleanedsigma
-    except:
+    except AttributeError:
         expandcleanedsig = 0.0
-
+    except  Exception as e:
+        print ('error parsing expandcleanedsig ', str(e))
+    
     cuboid = crop_center(data)
     cuboid = np.where(cuboid >= threshold, cuboid, 0)
-
     if (save_arrs):
         save_arr(cuboid, save_dir, "db%3.2f_cuboid%3.2f.tif" % (threshold, eps))
         save_arr(cuboid[::-1, ::-1, ::-1], save_dir, "db%3.2f_cuboidrev%3.2f.tif" % (threshold, eps))
@@ -307,27 +342,101 @@ def auto_dealien(data, config, data_dir=None):
     return cuboid
 
 
-def remove_aliens(aliens, data, config_map, data_dir=None):
-    print (aliens)
-    if aliens == 'AutoAlien1':
-        data = auto_dealien(data, config_map, data_dir)
-    # the parameter was entered as a list
-    elif issubclass(type(aliens), list):
+def remove_blocks(data, config_map):
+    """
+    Sets to zero given alien blocks in the data array.
+    
+    Parameters
+    ----------
+    data : ndarray
+        an array with experiment data
+    config : Object
+        configuration object providing access to configuration parameters
+
+    Returns
+    -------
+    data : ndarray
+        data array with zeroed out aliens
+    """
+    try:
+        aliens = config_map.aliens
         for alien in aliens:
             # The ImageJ swaps the x and y axis, so the aliens coordinates needs to be swapped, since ImageJ is used
             # to find aliens
             data[alien[0]:alien[3], alien[1]:alien[4], alien[2]:alien[5]] = 0
-    # the parameter was entered as a file name (mask)
-    elif os.path.isfile(aliens):
-        mask = np.load(aliens)
-        for i in range(len(mask.shape)):
-            if mask.shape[i] != data.shape[i]:
-                print ('exiting, mask must be of the same shape as data:', data.shape)
-                return
-        data = np.where((mask==1), data, 0.0)
-
+    except AttributeError:
+        print ('aliens parameter not configured')
+    except Exception as e:
+        print ('did not remove aliens, error in aliens removal ', str(e))
     return data
 
+
+def filter_aliens(data, config_map):
+    """
+    Sets to zero points in the data array defined by a file.
+    
+    Parameters
+    ----------
+    data : ndarray
+        an array with experiment data
+    config : Object
+        configuration object providing access to configuration parameters
+
+    Returns
+    -------
+    data : ndarray
+        data array with zeroed out aliens
+    """
+    try:
+        alien_file = config_map.alien_file
+        if os.path.isfile(alien_file):
+            mask = np.load(alien_file)
+            for i in range(len(mask.shape)):
+                if mask.shape[i] != data.shape[i]:
+                    print ('exiting, mask must be of the same shape as data:', data.shape)
+                    return
+            data = np.where((mask==1), data, 0.0)
+    except AttributeError:
+        print ('alien_file parameter not configured')
+    except Exception as e:
+        print ('did not remove aliens, error in aliens removal ', str(e))
+    return data
+
+
+def remove_aliens(data, config_map, data_dir=None):
+    """
+    Finds which algorithm is cofigured to remove the aliens and applies it to clean the data.
+    
+    Parameters
+    ----------
+    data : ndarray
+        an array with experiment data
+    config : Object
+        configuration object providing access to configuration parameters
+    data_dir : str
+        a directory where 'alien_analysis' subdirectory will be created to save results of analysis if configured
+    Returns
+    -------
+    data : ndarray
+        data array without aliens
+    """
+
+    try:
+        algorithm = config_map.alien_alg
+        if algorithm == 'block_aliens':
+            data = remove_blocks(data, config_map)
+        elif algorithm == 'alien_file':
+            data = filter_aliens(data, config_map)
+        elif algorithm == 'AutoAlien1':
+            data = auto_alien1(data, config_map, data_dir)
+        elif algorithm != 'none':
+            print('not supported alien removal algorithm', algorithm)
+    except AttributeError:
+        pass
+    except Exception as e:
+        print ('did not remove aliens, error in aliens removal, error: ', str(e))
+        
+    return data
 
 
 ## https://stackoverflow.com/questions/51503672/decorator-for-timeit-timeit-method/51503837#51503837

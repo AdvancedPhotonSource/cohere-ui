@@ -14,8 +14,8 @@ import argparse
 import os
 import numpy as np
 import cohere.src_py.utilities.utils as ut
-import cohere.src_py.utilities.parse_ver as ver
-import AlienTools as at
+import config_verifier as ver
+import alien_tools as at
 import pylibconfig2
 
 __author__ = "Barbara Frosik"
@@ -87,8 +87,7 @@ def prep(fname, conf_info):
         os.makedirs(data_dir)
 
     try:
-        aliens = config_map.aliens
-        data = at.remove_aliens(aliens, data, config_map, data_dir)
+        data = at.remove_aliens(data, config_map, data_dir)
     except AttributeError:
         pass
     except Exception as e:

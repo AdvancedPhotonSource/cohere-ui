@@ -24,7 +24,7 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 import importlib
 import cohere.src_py.utilities.utils as ut
-import cohere.src_py.utilities.parse_ver as ver
+import config_verifier as ver
 import beamlines.aps_34id.diffractometers as dif
 
 
@@ -502,6 +502,8 @@ class cdi_gui(QWidget):
             os.makedirs(dir)
         conf_file = os.path.join(dir, file)
         temp_file = os.path.join(dir, 'temp')
+        if os.path.isfile(temp_file):
+            os.remove(temp_file)
         with open(temp_file, 'a') as f:
             for key in conf_map:
                 value = conf_map[key]
@@ -666,8 +668,15 @@ class cdi_conf_tab(QTabWidget):
         nothing
         """
         layout = QFormLayout()
-        self.aliens = QLineEdit()
-        layout.addRow("aliens", self.aliens)
+        self.alien_alg = QComboBox()
+        self.alien_alg.addItem("none")
+        self.alien_alg.addItem("block aliens")
+        self.alien_alg.addItem("alien file")
+        self.alien_alg.addItem("AutoAlien1")
+        layout.addRow("alien algorithm", self.alien_alg)
+        sub_layout = QFormLayout()
+        self.set_alien_layout(sub_layout)
+        layout.addRow(sub_layout)
         self.amp_intensity = QLineEdit()
         layout.addRow("amp intensity", self.amp_intensity)
         self.center_shift = QLineEdit()
@@ -686,10 +695,39 @@ class cdi_conf_tab(QTabWidget):
         layout.addRow(cmd_layout)
         self.tab2.setLayout(layout)
 
+        self.alien_alg.currentIndexChanged.connect(lambda: self.set_alien_layout(sub_layout))
         # this will create config_data file and run data script
         # to generate data ready for reconstruction
         self.config_data_button.clicked.connect(self.format_data)
         self.set_data_conf_from_button.clicked.connect(self.load_data_conf)
+        
+
+    def set_alien_layout(self, layout):
+        for i in reversed(range(layout.count())):
+            layout.itemAt(i).widget().setParent(None)
+        if self.alien_alg.currentIndex() == 1:
+            self.aliens = QLineEdit()
+            layout.addRow("aliens", self.aliens)
+        elif self.alien_alg.currentIndex() == 2:
+            self.alien_file = QPushButton()
+            layout.addRow("alien file", self.alien_file)
+            self.alien_file.clicked.connect(self.set_alien_file)
+        elif self.alien_alg.currentIndex() == 3:
+            self.AA1_size_threshold = QLineEdit()
+            layout.addRow("relative size threshold", self.AA1_size_threshold)
+            self.AA1_asym_threshold = QLineEdit()
+            layout.addRow("average asymmetry threshold", self.AA1_asym_threshold)
+            self.AA1_min_pts = QLineEdit()
+            layout.addRow("min pts in cluster", self.AA1_min_pts)
+            self.AA1_eps = QLineEdit()
+            layout.addRow("cluster alg eps", self.AA1_eps)
+            self.AA1_amp_threshold = QLineEdit()
+            layout.addRow("alien alg amp threshold", self.AA1_amp_threshold)
+            self.AA1_save_arrs = QCheckBox()
+            layout.addRow("save analysis arrs", self.AA1_save_arrs)
+            self.AA1_save_arrs.setChecked(False)
+            self.AA1_expandcleanedsigma = QLineEdit()
+            layout.addRow("expand cleaned sigma", self.AA1_expandcleanedsigma)
 
 
     def tab3UI(self):
@@ -1022,7 +1060,7 @@ class cdi_conf_tab(QTabWidget):
 
 
     def clear_data_conf(self):
-        self.aliens.setText('')
+        self.alien_alg.setCurrentIndex(0)
         self.amp_intensity.setText('')
         self.binning.setText('')
         self.center_shift.setText('')
@@ -1046,19 +1084,63 @@ class cdi_conf_tab(QTabWidget):
         if not os.path.isfile(conf):
             msg_window('info: the load directory does not contain config_data file')
             return
-        if not ver.ver_config_data(conf):
-            msg_window('please check configuration file ' + conf + '. Cannot parse, ')
-            return
+#        if not ver.ver_config_data(conf):
+#            msg_window('please check configuration file ' + conf + '. Cannot parse, ')
+#            return
         try:
             conf_map = ut.read_config(conf)
         except Exception as e:
             msg_window('please check configuration file ' + conf + '. Cannot parse, ' + str(e))
             return
-
+        alg = 'none'
         try:
-            self.aliens.setText(str(conf_map.aliens).replace(" ", ""))
+            alg = str(conf_map.alien_alg)
         except AttributeError:
-            pass
+            self.alien_alg.setCurrentIndex(0)
+        if alg == 'none':
+            self.alien_alg.setCurrentIndex(0)
+        elif alg == 'block_aliens':
+            self.alien_alg.setCurrentIndex(1)
+            try:
+                self.aliens.setText(str(conf_map.aliens).replace(" ", ""))
+            except AttributeError:
+                pass
+        elif alg == 'alien_file':
+            self.alien_alg.setCurrentIndex(2)
+            try:
+                self.alien_file.setText(str(conf_map.alien_file).replace(" ", ""))
+            except AttributeError:
+                pass
+        elif alg == 'AutoAlien1':
+            self.alien_alg.setCurrentIndex(3)
+            try:
+                self.AA1_size_threshold.setText(str(conf_map.AA1_size_threshold).replace(" ", ""))
+            except AttributeError:
+                pass
+            try:
+                self.AA1_asym_threshold.setText(str(conf_map.AA1_asym_threshold).replace(" ", ""))
+            except AttributeError:
+                pass
+            try:
+                self.AA1_min_pts.setText(str(conf_map.AA1_min_pts).replace(" ", ""))
+            except AttributeError:
+                pass
+            try:
+                self.AA1_eps.setText(str(conf_map.AA1_eps).replace(" ", ""))
+            except AttributeError:
+                pass
+            try:
+                self.AA1_amp_threshold.setText(str(conf_map.AA1_amp_threshold).replace(" ", ""))
+            except AttributeError:
+                pass
+            try:
+                self.AA1_save_arrs.setChecked(conf_map.AA1_save_arrs)
+            except AttributeError:
+                self.AA1_save_arrs.setChecked(False)
+            try:
+                self.AA1_expandcleanedsigma.setText(str(conf_map.AA1_expandcleanedsigma).replace(" ", ""))
+            except AttributeError:
+                pass
         try:
             self.amp_intensity.setText(str(conf_map.amp_threshold).replace(" ", ""))
         except AttributeError:
@@ -1296,11 +1378,32 @@ class cdi_conf_tab(QTabWidget):
             contains parameters read from window
         """
         conf_map = {}
-        if len(self.aliens.text()) > 0:
-            if os.path.isfile(str(self.aliens.text()).strip()):
-                conf_map['aliens'] = '"' + str(self.aliens.text()) + '"'
-            else:
+
+        if self.alien_alg.currentIndex() == 1:
+            conf_map['alien_alg'] = '"block_aliens"'
+            if len(self.aliens.text()) > 0:
                 conf_map['aliens'] = str(self.aliens.text()).replace('\n', '')
+        if self.alien_alg.currentIndex() == 2:
+            conf_map['alien_alg'] = '"alien_file"'
+            if len(self.alien_file.text()) > 0:
+                conf_map['alien_file'] = '"' + str(self.alien_file.text()) + '"'
+        elif self.alien_alg.currentIndex() == 3:
+            conf_map['alien_alg'] = '"AutoAlien1"'
+            if len(self.AA1_size_threshold.text()) > 0:
+                conf_map['AA1_size_threshold'] = str(self.AA1_size_threshold.text())
+            if len(self.AA1_asym_threshold.text()) > 0:
+                conf_map['AA1_asym_threshold'] = str(self.AA1_asym_threshold.text())
+            if len(self.AA1_min_pts.text()) > 0:
+                conf_map['AA1_min_pts'] = str(self.AA1_min_pts.text())
+            if len(self.AA1_eps.text()) > 0:
+                conf_map['AA1_eps'] = str(self.AA1_eps.text())
+            if len(self.AA1_amp_threshold.text()) > 0:
+                conf_map['AA1_amp_threshold'] = str(self.AA1_amp_threshold.text())
+            if self.AA1_save_arrs.isChecked():
+                conf_map['AA1_save_arrs'] = "True"
+            if len(self.AA1_expandcleanedsigma.text()) > 0:
+                conf_map['AA1_expandcleanedsigma'] = str(self.AA1_expandcleanedsigma.text())
+        
         if len(self.amp_intensity.text()) > 0:
             conf_map['amp_threshold'] = str(self.amp_intensity.text())
         if len(self.binning.text()) > 0:
@@ -1802,6 +1905,24 @@ class cdi_conf_tab(QTabWidget):
         # save config_prep
         conf_dir = os.path.join(self.main_win.experiment_dir, 'conf')
         self.main_win.write_conf(conf_map, conf_dir, 'config_prep')
+
+
+    def set_alien_file(self):
+        """
+        It display a select dialog for user to select an alien file.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        self.alien_filename = select_file(self.alien_filename)
+        if self.alien_filename is not None:
+            self.alien_file.setStyleSheet("Text-align:left")
+            self.alien_file.setText(self.alien_filename)
+        else:
+            self.alien_file.setText('')
 
 
     def format_data(self):

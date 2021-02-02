@@ -23,7 +23,7 @@ __all__ = ['save_CX',
 import cohere.src_py.utilities.viz_util as vu
 import cohere.src_py.beamlines.viz as v
 import cohere.src_py.utilities.utils as ut
-import cohere.src_py.utilities.parse_ver as ver
+import config_verifier as ver
 import beamlines.aps_34id.detectors as det
 import beamlines.aps_34id.diffractometers as diff
 import argparse

@@ -21,7 +21,7 @@ import argparse
 import pylibconfig2 as cfg
 import sys
 import os
-import cohere.src_py.utilities.parse_ver as ver
+import config_verifier as ver
 import shutil
 import glob
 
