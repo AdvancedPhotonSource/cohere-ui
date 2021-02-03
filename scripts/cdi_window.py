@@ -2190,9 +2190,13 @@ class Feature(object):
 
             item.setForeground(QColor('black'));
         else:
-            for i in reversed(range(1, layout.count())):
-                layout.itemAt(i).widget().setParent(None)
-            item.setForeground(QColor('grey'));
+            self.clear_params(layout, item)
+
+
+    def clear_params(self, layout, item):
+        for i in reversed(range(1, layout.count())):
+            layout.itemAt(i).widget().setParent(None)
+        item.setForeground(QColor('grey'));
 
 
     def fill_active(self, layout):
@@ -2532,10 +2536,22 @@ class shrink_wrap(Feature):
         -------
         nothing
         """
+        for i in reversed(range(1, layout.count())):
+            layout.itemAt(i).widget().setParent(None)
         self.shrink_wrap_triggers = QLineEdit()
         layout.addRow("shrink wrap triggers", self.shrink_wrap_triggers)
         self.shrink_wrap_type = QLineEdit()
         layout.addRow("shrink wrap algorithm", self.shrink_wrap_type)
+        self.support_area = QLineEdit()
+        layout.addRow("starting support area", self.support_area)
+        self.threshold = QLineEdit()
+        layout.addRow("threshold", self.threshold)
+        self.sigma = QLineEdit()
+        layout.addRow("sigma", self.sigma)
+
+
+    def clear_params(self, layout, item):
+        super().clear_params(layout, item)
         self.support_area = QLineEdit()
         layout.addRow("starting support area", self.support_area)
         self.threshold = QLineEdit()
@@ -2572,11 +2588,16 @@ class shrink_wrap(Feature):
         -------
         nothing
         """
-        conf_map['shrink_wrap_trigger'] = str(self.shrink_wrap_triggers.text()).replace('\n','')
-        conf_map['shrink_wrap_type'] = '"' + str(self.shrink_wrap_type.text()) + '"'
-        conf_map['support_threshold'] = str(self.threshold.text())
-        conf_map['support_sigma'] = str(self.sigma.text())
-        conf_map['support_area'] = str(self.support_area.text()).replace('\n','')
+        if len(self.shrink_wrap_triggers.text()) > 0:
+            conf_map['shrink_wrap_trigger'] = str(self.shrink_wrap_triggers.text()).replace('\n','')
+        if len(self.shrink_wrap_type.text()) > 0:
+            conf_map['shrink_wrap_type'] = '"' + str(self.shrink_wrap_type.text()) + '"'
+        if len(self.threshold.text()) > 0:
+            conf_map['support_threshold'] = str(self.threshold.text())
+        if len(self.sigma.text()) > 0:
+            conf_map['support_sigma'] = str(self.sigma.text())
+        if len(self.support_area.text()) > 0:
+            conf_map['support_area'] = str(self.support_area.text()).replace('\n','')
 
 
 class phase_support(Feature):
