@@ -6,10 +6,10 @@
 alien_alg = 'block_aliens'
                              // optional, name of method used to remove aliens.
                              // possible options are:
-                             // 'block_aliens', 'alien_file', and 'AutoAlien1'
-                             // "block_aliens' algorithm will zero out defined blocks
-                             // 'alien_file' will use given file as a mask
-                             // 'AutoAlien1' will use auto mechanism to remove aliens.
+                             // 'block_aliens', 'alien_file', and 'AutoAlien1'.
+                             // The 'block_aliens' algorithm will zero out defined blocks,
+                             // 'alien_file' method will use given file as a mask,
+                             // and 'AutoAlien1' method  will use auto mechanism to remove aliens.
                              // each of these algorithms require different parameters
 aliens = ((170,220,112,195,245,123), (50,96,10,60,110,20))
                              // needed for the 'block_aliens' method
@@ -49,12 +49,11 @@ AA1_eps = 1.1
                              // Used in the clustering algorithm.
 AA1_amp_threshold = 6 
                              // used in the 'AutoAliens1' method, mandatory.
-                             // Used to zero put data below that threshold value and 
-                             // in the clustering algorithm.
+                             // Used to zero data points below that threshold.
 AA1_save_arrs = True
                              // used in the 'AutoAliens1' method, optional.
                              // If given and set to True multiple results of alien
-                             // analysis will be saved in arrays
+                             // analysis will be saved in files
 AA1_expandcleanedsigma = 5.0 
                              // used in the 'AutoAliens1' method, optional.
                              // If given the algorithm will apply last step of cleaning
