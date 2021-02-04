@@ -397,12 +397,11 @@ def ver_config_rec(fname):
         else:
             try:
                 shrink_wrap_type = config_map.shrink_wrap_type
-                print ('shrink_wrap_type', len(shrink_wrap_type))
                 if type(shrink_wrap_type) != str:
                     print ('shrink_wrap_type parameter should be string')
                     return False
                 if shrink_wrap_type != "GAUSS":
-                    print ('shrink_wrap_type parameter can be configured "GAUSS"')
+                    print ('supporting shrink_wrap_type "GAUSS"')
                     return False
             except AttributeError:
                 pass

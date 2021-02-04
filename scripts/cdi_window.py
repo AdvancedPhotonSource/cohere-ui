@@ -770,6 +770,8 @@ class cdi_conf_tab(QTabWidget):
         # TODO add logic to show this only if HIO is in sequence
         self.beta = QLineEdit()
         ulayout.addRow("beta", self.beta)
+        self.support_area = QLineEdit()
+        ulayout.addRow("support_area", self.support_area)
         self.rec_default_button = QPushButton('set to defaults', self)
         ulayout.addWidget(self.rec_default_button)
 
@@ -1164,6 +1166,7 @@ class cdi_conf_tab(QTabWidget):
         self.reconstructions.setText('')
         self.alg_seq.setText('')
         self.beta.setText('')
+        self.support_area.setText('')
         for feat_id in self.features.feature_dir:
             self.features.feature_dir[feat_id].active.setChecked(False)
     
@@ -1208,6 +1211,10 @@ class cdi_conf_tab(QTabWidget):
             pass
         try:
             self.beta.setText(str(conf_map.beta).replace(" ", ""))
+        except AttributeError:
+            pass
+        try:
+            self.support_area.setText(str(conf_map.support_area).replace(" ", ""))
         except AttributeError:
             pass
 
@@ -1436,6 +1443,8 @@ class cdi_conf_tab(QTabWidget):
             conf_map['algorithm_sequence'] = str(self.alg_seq.text()).replace('\n','')
         if len(self.beta.text()) > 0:
             conf_map['beta'] = str(self.beta.text())
+        if len(self.support_area.text()) > 0:
+            conf_map['support_area'] = str(self.support_area.text())
         if self.cont.isChecked():
             conf_map['continue_dir'] = str(self.cont_dir.text())
 
@@ -2127,6 +2136,7 @@ class cdi_conf_tab(QTabWidget):
             self.device.setText('(0,1)')
             self.alg_seq.setText('((3,("ER",20),("HIO",180)),(1,("ER",20)))')
             self.beta.setText('.9')
+            self.support_area.setText('(0.5, 0.5, 0.5)')
             self.cont.setChecked(False)
 
 
@@ -2512,10 +2522,6 @@ class shrink_wrap(Feature):
         except AttributeError:
             pass
         try:
-            self.support_area.setText(str(conf_map.support_area).replace(" ", ""))
-        except AttributeError:
-            pass
-        try:
             self.threshold.setText(str(conf_map.support_threshold).replace(" ", ""))
         except AttributeError:
             pass
@@ -2536,24 +2542,10 @@ class shrink_wrap(Feature):
         -------
         nothing
         """
-        for i in reversed(range(1, layout.count())):
-            layout.itemAt(i).widget().setParent(None)
         self.shrink_wrap_triggers = QLineEdit()
         layout.addRow("shrink wrap triggers", self.shrink_wrap_triggers)
         self.shrink_wrap_type = QLineEdit()
         layout.addRow("shrink wrap algorithm", self.shrink_wrap_type)
-        self.support_area = QLineEdit()
-        layout.addRow("starting support area", self.support_area)
-        self.threshold = QLineEdit()
-        layout.addRow("threshold", self.threshold)
-        self.sigma = QLineEdit()
-        layout.addRow("sigma", self.sigma)
-
-
-    def clear_params(self, layout, item):
-        super().clear_params(layout, item)
-        self.support_area = QLineEdit()
-        layout.addRow("starting support area", self.support_area)
         self.threshold = QLineEdit()
         layout.addRow("threshold", self.threshold)
         self.sigma = QLineEdit()
@@ -2572,7 +2564,6 @@ class shrink_wrap(Feature):
         """
         self.shrink_wrap_triggers.setText('(1,1)')
         self.shrink_wrap_type.setText('GAUSS')
-        self.support_area.setText('(.5,.5,.5)')
         self.sigma.setText('1.0')
         self.threshold.setText('0.1')
 
@@ -2596,8 +2587,6 @@ class shrink_wrap(Feature):
             conf_map['support_threshold'] = str(self.threshold.text())
         if len(self.sigma.text()) > 0:
             conf_map['support_sigma'] = str(self.sigma.text())
-        if len(self.support_area.text()) > 0:
-            conf_map['support_area'] = str(self.support_area.text()).replace('\n','')
 
 
 class phase_support(Feature):
