@@ -385,7 +385,7 @@ class PrepData:
             aligned array
         """
         # read
-        arr = self.read_scan(dir, self.detector, self.roi, self.Imult)
+        arr = self.read_scan(dir)
         # align
         return np.abs(shift_to_ref_array(self.fft_refarr, arr))
 
