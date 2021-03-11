@@ -36,7 +36,7 @@ import sys
 import glob
 import tifffile as tif
 import cohere.src_py.beamlines.spec as spec
-import beamlines.aps_34id.detectors as det
+import beamlines.aps_34idc.detectors as det
 import cohere.src_py.utilities.utils as ut
 from multiprocessing import Pool
 from multiprocessing import cpu_count

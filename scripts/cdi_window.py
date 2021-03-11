@@ -25,7 +25,7 @@ from PyQt5.QtWidgets import *
 import importlib
 import cohere.src_py.utilities.utils as ut
 import config_verifier as ver
-import beamlines.aps_34id.diffractometers as dif
+import beamlines.aps_34idc.diffractometers as dif
 
 
 def select_file(start_dir):
@@ -247,8 +247,7 @@ class cdi_gui(QWidget):
         """
         load_dir = select_dir(os.getcwd())
         if load_dir is not None:
-            # load the experiment info only if no id is entered
-            if os.path.isfile(os.path.join(load_dir, 'conf', 'config')) and str(self.Id_widget.text()).strip() == '':
+            if os.path.isfile(os.path.join(load_dir, 'conf', 'config')):
                 self.load_main(load_dir)
             else:
                 msg_window('missing conf/config file, not experiment directory')
@@ -270,6 +269,8 @@ class cdi_gui(QWidget):
             conf_disp_file = os.path.join(load_dir, 'conf', 'config_disp')
             if os.path.isfile(conf_disp_file):
                 self.t.load_disp_tab(conf_disp_file)
+                
+            self.set_experiment()
 
 #            self.set_exp_button.setStyleSheet("Text-align:left")
 #            self.set_exp_button.setText('experiment loaded')

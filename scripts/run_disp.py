@@ -24,8 +24,8 @@ import cohere.src_py.utilities.viz_util as vu
 import cohere.src_py.beamlines.viz as v
 import cohere.src_py.utilities.utils as ut
 import config_verifier as ver
-import beamlines.aps_34id.detectors as det
-import beamlines.aps_34id.diffractometers as diff
+import beamlines.aps_34idc.detectors as det
+import beamlines.aps_34idc.diffractometers as diff
 import argparse
 import sys
 import os
