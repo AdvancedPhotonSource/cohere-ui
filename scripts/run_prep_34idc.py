@@ -413,7 +413,7 @@ class PrepData:
             self.write_prep_arr(arr)
         elif self.separate_scans:
             with Pool(processes=min(len(self.dirs), cpu_count())) as pool:
-                pool.map_async(self.read_write, self.scans)
+                pool.map_async(self.read_write, range(len(self.scans)))
                 pool.close()
                 pool.join()
         else:
