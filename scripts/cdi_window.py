@@ -25,7 +25,6 @@ from PyQt5.QtWidgets import *
 import importlib
 import cohere.src_py.utilities.utils as ut
 import config_verifier as ver
-import beamlines.aps_34idc.diffractometers as dif
 
 
 def select_file(start_dir):
@@ -112,6 +111,8 @@ class cdi_gui(QWidget):
         uplayout.addRow("Experiment ID", self.Id_widget)
         self.scan_widget = QLineEdit()
         uplayout.addRow("scan(s)", self.scan_widget)
+        self.beamline_widget = QLineEdit()
+        uplayout.addRow("beamline", self.beamline_widget)
         self.spec_file_button = QPushButton()
         uplayout.addRow("spec file", self.spec_file_button)
 
@@ -142,6 +143,7 @@ class cdi_gui(QWidget):
         self.spec_file_button.clicked.connect(self.set_spec_file)
         self.run_button.clicked.connect(self.run_everything)
         self.create_exp_button.clicked.connect(self.set_experiment)
+        self.beamline_widget.textEdited.connect(self.set_experiment)
 
 
     def set_spec_file(self):
@@ -364,6 +366,11 @@ class cdi_gui(QWidget):
             self.specfile = None
             self.spec_file_button.setText('')
 
+        try:
+            self.beamline_widget.setText(self.beamline)
+        except:
+            pass
+
         if self.experiment_dir is not None:
             # this shows default results directory in display tab
             self.t.results_dir = os.path.join(self.experiment_dir, 'results')
@@ -452,6 +459,8 @@ class cdi_gui(QWidget):
         # save the main config
         conf_map['working_dir'] = '"' + str(self.working_dir).strip() + '"'
         conf_map['experiment_id'] = '"' + self.id + '"'
+        if len(self.beamline_widget.text().strip()) > 0:
+            conf_map['beamline'] = '"' + str(self.beamline_widget.text().strip()) + '"'
         if self.specfile is not None:
             conf_map['specfile'] = '"' + str(self.specfile).strip() + '"'
             self.t.parse_spec()
@@ -2080,14 +2089,6 @@ class cdi_conf_tab(QTabWidget):
         if not self.main_win.is_exp_set():
             msg_window('the experiment has changed, pres "set experiment" button')
             return
-        if len(self.diffractometer.text()) == 0:
-            msg_window('please enter the diffractometer in display tab')
-            return
-        else:
-            # check if the diffractometer is defined
-            if not dif.verify_diffractometer(self.diffractometer.text()):
-                msg_window('the diffractometer is not defined')
-                return
         # check if the results exist
         if self.results_dir is None:
             self.results_dir = self.main_win.experiment_dir
@@ -2116,7 +2117,7 @@ class cdi_conf_tab(QTabWidget):
 
         conf_dir = os.path.join(self.main_win.experiment_dir, 'conf')
         if self.main_win.write_conf(conf_map, conf_dir, 'config_disp'):
-            run_dp.to_vtk(self.main_win.experiment_dir)
+            run_dp.handle_visualization(self.main_win.experiment_dir)
 
 
     def rec_default(self):
