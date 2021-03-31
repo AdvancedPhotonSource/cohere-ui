@@ -62,7 +62,7 @@ def save_CX(conf_dict, image, support, coh, save_dir):
     try:
         params = disp.DispalyParams(conf_dict)
     except Exception as e:
-        print (e)
+        print ('exception', e)
         return
 
     det_obj = None
@@ -251,9 +251,10 @@ def get_conf_dict(experiment_dir):
         try:
             conf_map = ut.read_config(data_conf)
             conf_dict['binning'] = conf_map.binning
-        except KeyError:
+        except AttributeError:
             pass
-        except:
+        except Exception as e:
+            print(e)
             print("info: can't load " + data_conf + " configuration file")
     return conf_dict
 
@@ -271,6 +272,7 @@ def handle_visualization(experiment_dir, image_file=None):
     -------
     nothing
     """
+    print ('starting visualization process')
     conf_dict = get_conf_dict(experiment_dir)
     if conf_dict is None:
         return
@@ -283,7 +285,7 @@ def handle_visualization(experiment_dir, image_file=None):
         except  Exception as ex:
             print(str(ex))
             results_dir = experiment_dir
-        # find directories with image.npy file in the root of resolts_dir
+        # find directories with image.npy file in the root of results_dir
         dirs = []
         for (dirpath, dirnames, filenames) in os.walk(results_dir):
             for file in filenames:

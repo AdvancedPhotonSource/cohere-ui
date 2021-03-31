@@ -24,6 +24,7 @@ class DispalyParams:
         -------
         none
         """
+        self.detector = None
         deg2rad = np.pi / 180.0
         try:
             specfile = config['specfile']
@@ -174,10 +175,6 @@ def set_geometry(shape, p):
         enfix = 1000
     energy = p.energy * enfix  # x-ray energy in eV
 
-    # print("running the new xrayutilities version and tvtk")
-    #    self.qc=xuexp.QConversion(['y+','z-','x-'], ['y+','x-'],(0,0,1),en=energy)
-    # if scanmot is energy then we need to init Qconversion with an array.
-    # thinking about making everything an array by default
     if scanmot == 'en':
         scanen = np.array((energy, energy + p.scanmot_del * enfix))
     else:
