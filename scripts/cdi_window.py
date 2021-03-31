@@ -531,7 +531,10 @@ class Tabs(QTabWidget):
 
 
     def notify(self, **args):
-        self.display_tab.update_tab(**args)
+        try:
+            self.display_tab.update_tab(**args)
+        except:
+            pass
 
 
     def clear_configs(self):
