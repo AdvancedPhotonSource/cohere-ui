@@ -1,10 +1,40 @@
 from cohere.src_py.beamlines.preparer import PrepData
-import cohere.src_py.beamlines.spec as spec
 import cohere.src_py.utilities.utils as ut
 import os
 import re
 import glob
 import numpy as np
+from xrayutilities.io import spec as spec
+
+
+def get_det_from_spec(specfile, scan):
+    """
+    Reads detector area and detector name from spec file for given scan.
+    Parameters
+    ----------
+    specfile : str
+        spec file name
+         
+    scan : int
+        scan number to use to recover the saved measurements
+    Returns
+    -------
+    detector_name : str
+        detector name
+    det_area : list
+        detector area
+    """
+    try:
+    # Scan numbers start at one but the list is 0 indexed
+        ss = spec.SPECFile(specfile)[scan - 1]
+    # Stuff from the header
+        detector_name = str(ss.getheader_element('UIMDET'))
+        det_area = [int(n) for n in ss.getheader_element('UIMR5').split()]
+        return detector_name, det_area
+    except  Exception as ex:
+        print(str(ex))
+        print ('Could not parse ' + specfile )
+        return None, None
 
 
 class BeamPrepData(PrepData):
@@ -42,7 +72,7 @@ class BeamPrepData(PrepData):
             try:
                 specfile = main_conf_map.specfile.strip()
                 # parse det name and saved roi from spec
-                self.det_name, self.roi = spec.get_det_from_spec(specfile, scan_end)
+                self.det_name, self.roi = get_det_from_spec(specfile, scan_end)
                 if self.det_name is not None and self.det_name.endswith(':'):
                     self.det_name = self.det_name[:-1]
             except AttributeError:

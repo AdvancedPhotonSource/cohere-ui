@@ -1,8 +1,78 @@
 import numpy as np
-import cohere.src_py.beamlines.spec as sput
 from cohere.src_py.beamlines.viz import CXDViz
 import math as m
 import xrayutilities.experiment as xuexp
+from xrayutilities.io import spec as spec
+
+def parse_spec(specfile, scan):
+    """
+    Reads parameters necessary to run visualization from spec file for given scan.
+    Parameters
+    ----------
+    specfile : str
+        spec file name
+         
+    scan : int
+        scan number to use to recover the saved measurements
+    Returns
+    -------
+    delta, gamma, theta, phi, chi, scanmot, scanmot_del, detdist, detector_name, energy
+    """
+    # Scan numbers start at one but the list is 0 indexed
+    try:
+        ss = spec.SPECFile(specfile)[scan - 1]
+    except  Exception as ex:
+        print(str(ex))
+        print ('Could not parse ' + specfile )
+        return None,None,None,None,None,None,None,None,None,None
+
+    # Stuff from the header
+    try:
+        detector_name = str(ss.getheader_element('UIMDET'))
+    except:
+        detector_name = None
+    try:
+        command = ss.command.split()
+        scanmot = command[1]
+        scanmot_del = (float(command[3]) - float(command[2])) / int(command[4])
+    except:
+        scanmot = None
+        scanmot_del = None
+
+    # Motor stuff from the header
+    try:
+        delta = ss.init_motor_pos['INIT_MOPO_Delta']
+    except:
+        delta = None
+    try:
+        gamma = ss.init_motor_pos['INIT_MOPO_Gamma']
+    except:
+        gamma = None
+    try:
+        theta = ss.init_motor_pos['INIT_MOPO_Theta']
+    except:
+        theta = None
+    try:
+        phi = ss.init_motor_pos['INIT_MOPO_Phi']
+    except:
+        phi = None
+    try:
+        chi = ss.init_motor_pos['INIT_MOPO_Chi']
+    except:
+        chi = None
+    try:
+        detdist = ss.init_motor_pos['INIT_MOPO_camdist']
+    except:
+        detdist = None
+    try:
+        energy = ss.init_motor_pos['INIT_MOPO_Energy']
+    except:
+        energy = None
+
+    # returning the scan motor name as well.  Sometimes we scan things
+    # other than theta.  So we need to expand the capability of the display
+    # code.
+    return delta, gamma, theta, phi, chi, scanmot, scanmot_del, detdist, detector_name, energy
 
 
 class DispalyParams:
@@ -30,7 +100,7 @@ class DispalyParams:
             specfile = config['specfile']
             last_scan = config['last_scan']
             # get stuff from the spec file.
-            self.delta, self.gamma, self.th, self.phi, self.chi, self.scanmot, self.scanmot_del, self.detdist, self.detector, self.energy = sput.parse_spec(specfile, last_scan)
+            self.delta, self.gamma, self.th, self.phi, self.chi, self.scanmot, self.scanmot_del, self.detdist, self.detector, self.energy = parse_spec(specfile, last_scan)
         except:
             pass
 
