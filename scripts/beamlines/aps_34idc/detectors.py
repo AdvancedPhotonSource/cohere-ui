@@ -80,6 +80,11 @@ class Detector_34idcTIM1(Detector):
         return frame
 
 
+    def get_missing_attr(self):
+        # The TIM1 detector does not require whitefield or darkfield for correction
+        return None
+
+
     def get_pixel(self):
         """
         Returns pixel size of 34idcTIM1 detector.
@@ -305,12 +310,12 @@ def create_detector(det_name):
         print ('detector ' + det_name + ' not defined.')
         return None
 
-
-def verify_detector(det_name):
-    if det_name == '34idcTIM1' or det_name == '34idcTIM2':
-        return True
-    else:
-        print ('detector ' + det_name + ' is not defined.')
-        return False
+#
+# def verify_detector(det_name):
+#     if det_name == '34idcTIM1' or det_name == '34idcTIM2':
+#         return True
+#     else:
+#         print ('detector ' + det_name + ' is not defined.')
+#         return False
 
 

@@ -14,28 +14,27 @@ __author__ = "Ross Harder"
 __copyright__ = "Copyright (c), UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['save_CX',
-           'save_vtk',
+           'process_dir',
            'save_vtk_file',
            'get_conf_dict',
-           'to_vtk',
+           'handle_visualization',
            'main']
 
 import cohere.src_py.utilities.viz_util as vu
-import cohere.src_py.beamlines.viz as v
 import cohere.src_py.utilities.utils as ut
+from cohere.src_py.beamlines.viz import CXDViz
 import config_verifier as ver
-import beamlines.aps_34idc.detectors as det
-import beamlines.aps_34idc.diffractometers as diff
 import argparse
 import sys
 import os
 import numpy as np
 from multiprocessing import Pool, cpu_count
+import importlib
 
 
 def save_CX(conf_dict, image, support, coh, save_dir):
     """
-    Saves the image and support vts files.
+    Saves the image and support, and optionally coh vts files.
 
     Parameters
     ----------
@@ -54,65 +53,64 @@ def save_CX(conf_dict, image, support, coh, save_dir):
     -------
     nothing
     """
-    params = v.DispalyParams(conf_dict)
-    det_name = params.detector
-    if det_name is None:
-        try:
-            det_name = conf_dict['detector']
-        except:
-            print ('detector name not parsed from spec file and not defined in config file')
-            return
-    if not det.verify_detector(det_name):
-        return
     try:
-        diff_name = conf_dict['diffractometer']
+        disp = importlib.import_module('beamlines.' + conf_dict['beamline'] + '.disp')
     except:
-        print ('diffractometer name not in config file')
+        print ('cannot import beamlines.' + conf_dict['beamline'] + '.disp module.')
         return
-    if not diff.verify_diffractometer(diff_name):
+
+    try:
+        params = disp.DispalyParams(conf_dict)
+    except Exception as e:
+        print ('exception', e)
         return
-    params.set_instruments(det.create_detector(det_name), diff.create_diffractometer(diff_name))
+
+    det_obj = None
+    diff_obj = None
+    try:
+        detector_name = params.detector
+        try:
+            det = importlib.import_module('beamlines.aps_34idc.detectors')
+            try:
+                det_obj = det.create_detector(detector_name)
+            except:
+                print('detector', detector_name, 'is not defined in beamlines detectors')
+        except:
+            print('problem importing detectors file from beamline module')
+    except:
+        pass
+    try:
+        diffractometer_name = params.diffractometer
+        try:
+            diff = importlib.import_module('beamlines.aps_34idc.diffractometers')
+            try:
+                diff_obj = diff.create_diffractometer(diffractometer_name)
+            except:
+                print ('diffractometer', diffractometer_name, 'is not defined in beamlines detectors')
+        except:
+             print('problem importing diffractometers file from beamline module')
+    except:
+        pass
+
+    if not params.set_instruments(det_obj, diff_obj):
+        return
 
     if support is not None:
         image, support = vu.center(image, support)
-    if 'rampups' in conf_dict:
-        image = vu.remove_ramp(image, ups=conf_dict['rampups'])
-    viz = v.CXDViz(params)
-    viz.set_geometry(image.shape)
 
     try:
-        image_name = conf_dict['image_name']
+        rampups = params.rampsup
+        if rampups > 1:
+            image = vu.remove_ramp(image, ups=rampups)
     except:
-        image_name = 'image'
-    arrays = {"imAmp" : abs(image), "imPh" : np.angle(image)}
-    viz.add_ds_arrays(arrays)
-    # viz.add_ds_array(abs(image), "imAmp")
-    # viz.add_ds_array(np.angle(image), "imPh")
-    image_file = os.path.join(save_dir, image_name)
-    viz.write_directspace(image_file)
-    viz.clear_direct_arrays()
+        pass
 
-    if support is not None:
-        arrays = {"support" : support}
-        viz.add_ds_arrays(arrays)
-        # viz.add_ds_array(support, "support")
-        support_file = os.path.join(save_dir, 'support')
-        viz.write_directspace(support_file)
-        viz.clear_direct_arrays()
-
-    if coh is not None:
-        coh = ut.get_zero_padded_centered(coh, image.shape)
-        coh = np.fft.fftshift(np.fft.fftn(np.fft.fftshift(coh)))
-        coh_file = os.path.join(save_dir, 'coherence')
-        arrays = {"cohAmp" : np.abs(coh), "cohPh" : np.angle(coh)}
-        viz.add_ds_arrays(arrays)
-        # viz.add_ds_array(np.abs(coh), 'cohAmp')
-        # viz.add_ds_array(np.angle(coh), 'cohPh')
-        viz.write_directspace(coh_file)
-        viz.clear_direct_arrays()
+    geometry = disp.set_geometry(image.shape, params)
+    viz = CXDViz(params.crop, geometry)
+    viz.visualize(image, support, coh, save_dir)
 
 
-def save_vtk(res_dir_conf):
+def process_dir(res_dir_conf):
     """
     Loads arrays from files in results directory. If reciprocal array exists, it will save reciprocal info in tif format. It calls the save_CX function with the relevant parameters.
 
@@ -128,29 +126,39 @@ def save_vtk(res_dir_conf):
     nothing
     """
     (res_dir, conf_dict) = res_dir_conf
+
+    # image file was checked in calling function
+    imagefile = os.path.join(res_dir, 'image.npy')
     try:
-        imagefile = os.path.join(res_dir, 'image.npy')
         image = np.load(imagefile)
     except:
-        print('cannot load "image.npy" file')
+        print('cannot load file', imagefile)
         return
 
-    try:
-        supportfile = os.path.join(res_dir, 'support.npy')
-        support = np.load(supportfile)
-    except:
+    support = None
+    coh = None
+
+    supportfile = os.path.join(res_dir, 'support.npy')
+    if os.path.isfile(supportfile):
+        try:
+            support = np.load(supportfile)
+        except:
+            print('cannot load file', supportfile)
+    else:
         print('support file is missing in ' + res_dir + ' directory')
-        return
 
     cohfile = os.path.join(res_dir, 'coherence.npy')
     if os.path.isfile(cohfile):
-        coh = np.load(cohfile)
-        save_CX(conf_dict, image, support, coh, res_dir)
-    else:
-        save_CX(conf_dict, image, support, None, res_dir)
+        try:
+            coh = np.load(cohfile)
+        except:
+            print('cannot load file', cohfile)
+
+    save_CX(conf_dict, image, support, coh, res_dir)
 
 
-def save_vtk_file(image_file, conf_dict):
+
+def process_file(image_file, conf_dir):
     """
     Loads array from given image file. Determines the vts file name and calls savw_CX function to process this  file. The vts file will have the same name as image file, with different extension and will be saved in the same directory.
 
@@ -165,12 +173,16 @@ def save_vtk_file(image_file, conf_dict):
     -------
     nothing
     """
-    image_file_name = image_file.split('/')[-1]
-    image_file_name = image_file_name[0:-4]
-    conf_dict['image_name'] = image_file_name
-    image = np.load(image_file)
-    res_dir = os.path.dirname(image_file)
-    save_CX(conf_dict, image, None, None, res_dir)
+    if os.path.isfile(image_file):
+        try:
+            image = np.load(image_file)
+        except:
+            print('cannot load file', image_file)
+    else:
+        print(image_file, 'file is missing')
+        return
+
+    save_CX(conf_dir, image, None, None, os.path.dirname(image_file))
 
 
 def get_conf_dict(experiment_dir):
@@ -211,35 +223,43 @@ def get_conf_dict(experiment_dir):
 
     # get specfile and last_scan from the config file and add it to conf_dict
     main_conf = os.path.join(conf_dir, 'config')
-    specfile = None
-    last_scan = None
     if os.path.isfile(main_conf):
         try:
             config_map = ut.read_config(main_conf)
         except:
-            print ("info: scan not determined, can't read " + conf + " configuration file")
-        try:
-            specfile=config_map.specfile
-            conf_dict['specfile'] = specfile
-            scan = config_map.scan
-            last_scan = scan.split('-')[-1]
-            conf_dict['last_scan'] = int(last_scan)
-        except:
-            print("specfile not in main config")
+            print ("info: can't read " + conf + " configuration file")
+            return None
+
+    try:
+        conf_dict['beamline'] = config_map.beamline
+    except Exception as e:
+        print(e)
+        print('beamline must be defined in the configuration file', main_conf)
+        return None
+
+    try:
+        conf_dict['specfile'] = config_map.specfile
+        scan = config_map.scan
+        last_scan = scan.split('-')[-1]
+        conf_dict['last_scan'] = int(last_scan)
+    except:
+        print("specfile or scan range not in main config")
 
     # get binning from the config_data file and add it to conf_dict
-    binning = None
     data_conf = os.path.join(conf_dir, 'config_data')
     if os.path.isfile(data_conf):
         try:
             conf_map = ut.read_config(data_conf)
             conf_dict['binning'] = conf_map.binning
-        except:
+        except AttributeError:
             pass
+        except Exception as e:
+            print(e)
+            print("info: can't load " + data_conf + " configuration file")
     return conf_dict
 
 
-def to_vtk(experiment_dir, image_file=None):
+def handle_visualization(experiment_dir, image_file=None):
     """
     If the image_file parameter is defined, the file is processed and vts file saved. Otherwise this function determines root directory with results that should be processed for visualization. Multiple images will be processed concurrently.
 
@@ -252,29 +272,34 @@ def to_vtk(experiment_dir, image_file=None):
     -------
     nothing
     """
+    print ('starting visualization process')
     conf_dict = get_conf_dict(experiment_dir)
     if conf_dict is None:
         return
+
     if image_file is not None:
-        save_vtk_file(image_file, conf_dict)
+        process_file(image_file, conf_dict)
     else:
         try:
             results_dir = conf_dict['results_dir']
         except  Exception as ex:
             print(str(ex))
             results_dir = experiment_dir
-        # find directories with image.npy file
+        # find directories with image.npy file in the root of results_dir
         dirs = []
         for (dirpath, dirnames, filenames) in os.walk(results_dir):
             for file in filenames:
                 if file.endswith('image.npy'):
                     dirs.append((dirpath, conf_dict))
-        if len(dirs) == 1:
-            save_vtk(dirs[0])
+        if len(dirs) == 0:
+            print ('no image.npy files found in the directory tree', results_dir)
+            return
+        elif len(dirs) == 1:
+            process_dir(dirs[0])
         elif len(dirs) >1:
             no_proc = min(cpu_count(), len(dirs))
             with Pool(processes = no_proc) as pool:
-               pool.map_async(save_vtk, dirs)
+               pool.map_async(process_dir, dirs)
                pool.close()
                pool.join()
         print ('done with processing display')
@@ -287,9 +312,9 @@ def main(arg):
     args = parser.parse_args()
     experiment_dir = args.experiment_dir
     if args.image_file:
-        to_vtk(experiment_dir, args.image_file)
+        handle_visualization(experiment_dir, args.image_file)
     else:
-        to_vtk(experiment_dir)
+        handle_visualization(experiment_dir)
 
 
 if __name__ == "__main__":
