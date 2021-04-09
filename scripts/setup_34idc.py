@@ -103,6 +103,7 @@ def setup_rundirs(prefix, scan, conf_dir, **kwargs):
     try:
         with open(main_conf, 'r') as f:
             config_map = cfg.Config(f.read())
+            print(config_map)
     except Exception as e:
         print('Please check the configuration file ' + main_conf + '. Cannot parse ' + str(e))
         return
@@ -137,6 +138,12 @@ def setup_rundirs(prefix, scan, conf_dir, **kwargs):
     conf_map['scan'] = '"' + scan + '"'
     if specfile is not None:
         conf_map['specfile'] = '"' + specfile + '"'
+    print (conf_map)
+    try:
+        conf_map['beamline'] = '"' + config_map.beamline + '"'
+    except:
+        pass
+        
     temp_file = os.path.join(experiment_conf_dir, 'temp')
     with open(temp_file, 'a') as f:
         for key in conf_map:

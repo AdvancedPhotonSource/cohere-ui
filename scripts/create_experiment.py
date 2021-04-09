@@ -174,7 +174,7 @@ def create_conf_disp(conf_dir):
     f.close()
 
 
-def create_exp(prefix, scan, working_dir, specfile=None):
+def create_exp(prefix, scan, working_dir, **args):
     """
     Concludes experiment name, creates directory, and "conf" subdirectory with initial configuration files.
 
@@ -219,8 +219,10 @@ def create_exp(prefix, scan, working_dir, specfile=None):
     conf_map['working_dir'] = '"' + working_dir + '"'
     conf_map['experiment_id'] = '"' + prefix + '"'
     conf_map['scan'] = '"' + scan + '"'
-    if specfile is not None:
-        conf_map['specfile'] = '"' + specfile + '"'
+    if 'specfile' in args:
+        conf_map['specfile'] = '"' + args['specfile'] + '"'
+    if 'beamline' in args:
+        conf_map['beamline'] = '"' + args['beamline'] + '"'
 
     temp_file = os.path.join(experiment_conf_dir, 'temp')
     with open(temp_file, 'a') as f:
@@ -228,8 +230,6 @@ def create_exp(prefix, scan, working_dir, specfile=None):
             value = conf_map[key]
             if len(value) > 0:
                 f.write(key + ' = ' + conf_map[key] + '\n')
-        if specfile is None:
-            f.write('// specfile = "/path/to/specfile/specfile"\n')
     f.close()
     if not ver.ver_config(temp_file):
         print('please check the entered parameters. Cannot save this format')
@@ -251,6 +251,7 @@ def main(arg):
     parser.add_argument("id", help="prefix to name of the experiment/data reconstruction")
     parser.add_argument("scan", help="a range of scans to prepare data from")
     parser.add_argument("working_dir", help="directory where the created experiment will be located")
+    parser.add_argument('--beamline', action='store')
     parser.add_argument('--specfile', action='store')
 
     args = parser.parse_args()
@@ -258,12 +259,14 @@ def main(arg):
     id = args.id
     working_dir = args.working_dir
 
+    varpar = {}
     if args.specfile and os.path.isfile(args.specfile):
-        specfile = args.specfile
-    else:
-        specfile = None
+        varpar['specfile'] = args.specfile
+    
+    if args.beamline:
+        varpar['beamline'] = args.beamline
 
-    return create_exp(id, scan, working_dir, specfile=specfile)
+    return create_exp(id, scan, working_dir, **varpar)
 
 
 if __name__ == "__main__":
