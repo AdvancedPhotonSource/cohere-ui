@@ -324,7 +324,7 @@ class cdi_gui(QWidget):
             self.t.clear_configs()
             self.t.load_conf(load_dir)
 
-            self.set_experiment()
+            self.set_experiment(True)
         else:
             msg_window('please select valid conf directory')
 
@@ -437,7 +437,7 @@ class cdi_gui(QWidget):
             os.makedirs(experiment_conf_dir)
 
 
-    def set_experiment(self):
+    def set_experiment(self, new_exp=False):
         """
         Reads the parameters in the window, and sets the experiment to this values, i.e. creates experiment directory,
         and saves all configuration files with parameters from window.
@@ -475,16 +475,17 @@ class cdi_gui(QWidget):
         self.experiment_dir = os.path.join(self.working_dir, self.exp_id)
         self.assure_experiment_dir()
 
-        # read the configurations from GUI and write to experiment config files
-        # save the main config
-        conf_map['working_dir'] = '"' + str(self.working_dir).strip() + '"'
-        conf_map['experiment_id'] = '"' + self.id + '"'
-        if len(self.beamline_widget.text().strip()) > 0:
-            conf_map['beamline'] = '"' + str(self.beamline_widget.text().strip()) + '"'
-            self.beamline = self.beamline_widget.text().strip()
-        if self.specfile is not None:
-            conf_map['specfile'] = '"' + str(self.specfile).strip() + '"'
-        write_conf(conf_map, os.path.join(self.experiment_dir, 'conf'), 'config')
+        if not new_exp:
+            # read the configurations from GUI and write to experiment config files
+            # save the main config
+            conf_map['working_dir'] = '"' + str(self.working_dir).strip() + '"'
+            conf_map['experiment_id'] = '"' + self.id + '"'
+            if len(self.beamline_widget.text().strip()) > 0:
+                conf_map['beamline'] = '"' + str(self.beamline_widget.text().strip()) + '"'
+                self.beamline = self.beamline_widget.text().strip()
+            if self.specfile is not None:
+                conf_map['specfile'] = '"' + str(self.specfile).strip() + '"'
+            write_conf(conf_map, os.path.join(self.experiment_dir, 'conf'), 'config')
 
         if self.t is None:
             try:
@@ -493,7 +494,8 @@ class cdi_gui(QWidget):
             except:
                 pass
 
-        self.t.save_conf()
+        if not new_exp:
+            self.t.save_conf()
 
 
 class Tabs(QTabWidget):
