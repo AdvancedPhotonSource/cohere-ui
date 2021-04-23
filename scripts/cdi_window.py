@@ -215,6 +215,10 @@ class cdi_gui(QWidget):
         self.create_exp_button.clicked.connect(self.set_experiment)
 
 
+    def set_args(self, args):
+        self.args = args
+
+
     def set_spec_file(self):
         """
         Calls selection dialog. The selected spec file is parsed.
@@ -514,7 +518,8 @@ class Tabs(QTabWidget):
         if self.main_win.beamline is not None:
             try:
                 beam = importlib.import_module('beamlines.' + self.main_win.beamline + '.beam_tabs')
-            except:
+            except Exception as e:
+                print (e)
                 msg_window('cannot import beamlines.' + self.main_win.beamline + ' module' )
                 raise
             self.prep_tab = beam.PrepTab()
@@ -551,9 +556,9 @@ class Tabs(QTabWidget):
     def run_prep(self):
         import run_prep as prep
 
-        prep.handle_prep(self.main_win.experiment_dir)
-
-
+        # this line is passing all parameters from command line to prep script. 
+        # if there are other parameters, one can add some code here
+        prep.handle_prep(self.main_win.experiment_dir, self.main_win.args)
 
     def run_viz(self):
         import run_disp as dp
@@ -2177,15 +2182,16 @@ class Features(QWidget):
         self.Stack.setCurrentIndex(i)
 
 
-def main():
+def main(args):
     """
     Starts GUI application.
     """
-    app = QApplication(sys.argv)
+    app = QApplication(args)
     ex = cdi_gui()
+    ex.set_args(args)
     ex.show()
     sys.exit(app.exec_())
 
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv[1:])

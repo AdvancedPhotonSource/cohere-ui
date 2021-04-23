@@ -26,7 +26,7 @@ import sys
 import importlib
 
 
-def handle_prep(experiment_dir):
+def handle_prep(experiment_dir, *args, **kwargs):
     """
     Reads the configuration files and accrdingly creates prep_data.tif file in <experiment_dir>/prep directory or multiple
     prep_data.tif in <experiment_dir>/<scan_<scan_no>>/prep directories.
@@ -53,7 +53,8 @@ def handle_prep(experiment_dir):
         try:
             prep = importlib.import_module('beamlines.' + beamline + '.prep')
             det = importlib.import_module('beamlines.' + beamline + '.detectors')
-        except:
+        except Exception as e:
+            print(e)
             print('cannot import beamlines.' + beamline + '.prep module.')
             return
     except AttributeError:
@@ -76,8 +77,7 @@ def handle_prep(experiment_dir):
         return None
 
     # create BeamPrepData object defined for the configured beamline
-    prep_obj = prep.BeamPrepData(experiment_dir, main_conf_map, prep_conf_map)
-
+    prep_obj = prep.BeamPrepData(experiment_dir, main_conf_map, prep_conf_map, *args)
     # get directories from prep_obj
     dirs, indexes = prep_obj.get_dirs(data_dir=data_dir)
     if len(dirs) == 0:

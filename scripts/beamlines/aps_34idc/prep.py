@@ -7,7 +7,7 @@ import numpy as np
 from xrayutilities.io import spec as spec
 
 
-def get_det_from_spec(specfile, scan):
+def get_det_from_spec(specfile, scan, **kwargs):
     """
     Reads detector area and detector name from spec file for given scan.
     Parameters
@@ -43,7 +43,7 @@ class BeamPrepData(PrepData):
     The class uses helper functions to prepare the data.
     """
 
-    def __init__(self, experiment_dir, main_conf_map, prep_conf_map, **args):
+    def __init__(self, experiment_dir, main_conf_map, prep_conf_map, *args, **kwargs):
         """
         Creates PrepData instance for beamline aps_34idc. Sets fields to configuration parameters.
         Parameters
@@ -54,6 +54,8 @@ class BeamPrepData(PrepData):
         -------
         PrepData object
         """
+        self.args = args
+#        print(*self.args)
         self.experiment_dir = experiment_dir
 
         self.det_name = None
@@ -115,7 +117,7 @@ class BeamPrepData(PrepData):
             self.exclude_scans = []
 
 
-    def get_dirs(self, **args):
+    def get_dirs(self, **kwargs):
         """
         Finds directories with data files.
         The names of the directories end with the scan number. Only the directories with a scan range and the ones covered by configuration are included.
@@ -131,7 +133,7 @@ class BeamPrepData(PrepData):
             list of scan numbers corresponding to the directories in the dirs list
         """
         try:
-            data_dir = args['data_dir']
+            data_dir = kwargs['data_dir']
         except:
             print('please provide data_dir in configuration file')
             return None, None
@@ -160,7 +162,7 @@ class BeamPrepData(PrepData):
         return dirs, scan_inxs
 
 
-    def read_scan(self, dir, **args):
+    def read_scan(self, dir, **kwargs):
         """
         Reads raw data files from scan directory, applies correction, and returns 3D corrected data for a single scan directory.
         The correction is detector dependent. It can be darkfield and/ot whitefield correction.
@@ -211,7 +213,7 @@ class BeamPrepData(PrepData):
         return arr
 
 
-    def write_prep_arr(self, arr, index=None):
+    def write_prep_arr(self, arr, index=None, **kwargs):
         """
         This clear the seam dependable on detector from the prepared array and saves the prepared data in <experiment_dir>/prep directory of
         experiment or <experiment_dir>/<scan_dir>/prep if writing for separate scans.
@@ -231,7 +233,7 @@ class BeamPrepData(PrepData):
         return self.det_name
 
 
-    def set_detector(self, det_obj, prep_conf_map):
+    def set_detector(self, det_obj, prep_conf_map, **kwargs):
         # The detector attributes for background/whitefield/etc need to be set to read frames
         self.detector = det_obj
 
