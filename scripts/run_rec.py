@@ -282,6 +282,7 @@ def manage_reconstruction(proc, experiment_dir, rec_id=None):
         # index keeps track of the multiple directories
         index = 0
         processes = {}
+        pr = []
         while index < no_runs:
             pid, gpus = q.get()
             if pid is not None:
@@ -291,14 +292,14 @@ def manage_reconstruction(proc, experiment_dir, rec_id=None):
             dir = exp_dirs_data[index][1]
             p = Process(target=rec_process, args=(proc, conf_file, datafile, dir, gpus, r, q))
             p.start()
+            pr.append(p)
             processes[p.pid] = index
             index += 1
 
+        for p in pr:
+            p.join()
+
         # close the queue
-        while len(processes.items()) > 0:
-            pid, gpus = q.get()
-            os.kill(pid, signal.SIGKILL)
-            del processes[pid]
         q.close()
 
     interrupt_process.terminate()
