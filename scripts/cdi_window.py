@@ -1072,7 +1072,7 @@ class RecTab(QWidget):
         if len(self.beta.text()) > 0:
             conf_map['beta'] = str(self.beta.text())
         if len(self.support_area.text()) > 0:
-            conf_map['support_area'] = str(self.support_area.text())
+            conf_map['support_area'] = str(self.support_area.text()).replace('\n','')
         if self.cont.isChecked():
             conf_map['continue_dir'] = str(self.cont_dir.text())
 
