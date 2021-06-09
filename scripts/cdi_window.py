@@ -1903,7 +1903,7 @@ class pcdi(Feature):
         self.pcdi_type.setText('LUCY')
         self.pcdi_iter.setText('20')
         self.pcdi_normalize.setText('true')
-        self.pcdi_roi.setText('(8,8,8)')
+        self.pcdi_roi.setText('(16, 16, 16)')
 
 
     def add_feat_conf(self, conf_map):
