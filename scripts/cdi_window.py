@@ -1209,7 +1209,10 @@ class RecTab(QWidget):
         else:
             found_file = False
             for p, d, f in os.walk(self.main_win.experiment_dir):
-                if 'prep_data.tif' in f:
+                if 'data.tif' in f:
+                    found_file = True
+                    break
+                if 'data.npy' in f:
                     found_file = True
                     break
             if found_file:
