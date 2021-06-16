@@ -23,6 +23,7 @@ import sys
 import signal
 import os
 import argparse
+import numpy as np
 from multiprocessing import Process, Queue
 import cohere.src_py.controller.reconstruction as rec
 import cohere.src_py.controller.gen_rec as gen_rec
@@ -212,12 +213,13 @@ def manage_reconstruction(proc, experiment_dir, rec_id=None):
             data_dir = config_map.data_dir
         except AttributeError:
             data_dir = os.path.join(experiment_dir, 'data')
-        datafile = os.path.join(data_dir, 'data.tif')
-        if os.path.isfile(datafile):
-            exp_dirs_data.append((datafile, experiment_dir))
+        if os.path.isfile(os.path.join(data_dir, 'data.tif')):
+            exp_dirs_data.append((os.path.join(data_dir, 'data.tif'), experiment_dir))
+        elif os.path.isfile(os.path.join(data_dir, 'data.npy')):
+            exp_dirs_data.append((os.path.join(data_dir, 'data.npy'), experiment_dir))
     no_runs = len(exp_dirs_data)
     if no_runs == 0:
-        print('did not find data.tif file(s). ')
+        print('did not find data.tif nor data.npy file(s). ')
         return
     try:
         generations = config_map.generations
@@ -241,8 +243,11 @@ def manage_reconstruction(proc, experiment_dir, rec_id=None):
         except:
             devices = [-1]
 
-        if no_runs * reconstructions > 1: 
-            data_shape = ut.read_tif(exp_dirs_data[0][0]).shape
+        if no_runs * reconstructions > 1:
+            if exp_dirs_data[0][0].endswith('tif'):
+                data_shape = ut.read_tif(exp_dirs_data[0][0]).shape
+            elif exp_dirs_data[0][0].endswith('npy'):
+                data_shape = np.load(exp_dirs_data[0][0]).shape
             device_use = get_gpu_use(devices, no_runs, reconstructions, data_shape)
         else:
             device_use = devices
