@@ -13,8 +13,7 @@ After the script is executed the experiment directory will contain image.vts fil
 __author__ = "Ross Harder"
 __copyright__ = "Copyright (c), UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['save_CX',
-           'process_dir',
+__all__ = ['process_dir',
            'save_vtk_file',
            'get_conf_dict',
            'handle_visualization',
@@ -28,89 +27,12 @@ import argparse
 import sys
 import os
 import numpy as np
+from functools import partial
 from multiprocessing import Pool, cpu_count
 import importlib
 
 
-def save_CX(conf_dict, image, support, coh, save_dir):
-    """
-    Saves the image and support, and optionally coh vts files.
-
-    Parameters
-    ----------
-    conf_dict : dict
-        dictionary containing configured parameters needed for visualization
-    image : array
-        image file in npy format
-    support : array
-        support file in npy format
-    coh : array
-        coherence file in npy format or None
-    save_dir : str
-        a directory where to save the processed vts file
-
-    Returns
-    -------
-    nothing
-    """
-    try:
-        disp = importlib.import_module('beamlines.' + conf_dict['beamline'] + '.disp')
-    except:
-        print ('cannot import beamlines.' + conf_dict['beamline'] + '.disp module.')
-        return
-
-    try:
-        params = disp.DispalyParams(conf_dict)
-    except Exception as e:
-        print ('exception', e)
-        return
-
-    det_obj = None
-    diff_obj = None
-    try:
-        detector_name = params.detector
-        try:
-            det = importlib.import_module('beamlines.aps_34idc.detectors')
-            try:
-                det_obj = det.create_detector(detector_name)
-            except:
-                print('detector', detector_name, 'is not defined in beamlines detectors')
-        except:
-            print('problem importing detectors file from beamline module')
-    except:
-        pass
-    try:
-        diffractometer_name = params.diffractometer
-        try:
-            diff = importlib.import_module('beamlines.aps_34idc.diffractometers')
-            try:
-                diff_obj = diff.create_diffractometer(diffractometer_name)
-            except:
-                print ('diffractometer', diffractometer_name, 'is not defined in beamlines detectors')
-        except:
-             print('problem importing diffractometers file from beamline module')
-    except:
-        pass
-
-    if not params.set_instruments(det_obj, diff_obj):
-        return
-
-    if support is not None:
-        image, support = vu.center(image, support)
-
-    try:
-        rampups = params.rampsup
-        if rampups > 1:
-            image = vu.remove_ramp(image, ups=rampups)
-    except:
-        pass
-
-    geometry = disp.set_geometry(image.shape, params)
-    viz = CXDViz(params.crop, geometry)
-    viz.visualize(image, support, coh, save_dir)
-
-
-def process_dir(res_dir_conf):
+def process_dir(geometry, rampups, crop, res_dir):
     """
     Loads arrays from files in results directory. If reciprocal array exists, it will save reciprocal info in tif format. It calls the save_CX function with the relevant parameters.
 
@@ -125,8 +47,6 @@ def process_dir(res_dir_conf):
     -------
     nothing
     """
-    (res_dir, conf_dict) = res_dir_conf
-
     # image file was checked in calling function
     imagefile = os.path.join(res_dir, 'image.npy')
     try:
@@ -154,11 +74,14 @@ def process_dir(res_dir_conf):
         except:
             print('cannot load file', cohfile)
 
-    save_CX(conf_dict, image, support, coh, res_dir)
+    if rampups > 1:
+        image = vu.remove_ramp(image, ups=rampups)
+
+    viz = CXDViz(crop, geometry)
+    viz.visualize(image, support, coh, res_dir)
 
 
-
-def process_file(image_file, conf_dir):
+def process_file(image_file, geometry, rampups, crop):
     """
     Loads array from given image file. Determines the vts file name and calls savw_CX function to process this  file. The vts file will have the same name as image file, with different extension and will be saved in the same directory.
 
@@ -182,7 +105,11 @@ def process_file(image_file, conf_dir):
         print(image_file, 'file is missing')
         return
 
-    save_CX(conf_dir, image, None, None, os.path.dirname(image_file))
+    if rampups > 1:
+        image = vu.remove_ramp(image, ups=rampups)
+
+    viz = CXDViz(crop, geometry)
+    viz.visualize(image, None, None, os.path.dirname(image_file))
 
 
 def get_conf_dict(experiment_dir):
@@ -277,8 +204,60 @@ def handle_visualization(experiment_dir, image_file=None):
     if conf_dict is None:
         return
 
+    try:
+        disp = importlib.import_module('beamlines.' + conf_dict['beamline'] + '.disp')
+    except:
+        print ('cannot import beamlines.' + conf_dict['beamline'] + '.disp module.')
+        return
+
+    try:
+        params = disp.DispalyParams(conf_dict)
+    except Exception as e:
+        print ('exception', e)
+        return
+
+    det_obj = None
+    diff_obj = None
+    try:
+        detector_name = params.detector
+        try:
+            det = importlib.import_module('beamlines.aps_34idc.detectors')
+            try:
+                det_obj = det.create_detector(detector_name)
+            except:
+                print('detector', detector_name, 'is not defined in beamlines detectors')
+        except:
+            print('problem importing detectors file from beamline module')
+    except:
+        pass
+    try:
+        diffractometer_name = params.diffractometer
+        try:
+            diff = importlib.import_module('beamlines.aps_34idc.diffractometers')
+            try:
+                diff_obj = diff.create_diffractometer(diffractometer_name)
+            except:
+                print ('diffractometer', diffractometer_name, 'is not defined in beamlines detectors')
+        except:
+             print('problem importing diffractometers file from beamline module')
+    except:
+        pass
+
+    if not params.set_instruments(det_obj, diff_obj):
+        return
+
+    try:
+        rampups = params.rampsup
+    except:
+        rampups = 1
+
     if image_file is not None:
-        process_file(image_file, conf_dict)
+        # find shape without loading the array
+        with open(image_file, 'rb') as f:
+            np.lib.format.read_magic(f)
+            shape, fortran, dtype = np.lib.format.read_array_header_1_0(f)
+        geometry = disp.set_geometry(shape, params)
+        process_file(image_file, geometry, rampups, params.crop)
     else:
         try:
             results_dir = conf_dict['results_dir']
@@ -290,16 +269,24 @@ def handle_visualization(experiment_dir, image_file=None):
         for (dirpath, dirnames, filenames) in os.walk(results_dir):
             for file in filenames:
                 if file.endswith('image.npy'):
-                    dirs.append((dirpath, conf_dict))
+                    dirs.append((dirpath))
         if len(dirs) == 0:
             print ('no image.npy files found in the directory tree', results_dir)
             return
-        elif len(dirs) == 1:
-            process_dir(dirs[0])
+        else:
+            # find shape without loading the array
+            with open(os.path.join(dirs[0], 'image.npy'), 'rb') as f:
+                np.lib.format.read_magic(f)
+                shape, fortran, dtype = np.lib.format.read_array_header_1_0(f)
+            geometry = disp.set_geometry(shape, params)
+
+        if len(dirs) == 1:
+            process_dir(geometry, rampups, params.crop, dirs[0])
         elif len(dirs) >1:
+            func = partial(process_dir, geometry, rampups, params.crop)
             no_proc = min(cpu_count(), len(dirs))
             with Pool(processes = no_proc) as pool:
-               pool.map_async(process_dir, dirs)
+               pool.map_async(func, dirs)
                pool.close()
                pool.join()
         print ('done with processing display')
