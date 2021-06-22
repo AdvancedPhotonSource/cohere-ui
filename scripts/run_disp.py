@@ -74,6 +74,8 @@ def process_dir(geometry, rampups, crop, res_dir):
         except:
             print('cannot load file', cohfile)
 
+    if support is not None:
+        image, support = vu.center(image, support)
     if rampups > 1:
         image = vu.remove_ramp(image, ups=rampups)
 
