@@ -276,7 +276,7 @@ class cdi_gui(QWidget):
         if self.working_dir is None:
             return False
         exp_id = str(self.Id_widget.text()).strip()
-        scan = str(self.scan_widget.text()).strip()
+        scan = str(self.scan_widget.text()).replace(' ','')
         if scan != '':
             exp_id = exp_id + '_' + scan
         if not os.path.exists(os.path.join(self.working_dir, exp_id)):
@@ -459,7 +459,7 @@ class cdi_gui(QWidget):
             return
         conf_map = {}
 
-        self.scan = str(self.scan_widget.text()).strip()
+        self.scan = str(self.scan_widget.text()).replace(' ','')
         if len(self.scan) > 0:
             scans = self.scan.split('-')
             if len(scans) > 2:

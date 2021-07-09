@@ -130,10 +130,19 @@ class Detector_34idcTIM2(Detector):
         """
         try:
             self.whitefield = ut.read_tif(self.whitefield_filename)
-            self.whitefield = np.where(self.whitefield < 100, 1e20, self.whitefield) #Some large value
         except:
             print("Whitefield filename not set for TIM2")
             raise
+        try:
+#            self.whitefield = np.where(self.whitefield < 100, 1e20, self.whitefield) #Some large value
+            self.whitefield[255:257,0:255] = 0   #wierd pixels on edge of seam (TL/TR). Kill in WF kills in returned frame as well.
+            self.wfavg=np.average(self.whitefield)
+            self.wfstd=np.std(self.whitefield)
+            self.whitefield = np.where( self.whitefield < self.wfavg-3*self.wfstd, 0, self.whitefield)
+        except:
+            print("Corrections to the TIM2 whitefield image failed in detector module.")
+
+
 
 
     def load_darkfield(self):
@@ -151,6 +160,8 @@ class Detector_34idcTIM2(Detector):
         except:
             print("Darkfield filename not set for TIM2")
             raise
+        if type(self.whitefield) == np.ndarray:
+            self.whitefield = np.where(self.darkfield > 1, 0, self.whitefield) #kill known bad pixel
 
     def get_raw_frame(self, filename):
         try:
@@ -185,12 +196,13 @@ seam.
         # insert 4 cols 5 rows if roi crosses asic boundary
         if roi is None:
             roi = (0, 512, 0, 512)
-        if Imult is None:
-            Imult = 1e5
-        if not type(self.whitefield) == np.ndarray:
-            self.load_whitefield()
+        #WFprocessing using darkfield.  So do it first.
         if not type(self.darkfield) == np.ndarray:
             self.load_darkfield()
+        if not type(self.whitefield) == np.ndarray:
+            self.load_whitefield()
+        if Imult is None:
+            Imult = self.wfavg
 
         roislice1 = slice(roi[0], roi[0] + roi[1])
         roislice2 = slice(roi[2], roi[2] + roi[3])
