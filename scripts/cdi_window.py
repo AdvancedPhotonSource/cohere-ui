@@ -1482,6 +1482,10 @@ class GA(Feature):
             self.lr_sigmas.setText(str(conf_map.ga_low_resolution_sigmas).replace(" ", ""))
         except AttributeError:
             pass
+        try:
+            self.gen_pcdi_start.setText(str(conf_map.gen_pcdi_start).replace(" ", ""))
+        except AttributeError:
+            pass
 
 
     def fill_active(self, layout):
@@ -1509,6 +1513,8 @@ class GA(Feature):
         layout.addRow("after breed support sigmas", self.ga_support_sigmas)
         self.lr_sigmas = QLineEdit()
         layout.addRow("low resolution sigmas", self.lr_sigmas)
+        self.gen_pcdi_start = QLineEdit()
+        layout.addRow("gen to start pcdi", self.gen_pcdi_start)
 
 
     def rec_default(self):
@@ -1528,6 +1534,7 @@ class GA(Feature):
         self.ga_support_thresholds.setText('(.1,.1,.1,.1,.1)')
         self.ga_support_sigmas.setText('(1.0,1.0,1.0,1.0)')
         self.lr_sigmas.setText('(2.0,1.5)')
+        self.gen_pcdi_start.setText('3')
         self.active.setChecked(True)
 
 
@@ -1549,6 +1556,7 @@ class GA(Feature):
         conf_map['ga_support_thresholds'] = str(self.ga_support_thresholds.text()).replace('\n','')
         conf_map['ga_support_sigmas'] = str(self.ga_support_sigmas.text()).replace('\n','')
         conf_map['ga_low_resolution_sigmas'] = str(self.lr_sigmas.text()).replace('\n','')
+        conf_map['gen_pcdi_start'] = str(self.gen_pcdi_start.text())
 
 
 class low_resolution(Feature):
