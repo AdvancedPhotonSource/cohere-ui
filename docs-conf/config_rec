@@ -76,6 +76,9 @@ ga_support_sigmas = (1.1, 1.0)
                              // Gauss (assuming algorithm is GAUSS) and apply it to the data
                              // This determines low resolution generations number
 
+gen_pcdi_start = 3
+                             // generation at which pcdi feature will start, if active.
+
 // TWIN
 // twin feature trims the image array at the current state by zeroing half of the array in each dimension.
 
