@@ -921,9 +921,9 @@ class RecTab(QWidget):
         self.cont_dir_label = QLabel('    cont dir')
         hbox.addWidget(self.cont_dir_label)
         self.cont_dir_label.hide()
-        self.cont_dir = QLineEdit()
-        hbox.addWidget(self.cont_dir)
-        self.cont_dir.hide()
+        self.cont_dir_button = QPushButton()
+        hbox.addWidget(self.cont_dir_button)
+        self.cont_dir_button.hide()
         ulayout.addRow(hbox)
 
         self.add_conf_button = QPushButton('add configuration', self)
@@ -973,6 +973,7 @@ class RecTab(QWidget):
         self.setAutoFillBackground(True)
         self.setLayout(layout)
 
+        self.cont_dir_button.clicked.connect(self.set_cont_dir)
         self.config_rec_button.clicked.connect(self.run_tab)
         self.cont.stateChanged.connect(self.toggle_cont)
         self.rec_default_button.clicked.connect(self.set_defaults)
@@ -1074,7 +1075,8 @@ class RecTab(QWidget):
         if len(self.support_area.text()) > 0:
             conf_map['support_area'] = str(self.support_area.text()).replace('\n','')
         if self.cont.isChecked():
-            conf_map['continue_dir'] = str(self.cont_dir.text())
+            if len(self.cont_dir_button.text().strip()) > 0:
+                conf_map['continue_dir'] = '"' + str(self.cont_dir_button.text()).strip() + '"'
 
         for feat_id in self.features.feature_dir:
             self.features.feature_dir[feat_id].add_config(conf_map)
@@ -1102,10 +1104,28 @@ class RecTab(QWidget):
         """
         if self.cont.isChecked():
             self.cont_dir_label.show()
-            self.cont_dir.show()
+            self.cont_dir_button.show()
         else:
             self.cont_dir_label.hide()
-            self.cont_dir.hide()
+            self.cont_dir_button.hide()
+
+
+    def set_cont_dir(self):
+        """
+        It display a select dialog for user to select a directory with raw data file.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        cont_dir = select_dir(os.getcwd())
+        if cont_dir is not None:
+            self.cont_dir_button.setStyleSheet("Text-align:left")
+            self.cont_dir_button.setText(cont_dir)
+        else:
+            self.cont_dir_button.setText('')
 
 
     def add_rec_conf(self):
