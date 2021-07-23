@@ -322,6 +322,9 @@ class PrepTab(QWidget):
         if not ver.ver_config_prep(conf):
             msg_window('please check configuration file ' + conf + '. Cannot parse, ')
             return
+
+        self.parse_spec()
+
         try:
             conf_map = ut.read_config(conf)
         except Exception as e:
@@ -385,7 +388,6 @@ class PrepTab(QWidget):
             self.roi.setText(str(conf_map.roi).replace(" ", ""))
         except:
             pass
-        self.parse_spec()
 
 
     def clear_conf(self):
@@ -703,6 +705,8 @@ class DispTab(QWidget):
             msg_window('please check configuration file ' + conf + '. Cannot parse, ' + str(e))
             return
 
+        self.parse_spec()
+
         try:
             self.results_dir = str(conf_map.results_dir).replace(" ","")
         except AttributeError:
@@ -773,8 +777,6 @@ class DispTab(QWidget):
             self.detector.setStyleSheet('color: black')
         except AttributeError:
             pass
-
-        self.parse_spec()
 
 
     def clear_conf(self):
