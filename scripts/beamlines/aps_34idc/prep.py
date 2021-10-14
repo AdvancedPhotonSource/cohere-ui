@@ -1,5 +1,5 @@
-from cohere.beamlines.preparer import PrepData
-import cohere.utilities.utils as ut
+from cohere.src_py.beamlines.preparer import PrepData
+import cohere.src_py.utilities.utils as ut
 import os
 import re
 import glob
