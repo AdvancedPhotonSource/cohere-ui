@@ -19,9 +19,9 @@ __all__ = ['process_dir',
            'handle_visualization',
            'main']
 
-import cohere.src_py.utilities.viz_util as vu
-import cohere.src_py.utilities.utils as ut
-from cohere.src_py.beamlines.viz import CXDViz
+import cohere.utilities.viz_util as vu
+import cohere.utilities.utils as ut
+from cohere.beamlines.viz import CXDViz
 import config_verifier as ver
 import argparse
 import sys
