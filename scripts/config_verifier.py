@@ -8,7 +8,7 @@
 verification of configuration files
 """
 
-import cohere.src_py.utilities.utils as ut
+import cohere.utilities.utils as ut
 import os
 
 __author__ = "Barbara Frosik"
