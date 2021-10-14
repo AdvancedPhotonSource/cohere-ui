@@ -13,7 +13,7 @@ import sys
 import argparse
 import os
 import numpy as np
-import cohere.src_py.utilities.utils as ut
+import cohere.utilities.utils as ut
 import config_verifier as ver
 import alien_tools as at
 import pylibconfig2
