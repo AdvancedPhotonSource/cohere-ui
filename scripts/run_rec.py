@@ -23,41 +23,16 @@ import sys
 import signal
 import os
 import argparse
-import numpy as np
-from multiprocessing import Process, Queue
-import cohere.src_py.controller.reconstruction as rec
-import cohere.src_py.controller.gen_rec as gen_rec
-import cohere.src_py.controller.reconstruction_multi as mult_rec
-import cohere.src_py.utilities.utils as ut
-import config_verifier as ver
 import time
-from functools import reduce
+from multiprocessing import Process, Queue
+import pycohere.controller.reconstruction as rec
+import pycohere.controller.gen_rec as gen_rec
+import pycohere.controller.reconstruction_multi as mult_rec
+import pycohere.utilities.utils as ut
+import config_verifier as ver
 
 MEM_FACTOR = 1500
 ADJUST = 0.0
-
-
-def interrupt_thread():
-    """
-    This function is part of interrupt mechanism. It detects ctl-c signal and creates an empty file named "stopfile".
-    The file is discovered by fast module processand the discovery prompts termination of that process.
-    """
-
-    def int_handler(signal, frame):
-        while not os.path.isfile('stopfile'):
-            open('stopfile', 'a').close()
-            time.sleep(.3)
-
-        # #remove the file at the end
-        if os.path.isfile('stopfile'):
-            os.remove('stopfile')
-
-    def term_handler(signal, frame):
-        pass
-
-    signal.signal(signal.SIGINT, int_handler)
-    signal.signal(signal.SIGTERM, term_handler)
-    signal.pause()
 
 
 def rec_process(proc, conf_file, datafile, dir, gpus, r, q):
@@ -115,16 +90,16 @@ def get_gpu_use(devices, no_dir, no_rec, data_shape):
         a list of int indicating number of runs per consecuitive GPUs
     """
     from functools import reduce
-				
+
     if sys.platform == 'darwin':
         # the gpu library is not working on OSX, so run one reconstruction on each GPU
-        gpu_load = len(devices) * [1,]
+        gpu_load = len(devices) * [1, ]
     else:
         # find size of data array
         data_size = reduce((lambda x, y: x * y), data_shape)
         rec_mem_size = data_size / MEM_FACTOR
         gpu_load = ut.get_gpu_load(rec_mem_size, devices)
-						
+
     no_runs = no_dir * no_rec
     gpu_distribution = ut.get_gpu_distribution(no_runs, gpu_load)
     gpu_use = []
@@ -147,7 +122,7 @@ def get_gpu_use(devices, no_dir, no_rec, data_shape):
 def manage_reconstruction(proc, experiment_dir, rec_id=None):
     """
     This function starts the interruption discovery process and continues the recontruction processing.
-    
+
     It reads configuration file defined as <experiment_dir>/conf/config_rec.
     If multiple generations are configured, or separate scans are discovered, it will start concurrent reconstructions.
     It creates image.npy file for each successful reconstruction.
@@ -165,8 +140,6 @@ def manage_reconstruction(proc, experiment_dir, rec_id=None):
     -------
     nothing
     """
-    if os.path.exists('stopfile'):
-        os.remove('stopfile')
     print('starting reconstruction')
 
     # the rec_id is a postfix added to config_rec configuration file. If defined, use this configuration.
@@ -193,7 +166,36 @@ def manage_reconstruction(proc, experiment_dir, rec_id=None):
             return
     except Exception as e:
         print('Cannot parse configuration file ' + conf_file + ' , check for matching parenthesis and quotations')
-        print (str(e))
+        print(str(e))
+        return
+
+    # find which librarry to run it on, default is numpy ('np')
+    lib = 'np'
+    if proc == 'auto':
+        try:
+            import cupy
+            lib = 'cp'
+        except:
+            # currently we could not install arrayfire on linux, so numpy is the second choice
+            pass
+    elif proc == 'cp':
+        try:
+            import cupy
+            lib = 'cp'
+        except:
+            print('cupy is not installed, select different library (proc)')
+            return
+    elif proc == 'np':
+        pass  # lib set to 'np'
+    elif proc == 'af' or 'cpu' or proc == 'cuda' or proc == 'opencl':
+        try:
+            import arrayfire
+            lib = proc
+        except:
+            print('arrayfire is not installed, select different library (proc)')
+            return
+    else:
+        print('invalid "proc" value', proc, 'is not supported')
         return
 
     # exp_dirs_data list hold pairs of data and directory, where the directory is the root of data/data.tif file, and
@@ -213,10 +215,9 @@ def manage_reconstruction(proc, experiment_dir, rec_id=None):
             data_dir = config_map.data_dir
         except AttributeError:
             data_dir = os.path.join(experiment_dir, 'data')
-        if os.path.isfile(os.path.join(data_dir, 'data.tif')):
-            exp_dirs_data.append((os.path.join(data_dir, 'data.tif'), experiment_dir))
-        elif os.path.isfile(os.path.join(data_dir, 'data.npy')):
-            exp_dirs_data.append((os.path.join(data_dir, 'data.npy'), experiment_dir))
+        datafile = os.path.join(data_dir, 'data.tif')
+        if os.path.isfile(datafile):
+            exp_dirs_data.append((datafile, experiment_dir))
     no_runs = len(exp_dirs_data)
     if no_runs == 0:
         print('did not find data.tif nor data.npy file(s). ')
@@ -230,7 +231,7 @@ def manage_reconstruction(proc, experiment_dir, rec_id=None):
     except:
         reconstructions = 1
     device_use = []
-    if proc == 'cpu':
+    if lib == 'cpu' or lib == 'np':
         cpu_use = [-1] * reconstructions
         if no_runs > 1:
             for _ in range(no_runs):
@@ -244,17 +245,10 @@ def manage_reconstruction(proc, experiment_dir, rec_id=None):
             devices = [-1]
 
         if no_runs * reconstructions > 1:
-            if exp_dirs_data[0][0].endswith('tif'):
-                data_shape = ut.read_tif(exp_dirs_data[0][0]).shape
-            elif exp_dirs_data[0][0].endswith('npy'):
-                data_shape = np.load(exp_dirs_data[0][0]).shape
+            data_shape = ut.read_tif(exp_dirs_data[0][0]).shape
             device_use = get_gpu_use(devices, no_runs, reconstructions, data_shape)
         else:
             device_use = devices
-
-    # start the interrupt process
-    interrupt_process = Process(target=interrupt_thread, args=())
-    interrupt_process.start()
 
     if no_runs == 1:
         if len(device_use) == 0:
@@ -263,17 +257,17 @@ def manage_reconstruction(proc, experiment_dir, rec_id=None):
         datafile = dir_data[0]
         dir = dir_data[1]
         if generations > 1:
-            gen_rec.reconstruction(proc, conf_file, datafile, dir, device_use)
+            gen_rec.reconstruction(lib, conf_file, datafile, dir, device_use)
         elif reconstructions > 1:
-            mult_rec.reconstruction(proc, conf_file, datafile, dir, device_use)
+            mult_rec.reconstruction(lib, conf_file, datafile, dir, device_use)
         else:
-            rec.reconstruction(proc, conf_file, datafile, dir, device_use)
+            rec.reconstruction(lib, conf_file, datafile, dir, device_use)
     else:
         if len(device_use) == 0:
             device_use = [[-1]]
         else:
             # check if is it worth to use last chunk
-            if proc != 'cpu' and len(device_use[0]) > len(device_use[-1]) * 2:
+            if lib != 'cpu' and lib != 'np' and len(device_use[0]) > len(device_use[-1]) * 2:
                 device_use = device_use[0:-1]
         if generations > 1:
             r = 'g'
@@ -295,7 +289,7 @@ def manage_reconstruction(proc, experiment_dir, rec_id=None):
                 del processes[pid]
             datafile = exp_dirs_data[index][0]
             dir = exp_dirs_data[index][1]
-            p = Process(target=rec_process, args=(proc, conf_file, datafile, dir, gpus, r, q))
+            p = Process(target=rec_process, args=(lib, conf_file, datafile, dir, gpus, r, q))
             p.start()
             pr.append(p)
             processes[p.pid] = index
@@ -307,7 +301,6 @@ def manage_reconstruction(proc, experiment_dir, rec_id=None):
         # close the queue
         q.close()
 
-    interrupt_process.terminate()
     print('finished reconstruction')
 
 
