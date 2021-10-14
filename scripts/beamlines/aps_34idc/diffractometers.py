@@ -1,4 +1,4 @@
-from cohere.src_py.beamlines.diffractometer import Diffractometer
+from cohere.beamlines.diffractometer import Diffractometer
 
 
 class Diffractometer_34idc(Diffractometer):
