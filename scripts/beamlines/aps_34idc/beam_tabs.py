@@ -2,7 +2,7 @@ import os
 import shutil
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
-import cohere.src_py.utilities.utils as ut
+import cohere.utilities.utils as ut
 import config_verifier as ver
 from xrayutilities.io import spec as spec
 
@@ -322,9 +322,6 @@ class PrepTab(QWidget):
         if not ver.ver_config_prep(conf):
             msg_window('please check configuration file ' + conf + '. Cannot parse, ')
             return
-
-        self.parse_spec()
-
         try:
             conf_map = ut.read_config(conf)
         except Exception as e:
@@ -388,6 +385,7 @@ class PrepTab(QWidget):
             self.roi.setText(str(conf_map.roi).replace(" ", ""))
         except:
             pass
+        self.parse_spec()
 
 
     def clear_conf(self):
@@ -468,8 +466,6 @@ class PrepTab(QWidget):
         -------
         nothing
         """
-#        import run_prep_34idc as prep
-
         if not self.main_win.is_exp_exists():
             msg_window('the experiment has not been created yet')
         elif not self.main_win.is_exp_set():
@@ -577,7 +573,7 @@ class PrepTab(QWidget):
             # do not parse on initial assignment
             return
         try:
-            last_scan = int(self.main_win.scan.split('-')[-1])
+            last_scan = int(self.main_win.scan.split('-')[-1].split(',')[-1])
             detector_name, roi = get_det_from_spec(self.main_win.specfile, last_scan)
             self.roi.setText(str(roi))
             self.roi.setStyleSheet('color: blue')
@@ -616,16 +612,14 @@ class DispTab(QWidget):
         self.tabs = tabs
         self.main_win = main_window
 
-        # the group of fields below are used to keep track of the results directory that will be processed
-        # when running display
         self.results_dir = None
-        # self.separate_scans = False
-        # self.rec_id = ''
-        # self.generations = 0
 
         layout = QFormLayout()
         self.result_dir_button = QPushButton()
         layout.addRow("results directory", self.result_dir_button)
+        self.make_twin = QCheckBox('make twin')
+        self.make_twin.setChecked(False)
+        layout.addWidget(self.make_twin)
         self.diffractometer = QLineEdit()
         layout.addRow("diffractometer", self.diffractometer)
         self.crop = QLineEdit()
@@ -705,8 +699,6 @@ class DispTab(QWidget):
             msg_window('please check configuration file ' + conf + '. Cannot parse, ' + str(e))
             return
 
-        self.parse_spec()
-
         try:
             self.results_dir = str(conf_map.results_dir).replace(" ","")
         except AttributeError:
@@ -715,6 +707,15 @@ class DispTab(QWidget):
         self.result_dir_button.setStyleSheet("Text-align:left")
         self.result_dir_button.setText(self.results_dir)
         # if parameters are configured, override the readings from spec file
+        try:
+            make_twin = conf_map.make_twin
+            if make_twin:
+                self.make_twin.setChecked(True)
+            else:
+                self.make_twin.setChecked(False)
+        except:
+            self.make_twin.setChecked(False)
+
         try:
             self.diffractometer.setText(str(conf_map.diffractometer).replace(" ", ""))
         except AttributeError:
@@ -778,8 +779,11 @@ class DispTab(QWidget):
         except AttributeError:
             pass
 
+        self.parse_spec()
+
 
     def clear_conf(self):
+        self.make_twin.setChecked(False)
         self.diffractometer.setText('')
         self.crop.setText('')
         self.rampups.setText('')
@@ -826,8 +830,9 @@ class DispTab(QWidget):
         """
         conf_map = {}
         if self.results_dir is not None:
-         #   conf_map['results_dir'] = '"' + str(self.results_dir).strip() + '"'
             conf_map['results_dir'] = '"' + self.results_dir + '"'
+        if self.make_twin.isChecked():
+            conf_map['make_twin'] = 'true'
         if len(self.energy.text()) > 0:
             conf_map['energy'] = str(self.energy.text())
         if len(self.delta.text()) > 0:
@@ -868,8 +873,6 @@ class DispTab(QWidget):
         -------
         nothing
         """
-#        import run_disp as run_dp
-
         if not self.main_win.is_exp_exists():
             msg_window('the experiment has not been created yet')
             return
@@ -902,7 +905,6 @@ class DispTab(QWidget):
 
         conf_dir = os.path.join(self.main_win.experiment_dir, 'conf')
         if write_conf(conf_map, conf_dir, 'config_disp'):
-#            run_dp.handle_visualization(self.main_win.experiment_dir)
             self.tabs.run_viz()
 
 
@@ -929,7 +931,7 @@ class DispTab(QWidget):
             # do not parse on initial assignment
             return
         try:
-            last_scan = int(self.main_win.scan.split('-')[-1])
+            last_scan = int(self.main_win.scan.split('-')[-1].split(',')[-1])
             delta, gamma, theta, phi, chi, scanmot, scanmot_del, detdist, detector_name, energy = parse_spec(self.main_win.specfile, last_scan)
             if energy is not None:
                 self.energy.setText(str(energy))
@@ -1036,5 +1038,3 @@ class DispTab(QWidget):
                 self.result_dir_button.setText('')
         else:
             msg_window('the experiment has not been created yet')
-
-
