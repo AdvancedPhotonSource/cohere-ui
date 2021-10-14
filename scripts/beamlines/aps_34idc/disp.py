@@ -1,5 +1,5 @@
 import numpy as np
-from cohere.beamlines.viz import CXDViz
+from cohere.src_py.beamlines.viz import CXDViz
 import math as m
 import xrayutilities.experiment as xuexp
 from xrayutilities.io import spec as spec
@@ -84,12 +84,10 @@ class DispalyParams:
     def __init__(self, config):
         """
         The constructor gets config file and fills out the class members.
-
         Parameters
         ----------
         config : str
             configuration file name
-
         Returns
         -------
         none
@@ -222,14 +220,11 @@ class DispalyParams:
 def set_geometry(shape, p):
     """
     Sets geometry.
-
     Parameters
     ----------
     shape : tuple
         shape of reconstructed array
-
     p : DisplayParmas object
-
     Returns
     -------
     nothing
