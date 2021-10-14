@@ -16,7 +16,7 @@ import os
 from sklearn.cluster import DBSCAN
 import tifffile as tif
 from time import time
-import cohere.src_py.utilities.utils as ut
+import cohere.utilities.utils as ut
 
 __author__ = "Kenly Pelzer, Ross Harder"
 __copyright__ = "Copyright (c) 2021, UChicago Argonne, LLC."
