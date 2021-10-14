@@ -32,7 +32,7 @@ from multiprocessing import Pool, cpu_count
 import importlib
 
 
-def process_dir(geometry, rampups, crop, res_dir):
+def process_dir(geometry, rampups, crop, make_twin, res_dir):
     """
     Loads arrays from files in results directory. If reciprocal array exists, it will save reciprocal info in tif format. It calls the save_CX function with the relevant parameters.
 
@@ -51,6 +51,7 @@ def process_dir(geometry, rampups, crop, res_dir):
     imagefile = os.path.join(res_dir, 'image.npy')
     try:
         image = np.load(imagefile)
+        ut.save_tif(image, os.path.join(res_dir, 'image.tif'))
     except:
         print('cannot load file', imagefile)
         return
@@ -62,6 +63,7 @@ def process_dir(geometry, rampups, crop, res_dir):
     if os.path.isfile(supportfile):
         try:
             support = np.load(supportfile)
+            ut.save_tif(support, os.path.join(res_dir, 'support.tif'))
         except:
             print('cannot load file', supportfile)
     else:
@@ -81,6 +83,15 @@ def process_dir(geometry, rampups, crop, res_dir):
 
     viz = CXDViz(crop, geometry)
     viz.visualize(image, support, coh, res_dir)
+
+    if make_twin:
+        image = np.flip(image)
+        if support is not None:
+            support = np.flip(support)
+            image, support = vu.center(image, support)
+        if rampups > 1:
+            image = vu.remove_ramp(image, ups=rampups)
+        viz.visualize(image, support, coh, save_dir, True)
 
 
 def process_file(image_file, geometry, rampups, crop):
@@ -253,6 +264,11 @@ def handle_visualization(experiment_dir, image_file=None):
     except:
         rampups = 1
 
+    try:
+        make_twin = conf_dict['make_twin']
+    except:
+        make_twin = True
+
     if image_file is not None:
         # find shape without loading the array
         with open(image_file, 'rb') as f:
@@ -283,9 +299,9 @@ def handle_visualization(experiment_dir, image_file=None):
             geometry = disp.set_geometry(shape, params)
 
         if len(dirs) == 1:
-            process_dir(geometry, rampups, params.crop, dirs[0])
+            process_dir(geometry, rampups, params.crop, make_twin, dirs[0])
         elif len(dirs) >1:
-            func = partial(process_dir, geometry, rampups, params.crop)
+            func = partial(process_dir, geometry, rampups, params.crop, make_twin)
             no_proc = min(cpu_count(), len(dirs))
             with Pool(processes = no_proc) as pool:
                pool.map_async(func, dirs)
