@@ -934,6 +934,11 @@ class RecTab(QWidget):
         ulayout.addWidget(self.rec_id)
         self.rec_id.hide()
         self.proc = QComboBox()
+        self.proc.addItem("auto")
+        if sys.platform != 'darwin':
+            self.proc.addItem("cp")
+        self.proc.addItem("np")
+        self.proc.addItem("af")
         if sys.platform != 'darwin':
             self.proc.addItem("cuda")
         self.proc.addItem("opencl")
