@@ -22,7 +22,7 @@ import shutil
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
-import cohere.utilities.utils as ut
+import cohere.src_py.utilities.utils as ut
 import importlib
 import config_verifier as ver
 
