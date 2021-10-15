@@ -91,7 +91,7 @@ def process_dir(geometry, rampups, crop, make_twin, res_dir):
             image, support = vu.center(image, support)
         if rampups > 1:
             image = vu.remove_ramp(image, ups=rampups)
-        viz.visualize(image, support, coh, save_dir, True)
+        viz.visualize(image, support, coh, res_dir, True)
 
 
 def process_file(image_file, geometry, rampups, crop):

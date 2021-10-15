@@ -24,10 +24,10 @@ import os
 import argparse
 import time
 from multiprocessing import Process, Queue
-import pycohere.controller.reconstruction as rec
-import pycohere.controller.gen_rec as gen_rec
-import pycohere.controller.reconstruction_multi as mult_rec
-import pycohere.utilities.utils as ut
+import cohere.controller.reconstruction as rec
+import cohere.controller.gen_rec as gen_rec
+import cohere.controller.reconstruction_multi as mult_rec
+import cohere.utilities.utils as ut
 import config_verifier as ver
 
 MEM_FACTOR = 1500
