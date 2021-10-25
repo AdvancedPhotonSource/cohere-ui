@@ -21,14 +21,21 @@
                              // directory where results of reconstruction are saved as npy files
                              // if samples > 1, result from each thread will be stored in subdirectory 1,2,3 etc.
 
-cont = false
-                             // only applied if generations equals 1, or not defined
-                             // if true, the reconstruction start with previous results stored in continue_dir
+init_guess = "random"
+                             // defines what to apply as initial guess. Choices are: random, continue, and AI_guess.
+                             // "random" will generate random guess, "continue" will start from previously saved
+                             // results, and "AI_guess" will start AI reconstruction that will be an initial guess
 
 // continue_dir = "cont"
-                             // directory from which results are read for reconstruction continuation
-                             // if the directory contains subdirectories, a thread will start for each subdirectory
+                             // valid if init_guess is "continue"
+                             // Directory from which results are read for reconstruction continuation
 
+// AI_threshold = .1
+                             // valid if init_guess is "AI_guess"
+                             // defines the threshold used in shrink wrap to calculate initial support
+// AI_sigma = .1
+                             // valid if init_guess is "AI_guess"
+                             // defines the sigma used in shrink wrap to calculate initial support
 reconstructions = 1
                              // number of reconstructions to start with
                              // typically used when running genetic algorithm

@@ -914,17 +914,15 @@ class RecTab(QWidget):
         ulayout = QFormLayout()
         mlayout = QHBoxLayout()
 
-        hbox = QHBoxLayout()
-        self.cont = QCheckBox('continue')
-        self.cont.setChecked(False)
-        hbox.addWidget(self.cont)
-        self.cont_dir_label = QLabel('    cont dir')
-        hbox.addWidget(self.cont_dir_label)
-        self.cont_dir_label.hide()
-        self.cont_dir_button = QPushButton()
-        hbox.addWidget(self.cont_dir_button)
-        self.cont_dir_button.hide()
-        ulayout.addRow(hbox)
+        self.init_guess = QComboBox()
+        self.init_guess.InsertAtBottom
+        self.init_guess.addItem("random")
+        self.init_guess.addItem("continue")
+        self.init_guess.addItem("AI algorithm")
+        ulayout.addRow("initial guess", self.init_guess)
+        sub_layout = QFormLayout()
+        self.set_init_guess_layout(sub_layout)
+        ulayout.addRow(sub_layout)
 
         self.add_conf_button = QPushButton('add configuration', self)
         ulayout.addWidget(self.add_conf_button)
@@ -978,9 +976,8 @@ class RecTab(QWidget):
         self.setAutoFillBackground(True)
         self.setLayout(layout)
 
-        self.cont_dir_button.clicked.connect(self.set_cont_dir)
         self.config_rec_button.clicked.connect(self.run_tab)
-        self.cont.stateChanged.connect(self.toggle_cont)
+        self.init_guess.currentIndexChanged.connect(lambda: self.set_init_guess_layout(sub_layout))
         self.rec_default_button.clicked.connect(self.set_defaults)
         self.add_conf_button.clicked.connect(self.add_rec_conf)
         self.rec_id.currentIndexChanged.connect(self.toggle_conf)
@@ -1015,6 +1012,31 @@ class RecTab(QWidget):
             msg_window('please check configuration file ' + conf + '. Cannot parse, ' + str(e))
             return
 
+        init_guess = 'random'
+        try:
+            init_guess = str(conf_map.init_guess)
+        except AttributeError:
+            self.init_guess.setCurrentIndex(0)
+        if init_guess == 'random':
+            self.init_guess.setCurrentIndex(0)
+        elif init_guess == 'continue':
+            self.init_guess.setCurrentIndex(1)
+            try:
+                print('setting cont_dir')
+                self.cont_dir_button.setText(str(conf_map.continue_dir).replace(" ", ""))
+            except AttributeError:
+                pass
+        elif init_guess == 'AI_guess':
+            self.init_guess.setCurrentIndex(2)
+            try:
+                self.AI_threshold.setText(str(conf_map.AI_threshold).replace(" ", ""))
+            except AttributeError:
+                pass
+            try:
+                self.AI_sigma.setText(str(conf_map.AI_sigma).replace(" ", ""))
+            except AttributeError:
+                pass
+
         # this will update the configuration choices by reading configuration files names
         # do not update when doing toggle
         if update_rec_choice:
@@ -1048,6 +1070,7 @@ class RecTab(QWidget):
 
 
     def clear_conf(self):
+        self.init_guess.setCurrentIndex(0)
         self.device.setText('')
         self.reconstructions.setText('')
         self.alg_seq.setText('')
@@ -1079,9 +1102,16 @@ class RecTab(QWidget):
             conf_map['beta'] = str(self.beta.text())
         if len(self.support_area.text()) > 0:
             conf_map['support_area'] = str(self.support_area.text()).replace('\n','')
-        if self.cont.isChecked():
+        if self.init_guess.currentIndex() == 1:
+            conf_map['init_guess'] = '"continue"'
             if len(self.cont_dir_button.text().strip()) > 0:
                 conf_map['continue_dir'] = '"' + str(self.cont_dir_button.text()).strip() + '"'
+        elif self.init_guess.currentIndex() == 2:
+            conf_map['init_guess'] = '"AI_guess"'
+            if len(self.AI_threshold.text()) > 0:
+                conf_map['AI_threshold'] = str(self.AI_threshold.text())
+            if len(self.AI_sigma.text()) > 0:
+                conf_map['AI_sigma'] = str(self.AI_sigma.text())
 
         for feat_id in self.features.feature_dir:
             self.features.feature_dir[feat_id].add_config(conf_map)
@@ -1095,24 +1125,27 @@ class RecTab(QWidget):
             write_conf(conf_map, os.path.join(self.main_win.experiment_dir, 'conf'), 'config_rec')
 
 
-    def toggle_cont(self):
-        """
-        Invoked when the 'cont' checkbox is selected, indicating this reconstruction is continuation.
-        Parameters
-        ----------
-        layout : QFormLayout
-            a layout to add the continue dir
+    def set_init_guess_layout(self, layout):
+        for i in reversed(range(layout.count())):
+            layout.itemAt(i).widget().setParent(None)
+        print(self.init_guess.currentIndex())
+        if self.init_guess.currentIndex() == 1:
+            self.cont_dir_button = QPushButton()
+            layout.addRow("continue directory", self.cont_dir_button)
+            self.cont_dir_button.clicked.connect(self.set_cont_dir)
+        elif self.init_guess.currentIndex() == 2:
+            # The results will be stored in the directory <experiment_dir>/AI_guess
+            AI_guess_dir = os.path.join(self.main_win.experiment_dir, "AI_guess")
+            if os.path.exists(AI_guess_dir):
+                for f in os.listdir(AI_guess_dir):
+                    os.remove(os.path.join(AI_guess_dir, f))
+            else:
+                os.makedirs(AI_guess_dir)
 
-        Returns
-        -------
-        nothing
-        """
-        if self.cont.isChecked():
-            self.cont_dir_label.show()
-            self.cont_dir_button.show()
-        else:
-            self.cont_dir_label.hide()
-            self.cont_dir_button.hide()
+            self.AI_threshold = QLineEdit()
+            layout.addRow("AI init shrink wrap threshold", self.AI_threshold)
+            self.AI_sigma = QLineEdit()
+            layout.addRow("AI init shrink wrap sigma", self.AI_sigma)
 
 
     def set_cont_dir(self):
