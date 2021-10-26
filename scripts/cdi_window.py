@@ -1022,7 +1022,6 @@ class RecTab(QWidget):
         elif init_guess == 'continue':
             self.init_guess.setCurrentIndex(1)
             try:
-                print('setting cont_dir')
                 self.cont_dir_button.setText(str(conf_map.continue_dir).replace(" ", ""))
             except AttributeError:
                 pass
@@ -1128,7 +1127,6 @@ class RecTab(QWidget):
     def set_init_guess_layout(self, layout):
         for i in reversed(range(layout.count())):
             layout.itemAt(i).widget().setParent(None)
-        print(self.init_guess.currentIndex())
         if self.init_guess.currentIndex() == 1:
             self.cont_dir_button = QPushButton()
             layout.addRow("continue directory", self.cont_dir_button)
