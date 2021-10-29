@@ -1,13 +1,2 @@
-amp_threshold = 6
-//aliens = ( (1,2,3,4,5,6))
-aliens = "AutoAlien1"
-AA1_size_threshold = 0.01
-AA1_asym_threshold = 1.75
-AA1_min_pts = 5
-AA1_eps = 1.1
-AA1_amp_threshold = 6
-AA1_save_arrs = True
-AA1_expandcleanedsigma = 5.0
-//adjust_dimensions = (-30,-30,-30,-30,-30,-30)
-
-
+intensity_threshold = 6
+adjust_dimensions = (-60,-60,-60,-60,-30,-30)

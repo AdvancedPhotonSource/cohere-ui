@@ -1,6 +1,6 @@
 scan = "54"
-working_dir = "CUR_DIR/workspace"
+working_dir = "/Users/bfrosik/cohere-scripts/workspace"
 experiment_id = "scan"
-specfile = "CUR_DIR/example/example.spec"
 beamline = "aps_34idc"
-
+specfile = "/Users/bfrosik/cohere-scripts/example/example.spec"
+converter_ver =0

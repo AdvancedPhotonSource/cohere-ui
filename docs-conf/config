@@ -8,7 +8,8 @@ experiment_id = "ab"                        // mandatory
                                             // a string id
 
 scan = "2-7"                                // optional (but typically needed)
-                                            // a single number or a range defining scans, optional
+                                            // a single number, a range, or combination of numbers and ranges
+                                            // separated by comma, defining scans, optional
 
 specfile = "/net/s34data/export/34idc-data/2020/Staff20-1/Staff20-1a.spec"
                                             // optional (but typically needed)

@@ -16,7 +16,7 @@ import numpy as np
 import cohere.utilities.utils as ut
 import config_verifier as ver
 import alien_tools as at
-import pylibconfig2
+
 
 __author__ = "Barbara Frosik"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
@@ -95,13 +95,13 @@ def prep(fname, conf_info):
         return
 
     try:
-        amp_threshold = config_map.amp_threshold
+        intensity_threshold = config_map.intensity_threshold
     except AttributeError:
         print ('define amplitude threshold. Exiting')
         return
 
     # zero out the noise
-    prep_data = np.where(data <= amp_threshold, 0, data)
+    prep_data = np.where(data <= intensity_threshold, 0, data)
 
     # square root data
     prep_data = np.sqrt(prep_data)

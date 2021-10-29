@@ -287,9 +287,9 @@ def ver_config_rec(fname):
         return False
 
     try:
-        generations = config_map.generations
+        generations = config_map.ga_generations
         if type(generations) != int:
-            print('generations parameter should be int')
+            print('ga_generations parameter should be int')
             return False
         try:
             ga_metrics = config_map.ga_metrics
@@ -339,34 +339,45 @@ def ver_config_rec(fname):
             return False
 
         try:
-            ga_support_thresholds = config_map.ga_support_thresholds
-            if not ver_list_float('ga_support_thresholds', ga_support_thresholds):
+            ga_shrink_wrap_thresholds = config_map.ga_shrink_wrap_thresholds
+            if not ver_list_float('ga_shrink_wrap_thresholds', ga_shrink_wrap_thresholds):
                 return False
         except AttributeError:
             pass
         except:
-            print('ga_support_thresholds parameter parsing error')
+            print('ga_shrink_wrap_thresholds parameter parsing error')
             return False
 
         try:
-            ga_support_sigmas = config_map.ga_support_sigmas
-            if not ver_list_float('ga_support_sigmas', ga_support_sigmas):
+            ga_shrink_wrap_gauss_sigmas = config_map.ga_shrink_wrap_gauss_sigmas
+            if not ver_list_float('ga_shrink_wrap_gauss_sigmas', ga_shrink_wrap_gauss_sigmas):
                 return False
         except AttributeError:
             pass
         except:
-            print('ga_support_sigmas parameter parsing error')
+            print('ga_shrink_wrap_gauss_sigmas parameter parsing error')
             return False
 
         try:
-            ga_low_resolution_sigmas = config_map.ga_low_resolution_sigmas
-            if not ver_list_float('ga_low_resolution_sigmas', ga_low_resolution_sigmas):
+            ga_lowpass_filter_sigmas = config_map.ga_lowpass_filter_sigmas
+            if not ver_list_float('ga_lowpass_filter_sigmas', ga_lowpass_filter_sigmas):
                 return False
         except AttributeError:
             pass
         except:
-            print('ga_low_resolution_sigmas parameter parsing error')
+            print('ga_lowpass_filter_sigmas parameter parsing error')
             return False
+        try:
+            ga_gen_pc_start = config_map.ga_gen_pc_start
+            if type(ga_gen_pc_start) != int:
+                print('ga_gen_pc_start parameter should be int')
+                return False
+        except AttributeError:
+            pass
+        except:
+            print('ga_gen_pc_start parameter parsing error')
+            return False
+
     except AttributeError:
         pass
     except:
@@ -410,40 +421,40 @@ def ver_config_rec(fname):
                 return False
 
             try:
-                support_threshold = config_map.support_threshold
-                if type(support_threshold) != float:
-                    print('support_threshold should be float')
+                shrink_wrap_threshold = config_map.shrink_wrap_threshold
+                if type(shrink_wrap_threshold) != float:
+                    print('shrink_wrap_threshold should be float')
                     return False
             except AttributeError:
                 pass
             except:
-                print('support_threshold parameter parsing error')
+                print('shrink_wrap_threshold parameter parsing error')
                 return False
 
             try:
-                support_sigma = config_map.support_sigma
-                if type(support_sigma) != float:
-                    print('support_sigma should be float')
+                shrink_wrap_gauss_sigma = config_map.shrink_wrap_gauss_sigma
+                if type(shrink_wrap_gauss_sigma) != float:
+                    print('shrink_wrap_gauss_sigma should be float')
                     return False
             except AttributeError:
                 pass
             except:
-                print('support_sigma parameter parsing error')
+                print('shrink_wrap_gauss_sigma parameter parsing error')
                 return False
 
             try:
-                support_area = config_map.support_area
-                if not issubclass(type(support_area), list):
-                    print('support_area should be list')
+                initial_support_area = config_map.initial_support_area
+                if not issubclass(type(initial_support_area), list):
+                    print('initial_support_area should be list')
                     return False
-                for e in support_area:
+                for e in initial_support_area:
                     if type(e) != int and type(e) !=float:
-                        print('support_area should be a list of int or float')
+                        print('initial_support_area should be a list of int or float')
                         return False
             except AttributeError:
                 pass
             except:
-                print('support_area parameter parsing error')
+                print('initial_support_area parameter parsing error')
                 return False
 
     except AttributeError:
@@ -454,79 +465,79 @@ def ver_config_rec(fname):
             return False
         else:
             try:
-                phase_min = config_map.phase_min
-                if type(phase_min) != float:
-                    print('phase_min should be float')
+                phm_phase_min = config_map.phm_phase_min
+                if type(phm_phase_min) != float:
+                    print('phm_phase_min should be float')
                     return False
             except AttributeError:
                 pass
             except:
-                print('phase_min parameter parsing error')
+                print('phm_phase_min parameter parsing error')
                 return False
 
             try:
-                phase_max = config_map.phase_max
-                if type(phase_max) != float:
-                    print('phase_max should be float')
+                phm_phase_max = config_map.phm_phase_max
+                if type(phm_phase_max) != float:
+                    print('phm_phase_max should be float')
                     return False
             except AttributeError:
                 pass
             except:
-                print('phase_max parameter parsing error')
+                print('phm_phase_max parameter parsing error')
                 return False
 
     except AttributeError:
         pass
 
     try:
-        if not ver_list_int('pcdi_trigger', config_map.pcdi_trigger):
+        if not ver_list_int('pc_trigger', config_map.pc_trigger):
             return False
         else:
             try:
-                partial_coherence_type = config_map.partial_coherence_type
-                if type(partial_coherence_type) != str:
-                    print ('partial_coherence_type parameter should be string')
+                pc_type = config_map.pc_type
+                if type(pc_type) != str:
+                    print ('pc_type parameter should be string')
                     return False
-                if partial_coherence_type != "LUCY":
-                    print ('partial_coherence_type parameter can be configured "LUCY"')
-                    return False
-            except AttributeError:
-                pass
-            except:
-                print('partial_coherence_type parameter parsing error')
-                return False
-
-            try:
-                partial_coherence_iteration_num = config_map.partial_coherence_iteration_num
-                if type(partial_coherence_iteration_num) != int:
-                    print('partial_coherence_iteration_num should be int')
+                if pc_type != "LUCY":
+                    print ('pc_type parameter can be configured "LUCY"')
                     return False
             except AttributeError:
                 pass
             except:
-                print('partial_coherence_iteration_num parameter parsing error')
+                print('pc_type parameter parsing error')
                 return False
 
             try:
-                partial_coherence_normalize = config_map.partial_coherence_normalize
-                if type(partial_coherence_normalize) != bool:
-                    print ('partial_coherence_normalize parameter should be true or false')
+                pc_LUCY_iterations = config_map.pc_LUCY_iterations
+                if type(pc_LUCY_iterations) != int:
+                    print('pc_LUCY_iterations should be int')
                     return False
             except AttributeError:
                 pass
             except:
-                print('partial_coherence_normalize parameter parsing error')
+                print('pc_LUCY_iterations parameter parsing error')
                 return False
 
             try:
-                partial_coherence_roi = config_map.partial_coherence_roi
-                if not ver_list_int('partial_coherence_roi', partial_coherence_roi):
+                pc_normalize = config_map.pc_normalize
+                if type(pc_normalize) != bool:
+                    print ('pc_normalize parameter should be true or false')
                     return False
             except AttributeError:
-                print("'partial_coherence_roi' parameter must be configured when pcdi in active")
+                pass
+            except:
+                print('pc_normalize parameter parsing error')
+                return False
+
+            try:
+                pc_LUCY_kernel = config_map.pc_LUCY_kernel
+                if not ver_list_int('pc_LUCY_kernel', pc_LUCY_kernel):
+                    return False
+            except AttributeError:
+                print("'pc_LUCY_kernel' parameter must be configured when partial coherence feature in active")
                 return False
             except:
-                print("'partial_coherence_roi' parameter parsing error")
+                print("'pc_LUCY_kernel' parameter parsing error")
                 return False
 
     except AttributeError:
@@ -537,23 +548,23 @@ def ver_config_rec(fname):
             return False
         else:
             try:
-                iter_res_sigma_range = config_map.iter_res_sigma_range
-                if not ver_list_float('iter_res_sigma_range', iter_res_sigma_range):
+                lowpass_filter_sw_sigma_range = config_map.lowpass_filter_sw_sigma_range
+                if not ver_list_float('lowpass_filter_sw_sigma_range', lowpass_filter_sw_sigma_range):
                     return False
             except AttributeError:
                 pass
             except:
-                print("'iter_res_sigma_range' parameter parsing error")
+                print("'lowpass_filter_sw_sigma_range' parameter parsing error")
                 return False
 
             try:
-                iter_res_det_range = config_map.iter_res_det_range
-                if not ver_list_float('iter_res_det_range', iter_res_det_range):
+                lowpass_filter_range = config_map.lowpass_filter_range
+                if not ver_list_float('lowpass_filter_range', lowpass_filter_range):
                     return False
             except AttributeError:
                 pass
             except:
-                print("'iter_res_det_range' parameter parsing error")
+                print("'lowpass_filter_range' parameter parsing error")
                 return False
 
     except AttributeError:
@@ -628,14 +639,14 @@ def ver_config_data(fname):
         pass
 
     try:
-        amp_threshold = config_map.amp_threshold
-        if type(amp_threshold) != float and type(amp_threshold) != int:
-            print('amp_threshold should be float')
+        intensity_threshold = config_map.intensity_threshold
+        if type(intensity_threshold) != float and type(intensity_threshold) != int:
+            print('intensity_threshold should be float')
             return False
     except AttributeError:
         pass
     except:
-        print('amp_threshold parameter parsing error')
+        print('intensity_threshold parameter parsing error')
         return False
 
     alien_alg = 'none'

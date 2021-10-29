@@ -58,7 +58,7 @@ AA1_expandcleanedsigma = 5.0
                              // used in the 'AutoAliens1' method, optional.
                              // If given the algorithm will apply last step of cleaning
                              // the data using the configured sigma
-amp_threshold = 2.0
+intensity_threshold = 2.0
                              // mandatory
                              // min data threshold.  Values below this are set to 0. The 
                              // threshold is applied after removing aliens.

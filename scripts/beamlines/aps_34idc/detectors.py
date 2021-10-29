@@ -279,6 +279,8 @@ seam.
             frame after removing rows/columns
         """
         # modify the slices if 256 is in roi
+        s1range = range(roi[0], roi[0] + roi[1])
+        s2range = range(roi[2], roi[2] + roi[3])
         try:
             i1 = s1range.index(256)  # if not in range try will except
             if i1 != 0:

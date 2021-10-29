@@ -11,9 +11,7 @@ This tools auto eliminate aliens from CDI experiment data. It is configuration d
 """
 
 import numpy as np
-import sys
 import os
-from sklearn.cluster import DBSCAN
 import tifffile as tif
 from time import time
 import cohere.utilities.utils as ut
@@ -220,6 +218,7 @@ def save_arrays(arrs, iter, thresh, eps, dir):
 
 
 def auto_alien1(data, config, data_dir=None):
+    from sklearn.cluster import DBSCAN
     """
     Removes aliens from experimental CDI data using iterative algorithm and returns the result.
     

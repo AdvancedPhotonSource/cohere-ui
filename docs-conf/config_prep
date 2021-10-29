@@ -26,19 +26,10 @@ separate_scans = false
                                             // and will have sub-experiment name containing scan index
                                             // ex. "scan_9", where 9 is scan index
 
-//Imult = 10000                             // Supported only by command line scripts.
+//Imult = 10000                             // Optional, defaults to the average of the whitefield
                                             // A multiplication factor used to renormalize the whitefield correction.
-                                            // This is not used yet.  Might just normalize to max, or max before
-                                            // correction
-
-// prep_file = "/net/s34data/export/34idc-work/2019/test/a_9/prep/prep_data.tiff"
-                                            // tif file that has been already read (prepared)
-                                            // this parameter is relevant when using GUI
 
 // scandirbase = "/net/s34data/export/34idc-data/2020/Staff20-1/Staff20-1a"
                                             //  Supported only by command line scripts.
 
-
-// detector = "34idcTIM1:"                  // optional, Supported only by command line scripts.
-                                            // If detector is not in specfile one can enter them here
-                                            // Dont forget the : on the end of the detector name (34idcTIM2:)
+detector = "34idcTIM2"                      // optional, can be omitted only if roi param is specified

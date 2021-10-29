@@ -215,7 +215,7 @@ def manage_reconstruction(proc, experiment_dir, rec_id=None):
         print('did not find data.tif nor data.npy file(s). ')
         return
     try:
-        generations = config_map.generations
+        generations = config_map.ga_generations
     except:
         generations = 0
     try:

@@ -25,6 +25,7 @@ from PyQt5.QtWidgets import *
 import cohere.utilities.utils as ut
 import importlib
 import config_verifier as ver
+import convertconfig as conv
 
 
 def select_file(start_dir):
@@ -238,7 +239,8 @@ class cdi_gui(QWidget):
             self.specfile = None
             self.spec_file_button.setText('')
         if self.is_exp_exists() or self.is_exp_set():
-            self.set_experiment()
+            # this will update configuration when the specfile is updated
+            self.set_experiment(False)
 
 
     def run_everything(self):
@@ -328,7 +330,7 @@ class cdi_gui(QWidget):
             self.t.clear_configs()
             self.t.load_conf(load_dir)
 
-            self.set_experiment(True)
+            self.set_experiment(False)
         else:
             msg_window('please select valid conf directory')
 
@@ -423,6 +425,11 @@ class cdi_gui(QWidget):
         except:
             pass
 
+        try:
+            self.exp_converter_ver = conf_map.converter_ver
+        except:
+            self.exp_converter_ver = None
+
 
     def assure_experiment_dir(self):
         """
@@ -441,7 +448,7 @@ class cdi_gui(QWidget):
             os.makedirs(experiment_conf_dir)
 
 
-    def set_experiment(self, new_exp=False):
+    def set_experiment(self, new_exp=True):
         """
         Reads the parameters in the window, and sets the experiment to this values, i.e. creates experiment directory,
         and saves all configuration files with parameters from window.
@@ -479,7 +486,8 @@ class cdi_gui(QWidget):
         self.experiment_dir = os.path.join(self.working_dir, self.exp_id)
         self.assure_experiment_dir()
 
-        if not new_exp:
+        converter_ver = conv.get_version()
+        if new_exp:
             # read the configurations from GUI and write to experiment config files
             # save the main config
             conf_map['working_dir'] = '"' + str(self.working_dir).strip() + '"'
@@ -489,7 +497,11 @@ class cdi_gui(QWidget):
                 self.beamline = self.beamline_widget.text().strip()
             if self.specfile is not None:
                 conf_map['specfile'] = '"' + str(self.specfile).strip() + '"'
+            conf_map['converter_ver'] = converter_ver
             write_conf(conf_map, os.path.join(self.experiment_dir, 'conf'), 'config')
+        else:
+            if self.exp_converter_ver is None or self.exp_converter_ver < converter_ver:
+                conv.convert(os.path.join(self.experiment_dir, 'conf'))
 
         if self.t is None:
             try:
@@ -498,7 +510,7 @@ class cdi_gui(QWidget):
             except:
                 pass
 
-        if not new_exp:
+        if new_exp:
             self.t.save_conf()
 
 
@@ -608,8 +620,8 @@ class DataTab(QWidget):
         sub_layout = QFormLayout()
         self.set_alien_layout(sub_layout)
         layout.addRow(sub_layout)
-        self.amp_intensity = QLineEdit()
-        layout.addRow("Intensity Threshold", self.amp_intensity)
+        self.intensity_threshold = QLineEdit()
+        layout.addRow("Intensity Threshold", self.intensity_threshold)
         self.center_shift = QLineEdit()
         layout.addRow("center_shift", self.center_shift)
         self.adjust_dimensions = QLineEdit()
@@ -635,7 +647,7 @@ class DataTab(QWidget):
 
     def clear_conf(self):
         self.alien_alg.setCurrentIndex(0)
-        self.amp_intensity.setText('')
+        self.intensity_threshold.setText('')
         self.binning.setText('')
         self.center_shift.setText('')
         self.adjust_dimensions.setText('')
@@ -717,7 +729,7 @@ class DataTab(QWidget):
             except AttributeError:
                 pass
         try:
-            self.amp_intensity.setText(str(conf_map.amp_threshold).replace(" ", ""))
+            self.intensity_threshold.setText(str(conf_map.intensity_threshold).replace(" ", ""))
         except AttributeError:
             pass
         try:
@@ -772,8 +784,8 @@ class DataTab(QWidget):
             if len(self.AA1_expandcleanedsigma.text()) > 0:
                 conf_map['AA1_expandcleanedsigma'] = str(self.AA1_expandcleanedsigma.text())
 
-        if len(self.amp_intensity.text()) > 0:
-            conf_map['amp_threshold'] = str(self.amp_intensity.text())
+        if len(self.intensity_threshold.text()) > 0:
+            conf_map['intensity_threshold'] = str(self.intensity_threshold.text())
         if len(self.binning.text()) > 0:
             conf_map['binning'] = str(self.binning.text()).replace('\n', '')
         if len(self.center_shift.text()) > 0:
@@ -846,7 +858,7 @@ class DataTab(QWidget):
             msg_window('the experiment has not been created yet')
         elif not self.main_win.is_exp_set():
             msg_window('the experiment has changed, pres "set experiment" button')
-        elif len(self.amp_intensity.text()) == 0:
+        elif len(self.intensity_threshold.text()) == 0:
             msg_window('Please, enter Intensity Threshold parameter')
         else:
             found_file = False
@@ -949,10 +961,10 @@ class RecTab(QWidget):
         self.alg_seq = QLineEdit()
         ulayout.addRow("algorithm sequence", self.alg_seq)
         # TODO add logic to show this only if HIO is in sequence
-        self.beta = QLineEdit()
-        ulayout.addRow("beta", self.beta)
-        self.support_area = QLineEdit()
-        ulayout.addRow("support_area", self.support_area)
+        self.hio_beta = QLineEdit()
+        ulayout.addRow("HIO beta", self.hio_beta)
+        self.initial_support_area = QLineEdit()
+        ulayout.addRow("initial support area", self.initial_support_area)
         self.rec_default_button = QPushButton('set to defaults', self)
         ulayout.addWidget(self.rec_default_button)
 
@@ -1054,11 +1066,11 @@ class RecTab(QWidget):
         except AttributeError:
             pass
         try:
-            self.beta.setText(str(conf_map.beta).replace(" ", ""))
+            self.hio_beta.setText(str(conf_map.hio_beta).replace(" ", ""))
         except AttributeError:
             pass
         try:
-            self.support_area.setText(str(conf_map.support_area).replace(" ", ""))
+            self.initial_support_area.setText(str(conf_map.initial_support_area).replace(" ", ""))
         except AttributeError:
             pass
 
@@ -1073,8 +1085,8 @@ class RecTab(QWidget):
         self.device.setText('')
         self.reconstructions.setText('')
         self.alg_seq.setText('')
-        self.beta.setText('')
-        self.support_area.setText('')
+        self.hio_beta.setText('')
+        self.initial_support_area.setText('')
         for feat_id in self.features.feature_dir:
             self.features.feature_dir[feat_id].active.setChecked(False)
 
@@ -1097,10 +1109,10 @@ class RecTab(QWidget):
             conf_map['device'] = str(self.device.text()).replace('\n','')
         if len(self.alg_seq.text()) > 0:
             conf_map['algorithm_sequence'] = str(self.alg_seq.text()).replace('\n','')
-        if len(self.beta.text()) > 0:
-            conf_map['beta'] = str(self.beta.text())
-        if len(self.support_area.text()) > 0:
-            conf_map['support_area'] = str(self.support_area.text()).replace('\n','')
+        if len(self.hio_beta.text()) > 0:
+            conf_map['hio_beta'] = str(self.hio_beta.text())
+        if len(self.initial_support_area.text()) > 0:
+            conf_map['initial_support_area'] = str(self.initial_support_area.text()).replace('\n','')
         if self.init_guess.currentIndex() == 1:
             conf_map['init_guess'] = '"continue"'
             if len(self.cont_dir_button.text().strip()) > 0:
@@ -1307,9 +1319,8 @@ class RecTab(QWidget):
             self.reconstructions.setText('1')
             self.device.setText('(0,1)')
             self.alg_seq.setText('((3,("ER",20),("HIO",180)),(1,("ER",20)))')
-            self.beta.setText('.9')
-            self.support_area.setText('(0.5, 0.5, 0.5)')
-            self.cont.setChecked(False)
+            self.hio_beta.setText('.9')
+            self.initial_support_area.setText('(0.5, 0.5, 0.5)')
 
 
     def update_rec_configs_choice(self):
@@ -1508,7 +1519,7 @@ class GA(Feature):
         nothing
         """
         try:
-            gens = conf_map.generations
+            gens = conf_map.ga_generations
             self.active.setChecked(True)
             self.generations.setText(str(gens).replace(" ", ""))
         except AttributeError:
@@ -1527,19 +1538,19 @@ class GA(Feature):
         except AttributeError:
             pass
         try:
-            self.ga_support_thresholds.setText(str(conf_map.ga_support_thresholds).replace(" ", ""))
+            self.ga_shrink_wrap_thresholds.setText(str(conf_map.ga_shrink_wrap_thresholds).replace(" ", ""))
         except AttributeError:
             pass
         try:
-            self.ga_support_sigmas.setText(str(conf_map.ga_support_sigmas).replace(" ", ""))
+            self.ga_shrink_wrap_gauss_sigmas.setText(str(conf_map.ga_shrink_wrap_gauss_sigmas).replace(" ", ""))
         except AttributeError:
             pass
         try:
-            self.lr_sigmas.setText(str(conf_map.ga_low_resolution_sigmas).replace(" ", ""))
+            self.lr_sigmas.setText(str(conf_map.ga_lowpass_filter_sigmas).replace(" ", ""))
         except AttributeError:
             pass
         try:
-            self.gen_pcdi_start.setText(str(conf_map.gen_pcdi_start).replace(" ", ""))
+            self.gen_pc_start.setText(str(conf_map.ga_gen_pc_start).replace(" ", ""))
         except AttributeError:
             pass
 
@@ -1563,14 +1574,14 @@ class GA(Feature):
         layout.addRow("breed modes", self.breed_modes)
         self.removes = QLineEdit()
         layout.addRow("cullings", self.removes)
-        self.ga_support_thresholds = QLineEdit()
-        layout.addRow("after breed support thresholds", self.ga_support_thresholds)
-        self.ga_support_sigmas = QLineEdit()
-        layout.addRow("after breed support sigmas", self.ga_support_sigmas)
+        self.ga_shrink_wrap_thresholds = QLineEdit()
+        layout.addRow("after breed support thresholds", self.ga_shrink_wrap_thresholds)
+        self.ga_shrink_wrap_gauss_sigmas = QLineEdit()
+        layout.addRow("after breed shrink wrap sigmas", self.ga_shrink_wrap_gauss_sigmas)
         self.lr_sigmas = QLineEdit()
         layout.addRow("low resolution sigmas", self.lr_sigmas)
-        self.gen_pcdi_start = QLineEdit()
-        layout.addRow("gen to start pcdi", self.gen_pcdi_start)
+        self.gen_pc_start = QLineEdit()
+        layout.addRow("gen to start pcdi", self.gen_pc_start)
 
 
     def rec_default(self):
@@ -1587,10 +1598,10 @@ class GA(Feature):
         self.metrics.setText('("chi","chi","area","chi","sharpness")')
         self.breed_modes.setText('("sqrt_ab","sqrt_ab","avg_ab","max_ab_pa","sqrt_ab")')
         self.removes.setText('(2,2,1)')
-        self.ga_support_thresholds.setText('(.1,.1,.1,.1,.1)')
-        self.ga_support_sigmas.setText('(1.0,1.0,1.0,1.0)')
+        self.ga_shrink_wrap_thresholds.setText('(.1,.1,.1,.1,.1)')
+        self.ga_shrink_wrap_gauss_sigmas.setText('(1.0,1.0,1.0,1.0)')
         self.lr_sigmas.setText('(2.0,1.5)')
-        self.gen_pcdi_start.setText('3')
+        self.gen_pc_start.setText('3')
         self.active.setChecked(True)
 
 
@@ -1605,14 +1616,14 @@ class GA(Feature):
         -------
         nothing
         """
-        conf_map['generations'] = str(self.generations.text())
+        conf_map['ga_generations'] = str(self.generations.text())
         conf_map['ga_metrics'] = str(self.metrics.text()).replace('\n','')
         conf_map['ga_breed_modes'] = str(self.breed_modes.text()).replace('\n','')
         conf_map['ga_cullings'] = str(self.removes.text()).replace('\n','')
-        conf_map['ga_support_thresholds'] = str(self.ga_support_thresholds.text()).replace('\n','')
-        conf_map['ga_support_sigmas'] = str(self.ga_support_sigmas.text()).replace('\n','')
-        conf_map['ga_low_resolution_sigmas'] = str(self.lr_sigmas.text()).replace('\n','')
-        conf_map['gen_pcdi_start'] = str(self.gen_pcdi_start.text())
+        conf_map['ga_shrink_wrap_thresholds'] = str(self.ga_shrink_wrap_thresholds.text()).replace('\n','')
+        conf_map['ga_shrink_wrap_gauss_sigmas'] = str(self.ga_shrink_wrap_gauss_sigmas.text()).replace('\n','')
+        conf_map['ga_lowpass_filter_sigmas'] = str(self.lr_sigmas.text()).replace('\n','')
+        conf_map['ga_gen_pc_start'] = str(self.gen_pc_start.text())
 
 
 class low_resolution(Feature):
@@ -1643,11 +1654,11 @@ class low_resolution(Feature):
             self.active.setChecked(False)
             return
         try:
-            self.sigma_range.setText(str(conf_map.iter_res_sigma_range).replace(" ", ""))
+            self.sigma_range.setText(str(conf_map.lowpass_filter_sw_sigma_range).replace(" ", ""))
         except AttributeError:
             pass
         try:
-            self.det_range.setText(str(conf_map.iter_res_det_range).replace(" ", ""))
+            self.det_range.setText(str(conf_map.lowpass_filter_range).replace(" ", ""))
         except AttributeError:
             pass
 
@@ -1698,8 +1709,8 @@ class low_resolution(Feature):
         nothing
         """
         conf_map['resolution_trigger'] = str(self.res_triggers.text()).replace('\n','')
-        conf_map['iter_res_sigma_range'] = str(self.sigma_range.text()).replace('\n','')
-        conf_map['iter_res_det_range'] = str(self.det_range.text()).replace('\n','')
+        conf_map['lowpass_filter_sw_sigma_range'] = str(self.sigma_range.text()).replace('\n','')
+        conf_map['lowpass_filter_range'] = str(self.det_range.text()).replace('\n','')
 
 
 class shrink_wrap(Feature):
@@ -1734,11 +1745,11 @@ class shrink_wrap(Feature):
         except AttributeError:
             pass
         try:
-            self.threshold.setText(str(conf_map.support_threshold).replace(" ", ""))
+            self.shrink_wrap_threshold.setText(str(conf_map.shrink_wrap_threshold).replace(" ", ""))
         except AttributeError:
             pass
         try:
-            self.sigma.setText(str(conf_map.support_sigma).replace(" ", ""))
+            self.shrink_wrap_gauss_sigma.setText(str(conf_map.shrink_wrap_gauss_sigma).replace(" ", ""))
         except AttributeError:
             pass
 
@@ -1758,10 +1769,10 @@ class shrink_wrap(Feature):
         layout.addRow("shrink wrap triggers", self.shrink_wrap_triggers)
         self.shrink_wrap_type = QLineEdit()
         layout.addRow("shrink wrap algorithm", self.shrink_wrap_type)
-        self.threshold = QLineEdit()
-        layout.addRow("threshold", self.threshold)
-        self.sigma = QLineEdit()
-        layout.addRow("sigma", self.sigma)
+        self.shrink_wrap_threshold = QLineEdit()
+        layout.addRow("shrink wrap threshold", self.shrink_wrap_threshold)
+        self.shrink_wrap_gauss_sigma = QLineEdit()
+        layout.addRow("shrink wrap Gauss sigma", self.shrink_wrap_gauss_sigma)
 
 
     def rec_default(self):
@@ -1776,8 +1787,8 @@ class shrink_wrap(Feature):
         """
         self.shrink_wrap_triggers.setText('(1,1)')
         self.shrink_wrap_type.setText('GAUSS')
-        self.sigma.setText('1.0')
-        self.threshold.setText('0.1')
+        self.shrink_wrap_gauss_sigma.setText('1.0')
+        self.shrink_wrap_threshold.setText('0.1')
 
 
     def add_feat_conf(self, conf_map):
@@ -1795,10 +1806,10 @@ class shrink_wrap(Feature):
             conf_map['shrink_wrap_trigger'] = str(self.shrink_wrap_triggers.text()).replace('\n','')
         if len(self.shrink_wrap_type.text()) > 0:
             conf_map['shrink_wrap_type'] = '"' + str(self.shrink_wrap_type.text()) + '"'
-        if len(self.threshold.text()) > 0:
-            conf_map['support_threshold'] = str(self.threshold.text())
-        if len(self.sigma.text()) > 0:
-            conf_map['support_sigma'] = str(self.sigma.text())
+        if len(self.shrink_wrap_threshold.text()) > 0:
+            conf_map['shrink_wrap_threshold'] = str(self.shrink_wrap_threshold.text())
+        if len(self.shrink_wrap_gauss_sigma.text()) > 0:
+            conf_map['shrink_wrap_gauss_sigma'] = str(self.shrink_wrap_gauss_sigma.text())
 
 
 class phase_support(Feature):
@@ -1829,11 +1840,11 @@ class phase_support(Feature):
             self.active.setChecked(False)
             return
         try:
-            self.phase_min.setText(str(conf_map.phase_min).replace(" ", ""))
+            self.phm_phase_min.setText(str(conf_map.phm_phase_min).replace(" ", ""))
         except AttributeError:
             pass
         try:
-            self.phase_max.setText(str(conf_map.phase_max).replace(" ", ""))
+            self.phm_phase_max.setText(str(conf_map.phm_phase_max).replace(" ", ""))
         except AttributeError:
             pass
 
@@ -1851,10 +1862,10 @@ class phase_support(Feature):
         """
         self.phase_triggers = QLineEdit()
         layout.addRow("phase support triggers", self.phase_triggers)
-        self.phase_min = QLineEdit()
-        layout.addRow("phase minimum", self.phase_min)
-        self.phase_max = QLineEdit()
-        layout.addRow("phase maximum", self.phase_max)
+        self.phm_phase_min = QLineEdit()
+        layout.addRow("phase minimum", self.phm_phase_min)
+        self.phm_phase_max = QLineEdit()
+        layout.addRow("phase maximum", self.phm_phase_max)
 
 
     def rec_default(self):
@@ -1868,8 +1879,8 @@ class phase_support(Feature):
         nothing
         """
         self.phase_triggers.setText('(0,1,320)')
-        self.phase_min.setText('-1.57')
-        self.phase_max.setText('1.57')
+        self.phm_phase_min.setText('-1.57')
+        self.phm_phase_max.setText('1.57')
 
 
     def add_feat_conf(self, conf_map):
@@ -1884,8 +1895,8 @@ class phase_support(Feature):
         nothing
         """
         conf_map['phase_support_trigger'] = str(self.phase_triggers.text()).replace('\n','')
-        conf_map['phase_min'] = str(self.phase_min.text())
-        conf_map['phase_max'] = str(self.phase_max.text())
+        conf_map['phm_phase_min'] = str(self.phm_phase_min.text())
+        conf_map['phm_phase_max'] = str(self.phm_phase_max.text())
 
 
 class pcdi(Feature):
@@ -1909,26 +1920,26 @@ class pcdi(Feature):
         nothing
         """
         try:
-            triggers = conf_map.pcdi_trigger
+            triggers = conf_map.pc_trigger
             self.active.setChecked(True)
-            self.pcdi_triggers.setText(str(triggers).replace(" ", ""))
+            self.pc_triggers.setText(str(triggers).replace(" ", ""))
         except AttributeError:
             self.active.setChecked(False)
             return
         try:
-            self.pcdi_type.setText(str(conf_map.partial_coherence_type).replace(" ", ""))
+            self.pc_type.setText(str(conf_map.pc_type).replace(" ", ""))
         except AttributeError:
             pass
         try:
-            self.pcdi_iter.setText(str(conf_map.partial_coherence_iteration_num).replace(" ", ""))
+            self.pc_iter.setText(str(conf_map.pc_LUCY_iterations).replace(" ", ""))
         except AttributeError:
             pass
         try:
-            self.pcdi_normalize.setText(str(conf_map.partial_coherence_normalize).replace(" ", ""))
+            self.pc_normalize.setText(str(conf_map.pc_normalize).replace(" ", ""))
         except AttributeError:
             pass
         try:
-            self.pcdi_roi.setText(str(conf_map.partial_coherence_roi).replace(" ", ""))
+            self.pc_LUCY_kernel.setText(str(conf_map.pc_LUCY_kernel).replace(" ", ""))
         except AttributeError:
             pass
 
@@ -1944,16 +1955,16 @@ class pcdi(Feature):
         -------
         nothing
         """
-        self.pcdi_triggers = QLineEdit()
-        layout.addRow("pcdi triggers", self.pcdi_triggers)
-        self.pcdi_type = QLineEdit()
-        layout.addRow("partial coherence algorithm", self.pcdi_type)
-        self.pcdi_iter = QLineEdit()
-        layout.addRow("pcdi iteration number", self.pcdi_iter)
-        self.pcdi_normalize = QLineEdit()
-        layout.addRow("normalize", self.pcdi_normalize)
-        self.pcdi_roi = QLineEdit()
-        layout.addRow("pcdi kernel area", self.pcdi_roi)
+        self.pc_triggers = QLineEdit()
+        layout.addRow("pc triggers", self.pc_triggers)
+        self.pc_type = QLineEdit()
+        layout.addRow("partial coherence algorithm", self.pc_type)
+        self.pc_iter = QLineEdit()
+        layout.addRow("LUCY iteration number", self.pc_iter)
+        self.pc_normalize = QLineEdit()
+        layout.addRow("normalize", self.pc_normalize)
+        self.pc_LUCY_kernel = QLineEdit()
+        layout.addRow("LUCY kernel area", self.pc_LUCY_kernel)
 
 
     def rec_default(self):
@@ -1966,11 +1977,11 @@ class pcdi(Feature):
         -------
         nothing
         """
-        self.pcdi_triggers.setText('(50,50)')
-        self.pcdi_type.setText('LUCY')
-        self.pcdi_iter.setText('20')
-        self.pcdi_normalize.setText('true')
-        self.pcdi_roi.setText('(16, 16, 16)')
+        self.pc_triggers.setText('(50,50)')
+        self.pc_type.setText('LUCY')
+        self.pc_iter.setText('20')
+        self.pc_normalize.setText('true')
+        self.pc_LUCY_kernel.setText('(16, 16, 16)')
 
 
     def add_feat_conf(self, conf_map):
@@ -1984,11 +1995,11 @@ class pcdi(Feature):
         -------
         nothing
         """
-        conf_map['pcdi_trigger'] = str(self.pcdi_triggers.text()).replace('\n','')
-        conf_map['partial_coherence_type'] = '"' + str(self.pcdi_type.text()) + '"'
-        conf_map['partial_coherence_iteration_num'] = str(self.pcdi_iter.text())
-        conf_map['partial_coherence_normalize'] = str(self.pcdi_normalize.text())
-        conf_map['partial_coherence_roi'] = str(self.pcdi_roi.text()).replace('\n','')
+        conf_map['pc_trigger'] = str(self.pc_triggers.text()).replace('\n','')
+        conf_map['pc_type'] = '"' + str(self.pc_type.text()) + '"'
+        conf_map['pc_LUCY_iterations'] = str(self.pc_iter.text())
+        conf_map['pc_normalize'] = str(self.pc_normalize.text())
+        conf_map['pc_LUCY_kernel'] = str(self.pc_LUCY_kernel.text()).replace('\n','')
 
 
 class twin(Feature):
