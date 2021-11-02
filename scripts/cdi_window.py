@@ -566,14 +566,14 @@ class Tabs(QTabWidget):
             tab.run_tab()
 
     def run_prep(self):
-        import run_prep as prep
+        import beamline_preprocess as prep
 
         # this line is passing all parameters from command line to prep script. 
         # if there are other parameters, one can add some code here
         prep.handle_prep(self.main_win.experiment_dir, self.main_win.args)
 
     def run_viz(self):
-        import run_disp as dp
+        import beamline_visualization as dp
 
         dp.handle_visualization(self.main_win.experiment_dir)
 
@@ -852,7 +852,7 @@ class DataTab(QWidget):
         -------
         nothing
         """
-        import format_data as run_dt
+        import standard_preprocess as run_dt
 
         if not self.main_win.is_exp_exists():
             msg_window('the experiment has not been created yet')
@@ -870,7 +870,7 @@ class DataTab(QWidget):
                 conf_map = self.get_data_config()
                 conf_dir = os.path.join(self.main_win.experiment_dir, 'conf')
                 if write_conf(conf_map, conf_dir, 'config_data'):
-                    run_dt.data(self.main_win.experiment_dir)
+                    run_dt.format_data(self.main_win.experiment_dir)
             else:
                 msg_window('Please, run data preparation in previous tab to activate this function')
 
@@ -1268,7 +1268,7 @@ class RecTab(QWidget):
         -------
         nothing
         """
-        import run_rec as run_rc
+        import run_reconstruction as run_rc
 
         if not self.main_win.is_exp_exists():
             msg_window('the experiment has not been created yet')

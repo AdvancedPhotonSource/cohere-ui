@@ -30,6 +30,7 @@ import numpy as np
 from functools import partial
 from multiprocessing import Pool, cpu_count
 import importlib
+import convertconfig as conv
 
 
 def process_dir(geometry, rampups, crop, make_twin, res_dir):
@@ -143,6 +144,22 @@ def get_conf_dict(experiment_dir):
         print("Please provide a valid experiment directory")
         return None
     conf_dir = os.path.join(experiment_dir, 'conf')
+
+    # convert configuration files if needed
+    main_conf = os.path.join(conf_dir, 'config')
+    if os.path.isfile(main_conf):
+        try:
+            config_map = ut.read_config(main_conf)
+        except:
+            print ("info: can't read " + main_conf + " configuration file")
+            return None
+    else:
+        print("info: missing " + main_conf + " configuration file")
+        return None
+
+    if conv.get_version() is None or conv.get_version() < config_map.converter_ver:
+        conv.convert(conf_dir)
+
     conf = os.path.join(conf_dir, 'config_disp')
     # verify configuration file
     if not ver.ver_config_disp(conf):
@@ -196,6 +213,8 @@ def get_conf_dict(experiment_dir):
         except Exception as e:
             print(e)
             print("info: can't load " + data_conf + " configuration file")
+    else:
+        print("info: file " + data_conf + " does not exist, assumming no binning")
     return conf_dict
 
 

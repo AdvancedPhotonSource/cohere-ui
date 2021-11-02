@@ -24,6 +24,7 @@ import pylibconfig2 as cfg
 import os
 import sys
 import importlib
+import convertconfig as conv
 
 
 def handle_prep(experiment_dir, *args, **kwargs):
@@ -48,6 +49,12 @@ def handle_prep(experiment_dir, *args, **kwargs):
     except Exception as e:
         print('Please check the configuration file ' + main_conf_file + '. Cannot parse ' + str(e))
         return None
+    # convert configuration files if needed
+    if conv.get_version() is None or conv.get_version() < main_conf_map.converter_ver:
+        conv.convert(os.path.join(experiment_dir, 'conf'))
+        #re-parse config
+        with open(main_conf_file, 'r') as f:
+            main_conf_map = cfg.Config(f.read())
     try:
         beamline = main_conf_map.beamline
         try:

@@ -22,13 +22,13 @@ import sys
 import signal
 import os
 import argparse
-import time
 from multiprocessing import Process, Queue
-import cohere.controller.reconstruction as rec
-import cohere.controller.gen_rec as gen_rec
+import cohere.controller.reconstruction_single as rec
+import cohere.controller.reconstruction_GA as gen_rec
 import cohere.controller.reconstruction_multi as mult_rec
 import cohere.utilities.utils as ut
 import config_verifier as ver
+import convertconfig as conv
 
 MEM_FACTOR = 1500
 ADJUST = 0.0
@@ -136,6 +136,21 @@ def manage_reconstruction(proc, experiment_dir, rec_id=None):
 
     # the rec_id is a postfix added to config_rec configuration file. If defined, use this configuration.
     conf_dir = os.path.join(experiment_dir, 'conf')
+    # convert configuration files if needed
+    main_conf = os.path.join(conf_dir, 'config')
+    if os.path.isfile(main_conf):
+        try:
+            config_map = ut.read_config(main_conf)
+        except:
+            print ("info: can't read " + main_conf + " configuration file")
+            return None
+    else:
+        print("info: missing " + main_conf + " configuration file")
+        return None
+
+    if conv.get_version() is None or conv.get_version() < config_map.converter_ver:
+        conv.convert(conf_dir)
+
     if rec_id is None:
         conf_file = os.path.join(conf_dir, 'config_rec')
     else:
@@ -314,4 +329,4 @@ def main(arg):
 if __name__ == "__main__":
     main(sys.argv[1:])
 
-# python run_rec.py opencl experiment_dir
+# python run_reconstruction.py opencl experiment_dir

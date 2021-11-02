@@ -16,13 +16,14 @@ import numpy as np
 import cohere.utilities.utils as ut
 import config_verifier as ver
 import alien_tools as at
+import convertconfig as conv
 
 
 __author__ = "Barbara Frosik"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['prep',
-           'data',
+           'format_data',
            'main']
 
 def prep(fname, conf_info):
@@ -154,7 +155,7 @@ def prep(fname, conf_info):
     print ('data ready for reconstruction, data dims:', prep_data.shape)
     
     
-def data(experiment_dir):
+def format_data(experiment_dir):
     """
     For each prepared data in an experiment directory structure formats the data according to configured parameters and saves in the experiment space.
 
@@ -167,6 +168,21 @@ def data(experiment_dir):
     -------
     nothing
     """
+    # convert configuration files if needed
+    main_conf = os.path.join(experiment_dir, *("conf", "config"))
+    if os.path.isfile(main_conf):
+        try:
+            config_map = ut.read_config(main_conf)
+        except:
+            print ("info: can't read " + main_conf + " configuration file")
+            return None
+    else:
+        print("info: missing " + main_conf + " configuration file")
+        return None
+
+    if conv.get_version() is None or conv.get_version() < config_map.converter_ver:
+        conv.convert(os.path.join(experiment_dir, 'conf'))
+
     print ('formating data')
     prep_file = os.path.join(experiment_dir, 'prep', 'prep_data.tif')
     if os.path.isfile(prep_file):
@@ -184,7 +200,7 @@ def main(arg):
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_dir", help="experiment directory")
     args = parser.parse_args()
-    data(args.experiment_dir)
+    format_data(args.experiment_dir)
 
 
 if __name__ == "__main__":
