@@ -450,8 +450,7 @@ class PrepTab(QWidget):
         if len(self.exclude_scans.text()) > 0:
             conf_map['exclude_scans'] = str(self.exclude_scans.text()).replace('\n','')
         if len(self.roi.text()) > 0:
-            roi = str(self.roi.text())
-            conf_map['roi'] = roi
+            conf_map['roi'] = str(self.roi.text()).replace('\n','')
 
         return conf_map
 
@@ -555,7 +554,6 @@ class PrepTab(QWidget):
 
 
     def save_conf(self):
-        self.parse_spec()
         conf_map = self.get_prep_config()
         if len(conf_map) > 0:
             write_conf(conf_map, os.path.join(self.main_win.experiment_dir, 'conf'), 'config_prep')

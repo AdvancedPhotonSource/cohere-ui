@@ -25,6 +25,7 @@ from PyQt5.QtWidgets import *
 import cohere.src_py.utilities.utils as ut
 import importlib
 import config_verifier as ver
+import convertconfig as conv
 
 
 def select_file(start_dir):
@@ -364,6 +365,9 @@ class cdi_gui(QWidget):
         -------
         nothing
         """
+        # convert configuration files if needed
+        conv.convert(os.path.join(load_dir, 'conf'))
+
         conf = os.path.join(load_dir, 'conf', 'config')
         try:
             conf_map = ut.read_config(conf)

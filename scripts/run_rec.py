@@ -30,7 +30,7 @@ import cohere.src_py.controller.reconstruction_multi as mult_rec
 import cohere.src_py.utilities.utils as ut
 import config_verifier as ver
 import time
-from functools import reduce
+import convertconfig as conv
 
 MEM_FACTOR = 1500
 ADJUST = 0.0
@@ -164,6 +164,9 @@ def manage_reconstruction(proc, experiment_dir, rec_id=None):
 
     # the rec_id is a postfix added to config_rec configuration file. If defined, use this configuration.
     conf_dir = os.path.join(experiment_dir, 'conf')
+    # convert configuration files if needed
+    conv.convert(conf_dir)
+
     if rec_id is None:
         conf_file = os.path.join(conf_dir, 'config_rec')
     else:

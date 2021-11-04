@@ -30,6 +30,7 @@ import numpy as np
 from functools import partial
 from multiprocessing import Pool, cpu_count
 import importlib
+import convertconfig as conv
 
 
 def process_dir(geometry, rampups, crop, res_dir):
@@ -132,6 +133,10 @@ def get_conf_dict(experiment_dir):
         print("Please provide a valid experiment directory")
         return None
     conf_dir = os.path.join(experiment_dir, 'conf')
+
+    # convert configuration files if needed
+    conv.convert(conf_dir)
+
     conf = os.path.join(conf_dir, 'config_disp')
     # verify configuration file
     if not ver.ver_config_disp(conf):

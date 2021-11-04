@@ -16,7 +16,7 @@ import numpy as np
 import cohere.src_py.utilities.utils as ut
 import config_verifier as ver
 import alien_tools as at
-import pylibconfig2
+import convertconfig as conv
 
 __author__ = "Barbara Frosik"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
@@ -168,6 +168,10 @@ def data(experiment_dir):
     nothing
     """
     print ('formating data')
+
+    # convert configuration files if needed
+    conv.convert(os.path.join(experiment_dir, 'conf'))
+
     prep_file = os.path.join(experiment_dir, 'prep', 'prep_data.tif')
     if os.path.isfile(prep_file):
         prep(prep_file, experiment_dir)
