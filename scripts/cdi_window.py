@@ -393,7 +393,7 @@ class cdi_gui(QWidget):
 
         try:
             working_dir = conf_map.working_dir
-            if not os.path.isdir(working_dir):
+            if not os.path.isdir(working_dir)  or not os.access(working_dir, os.W_OK):
                 self.working_dir = None
                 self.set_work_dir_button.setText('')
                 msg_window('The working directory ' + working_dir + ' from config file does not exist. Select valid working directory and set experiment')
