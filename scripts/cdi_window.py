@@ -240,7 +240,7 @@ class cdi_gui(QWidget):
             self.spec_file_button.setText('')
         if self.is_exp_exists() or self.is_exp_set():
             # this will update configuration when the specfile is updated
-            self.set_experiment(False)
+            self.save_main()
 
 
     def run_everything(self):
@@ -319,7 +319,9 @@ class cdi_gui(QWidget):
         load_dir = select_dir(os.getcwd())
         if load_dir is not None:
             if os.path.isfile(os.path.join(load_dir, 'conf', 'config')):
-                self.load_main(load_dir)
+                need_convert, new_exp = self.load_main(load_dir)
+                if need_convert is None:
+                    return
             else:
                 msg_window('missing conf/config file, not experiment directory')
                 return
@@ -328,9 +330,9 @@ class cdi_gui(QWidget):
                 self.t = Tabs(self)
                 self.vbox.addWidget(self.t)
             self.t.clear_configs()
-            self.t.load_conf(load_dir)
+            self.t.load_conf(load_dir, need_convert)
 
-            self.set_experiment(False)
+            self.set_experiment(new_exp, need_convert)
         else:
             msg_window('please select valid conf directory')
 
@@ -354,7 +356,6 @@ class cdi_gui(QWidget):
             msg_window('please select valid working directory')
             return
 
-
     def load_main(self, load_dir):
         """
         It reads 'config' file from the given directory, parses all parameters, verifies, and sets the display in window and class members to parsed values.
@@ -371,64 +372,79 @@ class cdi_gui(QWidget):
             conf_map = ut.read_config(conf)
         except Exception:
             msg_window('please check configuration file ' + conf + '. Cannot parse, ')
-            return
+            return None, None
 
-        try:
-            self.scan = conf_map.scan
-            self.scan_widget.setText(self.scan)
-        except:
-            self.scan = None
-        try:
-            self.id = conf_map.experiment_id
-            self.Id_widget.setText(self.id)
-            if self.scan != None:
-                self.exp_id = self.id + '_' + self.scan
-            else:
-                self.exp_id = self.id
-        except:
-            self.scan = None
-            self.id = None
-            self.exp_id = None
-            msg_window('id is not configured in ' + conf + ' file.')
-
+        new_exp = False
+        need_convert = False
         try:
             working_dir = conf_map.working_dir
-            if not os.path.isdir(working_dir)  or not os.access(working_dir, os.W_OK):
-                self.working_dir = None
-                self.set_work_dir_button.setText('')
-                msg_window('The working directory ' + working_dir + ' from config file does not exist. Select valid working directory and set experiment')
+            if not os.path.isdir(working_dir):
+                if self.working_dir is None:
+                    msg_window(
+                        'The working directory ' + working_dir + ' from config file does not exist. Select valid working directory and reload')
+                    return None, None
+                else:
+                    msg_window(
+                        'info: The working directory ' + working_dir + ' from config file does not exist. Will use selected working directory')
+                    new_exp = True
+            elif not os.access(working_dir, os.W_OK):
+                if self.working_dir is None:
+                    msg_window(
+                        'The working directory ' + working_dir + ' is not writable. Select valid working directory and reload')
+                    return None, None
+                else:
+                    msg_window(
+                        'info: The working directory ' + working_dir + ' is not writable. Will use selected working directory')
+                    new_exp = True
             else:
                 self.working_dir = conf_map.working_dir
                 self.set_work_dir_button.setStyleSheet("Text-align:left")
                 self.set_work_dir_button.setText(self.working_dir)
         except:
-            pass
+            if self.working_dir is None:
+                msg_window(
+                    'The working directory is not defined in config file. Select valid working directory and reload')
+                return None, None
+            else:
+                msg_window(
+                    'info: The working directory is not defined in config file. Will use selected working directory')
+                new_exp = True
 
-        if self.working_dir is not None and self.exp_id is not None:
-            self.experiment_dir = os.path.join(self.working_dir, self.exp_id)
+        # if the converter version in config file is old or none, get the conf with new version
+        try:
+            exp_converter_ver = conf_map.converter_ver
+        except:
+            exp_converter_ver = None
+        if exp_converter_ver is None or exp_converter_ver < conv.get_version():
+            conf_map = conv.returnconfigdictionary('config', os.path.join(load_dir, 'conf'))
+            need_convert = True
+
+        try:
+            self.scan_widget.setText(conf_map.scan)
+        except:
+            pass
+        try:
+            self.Id_widget.setText(conf_map.experiment_id)
+        except:
+            msg_window('id is not configured in ' + conf + ' file. Aborting')
+            return None, None
 
         try:
             specfile = conf_map.specfile
             if os.path.isfile(specfile):
-                self.specfile = conf_map.specfile
                 self.spec_file_button.setStyleSheet("Text-align:left")
-                self.spec_file_button.setText(self.specfile)
+                self.spec_file_button.setText(specfile)
             else:
                 msg_window('The specfile file ' + specfile + ' in config file does not exist')
         except:
-            self.specfile = None
             self.spec_file_button.setText('')
 
         try:
-            self.beamline = conf_map.beamline
             self.beamline_widget.setText(conf_map.beamline)
         except:
             pass
 
-        try:
-            self.exp_converter_ver = conf_map.converter_ver
-        except:
-            self.exp_converter_ver = None
+        return need_convert, new_exp
 
 
     def assure_experiment_dir(self):
@@ -448,7 +464,21 @@ class cdi_gui(QWidget):
             os.makedirs(experiment_conf_dir)
 
 
-    def set_experiment(self, new_exp=True):
+    def save_main(self):
+        # read the configurations from GUI and write to experiment config files
+        # save the main config
+        conf_map = {}
+        conf_map['working_dir'] = '"' + str(self.working_dir) + '"'
+        conf_map['experiment_id'] = '"' + self.id + '"'
+        if self.beamline is not None:
+            conf_map['beamline'] = '"' + self.beamline + '"'
+        if self.specfile is not None:
+            conf_map['specfile'] = '"' + str(self.specfile) + '"'
+        conf_map['converter_ver'] = conv.get_version()
+        write_conf(conf_map, os.path.join(self.experiment_dir, 'conf'), 'config')
+
+
+    def set_experiment(self, new_exp=True, converted = False):
         """
         Reads the parameters in the window, and sets the experiment to this values, i.e. creates experiment directory,
         and saves all configuration files with parameters from window.
@@ -460,48 +490,30 @@ class cdi_gui(QWidget):
         -------
         nothing
         """
+        # the self.working_dir has been already set
+
         self.id = str(self.Id_widget.text()).strip()
         if self.id == '' or self.working_dir is None:
             msg_window('id and working directory must be entered')
             return
-        conf_map = {}
-
-        self.scan = str(self.scan_widget.text()).replace(' ','')
+        self.scan = str(self.scan_widget.text()).replace(' ', '')
         if len(self.scan) > 0:
-            scans = self.scan.split('-')
-            if len(scans) > 2:
-                msg_window('if entering scan or scan range, please enter numeric values, separated with "-" if range')
-                return
-            for sc in scans:
-                try:
-                    numeric = int(sc)
-                except:
-                    msg_window('if entering scan or scan range, please enter numeric values, separated with "-" if range')
-                    return
-            conf_map['scan'] = '"' + self.scan + '"'
             self.exp_id = self.id + '_' + self.scan
-            
         else:
             self.exp_id = self.id
         self.experiment_dir = os.path.join(self.working_dir, self.exp_id)
         self.assure_experiment_dir()
 
-        converter_ver = conv.get_version()
-        if new_exp:
-            # read the configurations from GUI and write to experiment config files
-            # save the main config
-            conf_map['working_dir'] = '"' + str(self.working_dir).strip() + '"'
-            conf_map['experiment_id'] = '"' + self.id + '"'
-            if len(self.beamline_widget.text().strip()) > 0:
-                conf_map['beamline'] = '"' + str(self.beamline_widget.text().strip()) + '"'
-                self.beamline = self.beamline_widget.text().strip()
-            if self.specfile is not None:
-                conf_map['specfile'] = '"' + str(self.specfile).strip() + '"'
-            conf_map['converter_ver'] = converter_ver
-            write_conf(conf_map, os.path.join(self.experiment_dir, 'conf'), 'config')
+        if len(self.beamline_widget.text().strip()) > 0:
+            self.beamline = self.beamline_widget.text().strip()
+        if len(self.spec_file_button.text()) > 0:
+            self.specfile = str(self.spec_file_button.text()).strip()
         else:
-            if self.exp_converter_ver is None or self.exp_converter_ver < converter_ver:
-                conv.convert(os.path.join(self.experiment_dir, 'conf'))
+            self.specfile = None
+
+        # if the configuration file was converted or it is new experiment save main
+        if new_exp or converted:
+            self.save_main()
 
         if self.t is None:
             try:
@@ -510,7 +522,7 @@ class cdi_gui(QWidget):
             except:
                 pass
 
-        if new_exp:
+        if new_exp or converted:
             self.t.save_conf()
 
 
@@ -578,7 +590,7 @@ class Tabs(QTabWidget):
         dp.handle_visualization(self.main_win.experiment_dir)
 
 
-    def load_conf(self, load_dir):
+    def load_conf(self, load_dir, need_convert):
         for tab in self.tabs:
             tab.load_tab(load_dir)
 
@@ -653,7 +665,7 @@ class DataTab(QWidget):
         self.adjust_dimensions.setText('')
 
 
-    def load_tab(self, load_item):
+    def load_tab(self, load_from, need_convert):
         """
         It verifies given configuration file, reads the parameters, and fills out the window.
         Parameters
@@ -664,21 +676,23 @@ class DataTab(QWidget):
         -------
         nothing
         """
-        if os.path.isfile(load_item):
-            conf = load_item
+        if os.path.isfile(load_from):
+            conf = load_from
+            conf_dir = os.path.dirname(os.path.abspath(conf))
         else:
-            conf = os.path.join(load_item, 'conf', 'config_data')
+            conf_dir = os.path.join(load_from, 'conf')
+            conf = os.path.join(conf_dir, 'config_data')
             if not os.path.isfile(conf):
                 msg_window('info: the load directory does not contain config_data file')
                 return
-#        if not ver.ver_config_data(conf):
-#            msg_window('please check configuration file ' + conf + '. Cannot parse, ')
-#            return
-        try:
-            conf_map = ut.read_config(conf)
-        except Exception as e:
-            msg_window('please check configuration file ' + conf + '. Cannot parse, ' + str(e))
-            return
+        if need_convert:
+            conf_map = conv.returnconfigdictionary('config_data', conf_dir)
+        else:
+            try:
+                conf_map = ut.read_config(conf)
+            except Exception as e:
+                msg_window('please check configuration file ' + conf + '. Cannot parse, ' + str(e))
+                return
         alg = 'none'
         try:
             alg = str(conf_map.alien_alg)
@@ -996,7 +1010,7 @@ class RecTab(QWidget):
         self.set_rec_conf_from_button.clicked.connect(self.load_rec_conf_dir)
 
 
-    def load_tab(self, load_dir):
+    def load_tab(self, load_dir, need_convert):
         """
         It verifies given configuration file, reads the parameters, and fills out the window.
         Parameters
@@ -1007,23 +1021,23 @@ class RecTab(QWidget):
         -------
         nothing
         """
-        conf = os.path.join(load_dir, 'conf', 'config_rec')
-        self.load_tab_common(conf)
-
-
-    def load_tab_common(self, conf, update_rec_choice=True):
+        conf_dir = os.path.join(load_dir, 'conf')
+        conf = os.path.join(conf_dir, 'config_data')
         if not os.path.isfile(conf):
-            msg_window('info: the load directory does not contain ' + conf + ' file')
+            msg_window('info: the load directory does not contain config_data file')
             return
-        if not ver.ver_config_rec(conf):
-            msg_window('please check configuration file ' + conf + '. Cannot parse, ')
-            return
-        try:
-            conf_map = ut.read_config(conf)
-        except Exception as e:
-            msg_window('please check configuration file ' + conf + '. Cannot parse, ' + str(e))
-            return
+        if need_convert:
+            conf_map = conv.returnconfigdictionary('config_data', conf_dir)
+        else:
+            try:
+                conf_map = ut.read_config(conf)
+            except Exception as e:
+                msg_window('please check configuration file ' + conf + '. Cannot parse, ' + str(e))
+                return
+        self.load_tab_common(conf_map)
 
+
+    def load_tab_common(self, conf_map, update_rec_choice=True):
         init_guess = 'random'
         try:
             init_guess = str(conf_map.init_guess)
@@ -1233,11 +1247,12 @@ class RecTab(QWidget):
         else:
             conf_file = os.path.join(conf_dir, self.old_conf_id + '_config_rec')
 
-        if os.path.isfile(conf_file):
-            # load the tab with new configuration, but do not update rec choices
-            self.load_tab_common(conf_file, False)
-        else:
-            self.load_tab_common(os.path.join(conf_dir, 'config_rec'), False)
+        try:
+            conf_map = ut.read_config(conf_file)
+        except Exception as e:
+            msg_window('please check configuration file ' + conf_file + '. Cannot parse, ' + str(e))
+            return
+        self.load_tab_common(conf_map, False)
         self.notify()
 
 
@@ -1253,7 +1268,13 @@ class RecTab(QWidget):
         """
         rec_file = select_file(os.getcwd())
         if rec_file is not None:
-            self.load_tab_common(rec_file)
+            try:
+                conf_map = ut.read_config(rec_file)
+            except Exception as e:
+                msg_window('please check configuration file ' + rec_file + '. Cannot parse, ' + str(e))
+                return
+
+            self.load_tab_common(conf_map)
         else:
             msg_window('please select valid rec config file')
 
