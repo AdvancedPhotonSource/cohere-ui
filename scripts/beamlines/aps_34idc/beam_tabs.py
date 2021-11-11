@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import *
 import cohere.utilities.utils as ut
 import config_verifier as ver
 from xrayutilities.io import spec as spec
+import convertconfig as conv
 
 
 def get_det_from_spec(specfile, scan):
@@ -300,7 +301,7 @@ class PrepTab(QWidget):
         self.set_prep_conf_from_button.clicked.connect(self.load_prep_conf)
 
 
-    def load_tab(self, load_item):
+    def load_tab(self, load_from, need_convert):
         """
         It verifies given configuration file, reads the parameters, and fills out the window.
         Parameters
@@ -311,22 +312,23 @@ class PrepTab(QWidget):
         -------
         nothing
         """
-        if os.path.isfile(load_item):
-            # the configuration file was given
-            conf = load_item
+        if os.path.isfile(load_from):
+            conf = load_from
+            conf_dir = os.path.dirname(os.path.abspath(conf))
         else:
-            conf = os.path.join(load_item, 'conf', 'config_prep')
+            conf_dir = os.path.join(load_from, 'conf')
+            conf = os.path.join(conf_dir, 'config_prep')
             if not os.path.isfile(conf):
                 msg_window('info: the load directory does not contain config_prep file')
                 return
-        if not ver.ver_config_prep(conf):
-            msg_window('please check configuration file ' + conf + '. Cannot parse, ')
-            return
-        try:
-            conf_map = ut.read_config(conf)
-        except Exception as e:
-            msg_window('please check configuration file ' + conf + '. Cannot parse, ' + str(e))
-            return
+        if need_convert:
+            conf_map = conv.returnconfigdictionary('config_prep', conf_dir)
+        else:
+            try:
+                conf_map = ut.read_config(conf)
+            except Exception as e:
+                msg_window('please check configuration file ' + conf + '. Cannot parse, ' + str(e))
+                return
 
         try:
             separate_scans = conf_map.separate_scans
@@ -448,8 +450,7 @@ class PrepTab(QWidget):
         if len(self.exclude_scans.text()) > 0:
             conf_map['exclude_scans'] = str(self.exclude_scans.text()).replace('\n','')
         if len(self.roi.text()) > 0:
-            roi = str(self.roi.text())
-            conf_map['roi'] = roi
+            conf_map['roi'] = str(self.roi.text()).replace('\n','')
 
         return conf_map
 
@@ -551,7 +552,6 @@ class PrepTab(QWidget):
 
 
     def save_conf(self):
-        self.parse_spec()
         conf_map = self.get_prep_config()
         if len(conf_map) > 0:
             write_conf(conf_map, os.path.join(self.main_win.experiment_dir, 'conf'), 'config_prep')
@@ -672,7 +672,7 @@ class DispTab(QWidget):
         self.layout4 = layout
 
 
-    def load_tab(self, load_item):
+    def load_tab(self, load_from, need_convert):
         """
         It verifies given configuration file, reads the parameters, and fills out the window.
         Parameters
@@ -683,21 +683,23 @@ class DispTab(QWidget):
         -------
         nothing
         """
-        if os.path.isfile(load_item):
-            conf = load_item
+        if os.path.isfile(load_from):
+            conf = load_from
+            conf_dir = os.path.dirname(os.path.abspath(conf))
         else:
-            conf = os.path.join(load_item, 'conf', 'config_disp')
+            conf_dir = os.path.join(load_from, 'conf')
+            conf = os.path.join(conf_dir, 'config_disp')
             if not os.path.isfile(conf):
                 msg_window('info: the load directory does not contain config_disp file')
                 return
-        if not ver.ver_config_data(conf):
-            msg_window('please check configuration file ' + conf + '. Cannot parse, ')
-            return
-        try:
-            conf_map = ut.read_config(conf)
-        except Exception as e:
-            msg_window('please check configuration file ' + conf + '. Cannot parse, ' + str(e))
-            return
+        if need_convert:
+            conf_map = conv.returnconfigdictionary('config_disp', conf_dir)
+        else:
+            try:
+                conf_map = ut.read_config(conf)
+            except Exception as e:
+                msg_window('please check configuration file ' + conf + '. Cannot parse, ' + str(e))
+                return
 
         try:
             self.results_dir = str(conf_map.results_dir).replace(" ","")
