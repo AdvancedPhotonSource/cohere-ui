@@ -317,24 +317,21 @@ class cdi_gui(QWidget):
         nothing
         """
         load_dir = select_dir(os.getcwd())
-        if load_dir is not None:
-            if os.path.isfile(os.path.join(load_dir, 'conf', 'config')):
-                need_convert, new_exp = self.load_main(load_dir)
-                if need_convert is None:
-                    return
-            else:
-                msg_window('missing conf/config file, not experiment directory')
-                return
-
-            if self.t is None:
-                self.t = Tabs(self)
-                self.vbox.addWidget(self.t)
-            self.t.clear_configs()
-            self.t.load_conf(load_dir, need_convert)
-
-            self.set_experiment(new_exp, need_convert)
-        else:
+        if load_dir is None:
             msg_window('please select valid conf directory')
+            return
+        if os.path.isfile(os.path.join(load_dir, 'conf', 'config')):
+            need_convert, new_exp = self.load_main(load_dir)
+            if need_convert is None:
+                return
+        else:
+            msg_window('missing conf/config file, not experiment directory')
+            return
+
+        self.set_experiment(new_exp, need_convert)
+
+        self.t.clear_configs()
+        self.t.load_conf(load_dir, need_convert)
 
 
     def set_working_dir(self):
@@ -491,7 +488,6 @@ class cdi_gui(QWidget):
         nothing
         """
         # the self.working_dir has been already set
-
         self.id = str(self.Id_widget.text()).strip()
         if self.id == '' or self.working_dir is None:
             msg_window('id and working directory must be entered')
@@ -505,7 +501,7 @@ class cdi_gui(QWidget):
         self.assure_experiment_dir()
 
         if len(self.beamline_widget.text().strip()) > 0:
-            self.beamline = self.beamline_widget.text().strip()
+            self.beamline = str(self.beamline_widget.text()).strip()
         if len(self.spec_file_button.text()) > 0:
             self.specfile = str(self.spec_file_button.text()).strip()
         else:
@@ -592,7 +588,7 @@ class Tabs(QTabWidget):
 
     def load_conf(self, load_dir, need_convert):
         for tab in self.tabs:
-            tab.load_tab(load_dir)
+            tab.load_tab(load_dir, need_convert)
 
 
     def save_conf(self):
@@ -1022,12 +1018,12 @@ class RecTab(QWidget):
         nothing
         """
         conf_dir = os.path.join(load_dir, 'conf')
-        conf = os.path.join(conf_dir, 'config_data')
+        conf = os.path.join(conf_dir, 'config_rec')
         if not os.path.isfile(conf):
-            msg_window('info: the load directory does not contain config_data file')
+            msg_window('info: the load directory does not contain config_rec file')
             return
         if need_convert:
-            conf_map = conv.returnconfigdictionary('config_data', conf_dir)
+            conf_map = conv.returnconfigdictionary('config_rec', conf_dir)
         else:
             try:
                 conf_map = ut.read_config(conf)
