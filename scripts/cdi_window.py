@@ -413,18 +413,18 @@ class cdi_gui(QWidget):
         except:
             exp_converter_ver = None
         if exp_converter_ver is None or exp_converter_ver < conv.get_version():
-            conf_map = conv.returnconfigdictionary('config', os.path.join(load_dir, 'conf'))
+            conf_map = conv.get_conf_map(os.path.join(load_dir, 'conf', 'config'), 'config')
             need_convert = True
 
-        try:
-            self.scan_widget.setText(conf_map.scan)
-        except:
-            pass
         try:
             self.Id_widget.setText(conf_map.experiment_id)
         except:
             msg_window('id is not configured in ' + conf + ' file. Aborting')
             return None, None
+        try:
+            self.scan_widget.setText(conf_map.scan.replace(' ',''))
+        except:
+            self.scan_widget.setText('')
 
         try:
             specfile = conf_map.specfile
@@ -439,7 +439,7 @@ class cdi_gui(QWidget):
         try:
             self.beamline_widget.setText(conf_map.beamline)
         except:
-            pass
+            self.beamline_widget.setText('')
 
         return need_convert, new_exp
 
@@ -467,11 +467,13 @@ class cdi_gui(QWidget):
         conf_map = {}
         conf_map['working_dir'] = '"' + str(self.working_dir) + '"'
         conf_map['experiment_id'] = '"' + self.id + '"'
+        if self.scan is not None:
+            conf_map['scan'] = '"' + self.scan + '"'
         if self.beamline is not None:
             conf_map['beamline'] = '"' + self.beamline + '"'
         if self.specfile is not None:
             conf_map['specfile'] = '"' + str(self.specfile) + '"'
-        conf_map['converter_ver'] = conv.get_version()
+        conf_map['converter_ver'] = str(conv.get_version())
         write_conf(conf_map, os.path.join(self.experiment_dir, 'conf'), 'config')
 
 
@@ -492,16 +494,19 @@ class cdi_gui(QWidget):
         if self.id == '' or self.working_dir is None:
             msg_window('id and working directory must be entered')
             return
-        self.scan = str(self.scan_widget.text()).replace(' ', '')
-        if len(self.scan) > 0:
+        if len(self.scan_widget.text()) > 0:
+            self.scan = str(self.scan_widget.text())
             self.exp_id = self.id + '_' + self.scan
         else:
+            self.scan = None
             self.exp_id = self.id
         self.experiment_dir = os.path.join(self.working_dir, self.exp_id)
         self.assure_experiment_dir()
 
         if len(self.beamline_widget.text().strip()) > 0:
             self.beamline = str(self.beamline_widget.text()).strip()
+        else:
+            self.beamline = None
         if len(self.spec_file_button.text()) > 0:
             self.specfile = str(self.spec_file_button.text()).strip()
         else:
@@ -682,7 +687,7 @@ class DataTab(QWidget):
                 msg_window('info: the load directory does not contain config_data file')
                 return
         if need_convert:
-            conf_map = conv.returnconfigdictionary('config_data', conf_dir)
+            conf_map = conv.get_conf_map(conf, 'config_data')
         else:
             try:
                 conf_map = ut.read_config(conf)
@@ -1023,7 +1028,7 @@ class RecTab(QWidget):
             msg_window('info: the load directory does not contain config_rec file')
             return
         if need_convert:
-            conf_map = conv.returnconfigdictionary('config_rec', conf_dir)
+            conf_map = conv.get_conf_map(conf, 'config_rec')
         else:
             try:
                 conf_map = ut.read_config(conf)

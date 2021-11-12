@@ -322,7 +322,7 @@ class PrepTab(QWidget):
                 msg_window('info: the load directory does not contain config_prep file')
                 return
         if need_convert:
-            conf_map = conv.returnconfigdictionary('config_prep', conf_dir)
+            conf_map = conf_map = conv.get_conf_map(conf, 'config_prep')
         else:
             try:
                 conf_map = ut.read_config(conf)
@@ -693,7 +693,7 @@ class DispTab(QWidget):
                 msg_window('info: the load directory does not contain config_disp file')
                 return
         if need_convert:
-            conf_map = conv.returnconfigdictionary('config_disp', conf_dir)
+            conf_map = conf_map = conv.get_conf_map(conf, 'config_disp')
         else:
             try:
                 conf_map = ut.read_config(conf)

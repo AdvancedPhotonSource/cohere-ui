@@ -85,6 +85,10 @@ def handle_prep(experiment_dir, *args, **kwargs):
 
     # create BeamPrepData object defined for the configured beamline
     prep_obj = prep.BeamPrepData(experiment_dir, main_conf_map, prep_conf_map, *args)
+    if prep_obj.scan_range is None:
+        print('no scan goven')
+        return
+
     # get directories from prep_obj
     dirs, indexes = prep_obj.get_dirs(data_dir=data_dir)
     if len(dirs) == 0:

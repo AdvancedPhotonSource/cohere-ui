@@ -74,7 +74,7 @@ def versionfile(file_spec, vtype='copy'):
             return 0
 
 
-def returnconfigdictionary(cfile, startdir):
+def returnconfigdictionary(cfile_path, cfile):
     """
     This function takes a config file name and creates a dictionary of all the parameters defined in the config
     file using the = to split key,value pairs.
@@ -96,15 +96,14 @@ def returnconfigdictionary(cfile, startdir):
     currentdic = {}
 
     # Check if file exists, if it does make a backup copy of file with the new name config_backup
-    newpath = os.path.join(startdir, cfile)
-    if os.path.exists(newpath):
+    if os.path.exists(cfile_path):
         backupfile = cfile + "_backup"
-        versionfile(newpath)
+        versionfile(cfile_path)
     else:
 #        print('The file', cfile, ' does not exist')
         return currentdic
     # input = open(cfile, 'r')
-    input = open(newpath, 'r')
+    input = open(cfile_path, 'r')
     str = input.readline()
     while str:
         # Ignore comment lines and move along
@@ -134,6 +133,65 @@ def returnconfigdictionary(cfile, startdir):
         str = input.readline()
     input.close()
     return currentdic
+
+
+def convert_dict(conf_dict, cfile):
+    if cfile == 'config':
+        if 'beamline' in conf_dict.keys():
+            beamlinevalue = conf_dict['beamline']
+#            print("beamline value is", beamlinevalue)
+        else:
+            beamlinevalue = beamlinedefaultvalue
+#            print("setting default beamline value")
+            conf_dict['beamline'] = beamlinevalue
+            conf_dict['converter_ver'] = str(get_version())
+    # if specfile is in config_prep move it to config with the same value
+    elif cfile == 'config_prep':
+        if 'specfile' in conf_dict.keys():
+            savedspecfilevalue = conf_dict.pop('specfile')
+            conf_dict['specfile'] = savedspecfilevalue
+# Look to see if aliens is set and if it is a directory or a block of coordinates
+    elif cfile == 'config_data':
+        # if alien_alg is defined then this is current and no change is needed.
+        if 'alien_alg' in conf_dict.keys():
+            pass
+        elif 'aliens' in conf_dict.keys():
+            savedAlien = conf_dict.pop('aliens')
+            if "(" in savedAlien:
+                conf_dict['alien_alg'] = ' "block_aliens"'
+                conf_dict['aliens'] = savedAlien
+            else:
+                conf_dict['alien_alg'] = ' "alien_file"'
+                conf_dict['alien_file'] = savedAlien
+    return conf_dict
+
+
+def get_conf_map(cfile_path, cfile):
+    """
+    This function takes a config file name and creates a dictionary of all the parameters defined in the config
+    file using the = to split key,value pairs.
+    There is a special case where values can be enclosed in () with a line for each value.
+    Parameters
+    ----------
+    cfile : str
+        configuration file name
+    startdir : str
+        a directory with configuration files to be converted
+    Returns
+    -------
+    currentdic : dict
+        a dictionary with the configuration parameters
+    """
+    import pylibconfig2 as cfg
+
+    cdict = returnconfigdictionary(cfile_path, cfile)
+    cdict = convert_dict(cdict, cfile)
+
+    config_map = cfg.Config()
+    for key, value in cdict.items():
+        config_map.setup(key, value)
+
+    return config_map;
 
 
 def convert(startdir):
@@ -204,7 +262,10 @@ def convert(startdir):
     allconfigdata = {}
 
     for cfile in config_file_names:
-        thisdic = returnconfigdictionary(cfile, startdir)
+        # check if file exist
+        if not os.path.isfile(os.path.join(startdir, cfile)):
+            continue
+        thisdic = returnconfigdictionary(os.path.join(startdir, cfile), cfile)
 
     # Create a dictionary of dictionaries to work with
 
@@ -241,36 +302,7 @@ def convert(startdir):
         # Some special cases if beamline has no value then it was never defined so set it to the default
         # if specfile is in config_prep then remove it a add it to config
         # if the config_data file has the older aliens format of coordinates/file then update to new layout
-
-        if cfile == 'config':
-            if 'beamline' in allconfigdata[cfile].keys():
-                beamlinevalue = allconfigdata[cfile]['beamline']
-    #            print("beamline value is", beamlinevalue)
-            else:
-                beamlinevalue = beamlinedefaultvalue
-    #            print("setting default beamline value")
-            allconfigdata[cfile]['beamline'] = beamlinevalue
-            allconfigdata[cfile]['converter_ver'] = str(get_version())
-        # if specfile is in config_prep move it to config with the same value
-        elif cfile == 'config_prep':
-            if 'specfile' in allconfigdata[cfile].keys():
-                savedspecfilevalue = allconfigdata[cfile].pop('specfile')
-                allconfigdata['config']['specfile'] = savedspecfilevalue
-    # Look to see if aliens is set and if it is a directory or a block of coordinates
-        elif cfile == 'config_data':
-            # if alien_alg is defined then this is current and no change is needed.
-            if 'alien_alg' in allconfigdata[cfile].keys():
-                continue
-            elif 'aliens' in allconfigdata[cfile].keys():
-                savedAlien = allconfigdata[cfile].pop('aliens')
-                if "(" in savedAlien:
-                    allconfigdata[cfile]['alien_alg'] = ' "block_aliens"'
-                    allconfigdata[cfile]['aliens'] = savedAlien
-                else:
-                    allconfigdata[cfile]['alien_alg'] = ' "alien_file"'
-                    allconfigdata[cfile]['alien_file'] = savedAlien
-
-
+        allconfigdata[cfile] = convert_dict(allconfigdata[cfile], cfile)
     # Write the data out to the same-named file
 
     for k in allconfigdata.keys():
