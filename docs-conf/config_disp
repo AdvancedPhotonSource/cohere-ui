@@ -1,5 +1,5 @@
 // PARAMETERS FOR VISUALISATION
-results_dir = "test/a_12/results" // optional, a directory of off which all results will be
+results_dir = "test/results" // optional, a directory of off which all results will be
                                         // visualized. Default is the experiment directory
 rampups = 1                // optional, upsize when running ramp removal
                            // default is 1

@@ -29,7 +29,4 @@ separate_scans = false
 //Imult = 10000                             // Optional, defaults to the average of the whitefield
                                             // A multiplication factor used to renormalize the whitefield correction.
 
-// scandirbase = "/net/s34data/export/34idc-data/2020/Staff20-1/Staff20-1a"
-                                            //  Supported only by command line scripts.
-
 detector = "34idcTIM2"                      // optional, can be omitted only if roi param is specified

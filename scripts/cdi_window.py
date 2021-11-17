@@ -1068,6 +1068,10 @@ class RecTab(QWidget):
                 self.AI_sigma.setText(str(conf_map.AI_sigma).replace(" ", ""))
             except AttributeError:
                 pass
+            try:
+                self.AI_trained_model.setText(str(conf_map.AI_trained_model).replace(" ", ""))
+            except AttributeError:
+                pass
 
         # this will update the configuration choices by reading configuration files names
         # do not update when doing toggle
@@ -1144,7 +1148,8 @@ class RecTab(QWidget):
                 conf_map['AI_threshold'] = str(self.AI_threshold.text())
             if len(self.AI_sigma.text()) > 0:
                 conf_map['AI_sigma'] = str(self.AI_sigma.text())
-
+            if len(self.AI_trained_model.text()) > 0:
+                conf_map['AI_trained_model'] = '"' + str(self.AI_trained_model.text()) + '"'
         for feat_id in self.features.feature_dir:
             self.features.feature_dir[feat_id].add_config(conf_map)
 
@@ -1169,6 +1174,9 @@ class RecTab(QWidget):
             layout.addRow("AI init shrink wrap threshold", self.AI_threshold)
             self.AI_sigma = QLineEdit()
             layout.addRow("AI init shrink wrap sigma", self.AI_sigma)
+            self.AI_trained_model = QPushButton()
+            layout.addRow("AI trained model file", self.AI_trained_model)
+            self.AI_trained_model.clicked.connect(self.set_aitm_file)
 
 
     def set_cont_dir(self):
@@ -1187,6 +1195,15 @@ class RecTab(QWidget):
             self.cont_dir_button.setText(cont_dir)
         else:
             self.cont_dir_button.setText('')
+
+
+    def set_aitm_file(self):
+        AI_trained_model = select_file(os.getcwd())
+        if AI_trained_model is not None:
+            self.AI_trained_model.setStyleSheet("Text-align:left")
+            self.AI_trained_model.setText(AI_trained_model)
+        else:
+            self.AI_trained_model.setText('')
 
 
     def add_rec_conf(self):

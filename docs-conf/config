@@ -1,5 +1,5 @@
 // This configuration contains parameters defining the experiment
-working_dir = "/net/s34data/export/34idc-work/2020/Staff20-1/Analysis"
+working_dir = "/working/directory"
                                             // mandatory
                                             // working directory; the new experiment will
                                             // be created in this directory
@@ -17,3 +17,5 @@ specfile = "/net/s34data/export/34idc-data/2020/Staff20-1/Staff20-1a.spec"
                                          
 beamline = "aps_34idc"                      // beamline the experiment was performed at
                                             // if not configured, only the format data and reconstruction components will be usable
+
+converter_var                               // optional, coverter version, if current, the configuration files won't be converted
