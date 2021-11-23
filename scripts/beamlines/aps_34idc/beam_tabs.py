@@ -264,9 +264,14 @@ class PrepTab(QWidget):
         self.tabs = tabs
         self.main_win = main_window
         layout = QFormLayout()
-        self.separate_scans = QCheckBox()
-        layout.addRow("separate scans", self.separate_scans)
+        scan_layout = QHBoxLayout()
+        self.separate_scans = QCheckBox('separate scans')
         self.separate_scans.setChecked(False)
+        scan_layout.addWidget(self.separate_scans)
+        self.separate_scan_ranges = QCheckBox('separate scan ranges')
+        self.separate_scan_ranges.setChecked(False)
+        scan_layout.addWidget(self.separate_scan_ranges)
+        layout.addRow(scan_layout)
         self.data_dir_button = QPushButton()
         layout.addRow("data directory", self.data_dir_button)
         self.dark_file_button = QPushButton()
@@ -338,7 +343,15 @@ class PrepTab(QWidget):
                 self.separate_scans.setChecked(False)
         except:
             self.separate_scans.setChecked(False)
-        # the separate_scan parameter affects other tab (results_dir in dispaly tab)
+        try:
+            separate_scan_ranges = conf_map.separate_scan_ranges
+            if separate_scan_ranges:
+                self.separate_scan_ranges.setChecked(True)
+            else:
+                self.separate_scan_ranges.setChecked(False)
+        except:
+            self.separate_scan_ranges.setChecked(False)
+        # the separate_scan and separate_scan_ranges parameters affects other tab (results_dir in dispaly tab)
         # this tab has to notify observer about the initial setup
         self.notify()
         try:
@@ -392,6 +405,7 @@ class PrepTab(QWidget):
 
     def clear_conf(self):
         self.separate_scans.setChecked(False)
+        self.separate_scan_ranges.setChecked(False)
         self.data_dir_button.setText('')
         self.dark_file_button.setText('')
         self.white_file_button.setText('')
@@ -444,6 +458,8 @@ class PrepTab(QWidget):
             conf_map['detector'] = '"' + str(self.detector.text().strip()) + '"'
         if self.separate_scans.isChecked():
             conf_map['separate_scans'] = 'true'
+        if self.separate_scan_ranges.isChecked():
+            conf_map['separate_scan_ranges'] = 'true'
         if len(self.min_files.text()) > 0:
             min_files = str(self.min_files.text())
             conf_map['min_files'] = min_files
@@ -490,7 +506,7 @@ class PrepTab(QWidget):
 
         conf_dir = os.path.join(self.main_win.experiment_dir, 'conf')
         if write_conf(conf_map, conf_dir, 'config_prep'):
-            # the separate_scan parameter affects other tab (results_dir in dispaly tab)
+            # the separate_scan and separate_scan_ranges parameters affects other tab (results_dir in dispaly tab)
             # this tab has to notify observer about the initial setup
             self.notify()
 
@@ -587,7 +603,7 @@ class PrepTab(QWidget):
 
 
     def notify(self):
-        self.tabs.notify(**{'separate_scans':self.separate_scans.isChecked()})
+        self.tabs.notify(**{'separate_scans':self.separate_scans.isChecked(), 'separate_scan_ranges':self.separate_scan_ranges.isChecked()})
 
 
 class DispTab(QWidget):
@@ -986,13 +1002,15 @@ class DispTab(QWidget):
         """
         if 'separate_scans' in args:
             separate_scans = args['separate_scans']
-            if separate_scans:
-                self.results_dir = self.main_win.experiment_dir
-            else:
-                self.results_dir = os.path.join(self.main_win.experiment_dir, 'results')
-            self.result_dir_button.setStyleSheet("Text-align:left")
-            self.result_dir_button.setText(self.results_dir)
-            return
+        if 'separate_scan_ranges' in args:
+            separate_scan_ranges = args['separate_scan_ranges']
+        if separate_scans or separate_scan_ranges:
+            self.results_dir = self.main_win.experiment_dir
+        else:
+            self.results_dir = os.path.join(self.main_win.experiment_dir, 'results')
+        self.result_dir_button.setStyleSheet("Text-align:left")
+        self.result_dir_button.setText(self.results_dir)
+        return
 
         if 'generations' in args:
             generations = args['generations']
