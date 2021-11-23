@@ -1,4 +1,3 @@
-from cohere.beamlines.preparer import PrepData
 import cohere.utilities.utils as ut
 import os
 import sys
