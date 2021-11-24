@@ -370,7 +370,8 @@ class cdi_gui(QWidget):
         if not self.is_exp_set():
             return
         self.save_main()
-        self.t.save_conf()
+        if need_convert:
+            self.t.save_conf()
 
 
     def load_main(self, load_dir):
@@ -1070,6 +1071,7 @@ class RecTab(QWidget):
                 pass
             try:
                 self.AI_trained_model.setText(str(conf_map.AI_trained_model).replace(" ", ""))
+                self.AI_trained_model.setStyleSheet("Text-align:left")
             except AttributeError:
                 pass
 
