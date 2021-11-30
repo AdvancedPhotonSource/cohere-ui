@@ -55,6 +55,7 @@ class BeamPrepData():
         -------
         PrepData object
         """
+        self.printed_dims = False
         self.args = args
         self.experiment_dir = experiment_dir
 
@@ -350,6 +351,9 @@ class BeamPrepData():
         if not os.path.exists(prep_data_dir):
             os.makedirs(prep_data_dir)
         arr = self.detector.clear_seam(arr, self.roi)
+        if not self.printed_dims:
+            print('data array dimensions', arr.shape)
+            self.printed_dims = True
         ut.save_tif(arr, data_file)
 
 

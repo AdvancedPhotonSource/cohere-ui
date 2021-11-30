@@ -105,7 +105,7 @@ def handle_prep(experiment_dir, *args, **kwargs):
             return None
     prep_obj.prep_data(dirs_indexes)
 
-    print('done with prep')
+    print('done with preprocessing')
     return experiment_dir
 
 
