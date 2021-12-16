@@ -51,8 +51,8 @@ def create_conf_prep(conf_dir):
     f.write('// min_files = 80\n')
     f.write('// exclude_scans = (78,81)\n')
     f.write('separate_scans = false\n')
+    f.write('separate_scan_ranges = false\n')
     f.write('// Imult = 10000\n')
-    f.write('// scandirbase = "/path/to/scandirbase"\n')
     f.write('detector = "34idcTIM1:"\n')
     f.close()
 

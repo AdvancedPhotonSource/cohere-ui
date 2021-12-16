@@ -322,7 +322,13 @@ class PrepTab(QWidget):
                 msg_window('info: the load directory does not contain config_prep file')
                 return
         if need_convert:
-            conf_map = conf_map = conv.get_conf_map(conf, 'config_prep')
+            conf_dict = conv.get_conf_dict(conf, 'config_prep')
+            # if experiment set, save the config_prep
+            try:
+                write_conf(conf_dict, os.path.join(self.main_win.experiment_dir, 'conf'), 'config_prep')
+            except:
+                pass
+            conf_map = ut.get_conf(conf_dict)
         else:
             try:
                 conf_map = ut.read_config(conf)
@@ -693,7 +699,13 @@ class DispTab(QWidget):
                 msg_window('info: the load directory does not contain config_disp file')
                 return
         if need_convert:
-            conf_map = conf_map = conv.get_conf_map(conf, 'config_disp')
+            conf_dict = conv.get_conf_dict(conf, 'config_disp')
+            # if experiment set, save the config_disp
+            try:
+                write_conf(conf_dict, os.path.join(self.main_win.experiment_dir, 'conf'), 'config_disp')
+            except:
+                pass
+            conf_map = ut.get_conf(conf_dict)
         else:
             try:
                 conf_map = ut.read_config(conf)

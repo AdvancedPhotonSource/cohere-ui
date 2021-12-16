@@ -173,7 +173,8 @@ def ver_config_rec(fname):
         if config_map is None:
             print ("can't read configuration file")
             return False
-    except:
+    except Exception as e:
+        print (str(e))
         print ('Cannot parse ' + fname + ' configuration file. Check parenthesis and quotations.')
         return False
 
@@ -241,39 +242,39 @@ def ver_config_rec(fname):
         print ('device parameter parsing error')
         return False
 
-    try:
-        algorithm_sequence = config_map.algorithm_sequence
-        if not issubclass(type(algorithm_sequence), list):
-            print ('algorithm_sequence should be a list')
-            return False
-        for s in algorithm_sequence:
-            for i in range(len(s)):
-                # the first element in each sub-list is the repeat factor and should be int
-                if i== 0 and type(s[i]) != int:
-                    print ('algorithm_sequence configuration error, the repeat factor should be int')
-                    return False
-                if i > 0:
-                    if not issubclass(type(s[i]), list):
-                        print ('algorithm_sequence configuration error, the sequence element should be a list')
-                        return False
-                    algorithm = s[i][0]
-                    if type(algorithm) != str:
-                        print ('algorithm_sequence configuration error, algorithm should be str')
-                        return False
-                    algorithm_options = ["ER", "HIO"]
-                    if algorithm not in algorithm_options:
-                        print ('algorithm_sequence configuration error, algorithm should be "ER" or "HIO"')
-                        return False
-                    algorithm_repeat = s[i][1]
-                    if type(algorithm_repeat) != int:
-                        print ('algorithm_sequence configuration error, algorithm repeat should be int')
-                        return False
-    except AttributeError:
-        print ('missing mandatory algorithm_sequence parameter')
-        return False
-    except:
-        print ('algorithm_sequence parameter parsing error')
-        return False
+    # try:
+    #     algorithm_sequence = config_map.algorithm_sequence
+    #     if not issubclass(type(algorithm_sequence), list):
+    #         print ('algorithm_sequence should be a list')
+    #         return False
+    #     for s in algorithm_sequence:
+    #         for i in range(len(s)):
+    #             # the first element in each sub-list is the repeat factor and should be int
+    #             if i== 0 and type(s[i]) != int:
+    #                 print ('algorithm_sequence configuration error, the repeat factor should be int')
+    #                 return False
+    #             if i > 0:
+    #                 if not issubclass(type(s[i]), list):
+    #                     print ('algorithm_sequence configuration error, the sequence element should be a list')
+    #                     return False
+    #                 algorithm = s[i][0]
+    #                 if type(algorithm) != str:
+    #                     print ('algorithm_sequence configuration error, algorithm should be str')
+    #                     return False
+    #                 algorithm_options = ["ER", "HIO"]
+    #                 if algorithm not in algorithm_options:
+    #                     print ('algorithm_sequence configuration error, algorithm should be "ER" or "HIO"')
+    #                     return False
+    #                 algorithm_repeat = s[i][1]
+    #                 if type(algorithm_repeat) != int:
+    #                     print ('algorithm_sequence configuration error, algorithm repeat should be int')
+    #                     return False
+    # except AttributeError:
+    #     print ('missing mandatory algorithm_sequence parameter')
+    #     return False
+    # except:
+    #     print ('algorithm_sequence parameter parsing error')
+    #     return False
 
     try:
         beta = config_map.beta

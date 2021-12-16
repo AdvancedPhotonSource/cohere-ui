@@ -128,8 +128,8 @@ phm_phase_max = 1.57;
 // Partial coherence triggers recalculation of coherence array for the amplitudes in reciprocal space.
 // After first coherence array is determined, it is used for convolution in subsequent iteration.
 
-pc_trigger = (50, 50)
-                             // defines when to update coherence using the parameters below.
+pc_interval = 50
+                             // defines iteration interval to update coherence.
                              // Comment out, if pcdi feature not used.
 pc_type = "LUCY";
                              // partial coherence algorithm

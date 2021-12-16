@@ -413,7 +413,8 @@ class cdi_gui(QWidget):
         except:
             exp_converter_ver = None
         if exp_converter_ver is None or exp_converter_ver < conv.get_version():
-            conf_map = conv.get_conf_map(os.path.join(load_dir, 'conf', 'config'), 'config')
+            conf_dict = conv.get_conf_dict(os.path.join(load_dir, 'conf', 'config'), 'config')
+            conf_map = ut.get_conf(conf_dict)
             need_convert = True
 
         try:
@@ -687,7 +688,13 @@ class DataTab(QWidget):
                 msg_window('info: the load directory does not contain config_data file')
                 return
         if need_convert:
-            conf_map = conv.get_conf_map(conf, 'config_data')
+            conf_dict = conv.get_conf_dict(conf, 'config_data')
+            # if experiment set, save the config_data
+            try:
+                write_conf(conf_dict, os.path.join(self.main_win.experiment_dir, 'conf'), 'config_data')
+            except:
+                pass
+            conf_map = ut.get_conf(conf_dict)
         else:
             try:
                 conf_map = ut.read_config(conf)
@@ -1028,7 +1035,13 @@ class RecTab(QWidget):
             msg_window('info: the load directory does not contain config_rec file')
             return
         if need_convert:
-            conf_map = conv.get_conf_map(conf, 'config_rec')
+            conf_dict = conv.get_conf_dict(conf, 'config_rec')
+            # if experiment set, save the config_rec
+            try:
+                write_conf(conf_dict, conf_dir, 'config_rec')
+            except:
+                pass
+            conf_map = ut.get_conf(conf_dict)
         else:
             try:
                 conf_map = ut.read_config(conf)
@@ -1077,7 +1090,7 @@ class RecTab(QWidget):
         except AttributeError:
             pass
         try:
-            self.alg_seq.setText(str(conf_map.algorithm_sequence).replace(" ", ""))
+            self.alg_seq.setText(str(conf_map.algorithm_sequence))
         except AttributeError:
             pass
         try:
@@ -1123,7 +1136,7 @@ class RecTab(QWidget):
         if len(self.device.text()) > 0:
             conf_map['device'] = str(self.device.text()).replace('\n','')
         if len(self.alg_seq.text()) > 0:
-            conf_map['algorithm_sequence'] = str(self.alg_seq.text()).replace('\n','')
+            conf_map['algorithm_sequence'] = '"' + str(self.alg_seq.text()).strip() + '"'
         if len(self.hio_beta.text()) > 0:
             conf_map['hio_beta'] = str(self.hio_beta.text())
         if len(self.initial_support_area.text()) > 0:
@@ -1942,9 +1955,9 @@ class pcdi(Feature):
         nothing
         """
         try:
-            triggers = conf_map.pc_trigger
+            pc_interval = conf_map.pc_interval
             self.active.setChecked(True)
-            self.pc_triggers.setText(str(triggers).replace(" ", ""))
+            self.pc_interval.setText(str(pc_interval).replace(" ", ""))
         except AttributeError:
             self.active.setChecked(False)
             return
@@ -1977,8 +1990,8 @@ class pcdi(Feature):
         -------
         nothing
         """
-        self.pc_triggers = QLineEdit()
-        layout.addRow("pc triggers", self.pc_triggers)
+        self.pc_interval = QLineEdit()
+        layout.addRow("pc interval", self.pc_interval)
         self.pc_type = QLineEdit()
         layout.addRow("partial coherence algorithm", self.pc_type)
         self.pc_iter = QLineEdit()
@@ -1999,7 +2012,7 @@ class pcdi(Feature):
         -------
         nothing
         """
-        self.pc_triggers.setText('(50,50)')
+        self.pc_interval.setText('50')
         self.pc_type.setText('LUCY')
         self.pc_iter.setText('20')
         self.pc_normalize.setText('true')
@@ -2017,7 +2030,7 @@ class pcdi(Feature):
         -------
         nothing
         """
-        conf_map['pc_trigger'] = str(self.pc_triggers.text()).replace('\n','')
+        conf_map['pc_interval'] = str(self.pc_interval.text())
         conf_map['pc_type'] = '"' + str(self.pc_type.text()) + '"'
         conf_map['pc_LUCY_iterations'] = str(self.pc_iter.text())
         conf_map['pc_normalize'] = str(self.pc_normalize.text())
