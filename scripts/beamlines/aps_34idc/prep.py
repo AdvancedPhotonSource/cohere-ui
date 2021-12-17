@@ -1,10 +1,11 @@
-from cohere.beamlines.preparer import PrepData
 import cohere.utilities.utils as ut
 import os
+import sys
 import re
 import glob
 import numpy as np
 from xrayutilities.io import spec as spec
+from multiprocessing import Pool, Process, cpu_count
 
 
 def get_det_from_spec(specfile, scan, **kwargs):
@@ -33,11 +34,11 @@ def get_det_from_spec(specfile, scan, **kwargs):
         return detector_name, det_area
     except  Exception as ex:
         print(str(ex))
-        print ('Could not parse ' + specfile )
+        print ('Could not parse ' + specfile)
         return None, None
 
 
-class BeamPrepData(PrepData):
+class BeamPrepData():
     """
     This class contains fields needed for the data preparation, parsed from spec or configuration file.
     The class uses helper functions to prepare the data.
@@ -54,23 +55,26 @@ class BeamPrepData(PrepData):
         -------
         PrepData object
         """
+        self.printed_dims = False
         self.args = args
-#        print(*self.args)
         self.experiment_dir = experiment_dir
 
         self.det_name = None
         self.roi = None
+        self.scan_ranges = []
         try:
-            self.scan_range = [int(s) for s in main_conf_map.scan.split('-')]
-            # single scan or multiple scans will be given as range
-            if len(self.scan_range) == 1:
-                self.scan_range.append(self.scan_range[0])
-            scan_end = self.scan_range[-1]
+            scan_units = [u for u in main_conf_map.scan.replace(' ','').split(',')]
+            for u in scan_units:
+                if '-' in u:
+                    r = u.split('-')
+                    self.scan_ranges.append([int(r[0]), int(r[1])])
+                else:
+                    self.scan_ranges.append([int(u), int(u)])
+            scan_end = self.scan_ranges[-1][-1]
         except:
             print("scans not defined in main config")
-            self.scan_range = None
-
-        if self.scan_range is not None:
+            scan_end = None
+        if scan_end is not None:
             try:
                 specfile = main_conf_map.specfile.strip()
                 # parse det name and saved roi from spec
@@ -91,7 +95,7 @@ class BeamPrepData(PrepData):
                 print('Detector name is not available, using default detector class')
                 self.det_name = "default"
 
-        # if roi is set in config file use it, just in case spec had it wrong or it's not there.
+        # if roi is in config file use it, just in case spec had it wrong or it's not there.
         try:
             self.roi = prep_conf_map.roi
         except:
@@ -101,6 +105,11 @@ class BeamPrepData(PrepData):
             self.separate_scans = prep_conf_map.separate_scans
         except:
             self.separate_scans = False
+
+        try:
+            self.separate_scan_ranges = prep_conf_map.separate_scan_ranges
+        except:
+            self.separate_scan_ranges = False
 
         try:
             self.Imult = prep_conf_map.Imult
@@ -132,14 +141,36 @@ class BeamPrepData(PrepData):
         scan_inxs : list
             list of scan numbers corresponding to the directories in the dirs list
         """
+        no_scan_ranges = len(self.scan_ranges)
+        unit_dirs_scan_indexes = {i : ([],[]) for i in range(no_scan_ranges)}
+
+        def add_scan(scan_no, subdir):
+            i = 0
+            while scan_no > self.scan_ranges[i][1]:
+                i += 1
+                if i == no_scan_ranges:
+                    return
+            if scan_no >= self.scan_ranges[i][0]:
+                # add the scan
+                unit_dirs_scan_indexes[i][0].append(subdir)
+                unit_dirs_scan_indexes[i][1].append(scan_no)
+
         try:
             data_dir = kwargs['data_dir']
         except:
             print('please provide data_dir in configuration file')
             return None, None
 
-        dirs = []
-        scan_inxs = []
+        def order_lists(dirs, inds):
+            # The directory with the smallest index is placed as first, so all data files will
+            # be alligned to the data file in this directory
+            scans_order = np.argsort(inds).tolist()
+            first_index = inds.pop(scans_order[0])
+            first_dir = dirs.pop(scans_order[0])
+            inds.insert(0, first_index)
+            dirs.insert(0, first_dir)
+            return dirs, inds
+
         for name in os.listdir(data_dir):
             subdir = os.path.join(data_dir, name)
             if os.path.isdir(subdir):
@@ -149,17 +180,111 @@ class BeamPrepData(PrepData):
                 last_digits = re.search(r'\d+$', name)
                 if last_digits is not None:
                     scan = int(last_digits.group())
-                    if scan >= self.scan_range[0] and scan <= self.scan_range[1] and not scan in self.exclude_scans:
-                        dirs.append(subdir)
-                        scan_inxs.append(scan)
-        # The directory with the smallest index is placed as first, so all data files will
-        # be alligned to the data file in this directory
-        scans_order = np.argsort(scan_inxs).tolist()
-        first_index = scan_inxs.pop(scans_order[0])
-        first_dir = dirs.pop(scans_order[0])
-        scan_inxs.insert(0, first_index)
-        dirs.insert(0, first_dir)
-        return dirs, scan_inxs
+                    if not scan in self.exclude_scans:
+                        add_scan(scan, subdir)
+        if self.separate_scan_ranges:
+            for i in range(no_scan_ranges):
+                if len(unit_dirs_scan_indexes[i]) > 1:
+                    unit_dirs_scan_indexes[i] = order_lists(unit_dirs_scan_indexes[i][0], unit_dirs_scan_indexes[i][1])
+        else:
+            # combine all scans
+            dirs = [unit_dirs_scan_indexes[i][0] for i in range(no_scan_ranges)]
+            inds = [unit_dirs_scan_indexes[i][1] for i in range(no_scan_ranges)]
+            unit_dirs_scan_indexes = (sum(dirs, []), sum(inds, []))
+            unit_dirs_scan_indexes = order_lists(unit_dirs_scan_indexes[0], unit_dirs_scan_indexes[1])
+        return unit_dirs_scan_indexes
+
+
+    def prep_data(self, dirs_indexes, **kwargs):
+        """
+        Creates prep_data.tif file in <experiment_dir>/prep directory or multiple prep_data.tif in <experiment_dir>/<scan_<scan_no>>/prep directories.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        def combine_scans(refarr, dirs, nproc, scan=''):
+            sumarr = np.zeros_like(refarr)
+            sumarr = sumarr + refarr
+            self.fft_refarr = np.fft.fftn(refarr)
+
+            # https://www.edureka.co/community/1245/splitting-a-list-into-chunks-in-python
+            # Need to further chunck becauase the result queue needs to hold N arrays.
+            # if there are a lot of them and they are big, it runs out of ram.
+            # since process takes 10-12 arrays, divide nscans/15 (to be safe) and make that many
+            # chunks to pool.  Also ask between pools how much ram is avaiable and modify nproc.
+            while (len(dirs) > 0):
+                chunklist = dirs[0:min(len(dirs), nproc)]
+                poollist = [dirs.pop(0) for i in range(len(chunklist))]
+                with Pool(processes=nproc) as pool:
+                    res = pool.map_async(self.read_align, poollist)
+                    pool.close()
+                    pool.join()
+                for arr in res.get():
+                    sumarr = sumarr + arr
+            self.write_prep_arr(sumarr, scan)
+
+        if self.separate_scan_ranges:
+            single = []
+            pops = []
+            for key in dirs_indexes:
+                (dirs, inds) = dirs_indexes[key]
+                if len(dirs) == 0:
+                    pops.append(key)
+                elif len(dirs) == 1:
+                    single.append((dirs_indexes[key][0][0], str(dirs_indexes[key][1][0])))
+                    pops.append(key)
+            for key in pops:
+                dirs_indexes.pop(key)
+            # process first the single scans
+            if len(single) > 0:
+                with Pool(processes=min(len(single), cpu_count())) as pool:
+                    pool.starmap_async(self.read_write, single)
+                    pool.close()
+                    pool.join()
+            # then process scan ranges
+            if len(dirs_indexes) == 0:
+                return
+            pr = []
+            for dir_ind in dirs_indexes.values():
+                (dirs, inds) = dir_ind
+                first_dir = dirs.pop(0)
+                refarr = self.read_scan(first_dir)
+                if refarr is None:
+                    continue
+                # estimate number of available cpus for each process
+                arr_size = sys.getsizeof(refarr)
+                nproc = int(ut.estimate_no_proc(arr_size, 15) / len(dirs_indexes))
+                p = Process(target=combine_scans, args=(refarr, dirs, max(1, nproc), str(inds[0])+'-'+str(inds[-1])))
+                p.start()
+                pr.append(p)
+            for p in pr:
+                p.join()
+        else:
+            dirs, indexes = dirs_indexes[0], dirs_indexes[1]
+            # dir_indexes consists of list of directories and corresponding list of indexes
+            if len(dirs) == 1:
+                arr = self.read_scan(dirs[0])
+                if arr is not None:
+                    self.write_prep_arr(arr)
+                return
+
+            if self.separate_scans:
+                iterable = list(zip(dirs, [str(ix) for ix in indexes]))
+                with Pool(processes=min(len(dirs_indexes), cpu_count())) as pool:
+                    pool.starmap_async(self.read_write, iterable)
+                    pool.close()
+                    pool.join()
+            else:
+                first_dir = dirs.pop(0)
+                refarr = self.read_scan(first_dir)
+                if refarr is None:
+                    return
+                arr_size = sys.getsizeof(refarr)
+                nproc = ut.estimate_no_proc(arr_size, 15)
+                combine_scans(refarr, dirs, nproc)
 
 
     def read_scan(self, dir, **kwargs):
@@ -213,19 +338,22 @@ class BeamPrepData(PrepData):
         return arr
 
 
-    def write_prep_arr(self, arr, index=None, **kwargs):
+    def write_prep_arr(self, arr, index='', **kwargs):
         """
         This clear the seam dependable on detector from the prepared array and saves the prepared data in <experiment_dir>/prep directory of
         experiment or <experiment_dir>/<scan_dir>/prep if writing for separate scans.
         """
-        if index is None:
+        if index == '':
             prep_data_dir = os.path.join(self.experiment_dir, 'prep')
         else:
-            prep_data_dir = os.path.join(self.experiment_dir, *('scan_' + str(index), 'prep'))
+            prep_data_dir = os.path.join(self.experiment_dir, *('scan_' + index, 'prep'))
         data_file = os.path.join(prep_data_dir, 'prep_data.tif')
         if not os.path.exists(prep_data_dir):
             os.makedirs(prep_data_dir)
         arr = self.detector.clear_seam(arr, self.roi)
+        if not self.printed_dims:
+            print('data array dimensions', arr.shape)
+            self.printed_dims = True
         ut.save_tif(arr, data_file)
 
 
@@ -243,3 +371,26 @@ class BeamPrepData(PrepData):
         for attr in prep_conf_map.keys():
             if hasattr(self.detector, attr):
                 setattr(self.detector, attr, prep_conf_map.get(attr))
+
+
+    def read_write(self, scan_dir, index, **kwargs):
+        arr = self.read_scan(scan_dir)
+        self.write_prep_arr(arr, index)
+
+
+    def read_align(self, dir, **kwargs):
+        """
+        Aligns scan with reference array.  Referrence array is field of this class.
+        Parameters
+        ----------
+        dir : str
+            directory to the raw data
+        Returns
+        -------
+        aligned_array : array
+            aligned array
+        """
+        # read
+        arr = self.read_scan(dir)
+        # align
+        return np.abs(ut.shift_to_ref_array(self.fft_refarr, arr))

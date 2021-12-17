@@ -96,8 +96,9 @@ def returnconfigdictionary(cfile_path, cfile):
 
     # Check if file exists, if it does make a backup copy of file with the new name config_backup
     if os.path.exists(cfile_path):
-        backupfile = cfile + "_backup"
-        versionfile(cfile_path)
+        if os.access(os.path.dirname(cfile_path), os.W_OK):
+            backupfile = cfile + "_backup"
+            versionfile(cfile_path)
     else:
         return currentdic
 
@@ -146,6 +147,31 @@ def replace_keys(dic, cfile):
 
 
 def convert_dict(conf_dict, cfile):
+    if cfile == 'config':
+        mappingfile = config_map
+    elif cfile == 'config_prep':
+        mappingfile = config_prep_map
+    elif cfile == 'config_data':
+        mappingfile = config_data_map
+    elif cfile == 'config_rec':
+        mappingfile = config_rec_map
+    elif cfile == 'config_disp':
+        mappingfile = config_disp_map
+    # Check if key is in the dictionary for this config file
+
+    for (k, v) in mappingfile.items():
+        if k in conf_dict.keys():
+            # Key is in the dictionary, replace with new value
+            holdingvalue = conf_dict.pop(k)
+            conf_dict[v] = holdingvalue
+#            print("The value of", k, "has been changed to", v, "and the value is", holdingvalue)
+        else:
+            # Key is not in the dictionary, do nothing
+            continue
+
+    # Some special cases if beamline has no value then it was never defined so set it to the default
+    # if specfile is in config_prep then remove it a add it to config
+    # if the config_data file has the older aliens format of coordinates/file then update to new layout
     if cfile == 'config':
         if 'beamline' in conf_dict.keys():
             beamlinevalue = conf_dict['beamline']

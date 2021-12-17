@@ -261,6 +261,35 @@ class cdi_gui(QWidget):
             self.t.run_all()
 
 
+    def reset_window(self):
+        self.exp_id = None
+        self.experiment_dir = None
+        self.working_dir = None
+        self.specfile = None
+        if self.t is not None:
+            self.t.clear_configs()
+
+
+    def set_working_dir(self):
+        """
+        It shows the select dialog for user to select working directory. If the selected directory does not exist user will see info message.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        self.working_dir = select_dir(os.getcwd())
+        if self.working_dir is not None:
+            self.set_work_dir_button.setStyleSheet("Text-align:left")
+            self.set_work_dir_button.setText(self.working_dir)
+        else:
+            self.set_work_dir_button.setText('')
+            msg_window('please select valid working directory')
+            return
+
+
     def is_exp_exists(self):
         """
         Determines if minimum information for creating the experiment space exists, i.e the working directory and experiment id must be set.
@@ -321,37 +350,29 @@ class cdi_gui(QWidget):
             msg_window('please select valid conf directory')
             return
         if os.path.isfile(os.path.join(load_dir, 'conf', 'config')):
-            need_convert, new_exp = self.load_main(load_dir)
+            need_convert = self.load_main(load_dir)
+            # config file could not be parsed
             if need_convert is None:
                 return
         else:
             msg_window('missing conf/config file, not experiment directory')
             return
 
-        self.set_experiment(new_exp, need_convert)
-
-        self.t.clear_configs()
+        self.reset_window()
+        self.set_experiment(True)
+        if self.t is None:
+            try:
+                self.t = Tabs(self, self.beamline_widget.text())
+                self.vbox.addWidget(self.t)
+            except:
+                pass
         self.t.load_conf(load_dir, need_convert)
-
-
-    def set_working_dir(self):
-        """
-        It shows the select dialog for user to select working directory. If the selected directory does not exist user will see info message.
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        nothing
-        """
-        self.working_dir = select_dir(os.getcwd())
-        if self.working_dir is not None:
-            self.set_work_dir_button.setStyleSheet("Text-align:left")
-            self.set_work_dir_button.setText(self.working_dir)
-        else:
-            self.set_work_dir_button.setText('')
-            msg_window('please select valid working directory')
+        if not self.is_exp_set():
             return
+        self.save_main()
+        if need_convert:
+            self.t.save_conf()
+
 
     def load_main(self, load_dir):
         """
@@ -369,43 +390,16 @@ class cdi_gui(QWidget):
             conf_map = ut.read_config(conf)
         except Exception:
             msg_window('please check configuration file ' + conf + '. Cannot parse, ')
-            return None, None
+            return None
 
-        new_exp = False
+        self.working_dir = None
         need_convert = False
         try:
             working_dir = conf_map.working_dir
-            if not os.path.isdir(working_dir):
-                if self.working_dir is None:
-                    msg_window(
-                        'The working directory ' + working_dir + ' from config file does not exist. Select valid working directory and reload')
-                    return None, None
-                else:
-                    msg_window(
-                        'info: The working directory ' + working_dir + ' from config file does not exist. Will use selected working directory')
-                    new_exp = True
-            elif not os.access(working_dir, os.W_OK):
-                if self.working_dir is None:
-                    msg_window(
-                        'The working directory ' + working_dir + ' is not writable. Select valid working directory and reload')
-                    return None, None
-                else:
-                    msg_window(
-                        'info: The working directory ' + working_dir + ' is not writable. Will use selected working directory')
-                    new_exp = True
-            else:
-                self.working_dir = conf_map.working_dir
-                self.set_work_dir_button.setStyleSheet("Text-align:left")
-                self.set_work_dir_button.setText(self.working_dir)
+            self.set_work_dir_button.setStyleSheet("Text-align:left")
+            self.set_work_dir_button.setText(working_dir)
         except:
-            if self.working_dir is None:
-                msg_window(
-                    'The working directory is not defined in config file. Select valid working directory and reload')
-                return None, None
-            else:
-                msg_window(
-                    'info: The working directory is not defined in config file. Will use selected working directory')
-                new_exp = True
+            self.set_work_dir_button.setText('')
 
         # if the converter version in config file is old or none, get the conf with new version
         try:
@@ -420,8 +414,7 @@ class cdi_gui(QWidget):
         try:
             self.Id_widget.setText(conf_map.experiment_id)
         except:
-            msg_window('id is not configured in ' + conf + ' file. Aborting')
-            return None, None
+            self.Id_widget.setText('')
         try:
             self.scan_widget.setText(conf_map.scan.replace(' ',''))
         except:
@@ -442,7 +435,7 @@ class cdi_gui(QWidget):
         except:
             self.beamline_widget.setText('')
 
-        return need_convert, new_exp
+        return need_convert
 
 
     def assure_experiment_dir(self):
@@ -478,7 +471,7 @@ class cdi_gui(QWidget):
         write_conf(conf_map, os.path.join(self.experiment_dir, 'conf'), 'config')
 
 
-    def set_experiment(self, new_exp=True, converted = False):
+    def set_experiment(self, loaded=False):
         """
         Reads the parameters in the window, and sets the experiment to this values, i.e. creates experiment directory,
         and saves all configuration files with parameters from window.
@@ -490,11 +483,29 @@ class cdi_gui(QWidget):
         -------
         nothing
         """
-        # the self.working_dir has been already set
-        self.id = str(self.Id_widget.text()).strip()
-        if self.id == '' or self.working_dir is None:
-            msg_window('id and working directory must be entered')
+        working_dir = self.set_work_dir_button.text()
+        if len(working_dir) == 0:
+            msg_window(
+                'The working directory is not defined in config file. Select valid working directory and set experiment')
             return
+        elif not os.path.isdir(working_dir):
+            msg_window(
+                'The working directory ' + working_dir + ' from config file does not exist. Select valid working directory and set experiment')
+            self.set_work_dir_button.setText('')
+            return
+        elif not os.access(working_dir, os.W_OK):
+            msg_window(
+                'The working directory ' + working_dir + ' is not writable. Select valid working directory and set experiment')
+            self.set_work_dir_button.setText('')
+            return
+
+        id = str(self.Id_widget.text()).strip()
+        if id == '':
+            msg_window('id must be entered')
+            return
+
+        self.working_dir = working_dir
+        self.id = id
         if len(self.scan_widget.text()) > 0:
             self.scan = str(self.scan_widget.text())
             self.exp_id = self.id + '_' + self.scan
@@ -513,18 +524,14 @@ class cdi_gui(QWidget):
         else:
             self.specfile = None
 
-        # if the configuration file was converted or it is new experiment save main
-        if new_exp or converted:
+        if not loaded:
             self.save_main()
-
-        if self.t is None:
-            try:
-                self.t = Tabs(self)
-                self.vbox.addWidget(self.t)
-            except:
-                pass
-
-        if new_exp or converted:
+            if self.t is None:
+                try:
+                    self.t = Tabs(self, self.beamline_widget.text())
+                    self.vbox.addWidget(self.t)
+                except:
+                    pass
             self.t.save_conf()
 
 
@@ -534,19 +541,19 @@ class Tabs(QTabWidget):
     The tabs are as follows: prep (prepare data), data (format data), rec (reconstruction), disp (visualization).
     This class holds holds the tabs.
     """
-    def __init__(self, main_win, parent=None):
+    def __init__(self, main_win, beamline, parent=None):
         """
         Constructor, initializes the tabs.
         """
         super(Tabs, self).__init__(parent)
         self.main_win = main_win
 
-        if self.main_win.beamline is not None:
+        if beamline is not None and len(beamline) > 0:
             try:
-                beam = importlib.import_module('beamlines.' + self.main_win.beamline + '.beam_tabs')
+                beam = importlib.import_module('beamlines.' + beamline + '.beam_tabs')
             except Exception as e:
                 print (e)
-                msg_window('cannot import beamlines.' + self.main_win.beamline + ' module' )
+                msg_window('cannot import beamlines.' + beamline + ' module' )
                 raise
             self.prep_tab = beam.PrepTab()
             self.format_tab = DataTab()
@@ -1075,6 +1082,11 @@ class RecTab(QWidget):
                 self.AI_sigma.setText(str(conf_map.AI_sigma).replace(" ", ""))
             except AttributeError:
                 pass
+            try:
+                self.AI_trained_model.setText(str(conf_map.AI_trained_model).replace(" ", ""))
+                self.AI_trained_model.setStyleSheet("Text-align:left")
+            except AttributeError:
+                pass
 
         # this will update the configuration choices by reading configuration files names
         # do not update when doing toggle
@@ -1151,7 +1163,8 @@ class RecTab(QWidget):
                 conf_map['AI_threshold'] = str(self.AI_threshold.text())
             if len(self.AI_sigma.text()) > 0:
                 conf_map['AI_sigma'] = str(self.AI_sigma.text())
-
+            if len(self.AI_trained_model.text()) > 0:
+                conf_map['AI_trained_model'] = '"' + str(self.AI_trained_model.text()) + '"'
         for feat_id in self.features.feature_dir:
             self.features.feature_dir[feat_id].add_config(conf_map)
 
@@ -1172,18 +1185,13 @@ class RecTab(QWidget):
             layout.addRow("continue directory", self.cont_dir_button)
             self.cont_dir_button.clicked.connect(self.set_cont_dir)
         elif self.init_guess.currentIndex() == 2:
-            # The results will be stored in the directory <experiment_dir>/AI_guess
-            AI_guess_dir = os.path.join(self.main_win.experiment_dir, "AI_guess")
-            if os.path.exists(AI_guess_dir):
-                for f in os.listdir(AI_guess_dir):
-                    os.remove(os.path.join(AI_guess_dir, f))
-            else:
-                os.makedirs(AI_guess_dir)
-
             self.AI_threshold = QLineEdit()
             layout.addRow("AI init shrink wrap threshold", self.AI_threshold)
             self.AI_sigma = QLineEdit()
             layout.addRow("AI init shrink wrap sigma", self.AI_sigma)
+            self.AI_trained_model = QPushButton()
+            layout.addRow("AI trained model file", self.AI_trained_model)
+            self.AI_trained_model.clicked.connect(self.set_aitm_file)
 
 
     def set_cont_dir(self):
@@ -1202,6 +1210,15 @@ class RecTab(QWidget):
             self.cont_dir_button.setText(cont_dir)
         else:
             self.cont_dir_button.setText('')
+
+
+    def set_aitm_file(self):
+        AI_trained_model = select_file(os.getcwd())
+        if AI_trained_model is not None:
+            self.AI_trained_model.setStyleSheet("Text-align:left")
+            self.AI_trained_model.setText(AI_trained_model)
+        else:
+            self.AI_trained_model.setText('')
 
 
     def add_rec_conf(self):
@@ -1370,6 +1387,8 @@ class RecTab(QWidget):
         """
         # this will update the configuration choices in reconstruction tab
         # fill out the config_id choice bar by reading configuration files names
+        if not self.main_win.is_exp_set():
+            return
         self.rec_ids = []
         for file in os.listdir(os.path.join(self.main_win.experiment_dir, 'conf')):
             if file.endswith('_config_rec'):
