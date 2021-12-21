@@ -493,8 +493,10 @@ class PrepTab(QWidget):
         """
         if not self.main_win.is_exp_exists():
             msg_window('the experiment has not been created yet')
+            return
         elif not self.main_win.is_exp_set():
             msg_window('the experiment has changed, pres "set experiment" button')
+            return
         else:
             conf_map = self.get_prep_config()
         # for 34idc prep data directory is needed
@@ -503,7 +505,7 @@ class PrepTab(QWidget):
             return
         scan = str(self.main_win.scan_widget.text())
         if len(scan) == 0:
-            msg_window(('cannot prepare data for 34idc, scan not specified'))
+            msg_window('cannot prepare data for 34idc, scan not specified')
         try:
             # after checking that scan is entered convert it to list of int
             scan_range = scan.split('-')
