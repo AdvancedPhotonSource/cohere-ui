@@ -48,10 +48,17 @@ device = (0,1)
                              // IDs of the target devices for each thread (reconstruction).
                              // If not defined, it will default to -1 for the OS to select device
 
-algorithm_sequence = ((3, ("ER",20), ("HIO", 180)), (1,("ER",20)))
-                             // defines algorithm applied in each iteration during modulus projection by a sequence of lists.
-                             // The first number in a list is a repeat, followed by lists of pairs, each
-                             // pair defining algorithm and number of iterations to run the algorithm.
+algorithm_sequence = "3* (20*ER + 180*HIO) + 20*ERpc"
+                             // mandatory, defines algorithm applied in each iteration during modulus projection and
+                             // during modulus. The "*" charcter means repeat, and the "+" means add to the sequence.
+                             // The sequence may contain single brackets defining a group that will be repeated by the
+                             // preceding multiplier. The alphabetic entries: ER, ERpc, HIO, HIOpc define algorithms
+                             // used in this iteration. The entries will invoke functions as follows: ER definition will
+                             // invoke 'er' and 'modulus' functions, the ERpc will invoke 'er' and 'pc_modulus', HIO
+                             // will invoke 'hio' and 'modulus', and HIOpc will invoke 'hio' and 'pc_modulus'. The
+                             // pc_modulus is implementation of modulus with partial coherence correction. If defining
+                             // ERpc or HIOpc the pcdi feature must be activated. If not activated, the phasing will use
+                             // modulus function instead.
 
 hio_beta = .9;
                              // used in hio algorithm
