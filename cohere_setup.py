@@ -27,7 +27,7 @@ def setup(script_dir, working_dir, det_name, specfile):
     configdispfile = os.path.join(confdir, "config_disp")
     configrecfile = os.path.join(confdir, "config_rec")
 
-    detcorrectionsdir = os.path.join(script_dir, 'cohere-scripts', 'beamlines', 'aps_34idc', 'DetectorCorrections', det_name)
+    detcorrectionsdir = os.path.join(script_dir, 'cohere-scripts', 'beamlines', 'aps_34idc', 'detector_corrections', det_name)
     # figure out the dark and white files
     if os.path.isdir(detcorrectionsdir):
         darkfieldfile = os.path.join(detcorrectionsdir, "current_dark.tif")

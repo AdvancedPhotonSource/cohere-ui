@@ -5,8 +5,8 @@
 # #########################################################################
 
 """
-This user script invokes all scripts needed to present reconstructed data from raw data: run_prep_34idc, format_data, run_rec, run_disp.
-This script is written for specific beamline, as it invokes targetted scripts.
+This user script invokes all cohere-scripts needed to present reconstructed data from raw data: run_prep_34idc, format_data, run_rec, run_disp.
+This script is written for specific beamline, as it invokes targetted cohere-scripts.
 This script uses configuration parameters from the experiment configuration files.
 """
 
@@ -16,10 +16,10 @@ __docformat__ = 'restructuredtext en'
 __all__ = ['run_all',
            'main']
 
-import run_prep_34idc as prep
-import format_data as dt
-import run_rec as rec
-import run_disp as dsp
+import beamline_preprocess as prep
+import standard_preprocess as dt
+import run_reconstruction as rec
+import beamline_visualization as dsp
 import sys
 import argparse
 
