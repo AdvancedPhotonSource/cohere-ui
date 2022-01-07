@@ -9,9 +9,6 @@
 // (3) trigger at iteration 3
 // (20, 5) trigger starts at iteration 20, repeats every 5 iteration for the rest of run
 // (20, 5, 40) trigger starts at iteration 20, repeats every 5 iteration until iteration 40
-// Triggers can also be a combination of any of the above, ex: ((4), (3, 7, 24), (6,20))
-// If a trigger is not defined, the feature is turned off.
-// Adding a new feature/ trigger is described in common.h header file.
 
 // GENERAL
 //data_dir = "data"
