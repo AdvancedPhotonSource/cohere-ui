@@ -1,5 +1,5 @@
-data_dir = "/Users/bfrosik/cohere-scripts/example/exp_data"
-darkfield_filename = "/Users/bfrosik/cohere-scripts/example/dark.tif"
-whitefield_filename = "/Users/bfrosik/cohere-scripts/example/whitefield.tif"
+data_dir = "CUR_DIR/example_data/exp_data"
+darkfield_filename = "CUR_DIR/example_data/dark.tif"
+whitefield_filename = "CUR_DIR/example_data/whitefield.tif"
 detector = "34idcTIM2"
 roi = [0,256,0,256,1]
