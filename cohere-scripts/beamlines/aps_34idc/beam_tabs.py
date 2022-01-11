@@ -506,13 +506,13 @@ class PrepTab(QWidget):
         scan = str(self.main_win.scan_widget.text())
         if len(scan) == 0:
             msg_window('cannot prepare data for 34idc, scan not specified')
-        try:
-            # after checking that scan is entered convert it to list of int
-            scan_range = scan.split('-')
-            for i in range(len(scan_range)):
-                scan_range[i] = int(scan_range[i])
-        except:
-            pass
+        # try:
+        #     # after checking that scan is entered convert it to list of int
+        #     scan_range = scan.split('-')
+        #     for i in range(len(scan_range)):
+        #         scan_range[i] = int(scan_range[i])
+        # except:
+        #     pass
 
         conf_dir = os.path.join(self.main_win.experiment_dir, 'conf')
         if write_conf(conf_map, conf_dir, 'config_prep'):
@@ -520,7 +520,10 @@ class PrepTab(QWidget):
             # this tab has to notify observer about the initial setup
             self.notify()
 
-        self.tabs.run_prep()
+        if len(self.main_win.scan_widget.text()) == 0:
+            msg_window('cannot prepare data for 34idc, scan not specified')
+        else:
+            self.tabs.run_prep()
 
 
     def set_dark_file(self):
@@ -598,18 +601,22 @@ class PrepTab(QWidget):
         if not self.main_win.is_exp_exists():
             # do not parse on initial assignment
             return
-        try:
-            last_scan = int(self.main_win.scan.split('-')[-1].split(',')[-1])
-            detector_name, roi = get_det_from_spec(self.main_win.specfile, last_scan)
-            self.roi.setText(str(roi))
-            self.roi.setStyleSheet('color: blue')
+        scan = str(self.main_win.scan_widget.text())
+        if len(scan) == 0:
+            msg_window('scan number is needed to parse spec file')
+        else:
+            try:
+                last_scan = int(scan.split('-')[-1].split(',')[-1])
+                detector_name, roi = get_det_from_spec(self.main_win.specfile, last_scan)
+                self.roi.setText(str(roi))
+                self.roi.setStyleSheet('color: blue')
 
-            if detector_name is not None:
-                self.detector.setText(str(detector_name)[:-1])
-                self.detector.setStyleSheet('color: blue')
-        except Exception as e:
-            print(str(e))
-            msg_window ('error parsing spec')
+                if detector_name is not None:
+                    self.detector.setText(str(detector_name)[:-1])
+                    self.detector.setStyleSheet('color: blue')
+            except Exception as e:
+                print(str(e))
+                msg_window ('error parsing spec')
 
 
     def notify(self):
@@ -962,42 +969,46 @@ class DispTab(QWidget):
         if not self.main_win.is_exp_exists():
             # do not parse on initial assignment
             return
-        try:
-            last_scan = int(self.main_win.scan.split('-')[-1].split(',')[-1])
-            delta, gamma, theta, phi, chi, scanmot, scanmot_del, detdist, detector_name, energy = parse_spec(self.main_win.specfile, last_scan)
-            if energy is not None:
-                self.energy.setText(str(energy))
-                self.energy.setStyleSheet('color: blue')
-            if delta is not None:
-                self.delta.setText(str(delta))
-                self.delta.setStyleSheet('color: blue')
-            if gamma is not None:
-                self.gamma.setText(str(gamma))
-                self.gamma.setStyleSheet('color: blue')
-            if theta is not None:
-                self.theta.setText(str(theta))
-                self.theta.setStyleSheet('color: blue')
-            if chi is not None:
-                self.chi.setText(str(chi))
-                self.chi.setStyleSheet('color: blue')
-            if phi is not None:
-                self.phi.setText(str(phi))
-                self.phi.setStyleSheet('color: blue')
-            if detdist is not None:
-                self.detdist.setText(str(detdist))
-                self.detdist.setStyleSheet('color: blue')
-            if scanmot is not None:
-                self.scanmot.setText(str(scanmot))
-                self.scanmot.setStyleSheet('color: blue')
-            if scanmot_del is not None:
-                self.scanmot_del.setText(str(scanmot_del))
-                self.scanmot_del.setStyleSheet('color: blue')
-            if detector_name is not None:
-                self.detector.setText(str(detector_name)[:-1])
-                self.detector.setStyleSheet('color: blue')
-        except Exception as e:
-            print(str(e))
-            msg_window ('error parsing spec')
+        scan = str(self.main_win.scan_widget.text())
+        if len(scan) == 0:
+            msg_window('scan number is needed to parse spec file')
+        else:
+            try:
+                last_scan = int(scan.split('-')[-1].split(',')[-1])
+                delta, gamma, theta, phi, chi, scanmot, scanmot_del, detdist, detector_name, energy = parse_spec(self.main_win.specfile, last_scan)
+                if energy is not None:
+                    self.energy.setText(str(energy))
+                    self.energy.setStyleSheet('color: blue')
+                if delta is not None:
+                    self.delta.setText(str(delta))
+                    self.delta.setStyleSheet('color: blue')
+                if gamma is not None:
+                    self.gamma.setText(str(gamma))
+                    self.gamma.setStyleSheet('color: blue')
+                if theta is not None:
+                    self.theta.setText(str(theta))
+                    self.theta.setStyleSheet('color: blue')
+                if chi is not None:
+                    self.chi.setText(str(chi))
+                    self.chi.setStyleSheet('color: blue')
+                if phi is not None:
+                    self.phi.setText(str(phi))
+                    self.phi.setStyleSheet('color: blue')
+                if detdist is not None:
+                    self.detdist.setText(str(detdist))
+                    self.detdist.setStyleSheet('color: blue')
+                if scanmot is not None:
+                    self.scanmot.setText(str(scanmot))
+                    self.scanmot.setStyleSheet('color: blue')
+                if scanmot_del is not None:
+                    self.scanmot_del.setText(str(scanmot_del))
+                    self.scanmot_del.setStyleSheet('color: blue')
+                if detector_name is not None:
+                    self.detector.setText(str(detector_name)[:-1])
+                    self.detector.setStyleSheet('color: blue')
+            except Exception as e:
+                print(str(e))
+                msg_window ('error parsing spec')
 
 
     def update_tab(self, **args):

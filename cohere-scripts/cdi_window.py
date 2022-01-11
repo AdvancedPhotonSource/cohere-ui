@@ -461,8 +461,8 @@ class cdi_gui(QWidget):
         conf_map = {}
         conf_map['working_dir'] = '"' + str(self.working_dir) + '"'
         conf_map['experiment_id'] = '"' + self.id + '"'
-        if self.scan is not None:
-            conf_map['scan'] = '"' + self.scan + '"'
+        if len(self.scan_widget.text()) > 0:
+            conf_map['scan'] = '"' + str(self.scan_widget.text()) + '"'
         if self.beamline is not None:
             conf_map['beamline'] = '"' + self.beamline + '"'
         if self.specfile is not None:
@@ -507,10 +507,8 @@ class cdi_gui(QWidget):
         self.working_dir = working_dir
         self.id = id
         if len(self.scan_widget.text()) > 0:
-            self.scan = str(self.scan_widget.text())
-            self.exp_id = self.id + '_' + self.scan
+            self.exp_id = self.id + '_' + str(self.scan_widget.text())
         else:
-            self.scan = None
             self.exp_id = self.id
         self.experiment_dir = os.path.join(self.working_dir, self.exp_id)
         self.assure_experiment_dir()

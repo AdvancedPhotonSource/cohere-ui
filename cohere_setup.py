@@ -2,14 +2,40 @@ import sys
 import os
 import argparse
 from shutil import copy
+import re
+import time
+
+
+def getspecfile_datetime(file):
+    SPEC_datetime = re.compile(r"^#D")
+    SPEC_time_format = re.compile(r"\d\d:\d\d:\d\d")
+    SPEC_multi_blank = re.compile(r"\s+")
+    datetimestruct = None
+
+    datetimeformat = "%a %b %d %H:%M:%S %Y"
+    with open(file) as fid:
+        for line in fid:
+            if SPEC_datetime.match(line):
+                filetime = SPEC_time_format.findall(line)[0]
+                line = SPEC_datetime.sub("", line)
+                line = SPEC_multi_blank.sub(" ", line).strip()
+                # print(line)
+                datetimestruct = time.strptime(line, datetimeformat)
+                break
+
+    return datetimestruct
 
 
 def setup(script_dir, working_dir, det_name, specfile):
+    # spec_timestamp = getspecfile_datetime(specfile)
+    # spec_date = str(spec_timestamp.tm_year) + str(spec_timestamp.tm_mon) + str(spec_timestamp.tm_mday)
+    # print(spec_date)
+
     exp_data_dir, spec_filename = os.path.split(specfile)
     specfilebase = os.path.splitext(spec_filename)[0]
     addatadir = os.path.join(exp_data_dir, "AD" + det_name + "_" + specfilebase)
 
-    templ_confdir = os.path.join(script_dir, 'cohere-defaults', 'conf')
+    templ_confdir = os.path.join(script_dir, 'cohere-defaults')
     # conf files
     templ_configfile = os.path.join(templ_confdir, "config")
     templ_configprepfile = os.path.join(templ_confdir, "config_prep")
