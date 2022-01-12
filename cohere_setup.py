@@ -41,7 +41,7 @@ def get_dark(detcorrectionsdir, spec_timestamp):
     filestamps.sort()
     ind = filestamps.index(spec_timestamp)
     # check for case the stamp is the same
-    if len(filestamps) >= ind and filestamps[ind] == filestamps[ind + 1]:
+    if len(filestamps) > ind + 1 and filestamps[ind] == filestamps[ind + 1]:
         return (os.path.join(detcorrectionsdir, files[ind]))
     elif ind == 0:
         return ""
@@ -56,7 +56,7 @@ def get_white(detcorrectionsdir, spec_timestamp):
     filestamps.sort()
     ind = filestamps.index(spec_timestamp)
     # check for case the stamp is the same
-    if len(filestamps) >= ind and filestamps[ind] == filestamps[ind + 1]:
+    if len(filestamps) > ind + 1 and filestamps[ind] == filestamps[ind + 1]:
         return (os.path.join(detcorrectionsdir, files[ind]))
     elif ind == 0:
         return ""
