@@ -1,4 +1,4 @@
-data_dir = "CUR_DIR/example_data/exp_data"
+data_dir = "CUR_DIR/example_data/AD34idcTIM2_example"
 darkfield_filename = "CUR_DIR/example_data/dark.tif"
 whitefield_filename = "CUR_DIR/example_data/whitefield.tif"
 detector = "34idcTIM2"
