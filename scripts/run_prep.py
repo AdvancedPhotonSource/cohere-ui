@@ -24,7 +24,6 @@ import pylibconfig2 as cfg
 import os
 import sys
 import importlib
-import convertconfig as conv
 
 
 def handle_prep(experiment_dir, *args, **kwargs):
@@ -41,8 +40,6 @@ def handle_prep(experiment_dir, *args, **kwargs):
         directory with experiment files
     """
     print ('preaparing data')
-    # convert configuration files if needed
-    conv.convert(os.path.join(experiment_dir, 'conf'))
 
     try:
         main_conf_file = os.path.join(experiment_dir, *("conf", "config"))
