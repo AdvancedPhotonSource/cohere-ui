@@ -222,7 +222,7 @@ def get_conf_dict(experiment_dir):
     return conf_dict
 
 
-def handle_visualization(experiment_dir, image_file=None):
+def handle_visualization(experiment_dir, rec_id, image_file=None):
     """
     If the image_file parameter is defined, the file is processed and vts file saved. Otherwise this function determines root directory with results that should be processed for visualization. Multiple images will be processed concurrently.
 
@@ -299,50 +299,56 @@ def handle_visualization(experiment_dir, image_file=None):
             shape, fortran, dtype = np.lib.format.read_array_header_1_0(f)
         geometry = disp.set_geometry(shape, params)
         process_file(image_file, geometry, rampups, params.crop)
+        return
+    elif rec_id is not None:
+        results_dir = os.path.join(experiment_dir, 'results_phasing_' + rec_id)
     else:
         try:
             results_dir = conf_dict['results_dir']
         except  Exception as ex:
             print(str(ex))
             results_dir = experiment_dir
-        # find directories with image.npy file in the root of results_dir
-        dirs = []
-        for (dirpath, dirnames, filenames) in os.walk(results_dir):
-            for file in filenames:
-                if file.endswith('image.npy'):
-                    dirs.append((dirpath))
-        if len(dirs) == 0:
-            print ('no image.npy files found in the directory tree', results_dir)
-            return
-        else:
-            # find shape without loading the array
-            with open(os.path.join(dirs[0], 'image.npy'), 'rb') as f:
-                np.lib.format.read_magic(f)
-                shape, fortran, dtype = np.lib.format.read_array_header_1_0(f)
-            geometry = disp.set_geometry(shape, params)
+    # find directories with image.npy file in the root of results_dir
+    dirs = []
+    for (dirpath, dirnames, filenames) in os.walk(results_dir):
+        for file in filenames:
+            if file.endswith('image.npy'):
+                dirs.append((dirpath))
+    if len(dirs) == 0:
+        print ('no image.npy files found in the directory tree', results_dir)
+        return
+    else:
+        # find shape without loading the array
+        with open(os.path.join(dirs[0], 'image.npy'), 'rb') as f:
+            np.lib.format.read_magic(f)
+            shape, fortran, dtype = np.lib.format.read_array_header_1_0(f)
+        geometry = disp.set_geometry(shape, params)
 
-        if len(dirs) == 1:
-            process_dir(geometry, rampups, params.crop, make_twin, dirs[0])
-        elif len(dirs) >1:
-            func = partial(process_dir, geometry, rampups, params.crop, make_twin)
-            no_proc = min(cpu_count(), len(dirs))
-            with Pool(processes = no_proc) as pool:
-               pool.map_async(func, dirs)
-               pool.close()
-               pool.join()
-        print ('done with processing display')
+    if len(dirs) == 1:
+        process_dir(geometry, rampups, params.crop, make_twin, dirs[0])
+    elif len(dirs) >1:
+        func = partial(process_dir, geometry, rampups, params.crop, make_twin)
+        no_proc = min(cpu_count(), len(dirs))
+        with Pool(processes = no_proc) as pool:
+           pool.map_async(func, dirs)
+           pool.close()
+           pool.join()
+    print ('done with processing display')
 
 
 def main(arg):
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_dir", help="experiment directory")
     parser.add_argument("--image_file", help="a file in .npy format to be processed for visualization")
+    parser.add_argument("--rec_id", help="alternate reconstruction id")
     args = parser.parse_args()
     experiment_dir = args.experiment_dir
+    rec_id = args.rec_id
+    print('recid', rec_id)
     if args.image_file:
-        handle_visualization(experiment_dir, args.image_file)
+        handle_visualization(experiment_dir, args.rec_id, args.image_file)
     else:
-        handle_visualization(experiment_dir)
+        handle_visualization(experiment_dir, args.rec_id)
 
 
 if __name__ == "__main__":
