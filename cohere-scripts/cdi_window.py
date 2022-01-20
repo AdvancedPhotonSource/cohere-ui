@@ -530,7 +530,9 @@ class cdi_gui(QWidget):
                     self.vbox.addWidget(self.t)
                 except:
                     pass
-            self.t.save_conf()
+            self.t.save_conf(
+
+            )
 
 
 class Tabs(QTabWidget):
@@ -1235,7 +1237,7 @@ class RecTab(QWidget):
 
         # copy the config_rec into <id>_config_rec
         conf_file = os.path.join(self.main_win.experiment_dir, 'conf', 'config_rec')
-        new_conf_file = os.path.join(self.main_win.experiment_dir, 'conf', id + '_config_rec')
+        new_conf_file = os.path.join(self.main_win.experiment_dir, 'conf', 'config_rec_' + id)
         shutil.copyfile(conf_file, new_conf_file)
         self.rec_id.setCurrentIndex(self.rec_id.count() - 1)
 
@@ -1257,7 +1259,7 @@ class RecTab(QWidget):
         if self.old_conf_id == '':
             conf_file = 'config_rec'
         else:
-            conf_file = self.old_conf_id + '_config_rec'
+            conf_file =  'config_rec_' + self.old_conf_id
 
         conf_map = self.get_rec_config()
         conf_dir = os.path.join(self.main_win.experiment_dir, 'conf')
@@ -1274,7 +1276,7 @@ class RecTab(QWidget):
         if self.old_conf_id == '':
             conf_file = os.path.join(conf_dir, 'config_rec')
         else:
-            conf_file = os.path.join(conf_dir, self.old_conf_id + '_config_rec')
+            conf_file = os.path.join(conf_dir,  'config_rec_' + self.old_conf_id)
 
         try:
             conf_map = ut.read_config(conf_file)
@@ -1339,7 +1341,7 @@ class RecTab(QWidget):
                     conf_file = 'config_rec'
                     conf_id = None
                 else:
-                    conf_file = self.old_conf_id + '_config_rec'
+                    conf_file =  'config_rec_' + self.old_conf_id
                     conf_id = self.old_conf_id
 
                 conf_map = self.get_rec_config()
@@ -1389,8 +1391,8 @@ class RecTab(QWidget):
             return
         self.rec_ids = []
         for file in os.listdir(os.path.join(self.main_win.experiment_dir, 'conf')):
-            if file.endswith('_config_rec'):
-                self.rec_ids.append(file[0:len(file)-len('_config_rec')])
+            if file.startswith('config_rec_'):
+                self.rec_ids.append(file[len('config_rec_') : len(file)])
         if len(self.rec_ids) > 0:
             self.rec_id.addItems(self.rec_ids)
             self.rec_id.show()

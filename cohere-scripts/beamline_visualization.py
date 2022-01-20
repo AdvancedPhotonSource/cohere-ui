@@ -48,11 +48,15 @@ def process_dir(geometry, rampups, crop, make_twin, res_dir):
     -------
     nothing
     """
+    save_dir = res_dir.replace('_phasing', '_viz')
+    # create dir if does not exist
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
     # image file was checked in calling function
     imagefile = os.path.join(res_dir, 'image.npy')
     try:
         image = np.load(imagefile)
-        ut.save_tif(image, os.path.join(res_dir, 'image.tif'))
+        ut.save_tif(image, os.path.join(save_dir, 'image.tif'))
     except:
         print('cannot load file', imagefile)
         return
@@ -64,7 +68,7 @@ def process_dir(geometry, rampups, crop, make_twin, res_dir):
     if os.path.isfile(supportfile):
         try:
             support = np.load(supportfile)
-            ut.save_tif(support, os.path.join(res_dir, 'support.tif'))
+            ut.save_tif(support, os.path.join(save_dir, 'support.tif'))
         except:
             print('cannot load file', supportfile)
     else:
@@ -83,7 +87,7 @@ def process_dir(geometry, rampups, crop, make_twin, res_dir):
         image = vu.remove_ramp(image, ups=rampups)
 
     viz = CXDViz(crop, geometry)
-    viz.visualize(image, support, coh, res_dir)
+    viz.visualize(image, support, coh, save_dir)
 
     if make_twin:
         image = np.flip(image)
@@ -92,7 +96,7 @@ def process_dir(geometry, rampups, crop, make_twin, res_dir):
             image, support = vu.center(image, support)
         if rampups > 1:
             image = vu.remove_ramp(image, ups=rampups)
-        viz.visualize(image, support, coh, res_dir, True)
+        viz.visualize(image, support, coh, save_dir, True)
 
 
 def process_file(image_file, geometry, rampups, crop):

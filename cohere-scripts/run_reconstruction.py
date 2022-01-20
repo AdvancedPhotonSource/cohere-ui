@@ -154,7 +154,7 @@ def manage_reconstruction(proc, experiment_dir, rec_id=None):
     if rec_id is None:
         conf_file = os.path.join(conf_dir, 'config_rec')
     else:
-        conf_file = os.path.join(conf_dir, rec_id + '_config_rec')
+        conf_file = os.path.join(conf_dir, 'config_rec_' + rec_id)
 
     # check if file exists
     if not os.path.isfile(conf_file):
@@ -221,7 +221,7 @@ def manage_reconstruction(proc, experiment_dir, rec_id=None):
         try:
             data_dir = config_map.data_dir
         except AttributeError:
-            data_dir = os.path.join(experiment_dir, 'data')
+            data_dir = os.path.join(experiment_dir, 'phasing_data')
         datafile = os.path.join(data_dir, 'data.tif')
         if os.path.isfile(datafile):
             exp_dirs_data.append((datafile, experiment_dir))
@@ -315,7 +315,7 @@ def main(arg):
     parser = argparse.ArgumentParser()
     parser.add_argument("proc", help="the processor the code will run on, can be 'cpu', 'opencl', or 'cuda'.")
     parser.add_argument("experiment_dir", help="experiment directory.")
-    parser.add_argument("--rec_id", help="reconstruction id, a prefix to '_results' directory")
+    parser.add_argument("--rec_id", help="reconstruction id, a postfix to 'results_phasing_' directory")
     args = parser.parse_args()
     proc = args.proc
     experiment_dir = args.experiment_dir

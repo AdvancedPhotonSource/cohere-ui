@@ -166,15 +166,15 @@ def setup_rundirs(prefix, scan, conf_dir, **kwargs):
         new_exp_dir = os.path.split(os.path.abspath(experiment_conf_dir))[0]
 
         # get case of single scan or summed
-        prep_dir_list = glob.glob(os.path.join(other_exp_dir, 'prep'), recursive=True)
+        prep_dir_list = glob.glob(os.path.join(other_exp_dir, 'preprocessed_data'), recursive=True)
         for dir in prep_dir_list:
-            shutil.copytree(dir, os.path.join(new_exp_dir, 'prep'))
+            shutil.copytree(dir, os.path.join(new_exp_dir, 'preprocessed_data'))
 
             # get case of split scans
-        prep_dir_list = glob.glob(os.path.join(other_exp_dir, "scan*/prep"), recursive=True)
+        prep_dir_list = glob.glob(os.path.join(other_exp_dir, "scan*/preprocessed_data"), recursive=True)
         for dir in prep_dir_list:
             scandir = os.path.basename(os.path.split(dir)[0])
-            shutil.copytree(dir, os.path.join(new_exp_dir, *(scandir, 'prep')))
+            shutil.copytree(dir, os.path.join(new_exp_dir, *(scandir, 'preprocessed_data')))
     return experiment_dir
         #################################################################################
 

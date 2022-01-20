@@ -649,7 +649,7 @@ class DispTab(QWidget):
 
         layout = QFormLayout()
         self.result_dir_button = QPushButton()
-        layout.addRow("results directory", self.result_dir_button)
+        layout.addRow("phasing results directory", self.result_dir_button)
         self.make_twin = QCheckBox('make twin')
         self.make_twin.setChecked(False)
         layout.addWidget(self.make_twin)
@@ -741,11 +741,13 @@ class DispTab(QWidget):
                 return
 
         self.parse_spec()
-        try:
-            self.results_dir = str(conf_map.results_dir).replace(" ","")
-        except AttributeError:
-            if self.results_dir is None:
-                self.results_dir = self.main_win.experiment_dir
+        # rather set the directory to the current experiment
+        # try:
+        #     self.results_dir = str(conf_map.results_dir).replace(" ","")
+        # except AttributeError:
+        #     if self.results_dir is None:
+        self.results_dir = self.main_win.experiment_dir
+
         self.result_dir_button.setStyleSheet("Text-align:left")
         self.result_dir_button.setText(self.results_dir)
         # if parameters are configured, override the readings from spec file
@@ -1032,7 +1034,7 @@ class DispTab(QWidget):
         if separate_scans or separate_scan_ranges:
             self.results_dir = self.main_win.experiment_dir
         else:
-            self.results_dir = os.path.join(self.main_win.experiment_dir, 'results')
+            self.results_dir = os.path.join(self.main_win.experiment_dir, 'results_phasing')
         self.result_dir_button.setStyleSheet("Text-align:left")
         self.result_dir_button.setText(self.results_dir)
         return
@@ -1047,9 +1049,9 @@ class DispTab(QWidget):
             rec_no = args['rec_no']
 
         if len(rec_id) > 0:
-            self.results_dir = os.path.join(self.main_win.experiment_dir, rec_id + '_results')
+            self.results_dir = os.path.join(self.main_win.experiment_dir, 'results_phasing_' + rec_id)
         else:
-            self.results_dir = os.path.join(self.main_win.experiment_dir, 'results')
+            self.results_dir = os.path.join(self.main_win.experiment_dir, 'results_phasing')
 
         if generations > 0:
             if rec_no > 1:
@@ -1074,7 +1076,7 @@ class DispTab(QWidget):
         nothing
         """
         if self.main_win.is_exp_exists():
-            self.results_dir = os.path.join(self.main_win.experiment_dir, 'results')
+            self.results_dir = os.path.join(self.main_win.experiment_dir, 'results_phasing')
             self.results_dir = select_dir(self.results_dir)
             if self.results_dir is not None:
                 self.result_dir_button.setStyleSheet("Text-align:left")

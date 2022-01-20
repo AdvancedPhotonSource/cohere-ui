@@ -1,5 +1,5 @@
 // GENERAL
-// data_dir = "data"
+// data_dir = "phasing_data"
                              // directory where prepared data is saved, default <experiment_dir>/data
 
 // PARAMETER FOR DATA PREPARATION

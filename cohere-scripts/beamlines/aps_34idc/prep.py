@@ -197,7 +197,7 @@ class BeamPrepData():
 
     def prep_data(self, dirs_indexes, **kwargs):
         """
-        Creates prep_data.tif file in <experiment_dir>/prep directory or multiple prep_data.tif in <experiment_dir>/<scan_<scan_no>>/prep directories.
+        Creates prep_data.tif file in <experiment_dir>/preprocessed_data directory or multiple prep_data.tif in <experiment_dir>/<scan_<scan_no>>/preprocessed_data directories.
         Parameters
         ----------
         none
@@ -344,9 +344,9 @@ class BeamPrepData():
         experiment or <experiment_dir>/<scan_dir>/prep if writing for separate scans.
         """
         if index == '':
-            prep_data_dir = os.path.join(self.experiment_dir, 'prep')
+            prep_data_dir = os.path.join(self.experiment_dir, 'preprocessed_data')
         else:
-            prep_data_dir = os.path.join(self.experiment_dir, *('scan_' + index, 'prep'))
+            prep_data_dir = os.path.join(self.experiment_dir, *('scan_' + index, 'preprocessed_data'))
         data_file = os.path.join(prep_data_dir, 'prep_data.tif')
         if not os.path.exists(prep_data_dir):
             os.makedirs(prep_data_dir)

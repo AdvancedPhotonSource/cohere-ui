@@ -81,7 +81,7 @@ def prep(fname, conf_info):
     try:
         data_dir = config_map.data_dir
     except AttributeError:
-        data_dir = 'data'
+        data_dir = 'phasing_data'
         if experiment_dir is not None:
             data_dir = os.path.join(experiment_dir, data_dir)
     if not os.path.exists(data_dir):
@@ -184,7 +184,7 @@ def format_data(experiment_dir):
         conv.convert(os.path.join(experiment_dir, 'conf'))
 
     print ('formating data')
-    prep_file = os.path.join(experiment_dir, 'prep', 'prep_data.tif')
+    prep_file = os.path.join(experiment_dir, 'preprocessed_data', 'prep_data.tif')
     if os.path.isfile(prep_file):
         prep(prep_file, experiment_dir)
 
@@ -192,7 +192,7 @@ def format_data(experiment_dir):
     for dir in dirs:
         if dir.startswith('scan'):
             scan_dir = os.path.join(experiment_dir, dir)
-            prep_file = os.path.join(scan_dir, 'prep', 'prep_data.tif')
+            prep_file = os.path.join(scan_dir, 'preprocessed_data', 'prep_data.tif')
             prep(prep_file, scan_dir)
 
 
