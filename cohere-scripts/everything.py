@@ -44,9 +44,10 @@ def run_all(dev, experiment_dir, **kwargs):
     dt.data(experiment_dir)
     if 'rec_id' in kwargs:
         rec.manage_reconstruction(dev, experiment_dir, kwargs['rec_id'])
+        dsp.to_vtk(experiment_dir, kwargs['rec_id'])
     else:
         rec.manage_reconstruction(dev, experiment_dir)
-    dsp.to_vtk(experiment_dir)
+        dsp.to_vtk(experiment_dir)
 
 def main(arg):
     parser = argparse.ArgumentParser()
