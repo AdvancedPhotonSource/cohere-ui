@@ -1094,6 +1094,10 @@ class RecTab(QWidget):
             self.update_rec_configs_choice()
 
         try:
+            self.proc.setCurrentText(str(conf_map.processing))
+        except AttributeError:
+            pass
+        try:
             self.device.setText(str(conf_map.device).replace(" ", ""))
         except AttributeError:
             pass
@@ -1123,6 +1127,7 @@ class RecTab(QWidget):
     def clear_conf(self):
         self.init_guess.setCurrentIndex(0)
         self.device.setText('')
+        self.proc.setCurrentIndex(0)
         self.reconstructions.setText('')
         self.alg_seq.setText('')
         self.hio_beta.setText('')
@@ -1145,6 +1150,8 @@ class RecTab(QWidget):
         conf_map = {}
         if len(self.reconstructions.text()) > 0:
             conf_map['reconstructions'] = str(self.reconstructions.text())
+        if len(self.proc.currentText()) > 0:
+            conf_map['processing'] = '"' + str(self.proc.currentText()) + '"'
         if len(self.device.text()) > 0:
             conf_map['device'] = str(self.device.text()).replace('\n','')
         if len(self.alg_seq.text()) > 0:
@@ -1348,7 +1355,7 @@ class RecTab(QWidget):
                 conf_dir = os.path.join(self.main_win.experiment_dir, 'conf')
 
                 if write_conf(conf_map, conf_dir, conf_file):
-                    run_rc.manage_reconstruction(str(self.proc.currentText()), self.main_win.experiment_dir, conf_id)
+                    run_rc.manage_reconstruction(self.main_win.experiment_dir, conf_id)
                     self.notify()
             else:
                 msg_window('Please, run format data in previous tab to activate this function')
@@ -1369,6 +1376,7 @@ class RecTab(QWidget):
             msg_window('Working Directory or Reconstruction ID not configured')
         else:
             self.reconstructions.setText('1')
+            self.proc.setCurrentIndex(0)
             self.device.setText('(0,1)')
             self.alg_seq.setText('((3,("ER",20),("HIO",180)),(1,("ER",20)))')
             self.hio_beta.setText('.9')

@@ -114,7 +114,7 @@ def get_gpu_use(devices, no_dir, no_rec, data_shape):
     return gpu_use
 
 
-def manage_reconstruction(proc, experiment_dir, rec_id=None):
+def manage_reconstruction(experiment_dir, rec_id=None):
     """
     This function starts the interruption discovery process and continues the recontruction processing.
     It reads configuration file defined as <experiment_dir>/conf/config_rec.
@@ -122,8 +122,6 @@ def manage_reconstruction(proc, experiment_dir, rec_id=None):
     It creates image.npy file for each successful reconstruction.
     Parameters
     ----------
-    proc : str
-        processing library, choices are: cpu, cuda, opencl
     experiment_dir : str
         directory where the experiment files are loacted
     rec_id : str
@@ -177,6 +175,11 @@ def manage_reconstruction(proc, experiment_dir, rec_id=None):
         return
 
     # find which librarry to run it on, default is numpy ('np')
+    if config_map.lookup('processing') is not None:
+        proc = config_map.processing
+    else:
+        proc = 'auto'
+
     lib = 'np'
     if proc == 'auto':
         try:
@@ -313,17 +316,15 @@ def manage_reconstruction(proc, experiment_dir, rec_id=None):
 
 def main(arg):
     parser = argparse.ArgumentParser()
-    parser.add_argument("proc", help="the processor the code will run on, can be 'cpu', 'opencl', or 'cuda'.")
     parser.add_argument("experiment_dir", help="experiment directory.")
     parser.add_argument("--rec_id", help="reconstruction id, a postfix to 'results_phasing_' directory")
     args = parser.parse_args()
-    proc = args.proc
     experiment_dir = args.experiment_dir
 
     if args.rec_id:
-        manage_reconstruction(proc, experiment_dir, args.rec_id)
+        manage_reconstruction(experiment_dir, args.rec_id)
     else:
-        manage_reconstruction(proc, experiment_dir)
+        manage_reconstruction(experiment_dir)
 
 
 if __name__ == "__main__":

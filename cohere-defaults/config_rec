@@ -41,6 +41,14 @@ reconstructions = 1
                              // number of reconstructions to start with
                              // typically used when running genetic algorithm
 
+processing = "auto"
+                             // optional, the library used when running reconstruction. When the auto option is
+                             // selected the program will use the best performing library that is available, in the
+                             // following order: cupy, af, numpy. The cp option will utilize cupy,
+                             // np will utilize numpy, and af will leave selection to arrayfire. The cuda, opencl,
+                             // and cpu are arrayfire libraries. The "cuda" and "opencl" options will invoke the
+                             // processing on GPUs, and the "cpu" option on cpu. Default is auto.
+
 device = (0,1)
                              // IDs of the target devices for each thread (reconstruction).
                              // If not defined, it will default to -1 for the OS to select device
