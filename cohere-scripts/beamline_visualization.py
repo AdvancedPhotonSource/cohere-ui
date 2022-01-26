@@ -222,7 +222,7 @@ def get_conf_dict(experiment_dir):
     return conf_dict
 
 
-def handle_visualization(experiment_dir, rec_id, image_file=None):
+def handle_visualization(experiment_dir, rec_id=None, image_file=None):
     """
     If the image_file parameter is defined, the file is processed and vts file saved. Otherwise this function determines root directory with results that should be processed for visualization. Multiple images will be processed concurrently.
 
