@@ -1378,7 +1378,7 @@ class RecTab(QWidget):
             self.reconstructions.setText('1')
             self.proc.setCurrentIndex(0)
             self.device.setText('(0,1)')
-            self.alg_seq.setText('((3,("ER",20),("HIO",180)),(1,("ER",20)))')
+            self.alg_seq.setText('3*(20*ER+180*HIO)+20*ER')
             self.hio_beta.setText('.9')
             self.initial_support_area.setText('(0.5, 0.5, 0.5)')
 
