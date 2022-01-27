@@ -90,7 +90,7 @@ def process_dir(geometry, rampups, crop, make_twin, res_dir):
     viz.visualize(image, support, coh, save_dir)
 
     if make_twin:
-        image = np.flip(image)
+        image = np.conjugate(np.flip(image))
         if support is not None:
             support = np.flip(support)
             image, support = vu.center(image, support)
