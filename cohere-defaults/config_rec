@@ -53,7 +53,7 @@ device = (0,1)
                              // IDs of the target devices for each thread (reconstruction).
                              // If not defined, it will default to -1 for the OS to select device
 
-algorithm_sequence = "3* (20*ER + 180*HIO) + 20*ERpc"
+algorithm_sequence = "3* (20*ER + 180*HIO) + 20*ER"
                              // mandatory, defines algorithm applied in each iteration during modulus projection and
                              // during modulus. The "*" charcter means repeat, and the "+" means add to the sequence.
                              // The sequence may contain single brackets defining a group that will be repeated by the
