@@ -619,6 +619,19 @@ class PrepTab(QWidget):
                 msg_window ('error parsing spec')
 
 
+    def update_tab(self, **args):
+        """
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        if 'specfile' in args:
+            self.parse_spec()
+
+
     def notify(self):
         self.tabs.notify(**{'separate_scans':self.separate_scans.isChecked(), 'separate_scan_ranges':self.separate_scan_ranges.isChecked()})
 
@@ -1027,40 +1040,42 @@ class DispTab(QWidget):
         -------
         nothing
         """
-        if 'separate_scans' in args:
-            separate_scans = args['separate_scans']
-        if 'separate_scan_ranges' in args:
-            separate_scan_ranges = args['separate_scan_ranges']
-        if separate_scans or separate_scan_ranges:
-            self.results_dir = self.main_win.experiment_dir
-        else:
-            self.results_dir = os.path.join(self.main_win.experiment_dir, 'results_phasing')
-        self.result_dir_button.setStyleSheet("Text-align:left")
-        self.result_dir_button.setText(self.results_dir)
-        return
-
-        if 'generations' in args:
-            generations = args['generations']
+        if 'specfile' in args:
+            self.parse_spec()
+        if 'separate_scans' in args or 'separate_scan_ranges' in args:
+            if 'separate_scans' in args:
+                separate_scans = args['separate_scans']
+            if 'separate_scan_ranges' in args:
+                separate_scan_ranges = args['separate_scan_ranges']
+            if separate_scans or separate_scan_ranges:
+                self.results_dir = self.main_win.experiment_dir
+            else:
+                self.results_dir = os.path.join(self.main_win.experiment_dir, 'results_phasing')
+            self.result_dir_button.setText(self.results_dir)
+            self.result_dir_button.setStyleSheet("Text-align:left")
+            return
 
         if 'rec_id' in args:
             rec_id = args['rec_id']
-
-        if 'rec_no' in args:
-            rec_no = args['rec_no']
-
-        if len(rec_id) > 0:
-            self.results_dir = os.path.join(self.main_win.experiment_dir, 'results_phasing_' + rec_id)
-        else:
-            self.results_dir = os.path.join(self.main_win.experiment_dir, 'results_phasing')
-
-        if generations > 0:
-            if rec_no > 1:
-                self.results_dir = os.path.join(self.results_dir, 'g_' + str(generations - 1), '0')
+            if len(rec_id) > 0:
+                self.results_dir = os.path.join(self.main_win.experiment_dir, 'results_phasing_' + rec_id)
             else:
-                self.results_dir = os.path.join(self.results_dir, 'g_' + str(generations - 1))
+                self.results_dir = os.path.join(self.main_win.experiment_dir, 'results_phasing')
 
-        self.result_dir_button.setStyleSheet("Text-align:left")
+        if 'generations' in args:
+            generations = args['generations']
+            if 'rec_no' in args:
+                rec_no = args['rec_no']
+            else:
+                rec_no = 1
+            if generations > 0:
+                if rec_no > 1:
+                    self.results_dir = os.path.join(self.results_dir, 'g_' + str(generations - 1), '0')
+                else:
+                    self.results_dir = os.path.join(self.results_dir, 'g_' + str(generations - 1))
+
         self.result_dir_button.setText(self.results_dir)
+        self.result_dir_button.setStyleSheet("Text-align:left")
 
 
     def set_res_dir(self):

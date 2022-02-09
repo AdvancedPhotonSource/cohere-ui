@@ -231,6 +231,7 @@ class cdi_gui(QWidget):
         -------
         noting
         """
+        print('setting specfile')
         self.specfile = select_file(os.getcwd())
         if self.specfile is not None:
             self.spec_file_button.setStyleSheet("Text-align:left")
@@ -240,7 +241,11 @@ class cdi_gui(QWidget):
             self.spec_file_button.setText('')
         if self.is_exp_exists() or self.is_exp_set():
             # this will update configuration when the specfile is updated
+            print('should update')
             self.save_main()
+            self.t.notify(**{'specfile':self.specfile})
+        else:
+            msg_window('set experiment first and then update spec file')
 
 
     def run_everything(self):
@@ -573,6 +578,7 @@ class Tabs(QTabWidget):
     def notify(self, **args):
         try:
             self.display_tab.update_tab(**args)
+            self.prep_tab.update_tab(**args)
         except:
             pass
 
