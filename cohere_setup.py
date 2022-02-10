@@ -100,7 +100,7 @@ def setup(script_dir, working_dir, det_name, specfile):
         filedata = file.read()
     filedata = filedata.replace('ANLDIR', working_dir)
     filedata = filedata.replace('SPECFILE', specfile)
-    with open(configfile, 'a') as file:
+    with open(configfile, 'w') as file:
         file.write(filedata)
 
     with open(templ_configprepfile, 'r') as file:
@@ -108,13 +108,13 @@ def setup(script_dir, working_dir, det_name, specfile):
     filedata = filedata.replace('ADDATADIR', addatadir)
     filedata = filedata.replace('DARKFIELD', darkfieldfile)
     filedata = filedata.replace('WHITEFIELD', whitefieldfile)
-    with open(configprepfile, 'a') as file:
+    with open(configprepfile, 'w') as file:
         file.write(filedata)
 
     with open(templ_configdispfile, 'r') as file:
         filedata = file.read()
     filedata = filedata.replace('ANLDIR', working_dir)
-    with open(configdispfile, 'a') as file:
+    with open(configdispfile, 'w') as file:
         file.write(filedata)
 
     copy(templ_configdatafile, configdatafile)
