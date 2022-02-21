@@ -151,74 +151,55 @@ def get_conf_dict(experiment_dir):
 
     # convert configuration files if needed
     main_conf = os.path.join(conf_dir, 'config')
-    if os.path.isfile(main_conf):
-        try:
-            config_map = ut.read_config(main_conf)
-        except:
-            print ("info: can't read " + main_conf + " configuration file")
-            return None
-    else:
+    main_config_map = ut.read_config(main_conf)
+    if main_config_map is None:
         print("info: missing " + main_conf + " configuration file")
         return None
 
-    if conv.get_version() is None or conv.get_version() < config_map.converter_ver:
-        conv.convert(conf_dir)
+    if 'converter_ver' not in main_config_map or conv.get_version() is None or conv.get_version() < main_config_map['converter_ver']:
+        main_config_map = conv.get_conf_dict(main_conf, 'config')
 
-    conf = os.path.join(conf_dir, 'config_disp')
-    # verify configuration file
-    if not ver.ver_config_disp(conf):
-        print ('incorrect configuration file ' + conf +', cannot parse')
-        return None
+    disp_conf = os.path.join(conf_dir, 'config_disp')
+    # # verify configuration file
+    # if not ver.ver_config_disp(conf):
+    #     print ('incorrect configuration file ' + conf +', cannot parse')
+    #     return None
 
     # parse the conf once here and save it in dictionary, it will apply to all images in the directory tree
-    conf_dict = {}
-    try:
-        conf_map = ut.read_config(conf)
-        items = conf_map.items()
-        for item in items:
-            key = item[0]
-            val = item[1]
-            conf_dict[key] = val
-    except:
+    conf_dict = ut.read_config(disp_conf)
+    if conf_dict is None:
         return None
+    #
+    # # get specfile and last_scan from the config file and add it to conf_dict
+    # main_conf = os.path.join(conf_dir, 'config')
+    # if os.path.isfile(main_conf):
+    #     config_map = ut.read_config(main_conf)
+    #     if config_map is None:
+    #         print ("info: can't read " + conf + " configuration file")
+    #         return None
 
-    # get specfile and last_scan from the config file and add it to conf_dict
-    main_conf = os.path.join(conf_dir, 'config')
-    if os.path.isfile(main_conf):
-        try:
-            config_map = ut.read_config(main_conf)
-        except:
-            print ("info: can't read " + conf + " configuration file")
-            return None
-
-    try:
-        conf_dict['beamline'] = config_map.beamline
-    except Exception as e:
-        print(e)
+    if 'beamline' in main_config_map:
+        conf_dict['beamline'] = main_config_map['beamline']
+    else:
         print('beamline must be defined in the configuration file', main_conf)
         return None
 
-    try:
-        conf_dict['specfile'] = config_map.specfile
-        scan = config_map.scan
-        last_scan = scan.split('-')[-1]
+    if 'specfile' in main_config_map and 'scan' in main_config_map:
+        conf_dict['specfile'] = main_config_map['specfile']
+        scan = main_config_map['scan']
+        last_scan = scan.split(',')[-1].split('-')[-1]
         conf_dict['last_scan'] = int(last_scan)
-    except:
+    else:
         print("specfile or scan range not in main config")
 
     # get binning from the config_data file and add it to conf_dict
     data_conf = os.path.join(conf_dir, 'config_data')
-    if os.path.isfile(data_conf):
-        try:
-            conf_map = ut.read_config(data_conf)
-            conf_dict['binning'] = conf_map.binning
-        except AttributeError:
-            pass
-        except Exception as e:
-            print(e)
-            print("info: can't load " + data_conf + " configuration file")
-    else:
-        print("info: file " + data_conf + " does not exist, assumming no binning")
+    data_conf_map = ut.read_config(data_conf)
+    if data_conf_map is None:
+        return conf_dict
+    if 'binning' in data_conf_map:
+        conf_dict['binning'] = data_conf_map['binning']
+
     return conf_dict
 
 
@@ -240,9 +221,9 @@ def handle_visualization(experiment_dir, rec_id=None, image_file=None):
     if conf_dict is None:
         return
 
-    try:
+    if 'beamline' in conf_dict:
         disp = importlib.import_module('beamlines.' + conf_dict['beamline'] + '.disp')
-    except:
+    else:
         print ('cannot import beamlines.' + conf_dict['beamline'] + '.disp module.')
         return
 
@@ -287,9 +268,9 @@ def handle_visualization(experiment_dir, rec_id=None, image_file=None):
     except:
         rampups = 1
 
-    try:
+    if 'make_twin' in conf_dict:
         make_twin = conf_dict['make_twin']
-    except:
+    else:
         make_twin = True
 
     if image_file is not None:
@@ -303,10 +284,9 @@ def handle_visualization(experiment_dir, rec_id=None, image_file=None):
     elif rec_id is not None:
         results_dir = os.path.join(experiment_dir, 'results_phasing_' + rec_id)
     else:
-        try:
+        if 'results_dir' in conf_dict:
             results_dir = conf_dict['results_dir']
-        except  Exception as ex:
-            print(str(ex))
+        else:
             results_dir = experiment_dir
     # find directories with image.npy file in the root of results_dir
     dirs = []
@@ -344,7 +324,6 @@ def main(arg):
     args = parser.parse_args()
     experiment_dir = args.experiment_dir
     rec_id = args.rec_id
-    print('recid', rec_id)
     if args.image_file:
         handle_visualization(experiment_dir, args.rec_id, args.image_file)
     else:

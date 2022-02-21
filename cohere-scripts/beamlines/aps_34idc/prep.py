@@ -62,8 +62,8 @@ class BeamPrepData():
         self.det_name = None
         self.roi = None
         self.scan_ranges = []
-        try:
-            scan_units = [u for u in main_conf_map.scan.replace(' ','').split(',')]
+        if 'scan' in main_conf_map:
+            scan_units = [u for u in main_conf_map['scan'].replace(' ','').split(',')]
             for u in scan_units:
                 if '-' in u:
                     r = u.split('-')
@@ -71,57 +71,58 @@ class BeamPrepData():
                 else:
                     self.scan_ranges.append([int(u), int(u)])
             scan_end = self.scan_ranges[-1][-1]
-        except:
+        else:
             print("scans not defined in main config")
             scan_end = None
         if scan_end is not None:
-            try:
-                specfile = main_conf_map.specfile.strip()
+            if 'specfile' in main_conf_map:
+                specfile = main_conf_map['specfile']
                 # parse det name and saved roi from spec
-                self.det_name, self.roi = get_det_from_spec(specfile, scan_end)
+                try:
+                    self.det_name, self.roi = get_det_from_spec(specfile, scan_end)
+                except:
+                    print("exception parsing spec file")
                 if self.det_name is not None and self.det_name.endswith(':'):
                     self.det_name = self.det_name[:-1]
-            except AttributeError:
+            else:
                 print("specfile not configured")
-            except:
-                print("exception parsing spec file")
 
-        # detector name from configuration will override the one paesed from spec file
-        try:
-            self.det_name = prep_conf_map.detector
-        except:
+        # detector name from configuration will override the one passed from spec file
+        if 'detector' in prep_conf_map:
+            self.det_name = prep_conf_map['detector']
+        else:
             if self.det_name is None:
                 # default detector get_frame method just reads tif files and doesn't do anything to them.
                 print('Detector name is not available, using default detector class')
                 self.det_name = "default"
 
-        # if roi is in config file use it, just in case spec had it wrong or it's not there.
+        # if roi is in config file, use it, just in case spec had it wrong or it's not there.
         try:
-            self.roi = prep_conf_map.roi
+            self.roi = prep_conf_map['roi']
         except:
             pass
 
         try:
-            self.separate_scans = prep_conf_map.separate_scans
+            self.separate_scans = prep_conf_map['separate_scans']
         except:
             self.separate_scans = False
 
         try:
-            self.separate_scan_ranges = prep_conf_map.separate_scan_ranges
+            self.separate_scan_ranges = prep_conf_map['separate_scan_ranges']
         except:
             self.separate_scan_ranges = False
 
         try:
-            self.Imult = prep_conf_map.Imult
+            self.Imult = prep_conf_map['Imult']
         except:
             self.Imult = None
 
         try:
-            self.min_files = self.prep_map.min_files
+            self.min_files = self.prep_map['min_files']
         except:
             self.min_files = 0
         try:
-            self.exclude_scans = self.prep_map.exclude_scans
+            self.exclude_scans = self.prep_map['exclude_scans']
         except:
             self.exclude_scans = []
 

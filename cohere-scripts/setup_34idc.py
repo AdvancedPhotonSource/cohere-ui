@@ -18,7 +18,7 @@ __all__ = ['copy_conf',
            'main']
 
 import argparse
-import pylibconfig2 as cfg
+import cohere.utilities.utils as ut
 import sys
 import os
 import config_verifier as ver
@@ -43,8 +43,8 @@ def copy_conf(src, dest):
     nothing
     """
     try:
-        main_conf = os.path.join(src, 'config_prep')
-        shutil.copy(main_conf, dest)
+        conf_prep = os.path.join(src, 'config_prep')
+        shutil.copy(conf_prep, dest)
     except:
         pass
     try:
@@ -80,7 +80,7 @@ def setup_rundirs(prefix, scan, conf_dir, **kwargs):
     specfile : str
         optional, from kwargs, specfile configuration to write to config file
     copy_prep : bool
-        optional, from kwargs, if sets to true, the prepared file is also copied
+        optional, from kwargs, if sets to True, the prepared file is also copied
         
     Returns
     -------
@@ -100,16 +100,13 @@ def setup_rundirs(prefix, scan, conf_dir, **kwargs):
     if not ver.ver_config_prep(main_conf):
         return
 
-    try:
-        with open(main_conf, 'r') as f:
-            config_map = cfg.Config(f.read())
-            print(config_map)
-    except Exception as e:
-        print('Please check the configuration file ' + main_conf + '. Cannot parse ' + str(e))
-        return
+    config_map = ut.read_config(main_conf)
+    if config_map is None:
+        print('Please check the configuration file ' + main_conf)
+        return None
 
     try:
-        working_dir = config_map.working_dir.strip()
+        working_dir = config_map['working_dir']
     except:
         working_dir = os.getcwd()
 
@@ -126,7 +123,7 @@ def setup_rundirs(prefix, scan, conf_dir, **kwargs):
         specfile = kwargs['specfile']
     if specfile is None:
         try:
-            specfile = config_map.specfile.strip()
+            specfile = config_map['specfile']
         except:
             print("Specfile not in config or command line")
 
@@ -138,26 +135,16 @@ def setup_rundirs(prefix, scan, conf_dir, **kwargs):
     conf_map['scan'] = '"' + scan + '"'
     if specfile is not None:
         conf_map['specfile'] = '"' + specfile + '"'
-    print (conf_map)
     try:
-        conf_map['beamline'] = '"' + config_map.beamline + '"'
+#        conf_map['beamline'] = '"' + config_map.beamline + '"'
+        conf_map['beamline'] = config_map.beamline
     except:
         pass
-        
-    temp_file = os.path.join(experiment_conf_dir, 'temp')
-    with open(temp_file, 'a') as f:
-        for key in conf_map:
-            value = conf_map[key]
-            if len(value) > 0:
-                f.write(key + ' = ' + conf_map[key] + '\n')
-    f.close()
-    if not ver.ver_config(temp_file):
-        print('please check the entered parameters. Cannot save this format')
-    else:
-        shutil.copy(temp_file, experiment_main_config)
-    os.remove(temp_file)
+
+    ut.write_config(conf_map, experiment_main_config)
 
     copy_conf(conf_dir, experiment_conf_dir)
+
     if 'copy_prep' in kwargs:
         copy_prep = kwargs['copy_prep']
     if copy_prep:

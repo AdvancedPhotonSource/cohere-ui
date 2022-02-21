@@ -6,7 +6,7 @@ import cohere.utilities.utils as ut
 import config_verifier as ver
 from xrayutilities.io import spec as spec
 import convertconfig as conv
-
+import ast
 
 def get_det_from_spec(specfile, scan):
     """
@@ -319,96 +319,79 @@ class PrepTab(QWidget):
         """
         if os.path.isfile(load_from):
             conf = load_from
-            conf_dir = os.path.dirname(os.path.abspath(conf))
         else:
-            conf_dir = os.path.join(load_from, 'conf')
-            conf = os.path.join(conf_dir, 'config_prep')
+            conf = os.path.join(load_from, 'conf', 'config_prep')
             if not os.path.isfile(conf):
                 msg_window('info: the load directory does not contain config_prep file')
                 return
         if need_convert:
-            conf_dict = conv.get_conf_dict(conf, 'config_prep')
+            conf_map = conv.get_conf_dict(conf, 'config_prep')
             # if experiment set, save the config_prep
-            try:
-                write_conf(conf_dict, os.path.join(self.main_win.experiment_dir, 'conf'), 'config_prep')
-            except:
-                pass
-            conf_map = ut.get_conf(conf_dict)
+            ut.write_config(conf_map, conf)
         else:
-            try:
-                conf_map = ut.read_config(conf)
-            except Exception as e:
-                msg_window('please check configuration file ' + conf + '. Cannot parse, ' + str(e))
+            conf_map = ut.read_config(conf)
+            if conf_map is None:
+                msg_window('please check configuration file ' + conf )
                 return
 
         self.parse_spec()
-        try:
-            separate_scans = conf_map.separate_scans
+        if 'separate_scans' in conf_map:
+            separate_scans = conf_map['separate_scans']
             if separate_scans:
                 self.separate_scans.setChecked(True)
             else:
                 self.separate_scans.setChecked(False)
-        except:
+        else:
             self.separate_scans.setChecked(False)
-        try:
-            separate_scan_ranges = conf_map.separate_scan_ranges
+        if 'separate_scan_ranges' in conf_map:
+            separate_scan_ranges = conf_map['separate_scan_ranges']
             if separate_scan_ranges:
                 self.separate_scan_ranges.setChecked(True)
             else:
                 self.separate_scan_ranges.setChecked(False)
-        except:
+        else:
             self.separate_scan_ranges.setChecked(False)
         # the separate_scan and separate_scan_ranges parameters affects other tab (results_dir in dispaly tab)
         # this tab has to notify observer about the initial setup
         self.notify()
-        try:
-            if os.path.isdir(conf_map.data_dir):
+        if 'data_dir' in conf_map:
+            if os.path.isdir(conf_map['data_dir']):
                 self.data_dir_button.setStyleSheet("Text-align:left")
-                self.data_dir_button.setText(conf_map.data_dir)
+                self.data_dir_button.setText(conf_map['data_dir'])
             else:
-                msg_window('The data_dir directory in config_prep file  ' + conf_map.data_dir + ' does not exist')
-        except:
+                msg_window('The data_dir directory in config_prep file  ' + conf_map['data_dir'] + ' does not exist')
+        else:
             self.data_dir_button.setText('')
-        try:
-            if os.path.isfile(conf_map.darkfield_filename):
+        if 'darkfield_filename' in conf_map:
+            if os.path.isfile(conf_map['darkfield_filename']):
                 self.dark_file_button.setStyleSheet("Text-align:left")
-                self.dark_file_button.setText(conf_map.darkfield_filename)
+                self.dark_file_button.setText(conf_map['darkfield_filename'])
             else:
-                msg_window('The darkfield file ' + conf_map.darkfield_filename + ' in config_prep file does not exist')
+                msg_window('The darkfield file ' + conf_map['darkfield_filename'] + ' in config_prep file does not exist')
                 self.dark_file_button.setText('')
-        except:
+        else:
             self.dark_file_button.setText('')
-        try:
-            if os.path.isfile(conf_map.whitefield_filename):
+        if 'whitefield_filename' in conf_map:
+            if os.path.isfile(conf_map['whitefield_filename']):
                 self.white_file_button.setStyleSheet("Text-align:left")
-                self.white_file_button.setText(conf_map.whitefield_filename)
+                self.white_file_button.setText(conf_map['whitefield_filename'])
             else:
                 self.white_file_button.setText('')
-                msg_window('The whitefield file ' + conf_map.whitefield_filename + ' in config_prep file does not exist')
-        except:
+                msg_window('The whitefield file ' + conf_map['whitefield_filename'] + ' in config_prep file does not exist')
+        else:
             self.white_file_button.setText('')
-        try:
-            self.Imult.setText(str(conf_map.Imult).replace(" ", ""))
-        except:
-            pass
-        try:
-            self.detector.setText(str(conf_map.detector).replace(" ", ""))
+        if 'Imult' in conf_map:
+            self.Imult.setText(str(conf_map['Imult']).replace(" ", ""))
+        if 'detector' in conf_map:
+            self.detector.setText(str(conf_map['detector']).replace(" ", ""))
             self.detector.setStyleSheet('color: black')
-        except:
-            pass
-        try:
-            self.min_files.setText(str(conf_map.min_files).replace(" ", ""))
-        except:
-            pass
-        try:
-            self.exclude_scans.setText(str(conf_map.exclude_scans).replace(" ", ""))
-        except:
-            pass
-        try:
-            self.roi.setText(str(conf_map.roi).replace(" ", ""))
+        if 'min_files' in conf_map:
+            self.min_files.setText(str(conf_map['min_files']).replace(" ", ""))
+        if 'exclude_scans' in conf_map:
+            self.exclude_scans.setText(str(conf_map['exclude_scans']).replace(" ", ""))
+        if 'roi' in conf_map:
+            self.roi.setText(str(conf_map['roi']).replace(" ", ""))
             self.roi.setStyleSheet('color: black')
-        except:
-            pass
 
 
     def clear_conf(self):
@@ -455,26 +438,26 @@ class PrepTab(QWidget):
         """
         conf_map = {}
         if len(self.data_dir_button.text().strip()) > 0:
-            conf_map['data_dir'] = '"' + str(self.data_dir_button.text()).strip() + '"'
+            conf_map['data_dir'] = str(self.data_dir_button.text()).strip()
         if len(self.dark_file_button.text().strip()) > 0:
-            conf_map['darkfield_filename'] = '"' + str(self.dark_file_button.text().strip()) + '"'
+            conf_map['darkfield_filename'] = str(self.dark_file_button.text().strip())
         if len(self.white_file_button.text().strip()) > 0:
-            conf_map['whitefield_filename'] = '"' + str(self.white_file_button.text().strip()) + '"'
+            conf_map['whitefield_filename'] = str(self.white_file_button.text().strip())
         if len(self.Imult.text()) > 0:
-            conf_map['Imult'] = str(self.Imult.text()).replace('\n','')
+            conf_map['Imult'] = ast.literal_eval(str(self.Imult.text()).replace('\n',''))
         if len(self.detector.text()) > 0:
-            conf_map['detector'] = '"' + str(self.detector.text().strip()) + '"'
+            conf_map['detector'] = str(self.detector.text().strip())
         if self.separate_scans.isChecked():
-            conf_map['separate_scans'] = 'true'
+            conf_map['separate_scans'] = True
         if self.separate_scan_ranges.isChecked():
-            conf_map['separate_scan_ranges'] = 'true'
+            conf_map['separate_scan_ranges'] = True
         if len(self.min_files.text()) > 0:
-            min_files = str(self.min_files.text())
+            min_files = ast.literal_eval(str(self.min_files.text()))
             conf_map['min_files'] = min_files
         if len(self.exclude_scans.text()) > 0:
-            conf_map['exclude_scans'] = str(self.exclude_scans.text()).replace('\n','')
+            conf_map['exclude_scans'] = ast.literal_eval(str(self.exclude_scans.text()).replace('\n',''))
         if len(self.roi.text()) > 0:
-            conf_map['roi'] = str(self.roi.text()).replace('\n','')
+            conf_map['roi'] = ast.literal_eval(str(self.roi.text()).replace('\n',''))
 
         return conf_map
 
@@ -506,19 +489,11 @@ class PrepTab(QWidget):
         scan = str(self.main_win.scan_widget.text())
         if len(scan) == 0:
             msg_window('cannot prepare data for 34idc, scan not specified')
-        # try:
-        #     # after checking that scan is entered convert it to list of int
-        #     scan_range = scan.split('-')
-        #     for i in range(len(scan_range)):
-        #         scan_range[i] = int(scan_range[i])
-        # except:
-        #     pass
 
-        conf_dir = os.path.join(self.main_win.experiment_dir, 'conf')
-        if write_conf(conf_map, conf_dir, 'config_prep'):
-            # the separate_scan and separate_scan_ranges parameters affects other tab (results_dir in dispaly tab)
-            # this tab has to notify observer about the initial setup
-            self.notify()
+        ut.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
+        # the separate_scan and separate_scan_ranges parameters affects other tab (results_dir in dispaly tab)
+        # this tab has to notify observer about the initial setup
+        self.notify()
 
         if len(self.main_win.scan_widget.text()) == 0:
             msg_window('cannot prepare data for 34idc, scan not specified')
@@ -583,7 +558,7 @@ class PrepTab(QWidget):
     def save_conf(self):
         conf_map = self.get_prep_config()
         if len(conf_map) > 0:
-            write_conf(conf_map, os.path.join(self.main_win.experiment_dir, 'conf'), 'config_prep')
+            ut.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
 
 
     def parse_spec(self):
@@ -739,18 +714,13 @@ class DispTab(QWidget):
                 msg_window('info: the load directory does not contain config_disp file')
                 return
         if need_convert:
-            conf_dict = conv.get_conf_dict(conf, 'config_disp')
+            conf_map = conv.get_conf_dict(conf, 'config_disp')
             # if experiment set, save the config_disp
-            try:
-                write_conf(conf_dict, os.path.join(self.main_win.experiment_dir, 'conf'), 'config_disp')
-            except:
-                pass
-            conf_map = ut.get_conf(conf_dict)
+            ut.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
         else:
-            try:
-                conf_map = ut.read_config(conf)
-            except Exception as e:
-                msg_window('please check configuration file ' + conf + '. Cannot parse, ' + str(e))
+            conf_map = ut.read_config(conf)
+            if conf_map is None:
+                msg_window('please check configuration file ' + conf)
                 return
 
         self.parse_spec()
@@ -764,77 +734,51 @@ class DispTab(QWidget):
         self.result_dir_button.setStyleSheet("Text-align:left")
         self.result_dir_button.setText(self.results_dir)
         # if parameters are configured, override the readings from spec file
-        try:
-            make_twin = conf_map.make_twin
+        if 'make_twin' in conf_map:
+            make_twin = conf_map['make_twin']
             if make_twin:
                 self.make_twin.setChecked(True)
             else:
                 self.make_twin.setChecked(False)
-        except:
+        else:
             self.make_twin.setChecked(False)
 
-        try:
-            self.diffractometer.setText(str(conf_map.diffractometer).replace(" ", ""))
-        except AttributeError:
-            pass
-        try:
-            self.crop.setText(str(conf_map.crop).replace(" ", ""))
-        except AttributeError:
-            pass
-        try:
-            self.rampups.setText(str(conf_map.rampups).replace(" ", ""))
-        except AttributeError:
-            pass
-        try:
-            self.energy.setText(str(conf_map.energy).replace(" ", ""))
+        if 'diffractometer' in conf_map:
+            self.diffractometer.setText(str(conf_map['diffractometer']).replace(" ", ""))
+        if 'crop' in conf_map:
+            self.crop.setText(str(conf_map['crop']).replace(" ", ""))
+        if 'rampups' in conf_map:
+            self.rampups.setText(str(conf_map['rampups']).replace(" ", ""))
+        if 'energy' in conf_map:
+            self.energy.setText(str(conf_map['energy']).replace(" ", ""))
             self.energy.setStyleSheet('color: black')
-        except AttributeError:
-            pass
-        try:
-            self.delta.setText(str(conf_map.delta).replace(" ", ""))
+        if 'delta' in conf_map:
+            self.delta.setText(str(conf_map['delta']).replace(" ", ""))
             self.delta.setStyleSheet('color: black')
-        except AttributeError:
-            pass
-        try:
-            self.gamma.setText(str(conf_map.gamma).replace(" ", ""))
+        if 'gamma' in conf_map:
+            self.gamma.setText(str(conf_map['gamma']).replace(" ", ""))
             self.gamma.setStyleSheet('color: black')
-        except AttributeError:
-            pass
-        try:
-            self.detdist.setText(str(conf_map.detdist).replace(" ", ""))
+        if 'detdist' in conf_map:
+            self.detdist.setText(str(conf_map['detdist']).replace(" ", ""))
             self.detdist.setStyleSheet('color: black')
-        except AttributeError:
-            pass
-        try:
-            self.theta.setText(str(conf_map.theta).replace(" ", ""))
+        if 'theta' in conf_map:
+            self.theta.setText(str(conf_map['theta']).replace(" ", ""))
             self.theta.setStyleSheet('color: black')
-        except AttributeError:
-            pass
-        try:
-            self.chi.setText(str(conf_map.chi).replace(" ", ""))
+        if 'chi' in conf_map:
+            self.chi.setText(str(conf_map['chi']).replace(" ", ""))
             self.chi.setStyleSheet('color: black')
-        except AttributeError:
-            pass
-        try:
-            self.phi.setText(str(conf_map.phi).replace(" ", ""))
+        if 'phi' in conf_map:
+            self.phi.setText(str(conf_map['phi']).replace(" ", ""))
             self.phi.setStyleSheet('color: black')
-        except AttributeError:
-            pass
-        try:
-            self.scanmot.setText(str(conf_map.scanmot).replace(" ", ""))
+        if 'scanmot' in conf_map:
+            self.scanmot.setText(str(conf_map['scanmot']).replace(" ", ""))
             self.scanmot.setStyleSheet('color: black')
-        except AttributeError:
-            pass
-        try:
-            self.scanmot_del.setText(str(conf_map.scanmot_del).replace(" ", ""))
+        if 'scanmot_del' in conf_map:
+            self.scanmot_del.setText(str(conf_map['scanmot_del']).replace(" ", ""))
             self.scanmot_del.setStyleSheet('color: black')
-        except AttributeError:
-            pass
-        try:
-            self.detector.setText(str(conf_map.detector).replace(" ", ""))
+        if 'detector' in conf_map:
+            self.detector.setText(str(conf_map['detector']).replace(" ", ""))
             self.detector.setStyleSheet('color: black')
-        except AttributeError:
-            pass
 
 
     def clear_conf(self):
@@ -885,35 +829,35 @@ class DispTab(QWidget):
         """
         conf_map = {}
         if self.results_dir is not None:
-            conf_map['results_dir'] = '"' + self.results_dir + '"'
+            conf_map['results_dir'] = self.results_dir
         if self.make_twin.isChecked():
-            conf_map['make_twin'] = 'true'
+            conf_map['make_twin'] = True
         if len(self.energy.text()) > 0:
-            conf_map['energy'] = str(self.energy.text())
+            conf_map['energy'] = ast.literal_eval(str(self.energy.text()))
         if len(self.delta.text()) > 0:
-            conf_map['delta'] = str(self.delta.text())
+            conf_map['delta'] = ast.literal_eval(str(self.delta.text()))
         if len(self.gamma.text()) > 0:
-            conf_map['gamma'] = str(self.gamma.text())
+            conf_map['gamma'] = ast.literal_eval(str(self.gamma.text()))
         if len(self.detdist.text()) > 0:
-            conf_map['detdist'] = str(self.detdist.text())
+            conf_map['detdist'] = ast.literal_eval(str(self.detdist.text()))
         if len(self.theta.text()) > 0:
-            conf_map['theta'] = str(self.theta.text())
+            conf_map['theta'] = ast.literal_eval(str(self.theta.text()))
         if len(self.chi.text()) > 0:
-            conf_map['chi'] = str(self.chi.text())
+            conf_map['chi'] = ast.literal_eval(str(self.chi.text()))
         if len(self.phi.text()) > 0:
-            conf_map['phi'] = str(self.phi.text())
+            conf_map['phi'] = ast.literal_eval(str(self.phi.text()))
         if len(self.scanmot.text()) > 0:
-            conf_map['scanmot'] = '"' + str(self.scanmot.text()) + '"'
+            conf_map['scanmot'] = str(self.scanmot.text())
         if len(self.scanmot_del.text()) > 0:
-            conf_map['scanmot_del'] = str(self.scanmot_del.text())
+            conf_map['scanmot_del'] = ast.literal_eval(str(self.scanmot_del.text()))
         if len(self.detector.text()) > 0:
-            conf_map['detector'] = '"' + str(self.detector.text()) + '"'
+            conf_map['detector'] = str(self.detector.text())
         if len(self.diffractometer.text()) > 0:
-            conf_map['diffractometer'] = '"' + str(self.diffractometer.text()) + '"'
+            conf_map['diffractometer'] = str(self.diffractometer.text())
         if len(self.crop.text()) > 0:
-            conf_map['crop'] = str(self.crop.text()).replace('\n', '')
+            conf_map['crop'] = ast.literal_eval(str(self.crop.text()).replace('\n', ''))
         if len(self.rampups.text()) > 0:
-            conf_map['rampups'] = str(self.rampups.text()).replace('\n', '')
+            conf_map['rampups'] = ast.literal_eval(str(self.rampups.text()).replace('\n', ''))
 
         return conf_map
 
@@ -958,15 +902,14 @@ class DispTab(QWidget):
 
         conf_map = self.get_disp_config()
 
-        conf_dir = os.path.join(self.main_win.experiment_dir, 'conf')
-        if write_conf(conf_map, conf_dir, 'config_disp'):
-            self.tabs.run_viz()
+        ut.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
+        self.tabs.run_viz()
 
 
     def save_conf(self):
         conf_map = self.get_disp_config()
         if len(conf_map) > 0:
-            write_conf(conf_map, os.path.join(self.main_win.experiment_dir, 'conf'), 'config_disp')
+            ut.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
 
 
     def parse_spec(self):

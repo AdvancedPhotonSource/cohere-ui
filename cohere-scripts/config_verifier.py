@@ -203,7 +203,7 @@ def ver_config_rec(fname):
     try:
         cont = config_map.cont
         if type(cont) != bool:
-            print ('cont parameter should be true or false')
+            print ('cont parameter should be True or False')
             return False
         try:
             continue_dir = config_map.continue_dir
@@ -522,7 +522,7 @@ def ver_config_rec(fname):
             try:
                 pc_normalize = config_map.pc_normalize
                 if type(pc_normalize) != bool:
-                    print ('pc_normalize parameter should be true or false')
+                    print ('pc_normalize parameter should be True or False')
                     return False
             except AttributeError:
                 pass
@@ -736,7 +736,7 @@ def ver_config_data(fname):
         try:
             AA1_save_arrs = config_map.AA1_save_arrs
             if type(AA1_save_arrs) != bool:
-                print('AA1_save_arrs parameter should be true or false')
+                print('AA1_save_arrs parameter should be True or False')
                 return False
         except AttributeError:
             pass
@@ -842,7 +842,7 @@ def ver_config_prep(fname):
     try:
         separate_scans = config_map.separate_scans
         if type(separate_scans) != bool:
-            print('separate_scans parameter should be true or false')
+            print('separate_scans parameter should be True or False')
             return False
     except AttributeError:
         pass

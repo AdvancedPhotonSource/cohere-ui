@@ -137,17 +137,16 @@ def manage_reconstruction(experiment_dir, rec_id=None):
     # convert configuration files if needed
     main_conf = os.path.join(conf_dir, 'config')
     if os.path.isfile(main_conf):
-        try:
-            config_map = ut.read_config(main_conf)
-        except:
+        config_map = ut.read_config(main_conf)
+        if config_map is None:
             print ("info: can't read " + main_conf + " configuration file")
             return None
     else:
         print("info: missing " + main_conf + " configuration file")
         return None
 
-    if conv.get_version() is None or conv.get_version() < config_map.converter_ver:
-        conv.convert(conf_dir)
+    if 'converter_ver' not in config_map or conv.get_version() is None or conv.get_version() < config_map['converter_ver']:
+        config_map = conv.convert(conf_dir, 'config')
 
     if rec_id is None:
         conf_file = os.path.join(conf_dir, 'config_rec')
@@ -159,24 +158,19 @@ def manage_reconstruction(experiment_dir, rec_id=None):
         print('no configuration file ' + conf_file + ' found')
         return
 
-    # verify the configuration file
-    if not ver.ver_config_rec(conf_file):
-        # if not verified, the ver will print message
-        return
+    # # verify the configuration file
+    # if not ver.ver_config_rec(conf_file):
+    #     # if not verified, the ver will print message
+    #     return
 
-    try:
-        config_map = ut.read_config(conf_file)
-        if config_map is None:
-            print("can't read configuration file " + conf_file)
-            return
-    except Exception as e:
-        print('Cannot parse configuration file ' + conf_file + ' , check for matching parenthesis and quotations')
-        print(str(e))
+    config_map = ut.read_config(conf_file)
+    if config_map is None:
+        print("can't read configuration file " + conf_file)
         return
 
     # find which librarry to run it on, default is numpy ('np')
-    if config_map.lookup('processing') is not None:
-        proc = config_map.processing
+    if 'processing' in config_map:
+        proc = config_map['processing']
     else:
         proc = 'auto'
 
@@ -221,9 +215,9 @@ def manage_reconstruction(experiment_dir, rec_id=None):
     if len(exp_dirs_data) == 0:
         # in typical scenario data_dir is not configured, and it is defaulted to <experiment_dir>/data
         # the data_dir is ignored in multi-scan scenario
-        try:
-            data_dir = config_map.data_dir
-        except AttributeError:
+        if 'data_dir' in config_map:
+            data_dir = config_map['data_dir']
+        else:
             data_dir = os.path.join(experiment_dir, 'phasing_data')
         datafile = os.path.join(data_dir, 'data.tif')
         if os.path.isfile(datafile):
@@ -232,13 +226,13 @@ def manage_reconstruction(experiment_dir, rec_id=None):
     if no_runs == 0:
         print('did not find data.tif nor data.npy file(s). ')
         return
-    try:
-        generations = config_map.ga_generations
-    except:
+    if 'ga_generations' in config_map:
+        generations = config_map['ga_generations']
+    else:
         generations = 0
-    try:
-        reconstructions = config_map.reconstructions
-    except:
+    if 'reconstructions' in config_map:
+        reconstructions = config_map['reconstructions']
+    else:
         reconstructions = 1
     device_use = []
     if lib == 'cpu' or lib == 'np':
@@ -249,9 +243,9 @@ def manage_reconstruction(experiment_dir, rec_id=None):
         else:
             device_use = cpu_use
     else:
-        try:
-            devices = config_map.device
-        except:
+        if 'device' in config_map:
+            devices = config_map['device']
+        else:
             devices = [-1]
 
         if no_runs * reconstructions > 1:

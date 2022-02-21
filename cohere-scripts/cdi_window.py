@@ -26,6 +26,7 @@ import cohere.utilities.utils as ut
 import importlib
 import config_verifier as ver
 import convertconfig as conv
+import ast
 
 
 def select_file(start_dir):
@@ -231,7 +232,6 @@ class cdi_gui(QWidget):
         -------
         noting
         """
-        print('setting specfile')
         self.specfile = select_file(os.getcwd())
         if self.specfile is not None:
             self.spec_file_button.setStyleSheet("Text-align:left")
@@ -241,7 +241,6 @@ class cdi_gui(QWidget):
             self.spec_file_button.setText('')
         if self.is_exp_exists() or self.is_exp_set():
             # this will update configuration when the specfile is updated
-            print('should update')
             self.save_main()
             self.t.notify(**{'specfile':self.specfile})
         else:
@@ -391,42 +390,40 @@ class cdi_gui(QWidget):
         nothing
         """
         conf = os.path.join(load_dir, 'conf', 'config')
-        try:
-            conf_map = ut.read_config(conf)
-        except Exception:
+        conf_map = ut.read_config(conf)
+        if conf_map is None:
             msg_window('please check configuration file ' + conf + '. Cannot parse, ')
             return None
 
         self.working_dir = None
         need_convert = False
         try:
-            working_dir = conf_map.working_dir
+            working_dir = conf_map['working_dir']
             self.set_work_dir_button.setStyleSheet("Text-align:left")
             self.set_work_dir_button.setText(working_dir)
         except:
             self.set_work_dir_button.setText('')
 
         # if the converter version in config file is old or none, get the conf with new version
-        try:
-            exp_converter_ver = conf_map.converter_ver
-        except:
+        if 'converter_ver' in conf_map:
+            exp_converter_ver = conf_map['converter_ver']
+        else:
             exp_converter_ver = None
         if exp_converter_ver is None or exp_converter_ver < conv.get_version():
-            conf_dict = conv.get_conf_dict(os.path.join(load_dir, 'conf', 'config'), 'config')
-            conf_map = ut.get_conf(conf_dict)
+            conf_map = conv.get_conf_dict(os.path.join(load_dir, 'conf', 'config'), 'config')
             need_convert = True
 
         try:
-            self.Id_widget.setText(conf_map.experiment_id)
+            self.Id_widget.setText(conf_map['experiment_id'])
         except:
             self.Id_widget.setText('')
         try:
-            self.scan_widget.setText(conf_map.scan.replace(' ',''))
+            self.scan_widget.setText(conf_map['scan'].replace(' ',''))
         except:
             self.scan_widget.setText('')
 
         try:
-            specfile = conf_map.specfile
+            specfile = conf_map['specfile']
             if os.path.isfile(specfile):
                 self.spec_file_button.setStyleSheet("Text-align:left")
                 self.spec_file_button.setText(specfile)
@@ -436,7 +433,7 @@ class cdi_gui(QWidget):
             self.spec_file_button.setText('')
 
         try:
-            self.beamline_widget.setText(conf_map.beamline)
+            self.beamline_widget.setText(conf_map['beamline'])
         except:
             self.beamline_widget.setText('')
 
@@ -464,16 +461,16 @@ class cdi_gui(QWidget):
         # read the configurations from GUI and write to experiment config files
         # save the main config
         conf_map = {}
-        conf_map['working_dir'] = '"' + str(self.working_dir) + '"'
-        conf_map['experiment_id'] = '"' + self.id + '"'
+        conf_map['working_dir'] = str(self.working_dir)
+        conf_map['experiment_id'] = self.id
         if len(self.scan_widget.text()) > 0:
-            conf_map['scan'] = '"' + str(self.scan_widget.text()) + '"'
+            conf_map['scan'] = str(self.scan_widget.text())
         if self.beamline is not None:
-            conf_map['beamline'] = '"' + self.beamline + '"'
+            conf_map['beamline'] = self.beamline
         if self.specfile is not None:
-            conf_map['specfile'] = '"' + str(self.specfile) + '"'
-        conf_map['converter_ver'] = str(conv.get_version())
-        write_conf(conf_map, os.path.join(self.experiment_dir, 'conf'), 'config')
+            conf_map['specfile'] = str(self.specfile)
+        conf_map['converter_ver'] = conv.get_version()
+        ut.write_config(conf_map, os.path.join(self.experiment_dir, 'conf', 'config'))
 
 
     def set_experiment(self, loaded=False):
@@ -693,7 +690,6 @@ class DataTab(QWidget):
         """
         if os.path.isfile(load_from):
             conf = load_from
-            conf_dir = os.path.dirname(os.path.abspath(conf))
         else:
             conf_dir = os.path.join(load_from, 'conf')
             conf = os.path.join(conf_dir, 'config_data')
@@ -701,84 +697,50 @@ class DataTab(QWidget):
                 msg_window('info: the load directory does not contain config_data file')
                 return
         if need_convert:
-            conf_dict = conv.get_conf_dict(conf, 'config_data')
-            # if experiment set, save the config_data
-            try:
-                write_conf(conf_dict, os.path.join(self.main_win.experiment_dir, 'conf'), 'config_data')
-            except:
-                pass
-            conf_map = ut.get_conf(conf_dict)
+            conf_map = conv.get_conf_dict(conf, 'config_data')
         else:
-            try:
-                conf_map = ut.read_config(conf)
-            except Exception as e:
-                msg_window('please check configuration file ' + conf + '. Cannot parse, ' + str(e))
+            conf_map = ut.read_config(conf)
+            if conf_map is None:
+                msg_window('please check configuration file ' + conf)
                 return
-        alg = 'none'
-        try:
-            alg = str(conf_map.alien_alg)
-        except AttributeError:
+        if 'alien_alg' not in conf_map:
+            conf_map['alien_alg'] = 'random'
+        if conf_map['alien_alg'] == 'random':
             self.alien_alg.setCurrentIndex(0)
-        if alg == 'none':
-            self.alien_alg.setCurrentIndex(0)
-        elif alg == 'block_aliens':
+        elif conf_map['alien_alg'] == 'block_aliens':
             self.alien_alg.setCurrentIndex(1)
-            try:
-                self.aliens.setText(str(conf_map.aliens).replace(" ", ""))
-            except AttributeError:
-                pass
-        elif alg == 'alien_file':
+            if 'aliens' in conf_map:
+                self.aliens.setText(str(conf_map['aliens']).replace(" ", ""))
+        elif conf_map['alien_alg'] == 'alien_file':
             self.alien_alg.setCurrentIndex(2)
-            try:
-                self.alien_file.setText(str(conf_map.alien_file).replace(" ", ""))
-            except AttributeError:
-                pass
-        elif alg == 'AutoAlien1':
+            if 'alien_file' in conf_map:
+                self.alien_file.setText(str(conf_map['alien_file']).replace(" ", ""))
+        elif conf_map['alien_alg'] == 'AutoAlien1':
             self.alien_alg.setCurrentIndex(3)
-            try:
-                self.AA1_size_threshold.setText(str(conf_map.AA1_size_threshold).replace(" ", ""))
-            except AttributeError:
-                pass
-            try:
-                self.AA1_asym_threshold.setText(str(conf_map.AA1_asym_threshold).replace(" ", ""))
-            except AttributeError:
-                pass
-            try:
-                self.AA1_min_pts.setText(str(conf_map.AA1_min_pts).replace(" ", ""))
-            except AttributeError:
-                pass
-            try:
-                self.AA1_eps.setText(str(conf_map.AA1_eps).replace(" ", ""))
-            except AttributeError:
-                pass
-            try:
-                self.AA1_amp_threshold.setText(str(conf_map.AA1_amp_threshold).replace(" ", ""))
-            except AttributeError:
-                pass
-            try:
-                self.AA1_save_arrs.setChecked(conf_map.AA1_save_arrs)
-            except AttributeError:
+            if 'AA1_size_threshold' in conf_map:
+                self.AA1_size_threshold.setText(str(conf_map['AA1_size_threshold']).replace(" ", ""))
+            if 'AA1_asym_threshold' in conf_map:
+                self.AA1_asym_threshold.setText(str(conf_map['AA1_asym_threshold']).replace(" ", ""))
+            if 'AA1_min_pts' in conf_map:
+                self.AA1_min_pts.setText(str(conf_map['AA1_min_pts']).replace(" ", ""))
+            if 'AA1_eps' in conf_map:
+                self.AA1_eps.setText(str(conf_map['AA1_eps']).replace(" ", ""))
+            if 'AA1_amp_threshold' in conf_map:
+                self.AA1_amp_threshold.setText(str(conf_map['AA1_amp_threshold']).replace(" ", ""))
+            if 'AA1_save_arrs' in conf_map:
+                self.AA1_save_arrs.setChecked(conf_map['AA1_save_arrs'])
+            else:
                 self.AA1_save_arrs.setChecked(False)
-            try:
-                self.AA1_expandcleanedsigma.setText(str(conf_map.AA1_expandcleanedsigma).replace(" ", ""))
-            except AttributeError:
-                pass
-        try:
-            self.intensity_threshold.setText(str(conf_map.intensity_threshold).replace(" ", ""))
-        except AttributeError:
-            pass
-        try:
-            self.binning.setText(str(conf_map.binning).replace(" ", ""))
-        except AttributeError:
-            pass
-        try:
-            self.center_shift.setText(str(conf_map.center_shift).replace(" ", ""))
-        except AttributeError:
-            pass
-        try:
-            self.adjust_dimensions.setText(str(conf_map.adjust_dimensions).replace(" ", ""))
-        except AttributeError:
-            pass
+            if 'AA1_expandcleanedsigma' in conf_map:
+                self.AA1_expandcleanedsigma.setText(str(conf_map['AA1_expandcleanedsigma']).replace(" ", ""))
+        if 'intensity_threshold' in conf_map:
+            self.intensity_threshold.setText(str(conf_map['intensity_threshold']).replace(" ", ""))
+        if 'binning' in conf_map:
+            self.binning.setText(str(conf_map['binning']).replace(" ", ""))
+        if 'center_shift' in conf_map:
+            self.center_shift.setText(str(conf_map['center_shift']).replace(" ", ""))
+        if 'adjust_dimensions' in conf_map:
+            self.adjust_dimensions.setText(str(conf_map['adjust_dimensions']).replace(" ", ""))
 
 
     def get_data_config(self):
@@ -801,32 +763,32 @@ class DataTab(QWidget):
         if self.alien_alg.currentIndex() == 2:
             conf_map['alien_alg'] = '"alien_file"'
             if len(self.alien_file.text()) > 0:
-                conf_map['alien_file'] = '"' + str(self.alien_file.text()) + '"'
+                conf_map['alien_file'] = str(self.alien_file.text())
         elif self.alien_alg.currentIndex() == 3:
             conf_map['alien_alg'] = '"AutoAlien1"'
             if len(self.AA1_size_threshold.text()) > 0:
-                conf_map['AA1_size_threshold'] = str(self.AA1_size_threshold.text())
+                conf_map['AA1_size_threshold'] = ast.literal_eval(str(self.AA1_size_threshold.text()))
             if len(self.AA1_asym_threshold.text()) > 0:
-                conf_map['AA1_asym_threshold'] = str(self.AA1_asym_threshold.text())
+                conf_map['AA1_asym_threshold'] = ast.literal_eval(str(self.AA1_asym_threshold.text()))
             if len(self.AA1_min_pts.text()) > 0:
-                conf_map['AA1_min_pts'] = str(self.AA1_min_pts.text())
+                conf_map['AA1_min_pts'] = ast.literal_eval(str(self.AA1_min_pts.text()))
             if len(self.AA1_eps.text()) > 0:
-                conf_map['AA1_eps'] = str(self.AA1_eps.text())
+                conf_map['AA1_eps'] = ast.literal_eval(str(self.AA1_eps.text()))
             if len(self.AA1_amp_threshold.text()) > 0:
-                conf_map['AA1_amp_threshold'] = str(self.AA1_amp_threshold.text())
+                conf_map['AA1_amp_threshold'] = ast.literal_eval(str(self.AA1_amp_threshold.text()))
             if self.AA1_save_arrs.isChecked():
-                conf_map['AA1_save_arrs'] = "True"
+                conf_map['AA1_save_arrs'] = True
             if len(self.AA1_expandcleanedsigma.text()) > 0:
-                conf_map['AA1_expandcleanedsigma'] = str(self.AA1_expandcleanedsigma.text())
+                conf_map['AA1_expandcleanedsigma'] = ast.literal_eval(str(self.AA1_expandcleanedsigma.text()))
 
         if len(self.intensity_threshold.text()) > 0:
-            conf_map['intensity_threshold'] = str(self.intensity_threshold.text())
+            conf_map['intensity_threshold'] = ast.literal_eval(str(self.intensity_threshold.text()))
         if len(self.binning.text()) > 0:
-            conf_map['binning'] = str(self.binning.text()).replace('\n', '')
+            conf_map['binning'] = ast.literal_eval(str(self.binning.text()).replace('\n', ''))
         if len(self.center_shift.text()) > 0:
-            conf_map['center_shift'] = str(self.center_shift.text()).replace('\n', '')
+            conf_map['center_shift'] = ast.literal_eval(str(self.center_shift.text()).replace('\n', ''))
         if len(self.adjust_dimensions.text()) > 0:
-            conf_map['adjust_dimensions'] = str(self.adjust_dimensions.text()).replace('\n', '')
+            conf_map['adjust_dimensions'] = ast.literal_eval(str(self.adjust_dimensions.text()).replace('\n', ''))
 
         return conf_map
 
@@ -903,9 +865,8 @@ class DataTab(QWidget):
                     break
             if found_file:
                 conf_map = self.get_data_config()
-                conf_dir = os.path.join(self.main_win.experiment_dir, 'conf')
-                if write_conf(conf_map, conf_dir, 'config_data'):
-                    run_dt.format_data(self.main_win.experiment_dir)
+                ut.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_data'))
+                run_dt.format_data(self.main_win.experiment_dir)
             else:
                 msg_window('Please, run data preparation in previous tab to activate this function')
 
@@ -914,7 +875,7 @@ class DataTab(QWidget):
         # save data config
         conf_map = self.get_data_config()
         if len(conf_map) > 0:
-            write_conf(conf_map, os.path.join(self.main_win.experiment_dir, 'conf'), 'config_data')
+            ut.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_data'))
 
 
     def load_data_conf(self):
@@ -1051,78 +1012,53 @@ class RecTab(QWidget):
             conf_dict = conv.get_conf_dict(conf, 'config_rec')
             # if experiment set, save the config_rec
             try:
-                write_conf(conf_dict, conf_dir, 'config_rec')
+                ut.write_config(conf_dict, os.path.join(conf_dir, 'config_rec'))
             except:
                 pass
-            conf_map = ut.get_conf(conf_dict)
         else:
-            try:
-                conf_map = ut.read_config(conf)
-            except Exception as e:
-                msg_window('please check configuration file ' + conf + '. Cannot parse, ' + str(e))
+            conf_map = ut.read_config(conf)
+            if conf_map is None:
+                msg_window('please check configuration file ' + conf)
                 return
         self.load_tab_common(conf_map)
 
 
     def load_tab_common(self, conf_map, update_rec_choice=True):
-        init_guess = 'random'
-        try:
-            init_guess = str(conf_map.init_guess)
-        except AttributeError:
+        if 'init_guess' not in conf_map:
+            conf_map['init_guess'] = 'random'
+        if conf_map['init_guess'] == 'random':
             self.init_guess.setCurrentIndex(0)
-        if init_guess == 'random':
-            self.init_guess.setCurrentIndex(0)
-        elif init_guess == 'continue':
+        elif conf_map['init_guess'] == 'continue':
             self.init_guess.setCurrentIndex(1)
-            try:
-                self.cont_dir_button.setText(str(conf_map.continue_dir).replace(" ", ""))
-            except AttributeError:
-                pass
-        elif init_guess == 'AI_guess':
+            if 'continue_dir' in conf_map:
+                self.cont_dir_button.setText(str(conf_map['continue_dir']).replace(" ", ""))
+        elif conf_map['init_guess'] == 'AI_guess':
             self.init_guess.setCurrentIndex(2)
-            try:
-                self.AI_threshold.setText(str(conf_map.AI_threshold).replace(" ", ""))
-            except AttributeError:
-                pass
-            try:
-                self.AI_sigma.setText(str(conf_map.AI_sigma).replace(" ", ""))
-            except AttributeError:
-                pass
-            try:
-                self.AI_trained_model.setText(str(conf_map.AI_trained_model).replace(" ", ""))
+            if 'AI_threshold' in conf_map:
+                self.AI_threshold.setText(str(conf_map['AI_threshold']).replace(" ", ""))
+            if 'AI_sigma' in conf_map:
+                self.AI_sigma.setText(str(conf_map['AI_sigma']).replace(" ", ""))
+            if 'AI_trained_model' in conf_map:
+                self.AI_trained_model.setText(str(conf_map['AI_trained_model']).replace(" ", ""))
                 self.AI_trained_model.setStyleSheet("Text-align:left")
-            except AttributeError:
-                pass
 
         # this will update the configuration choices by reading configuration files names
         # do not update when doing toggle
         if update_rec_choice:
             self.update_rec_configs_choice()
 
-        try:
-            self.proc.setCurrentText(str(conf_map.processing))
-        except AttributeError:
-            pass
-        try:
-            self.device.setText(str(conf_map.device).replace(" ", ""))
-        except AttributeError:
-            pass
-        try:
-            self.reconstructions.setText(str(conf_map.reconstructions).replace(" ", ""))
-        except AttributeError:
-            pass
-        try:
-            self.alg_seq.setText(str(conf_map.algorithm_sequence))
-        except AttributeError:
-            pass
-        try:
-            self.hio_beta.setText(str(conf_map.hio_beta).replace(" ", ""))
-        except AttributeError:
-            pass
-        try:
-            self.initial_support_area.setText(str(conf_map.initial_support_area).replace(" ", ""))
-        except AttributeError:
-            pass
+        if 'processing' in conf_map:
+            self.proc.setCurrentText(str(conf_map['processing']))
+        if 'device' in conf_map:
+            self.device.setText(str(conf_map['device']).replace(" ", ""))
+        if 'reconstructions' in conf_map:
+            self.reconstructions.setText(str(conf_map['reconstructions']).replace(" ", ""))
+        if 'algorithm_sequence' in conf_map:
+            self.alg_seq.setText(str(conf_map['algorithm_sequence']))
+        if 'hio_beta' in conf_map:
+            self.hio_beta.setText(str(conf_map['hio_beta']).replace(" ", ""))
+        if 'initial_support_area' in conf_map:
+            self.initial_support_area.setText(str(conf_map['initial_support_area']).replace(" ", ""))
 
         for feat_id in self.features.feature_dir:
             self.features.feature_dir[feat_id].init_config(conf_map)
@@ -1155,29 +1091,29 @@ class RecTab(QWidget):
         """
         conf_map = {}
         if len(self.reconstructions.text()) > 0:
-            conf_map['reconstructions'] = str(self.reconstructions.text())
+            conf_map['reconstructions'] = ast.literal_eval(str(self.reconstructions.text()))
         if len(self.proc.currentText()) > 0:
-            conf_map['processing'] = '"' + str(self.proc.currentText()) + '"'
+            conf_map['processing'] = str(self.proc.currentText())
         if len(self.device.text()) > 0:
-            conf_map['device'] = str(self.device.text()).replace('\n','')
+            conf_map['device'] = ast.literal_eval(str(self.device.text()).replace('\n',''))
         if len(self.alg_seq.text()) > 0:
-            conf_map['algorithm_sequence'] = '"' + str(self.alg_seq.text()).strip() + '"'
+            conf_map['algorithm_sequence'] = str(self.alg_seq.text()).strip()
         if len(self.hio_beta.text()) > 0:
-            conf_map['hio_beta'] = str(self.hio_beta.text())
+            conf_map['hio_beta'] = ast.literal_eval(str(self.hio_beta.text()))
         if len(self.initial_support_area.text()) > 0:
-            conf_map['initial_support_area'] = str(self.initial_support_area.text()).replace('\n','')
+            conf_map['initial_support_area'] = ast.literal_eval(str(self.initial_support_area.text()).replace('\n',''))
         if self.init_guess.currentIndex() == 1:
-            conf_map['init_guess'] = '"continue"'
+            conf_map['init_guess'] = 'continue'
             if len(self.cont_dir_button.text().strip()) > 0:
-                conf_map['continue_dir'] = '"' + str(self.cont_dir_button.text()).strip() + '"'
+                conf_map['continue_dir'] = str(self.cont_dir_button.text()).strip()
         elif self.init_guess.currentIndex() == 2:
-            conf_map['init_guess'] = '"AI_guess"'
+            conf_map['init_guess'] = 'AI_guess'
             if len(self.AI_threshold.text()) > 0:
-                conf_map['AI_threshold'] = str(self.AI_threshold.text())
+                conf_map['AI_threshold'] = ast.literal_eval(str(self.AI_threshold.text()))
             if len(self.AI_sigma.text()) > 0:
-                conf_map['AI_sigma'] = str(self.AI_sigma.text())
+                conf_map['AI_sigma'] = ast.literal_eval(str(self.AI_sigma.text()))
             if len(self.AI_trained_model.text()) > 0:
-                conf_map['AI_trained_model'] = '"' + str(self.AI_trained_model.text()) + '"'
+                conf_map['AI_trained_model'] = str(self.AI_trained_model.text())
         for feat_id in self.features.feature_dir:
             self.features.feature_dir[feat_id].add_config(conf_map)
 
@@ -1187,7 +1123,7 @@ class RecTab(QWidget):
     def save_conf(self):
         conf_map = self.get_rec_config()
         if len(conf_map) > 0:
-            write_conf(conf_map, os.path.join(self.main_win.experiment_dir, 'conf'), 'config_rec')
+            ut.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_rec'))
 
 
     def set_init_guess_layout(self, layout):
@@ -1277,13 +1213,11 @@ class RecTab(QWidget):
         conf_map = self.get_rec_config()
         conf_dir = os.path.join(self.main_win.experiment_dir, 'conf')
 
-        if write_conf(conf_map, conf_dir, conf_file):
-            if str(self.rec_id.currentText()) == 'main':
-                self.old_conf_id = ''
-            else:
-                self.old_conf_id = str(self.rec_id.currentText())
+        ut.write_config(conf_map, os.path.join(conf_dir, conf_file))
+        if str(self.rec_id.currentText()) == 'main':
+            self.old_conf_id = ''
         else:
-            msg_window('configuration  ' + conf_file + ' was not saved')
+            self.old_conf_id = str(self.rec_id.currentText())
         # if a config file corresponding to the rec id exists, load it
         # otherwise read from base configuration and load
         if self.old_conf_id == '':
@@ -1291,10 +1225,9 @@ class RecTab(QWidget):
         else:
             conf_file = os.path.join(conf_dir,  'config_rec_' + self.old_conf_id)
 
-        try:
-            conf_map = ut.read_config(conf_file)
-        except Exception as e:
-            msg_window('please check configuration file ' + conf_file + '. Cannot parse, ' + str(e))
+        conf_map = ut.read_config(conf_file)
+        if conf_map is None:
+            msg_window('please check configuration file ' + conf_file)
             return
         self.load_tab_common(conf_map, False)
         self.notify()
@@ -1312,10 +1245,9 @@ class RecTab(QWidget):
         """
         rec_file = select_file(os.getcwd())
         if rec_file is not None:
-            try:
-                conf_map = ut.read_config(rec_file)
-            except Exception as e:
-                msg_window('please check configuration file ' + rec_file + '. Cannot parse, ' + str(e))
+            conf_map = ut.read_config(rec_file)
+            if conf_map is None:
+                msg_window('please check configuration file ' + rec_file)
                 return
 
             self.load_tab_common(conf_map)
@@ -1358,11 +1290,10 @@ class RecTab(QWidget):
                     conf_id = self.old_conf_id
 
                 conf_map = self.get_rec_config()
-                conf_dir = os.path.join(self.main_win.experiment_dir, 'conf')
 
-                if write_conf(conf_map, conf_dir, conf_file):
-                    run_rc.manage_reconstruction(self.main_win.experiment_dir, conf_id)
-                    self.notify()
+                ut.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', conf_file))
+                run_rc.manage_reconstruction(self.main_win.experiment_dir, conf_id)
+                self.notify()
             else:
                 msg_window('Please, run format data in previous tab to activate this function')
 
@@ -1586,41 +1517,27 @@ class GA(Feature):
         -------
         nothing
         """
-        try:
-            gens = conf_map.ga_generations
+        if 'ga_generations' in conf_map:
+            gens = conf_map['ga_generations']
             self.active.setChecked(True)
             self.generations.setText(str(gens).replace(" ", ""))
-        except AttributeError:
+        else:
             self.active.setChecked(False)
             return
-        try:
-            self.metrics.setText(str(conf_map.ga_metrics).replace(" ", ""))
-        except AttributeError:
-            pass
-        try:
-            self.breed_modes.setText(str(conf_map.ga_breed_modes).replace(" ", ""))
-        except AttributeError:
-            pass
-        try:
-            self.removes.setText(str(conf_map.ga_cullings).replace(" ", ""))
-        except AttributeError:
-            pass
-        try:
-            self.ga_shrink_wrap_thresholds.setText(str(conf_map.ga_shrink_wrap_thresholds).replace(" ", ""))
-        except AttributeError:
-            pass
-        try:
-            self.ga_shrink_wrap_gauss_sigmas.setText(str(conf_map.ga_shrink_wrap_gauss_sigmas).replace(" ", ""))
-        except AttributeError:
-            pass
-        try:
-            self.lr_sigmas.setText(str(conf_map.ga_lowpass_filter_sigmas).replace(" ", ""))
-        except AttributeError:
-            pass
-        try:
-            self.gen_pc_start.setText(str(conf_map.ga_gen_pc_start).replace(" ", ""))
-        except AttributeError:
-            pass
+        if 'ga_metrics' in conf_map:
+            self.metrics.setText(str(conf_map['ga_metrics']).replace(" ", ""))
+        if 'ga_breed_modes' in conf_map:
+            self.breed_modes.setText(str(conf_map['ga_breed_modes']).replace(" ", ""))
+        if 'ga_cullings' in conf_map:
+            self.removes.setText(str(conf_map['ga_cullings']).replace(" ", ""))
+        if 'ga_shrink_wrap_thresholds' in conf_map:
+            self.ga_shrink_wrap_thresholds.setText(str(conf_map['ga_shrink_wrap_thresholds']).replace(" ", ""))
+        if 'ga_shrink_wrap_gauss_sigmas' in conf_map:
+            self.ga_shrink_wrap_gauss_sigmas.setText(str(conf_map['ga_shrink_wrap_gauss_sigmas']).replace(" ", ""))
+        if 'ga_lowpass_filter_sigmas' in conf_map:
+            self.lr_sigmas.setText(str(conf_map['ga_lowpass_filter_sigmas']).replace(" ", ""))
+        if 'ga_gen_pc_start' in conf_map:
+            self.gen_pc_start.setText(str(conf_map['ga_gen_pc_start']).replace(" ", ""))
 
 
     def fill_active(self, layout):
@@ -1684,14 +1601,14 @@ class GA(Feature):
         -------
         nothing
         """
-        conf_map['ga_generations'] = str(self.generations.text())
-        conf_map['ga_metrics'] = str(self.metrics.text()).replace('\n','')
-        conf_map['ga_breed_modes'] = str(self.breed_modes.text()).replace('\n','')
-        conf_map['ga_cullings'] = str(self.removes.text()).replace('\n','')
-        conf_map['ga_shrink_wrap_thresholds'] = str(self.ga_shrink_wrap_thresholds.text()).replace('\n','')
-        conf_map['ga_shrink_wrap_gauss_sigmas'] = str(self.ga_shrink_wrap_gauss_sigmas.text()).replace('\n','')
-        conf_map['ga_lowpass_filter_sigmas'] = str(self.lr_sigmas.text()).replace('\n','')
-        conf_map['ga_gen_pc_start'] = str(self.gen_pc_start.text())
+        conf_map['ga_generations'] = ast.literal_eval(str(self.generations.text()))
+        conf_map['ga_metrics'] = ast.literal_eval(str(self.metrics.text()).replace('\n',''))
+        conf_map['ga_breed_modes'] = ast.literal_eval(str(self.breed_modes.text()).replace('\n',''))
+        conf_map['ga_cullings'] = ast.literal_eval(str(self.removes.text()).replace('\n',''))
+        conf_map['ga_shrink_wrap_thresholds'] = ast.literal_eval(str(self.ga_shrink_wrap_thresholds.text()).replace('\n',''))
+        conf_map['ga_shrink_wrap_gauss_sigmas'] = ast.literal_eval(str(self.ga_shrink_wrap_gauss_sigmas.text()).replace('\n',''))
+        conf_map['ga_lowpass_filter_sigmas'] = ast.literal_eval(str(self.lr_sigmas.text()).replace('\n',''))
+        conf_map['ga_gen_pc_start'] = ast.literal_eval(str(self.gen_pc_start.text()))
 
 
 class low_resolution(Feature):
@@ -1714,21 +1631,17 @@ class low_resolution(Feature):
         -------
         nothing
         """
-        try:
-            triggers = conf_map.resolution_trigger
+        if 'resolution_trigger' in conf_map:
+            triggers = conf_map['resolution_trigger']
             self.active.setChecked(True)
             self.res_triggers.setText(str(triggers).replace(" ", ""))
-        except AttributeError:
+        else:
             self.active.setChecked(False)
             return
-        try:
-            self.sigma_range.setText(str(conf_map.lowpass_filter_sw_sigma_range).replace(" ", ""))
-        except AttributeError:
-            pass
-        try:
-            self.det_range.setText(str(conf_map.lowpass_filter_range).replace(" ", ""))
-        except AttributeError:
-            pass
+        if 'lowpass_filter_sw_sigma_range' in conf_map:
+            self.sigma_range.setText(str(conf_map['lowpass_filter_sw_sigma_range']).replace(" ", ""))
+        if 'lowpass_filter_range' in conf_map:
+            self.det_range.setText(str(conf_map['lowpass_filter_range']).replace(" ", ""))
 
 
     def fill_active(self, layout):
@@ -1776,9 +1689,9 @@ class low_resolution(Feature):
         -------
         nothing
         """
-        conf_map['resolution_trigger'] = str(self.res_triggers.text()).replace('\n','')
-        conf_map['lowpass_filter_sw_sigma_range'] = str(self.sigma_range.text()).replace('\n','')
-        conf_map['lowpass_filter_range'] = str(self.det_range.text()).replace('\n','')
+        conf_map['resolution_trigger'] = ast.literal_eval(str(self.res_triggers.text()).replace('\n',''))
+        conf_map['lowpass_filter_sw_sigma_range'] = ast.literal_eval(str(self.sigma_range.text()).replace('\n',''))
+        conf_map['lowpass_filter_range'] = ast.literal_eval(str(self.det_range.text()).replace('\n',''))
 
 
 class shrink_wrap(Feature):
@@ -1801,25 +1714,19 @@ class shrink_wrap(Feature):
         -------
         nothing
         """
-        try:
-            triggers = conf_map.shrink_wrap_trigger
+        if 'shrink_wrap_trigger' in conf_map:
+            triggers = conf_map['shrink_wrap_trigger']
             self.active.setChecked(True)
             self.shrink_wrap_triggers.setText(str(triggers).replace(" ", ""))
-        except AttributeError:
+        else:
             self.active.setChecked(False)
             return
-        try:
-            self.shrink_wrap_type.setText(str(conf_map.shrink_wrap_type).replace(" ", ""))
-        except AttributeError:
-            pass
-        try:
-            self.shrink_wrap_threshold.setText(str(conf_map.shrink_wrap_threshold).replace(" ", ""))
-        except AttributeError:
-            pass
-        try:
-            self.shrink_wrap_gauss_sigma.setText(str(conf_map.shrink_wrap_gauss_sigma).replace(" ", ""))
-        except AttributeError:
-            pass
+        if 'shrink_wrap_type' in conf_map:
+            self.shrink_wrap_type.setText(str(conf_map['shrink_wrap_type']).replace(" ", ""))
+        if 'shrink_wrap_threshold' in conf_map:
+            self.shrink_wrap_threshold.setText(str(conf_map['shrink_wrap_threshold']).replace(" ", ""))
+        if 'shrink_wrap_gauss_sigma' in conf_map:
+            self.shrink_wrap_gauss_sigma.setText(str(conf_map['shrink_wrap_gauss_sigma']).replace(" ", ""))
 
 
     def fill_active(self, layout):
@@ -1871,13 +1778,13 @@ class shrink_wrap(Feature):
         nothing
         """
         if len(self.shrink_wrap_triggers.text()) > 0:
-            conf_map['shrink_wrap_trigger'] = str(self.shrink_wrap_triggers.text()).replace('\n','')
+            conf_map['shrink_wrap_trigger'] = ast.literal_eval(str(self.shrink_wrap_triggers.text()).replace('\n',''))
         if len(self.shrink_wrap_type.text()) > 0:
-            conf_map['shrink_wrap_type'] = '"' + str(self.shrink_wrap_type.text()) + '"'
+            conf_map['shrink_wrap_type'] = str(self.shrink_wrap_type.text())
         if len(self.shrink_wrap_threshold.text()) > 0:
-            conf_map['shrink_wrap_threshold'] = str(self.shrink_wrap_threshold.text())
+            conf_map['shrink_wrap_threshold'] = ast.literal_eval(str(self.shrink_wrap_threshold.text()))
         if len(self.shrink_wrap_gauss_sigma.text()) > 0:
-            conf_map['shrink_wrap_gauss_sigma'] = str(self.shrink_wrap_gauss_sigma.text())
+            conf_map['shrink_wrap_gauss_sigma'] = ast.literal_eval(str(self.shrink_wrap_gauss_sigma.text()))
 
 
 class phase_support(Feature):
@@ -1900,21 +1807,17 @@ class phase_support(Feature):
         -------
         nothing
         """
-        try:
-            triggers = conf_map.phase_support_trigger
+        if 'phase_support_trigger' in conf_map:
+            triggers = conf_map['phase_support_trigger']
             self.active.setChecked(True)
             self.phase_triggers.setText(str(triggers).replace(" ", ""))
-        except AttributeError:
+        else:
             self.active.setChecked(False)
             return
-        try:
-            self.phm_phase_min.setText(str(conf_map.phm_phase_min).replace(" ", ""))
-        except AttributeError:
-            pass
-        try:
-            self.phm_phase_max.setText(str(conf_map.phm_phase_max).replace(" ", ""))
-        except AttributeError:
-            pass
+        if 'phm_phase_min' in conf_map:
+            self.phm_phase_min.setText(str(conf_map['phm_phase_min']).replace(" ", ""))
+        if 'phm_phase_max' in conf_map:
+            self.phm_phase_max.setText(str(conf_map['phm_phase_max']).replace(" ", ""))
 
 
     def fill_active(self, layout):
@@ -1962,9 +1865,9 @@ class phase_support(Feature):
         -------
         nothing
         """
-        conf_map['phase_support_trigger'] = str(self.phase_triggers.text()).replace('\n','')
-        conf_map['phm_phase_min'] = str(self.phm_phase_min.text())
-        conf_map['phm_phase_max'] = str(self.phm_phase_max.text())
+        conf_map['phase_support_trigger'] = ast.literal_eval(str(self.phase_triggers.text()).replace('\n',''))
+        conf_map['phm_phase_min'] = ast.literal_eval(str(self.phm_phase_min.text()))
+        conf_map['phm_phase_max'] = ast.literal_eval(str(self.phm_phase_max.text()))
 
 
 class pcdi(Feature):
@@ -1987,29 +1890,20 @@ class pcdi(Feature):
         -------
         nothing
         """
-        try:
-            pc_interval = conf_map.pc_interval
+        if 'pc_interval' in conf_map:
             self.active.setChecked(True)
-            self.pc_interval.setText(str(pc_interval).replace(" ", ""))
-        except AttributeError:
+            self.pc_interval.setText(str(conf_map['pc_interval']).replace(" ", ""))
+        else:
             self.active.setChecked(False)
             return
-        try:
-            self.pc_type.setText(str(conf_map.pc_type).replace(" ", ""))
-        except AttributeError:
-            pass
-        try:
-            self.pc_iter.setText(str(conf_map.pc_LUCY_iterations).replace(" ", ""))
-        except AttributeError:
-            pass
-        try:
-            self.pc_normalize.setText(str(conf_map.pc_normalize).replace(" ", ""))
-        except AttributeError:
-            pass
-        try:
-            self.pc_LUCY_kernel.setText(str(conf_map.pc_LUCY_kernel).replace(" ", ""))
-        except AttributeError:
-            pass
+        if 'pc_type' in conf_map:
+            self.pc_type.setText(str(conf_map['pc_type']).replace(" ", ""))
+        if 'pc_LUCY_iterations' in conf_map:
+            self.pc_iter.setText(str(conf_map['pc_LUCY_iterations']).replace(" ", ""))
+        if 'pc_normalize' in conf_map:
+            self.pc_normalize.setText(str(conf_map['pc_normalize']).replace(" ", ""))
+        if 'pc_LUCY_kernel' in conf_map:
+            self.pc_LUCY_kernel.setText(str(conf_map['pc_LUCY_kernel']).replace(" ", ""))
 
 
     def fill_active(self, layout):
@@ -2048,7 +1942,7 @@ class pcdi(Feature):
         self.pc_interval.setText('50')
         self.pc_type.setText('LUCY')
         self.pc_iter.setText('20')
-        self.pc_normalize.setText('true')
+        self.pc_normalize.setText('True')
         self.pc_LUCY_kernel.setText('(16, 16, 16)')
 
 
@@ -2063,11 +1957,14 @@ class pcdi(Feature):
         -------
         nothing
         """
-        conf_map['pc_interval'] = str(self.pc_interval.text())
-        conf_map['pc_type'] = '"' + str(self.pc_type.text()) + '"'
-        conf_map['pc_LUCY_iterations'] = str(self.pc_iter.text())
-        conf_map['pc_normalize'] = str(self.pc_normalize.text())
-        conf_map['pc_LUCY_kernel'] = str(self.pc_LUCY_kernel.text()).replace('\n','')
+        conf_map['pc_interval'] = ast.literal_eval(str(self.pc_interval.text()))
+        conf_map['pc_type'] = str(self.pc_type.text())
+        conf_map['pc_LUCY_iterations'] = ast.literal_eval(str(self.pc_iter.text()))
+        if str(self.pc_normalize.text()).strip() == 'True':
+            conf_map['pc_normalize'] = True
+        else:
+            conf_map['pc_normalize'] = False
+        conf_map['pc_LUCY_kernel'] = ast.literal_eval(str(self.pc_LUCY_kernel.text()).replace('\n',''))
 
 
 class twin(Feature):
@@ -2090,17 +1987,14 @@ class twin(Feature):
         -------
         nothing
         """
-        try:
-            triggers = conf_map.twin_trigger
+        if 'twin_trigger' in conf_map:
             self.active.setChecked(True)
-            self.twin_triggers.setText(str(triggers).replace(" ", ""))
-        except AttributeError:
+            self.twin_triggers.setText(str(conf_map['twin_trigger']).replace(" ", ""))
+        else:
             self.active.setChecked(False)
             return
-        try:
-            self.twin_halves.setText(str(conf_map.twin_halves).replace(" ", ""))
-        except AttributeError:
-            pass
+        if 'twin_halves' in conf_map:
+            self.twin_halves.setText(str(conf_map['twin_halves']).replace(" ", ""))
 
 
     def fill_active(self, layout):
@@ -2145,8 +2039,8 @@ class twin(Feature):
         -------
         nothing
         """
-        conf_map['twin_trigger'] = str(self.twin_triggers.text()).replace('\n','')
-        conf_map['twin_halves'] = str(self.twin_halves.text()).replace('\n','')
+        conf_map['twin_trigger'] = ast.literal_eval(str(self.twin_triggers.text()).replace('\n',''))
+        conf_map['twin_halves'] = ast.literal_eval(str(self.twin_halves.text()).replace('\n',''))
 
 
 class average(Feature):
@@ -2169,11 +2063,10 @@ class average(Feature):
         -------
         nothing
         """
-        try:
-            triggers = conf_map.average_trigger
+        if 'average_trigger' in conf_map:
             self.active.setChecked(True)
-            self.average_triggers.setText(str(triggers).replace(" ", ""))
-        except AttributeError:
+            self.average_triggers.setText(str(conf_map['average_trigger']).replace(" ", ""))
+        else:
             self.active.setChecked(False)
             return
 
@@ -2217,7 +2110,7 @@ class average(Feature):
         -------
         nothing
         """
-        conf_map['average_trigger'] = str(self.average_triggers.text()).replace('\n','')
+        conf_map['average_trigger'] = ast.literal_eval(str(self.average_triggers.text()).replace('\n',''))
 
 
 class progress(Feature):
@@ -2240,11 +2133,10 @@ class progress(Feature):
         -------
         nothing
         """
-        try:
-            triggers = conf_map.progress_trigger
+        if 'progress_trigger' in conf_map:
             self.active.setChecked(True)
-            self.progress_triggers.setText(str(triggers).replace(" ", ""))
-        except AttributeError:
+            self.progress_triggers.setText(str(conf_map['progress_trigger']).replace(" ", ""))
+        else:
             self.active.setChecked(False)
             return
 
@@ -2288,7 +2180,7 @@ class progress(Feature):
         -------
         nothing
         """
-        conf_map['progress_trigger'] = str(self.progress_triggers.text()).replace('\n','')
+        conf_map['progress_trigger'] = ast.literal_eval(str(self.progress_triggers.text()).replace('\n',''))
 
 
 class Features(QWidget):

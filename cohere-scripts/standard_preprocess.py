@@ -69,18 +69,14 @@ def prep(fname, conf_info):
     if not ver.ver_config_data(conf):
         return
 
-    try:
-        config_map = ut.read_config(conf)
-        if config_map is None:
-            print ("can't read configuration file")
-            return
-    except:
-        print ('Please check the configuration file ' + conf + '. Cannot parse')
+    config_map = ut.read_config(conf)
+    if config_map is None:
+        print ('Please check the configuration file ' + conf)
         return
 
-    try:
-        data_dir = config_map.data_dir
-    except AttributeError:
+    if 'data_dir' in config_map:
+        data_dir = config_map['data_dir']
+    else:
         data_dir = 'phasing_data'
         if experiment_dir is not None:
             data_dir = os.path.join(experiment_dir, data_dir)
@@ -95,9 +91,9 @@ def prep(fname, conf_info):
         print ('exiting, error in aliens removal ', str(e))
         return
 
-    try:
-        intensity_threshold = config_map.intensity_threshold
-    except AttributeError:
+    if 'intensity_threshold' in config_map:
+        intensity_threshold = config_map['intensity_threshold']
+    else:
         print ('define amplitude threshold. Exiting')
         return
 
@@ -107,13 +103,13 @@ def prep(fname, conf_info):
     # square root data
     prep_data = np.sqrt(prep_data)
 
-    try:
-        crops_pads = config_map.adjust_dimensions
+    if 'adjust_dimensions' in config_map:
+        crops_pads = config_map['adjust_dimensions']
         # the adjust_dimension parameter list holds adjustment in each direction. Append 0s, if shorter
         if len(crops_pads) < 6:
             for _ in range (6 - len(crops_pads)):
                 crops_pads.append(0)
-    except AttributeError:
+    else:
         # the size still has to be adjusted to the opencl supported dimension
         crops_pads = (0, 0, 0, 0, 0, 0)
     # adjust the size, either pad with 0s or crop array
@@ -127,15 +123,14 @@ def prep(fname, conf_info):
         print('check "adjust_dimensions" configuration')
         return
 
-    try:
-        center_shift = config_map.center_shift
-        print ('shift center')
+    if 'center_shift' in config_map:
+        center_shift = config_map['center_shift']
         prep_data = ut.get_centered(prep_data, center_shift)
-    except AttributeError:
+    else:
         prep_data = ut.get_centered(prep_data, [0,0,0])
 
-    try:
-        binsizes = config_map.binning
+    if 'binning' in config_map:
+        binsizes = config_map['binning']
         try:
             bins = []
             for binsize in binsizes:
@@ -146,8 +141,6 @@ def prep(fname, conf_info):
             prep_data = ut.binning(prep_data, bins)
         except:
             print ('check "binning" configuration')
-    except AttributeError:
-        pass
 
     # save data
     data_file = os.path.join(data_dir, 'data.tif')
@@ -171,16 +164,15 @@ def format_data(experiment_dir):
     # convert configuration files if needed
     main_conf = os.path.join(experiment_dir, *("conf", "config"))
     if os.path.isfile(main_conf):
-        try:
-            config_map = ut.read_config(main_conf)
-        except:
+        config_map = ut.read_config(main_conf)
+        if config_map is None:
             print ("info: can't read " + main_conf + " configuration file")
             return None
     else:
         print("info: missing " + main_conf + " configuration file")
         return None
 
-    if conv.get_version() is None or conv.get_version() < config_map.converter_ver:
+    if 'converter_ver' not in config_map or conv.get_version() is None or conv.get_version() < config_map['converter_ver']:
         conv.convert(os.path.join(experiment_dir, 'conf'))
 
     print ('formating data')

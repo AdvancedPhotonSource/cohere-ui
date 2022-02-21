@@ -178,7 +178,7 @@ def convert_dict(conf_dict, cfile):
         else:
             beamlinevalue = beamlinedefaultvalue
             conf_dict['beamline'] = beamlinevalue
-            conf_dict['converter_ver'] = str(get_version())
+            conf_dict['converter_ver'] = get_version()
     # if specfile is in config_prep move it to config with the same value
     elif cfile == 'config_prep':
         if 'specfile' in conf_dict.keys():

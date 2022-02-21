@@ -20,7 +20,7 @@ __all__ = ['import_beamline',
            'main']
 
 import argparse
-import pylibconfig2 as cfg
+import cohere.utilities.utils as ut
 import os
 import sys
 import importlib
@@ -42,21 +42,18 @@ def handle_prep(experiment_dir, *args, **kwargs):
     """
     # check cofiguration
     print ('preaparing data')
-    try:
-        main_conf_file = os.path.join(experiment_dir, *("conf", "config"))
-        with open(main_conf_file, 'r') as f:
-            main_conf_map = cfg.Config(f.read())
-    except Exception as e:
-        print('Please check the configuration file ' + main_conf_file + '. Cannot parse ' + str(e))
+    main_conf_file = os.path.join(experiment_dir, *("conf", "config"))
+    main_conf_map = ut.read_config(main_conf_file)
+    if main_conf_map is None:
+        print('Please check the configuration file ' + main_conf_file)
         return None
     # convert configuration files if needed
-    if conv.get_version() is None or conv.get_version() < main_conf_map.converter_ver:
+    if 'converter_ver' not in main_conf_map or conv.get_version() is None or conv.get_version() < main_conf_map['converter_ver']:
         conv.convert(os.path.join(experiment_dir, 'conf'))
         #re-parse config
-        with open(main_conf_file, 'r') as f:
-            main_conf_map = cfg.Config(f.read())
-    try:
-        beamline = main_conf_map.beamline
+        main_conf_map = ut.read_config(main_conf_file)
+    if 'beamline' in main_conf_map:
+        beamline = main_conf_map['beamline']
         try:
             prep = importlib.import_module('beamlines.' + beamline + '.prep')
             det = importlib.import_module('beamlines.' + beamline + '.detectors')
@@ -64,23 +61,20 @@ def handle_prep(experiment_dir, *args, **kwargs):
             print(e)
             print('cannot import beamlines.' + beamline + '.prep module.')
             return
-    except AttributeError:
+    else:
         print('Beamline must be configured in configuration file ' + main_conf_file)
         return None
-    try:
-        prep_conf_file = os.path.join(experiment_dir, *("conf", "config_prep"))
-        with open(prep_conf_file, 'r') as f:
-            prep_conf_map = cfg.Config(f.read())
-    except Exception as e:
-        print('Please check the configuration file ' + prep_conf_file + '. Cannot parse ' + str(e))
+    prep_conf_file = os.path.join(experiment_dir, *("conf", "config_prep"))
+    prep_conf_map = ut.read_config(prep_conf_file)
+    if prep_conf_map is None:
+        print('Please check the configuration file ' + prep_conf_file)
         return None
-    try:
-        data_dir = prep_conf_map.data_dir.strip()
-        if not os.path.isdir(data_dir):
-            print('data directory ' + data_dir + ' is not a valid directory')
-            return None
-    except:
+    if 'data_dir' not in prep_conf_map:
         print('please provide data_dir in configuration file')
+        return None
+    data_dir = prep_conf_map['data_dir']
+    if not os.path.isdir(data_dir):
+        print('data directory ' + data_dir + ' is not a valid directory')
         return None
 
     # create BeamPrepData object defined for the configured beamline

@@ -150,7 +150,7 @@ initial_support_area = (.5,.5,.5)
 // pc_type = "LUCY";
                              // partial coherence algorithm
 // pc_LUCY_iterations = 20;
-// pc_normalize = true;
+// pc_normalize = True;
 // pc_LUCY_kernel = (32,32,32);
                              // coherence area. If the values are fractional, the coherence area will be calculated
                              // by multiplying by the data array dimensions.

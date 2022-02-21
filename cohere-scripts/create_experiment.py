@@ -21,7 +21,6 @@ __all__ = ['create_conf_prep',
            'main']
 
 import argparse
-import pylibconfig2 as cfg
 import sys
 import os
 import config_verifier as ver
@@ -50,8 +49,8 @@ def create_conf_prep(conf_dir):
     f.write('// roi = (0,256,0,256)\n')
     f.write('// min_files = 80\n')
     f.write('// exclude_scans = (78,81)\n')
-    f.write('separate_scans = false\n')
-    f.write('separate_scan_ranges = false\n')
+    f.write('separate_scans = False\n')
+    f.write('separate_scan_ranges = False\n')
     f.write('// Imult = 10000\n')
     f.write('detector = "34idcTIM1:"\n')
     f.close()
@@ -101,7 +100,7 @@ def create_conf_rec(conf_dir):
 
     f.write('// data_dir = "/path/to/dir/with/formatted_data"\n')
     f.write('// save_dir = "/path/to/dir/to/save/results"\n')
-    f.write('// cont = true\n')
+    f.write('// cont = True\n')
     f.write('// continue_dir = "/path/to/dir/with/previous/results"\n')
     f.write('reconstructions = 1\n')
     f.write('device = (0,1)\n')
@@ -128,7 +127,7 @@ def create_conf_rec(conf_dir):
     f.write('// pc_trigger = (50, 50)\n')
     f.write('// pc_type = "LUCY"\n')
     f.write('// pc_LUCY_iterations = 20\n')
-    f.write('// pc_normalize = true\n')
+    f.write('// pc_normalize = True\n')
     f.write('// pc_LUCY_kernel = (8,8,8)\n\n')
     f.write('// resolution_trigger = (0, 1, 320)\n')
     f.write('// lowpass_filter_sw_sigma_range = (2.0)\n')

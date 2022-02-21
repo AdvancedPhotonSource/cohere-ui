@@ -96,92 +96,89 @@ class DispalyParams:
         """
         self.detector = None
         deg2rad = np.pi / 180.0
-        try:
+        if 'specfile' in config and 'last_scan' in config:
             specfile = config['specfile']
             last_scan = config['last_scan']
             # get stuff from the spec file.
             self.delta, self.gamma, self.th, self.phi, self.chi, self.scanmot, self.scanmot_del, self.detdist, self.detector, self.energy = parse_spec(specfile, last_scan)
-        except:
-            pass
-
         # drop the ':' from detector name
         if self.detector is not None and self.detector.endswith(':'):
             self.detector = self.detector[:-1]
 
-        try:
+        if 'diffractometer' in config:
             self.diffractometer = config['diffractometer']
-        except:
-            raise ValueError('diffractometer name not in config file')
+        else:
+            print('diffractometer name not in config file')
 
         # override the parsed parameters with entries in config file
-        try:
+        if 'detector' in config:
             self.detector = config['detector']
-        except KeyError:
+        else:
             if self.detector is None:
                 raise ValueError('detector not in spec, please configure')
-        try:
+        if 'energy' in config:
             self.energy = config['energy']
-        except KeyError:
+        else:
             if self.energy is None:
                 raise ValueError('energy not in spec, please configure')
-        try:
+        if 'delta' in config:
             self.delta = config['delta']
-        except KeyError:
+        else:
             if self.delta is None:
                 raise ValueError('delta not in spec, please configure')
-        try:
+        if 'gamma' in config:
             self.gamma = config['gamma']
-        except KeyError:
+        else:
             if self.gamma is None:
                 raise ValueError('gamma not in spec, please configure')
-        try:
+        if 'detdist' in config:
             self.detdist = config['detdist']
-        except KeyError:
+        else:
             if self.detdist is None:
                 raise ValueError('detdist not in spec, please configure')
-        try:
+        if 'theta' in config:
             self.th = config['theta']
-        except KeyError:
+        else:
             if self.th is None:
                 raise ValueError('theta not in spec, please configure')
-        try:
+        if 'chi' in config:
             self.chi = config['chi']
-        except KeyError:
+        else:
             if self.chi is None:
                 raise ValueError('chi not in spec, please configure')
-        try:
+        if 'phi' in config:
             self.phi = config['phi']
-        except KeyError:
+        else:
             if self.phi is None:
                 raise ValueError('phi not in spec, please configure')
-        try:
+        if 'scanmot' in config:
             self.scanmot = config['scanmot']
-        except KeyError:
+        else:
             if self.scanmot is None:
                 raise ValueError('scanmot not in spec, please configure')
-        try:
+        if 'scanmot_del' in config:
             self.scanmot_del = config['scanmot_del']
-        except KeyError:
+        else:
             if self.scanmot_del is None:
                 raise ValueError('scanmot_del not in spec, please configure')
 
-        try:
+        if 'rampups' in config:
             self.rampups = config['rampups']
-        except:
+        else:
             self.rampups = 1
 
-        try:
+        if 'binning' in config:
             self.binning = []
-            binning = config['binning']
+            binning = list(config['binning'])
             for i in range(len(binning)):
                 self.binning.append(binning[i])
             for _ in range(3 - len(self.binning)):
                 self.binning.append(1)
-        except KeyError:
+        else:
             self.binning = [1, 1, 1]
-        try:
+        if 'crop' in config:
             self.crop = []
-            crop = config['crop']
+            crop = list(config['crop'])
             for i in range(len(crop)):
                 if crop[i] > 1:
                     crop[i] = 1.0
@@ -189,7 +186,7 @@ class DispalyParams:
             for _ in range(3 - len(self.crop)):
                 self.crop.append(1.0)
             crop[0], crop[1] = crop[1], crop[0]
-        except KeyError:
+        else:
             self.crop = (1.0, 1.0, 1.0)
 
 
