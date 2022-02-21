@@ -757,15 +757,15 @@ class DataTab(QWidget):
         conf_map = {}
 
         if self.alien_alg.currentIndex() == 1:
-            conf_map['alien_alg'] = '"block_aliens"'
+            conf_map['alien_alg'] = 'block_aliens'
             if len(self.aliens.text()) > 0:
                 conf_map['aliens'] = str(self.aliens.text()).replace('\n', '')
         if self.alien_alg.currentIndex() == 2:
-            conf_map['alien_alg'] = '"alien_file"'
+            conf_map['alien_alg'] = 'alien_file'
             if len(self.alien_file.text()) > 0:
                 conf_map['alien_file'] = str(self.alien_file.text())
         elif self.alien_alg.currentIndex() == 3:
-            conf_map['alien_alg'] = '"AutoAlien1"'
+            conf_map['alien_alg'] = 'AutoAlien1'
             if len(self.AA1_size_threshold.text()) > 0:
                 conf_map['AA1_size_threshold'] = ast.literal_eval(str(self.AA1_size_threshold.text()))
             if len(self.AA1_asym_threshold.text()) > 0:
