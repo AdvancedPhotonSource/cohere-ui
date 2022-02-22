@@ -26,7 +26,9 @@ separate_scans = False
                                             // and will have sub-experiment name containing scan index
                                             // ex. "scan_9", where 9 is scan index
 
-//Imult = 10000                             // Optional, defaults to the average of the whitefield
+//Imult = 10000
+                                            // Optional, defaults to the average of the whitefield
                                             // A multiplication factor used to renormalize the whitefield correction.
 
-//detector = "34idcTIM2"                      // optional, can be omitted only if roi param is specified
+//detector = "34idcTIM2"
+                                            // optional, can be omitted only if roi param is specified

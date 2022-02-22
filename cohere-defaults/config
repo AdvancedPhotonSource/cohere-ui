@@ -4,10 +4,12 @@ working_dir = "ANLDIR"
                                             // working directory; the new experiment will
                                             // be created in this directory
 
-experiment_id = "cohere-defaults"           // mandatory
+experiment_id = "cohere-defaults"
+                                            // mandatory
                                             // a string id
 
-// scan = "2-7"                                // optional (but typically needed)
+scan = "2-7"
+                                            // optional (but typically needed)
                                             // a single number, a range, or combination of numbers and ranges
                                             // separated by comma, defining scans, optional
 
@@ -15,7 +17,9 @@ specfile = "SPECFILE"
                                             // optional (but typically needed)
                                             // specfile can be specified on the command line argument to setup_34idc.py or here.
                                          
-beamline = "aps_34idc"                      // beamline the experiment was performed at
+beamline = "aps_34idc"
+                                            // beamline the experiment was performed at
                                             // if not configured, only the format data and reconstruction components will be usable
 
-converter_ver = 0                           // optional, coverter version, if current, the configuration files won't be converted
+converter_ver = 0
+                                            // optional, coverter version, if current, the configuration files won't be converted

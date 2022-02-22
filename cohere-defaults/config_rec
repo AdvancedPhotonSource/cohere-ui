@@ -34,7 +34,8 @@ init_guess = "random"
                              // valid if init_guess is "AI_guess"
                              // defines the sigma used in shrink wrap to calculate initial support
 
-// AI_trained_model          // valid and mandatory if init_guess is "AI_guess"
+// AI_trained_model
+                             // valid and mandatory if init_guess is "AI_guess"
                              // defines the file of hdf5 format that holds trained model
 
 reconstructions = 1
@@ -65,11 +66,12 @@ algorithm_sequence = "3* (20*ER + 180*HIO) + 20*ER"
                              // ERpc or HIOpc the pcdi feature must be activated. If not activated, the phasing will use
                              // modulus function instead.
 
-hio_beta = .9;
+hio_beta = .9
                              // used in hio algorithm
 
 // GENERATIc ALGORITHM
-// generations = 1              // number of generations
+// generations = 4
+                             // number of generations
 
 // ga_metrics = ("chi", "sharpness")
                              // defines which metric should be used to rank the reconstruction results
@@ -121,9 +123,9 @@ twin_halves = (0, 0)
 shrink_wrap_trigger = (1, 1)
                              // defines when to update support array using the parameters below.
                              // Comment out, if support feature not used.
-shrink_wrap_type = "GAUSS";
-shrink_wrap_threshold = 0.1;
-shrink_wrap_gauss_sigma = 1.0;
+shrink_wrap_type = "GAUSS"
+shrink_wrap_threshold = 0.1
+shrink_wrap_gauss_sigma = 1.0
 initial_support_area = (.5,.5,.5)
                              // initial support area. If the values are fractional, the support area will be calculated
                              // by multiplying by the data array dimensions. The support will be set to 1s to this
@@ -137,8 +139,8 @@ initial_support_area = (.5,.5,.5)
                              // defines when to update support array using the parameters below by applaying phase constrain.
                              // Comment out, if phase constrain feature not used.
                              // when running GA applied only in first generation
-// phm_phase_min = -1.57;
-// phm_phase_max = 1.57;
+// phm_phase_min = -1.57
+// phm_phase_max = 1.57
 
 // PARTIAL COHERENCE
 // Partial coherence triggers recalculation of coherence array for the amplitudes in reciprocal space.
@@ -147,11 +149,11 @@ initial_support_area = (.5,.5,.5)
 // pc_interval = 50
                              // defines iteration interval to update coherence.
                              // Comment out, if pcdi feature not used.
-// pc_type = "LUCY";
+// pc_type = "LUCY"
                              // partial coherence algorithm
-// pc_LUCY_iterations = 20;
-// pc_normalize = True;
-// pc_LUCY_kernel = (32,32,32);
+// pc_LUCY_iterations = 20
+// pc_normalize = True
+// pc_LUCY_kernel = (32,32,32)
                              // coherence area. If the values are fractional, the coherence area will be calculated
                              // by multiplying by the data array dimensions.
 
