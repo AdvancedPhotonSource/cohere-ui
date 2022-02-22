@@ -1601,14 +1601,22 @@ class GA(Feature):
         -------
         nothing
         """
-        conf_map['ga_generations'] = ast.literal_eval(str(self.generations.text()))
-        conf_map['ga_metrics'] = ast.literal_eval(str(self.metrics.text()).replace('\n',''))
-        conf_map['ga_breed_modes'] = ast.literal_eval(str(self.breed_modes.text()).replace('\n',''))
-        conf_map['ga_cullings'] = ast.literal_eval(str(self.removes.text()).replace('\n',''))
-        conf_map['ga_shrink_wrap_thresholds'] = ast.literal_eval(str(self.ga_shrink_wrap_thresholds.text()).replace('\n',''))
-        conf_map['ga_shrink_wrap_gauss_sigmas'] = ast.literal_eval(str(self.ga_shrink_wrap_gauss_sigmas.text()).replace('\n',''))
-        conf_map['ga_lowpass_filter_sigmas'] = ast.literal_eval(str(self.lr_sigmas.text()).replace('\n',''))
-        conf_map['ga_gen_pc_start'] = ast.literal_eval(str(self.gen_pc_start.text()))
+        if len(self.generations.text()) > 0:
+            conf_map['ga_generations'] = ast.literal_eval(str(self.generations.text()))
+        if len(self.metrics.text()) > 0:
+         conf_map['ga_metrics'] = ast.literal_eval(str(self.metrics.text()).replace('\n',''))
+        if len(self.breed_modes.text()) > 0:
+          conf_map['ga_breed_modes'] = ast.literal_eval(str(self.breed_modes.text()).replace('\n',''))
+        if len(self.removes.text()) > 0:
+           conf_map['ga_cullings'] = ast.literal_eval(str(self.removes.text()).replace('\n',''))
+        if len(self.ga_shrink_wrap_thresholds.text()) > 0:
+            conf_map['ga_shrink_wrap_thresholds'] = ast.literal_eval(str(self.ga_shrink_wrap_thresholds.text()).replace('\n',''))
+        if len(self.ga_shrink_wrap_gauss_sigmas.text()) > 0:
+            conf_map['ga_shrink_wrap_gauss_sigmas'] = ast.literal_eval(str(self.ga_shrink_wrap_gauss_sigmas.text()).replace('\n',''))
+        if len(self.lr_sigmas.text()) > 0:
+            conf_map['ga_lowpass_filter_sigmas'] = ast.literal_eval(str(self.lr_sigmas.text()).replace('\n',''))
+        if len(self.gen_pc_start.text()) > 0:
+            conf_map['ga_gen_pc_start'] = ast.literal_eval(str(self.gen_pc_start.text()))
 
 
 class low_resolution(Feature):
