@@ -1697,9 +1697,12 @@ class low_resolution(Feature):
         -------
         nothing
         """
-        conf_map['resolution_trigger'] = ast.literal_eval(str(self.res_triggers.text()).replace('\n',''))
-        conf_map['lowpass_filter_sw_sigma_range'] = ast.literal_eval(str(self.sigma_range.text()).replace('\n',''))
-        conf_map['lowpass_filter_range'] = ast.literal_eval(str(self.det_range.text()).replace('\n',''))
+        if len(self.res_triggers.text()) > 0:
+            conf_map['resolution_trigger'] = ast.literal_eval(str(self.res_triggers.text()).replace('\n',''))
+        if len(self.sigma_range.text()) > 0:
+            conf_map['lowpass_filter_sw_sigma_range'] = ast.literal_eval(str(self.sigma_range.text()).replace('\n',''))
+        if len(self.det_range.text()) > 0:
+            conf_map['lowpass_filter_range'] = ast.literal_eval(str(self.det_range.text()).replace('\n',''))
 
 
 class shrink_wrap(Feature):
@@ -1873,9 +1876,12 @@ class phase_support(Feature):
         -------
         nothing
         """
-        conf_map['phase_support_trigger'] = ast.literal_eval(str(self.phase_triggers.text()).replace('\n',''))
-        conf_map['phm_phase_min'] = ast.literal_eval(str(self.phm_phase_min.text()))
-        conf_map['phm_phase_max'] = ast.literal_eval(str(self.phm_phase_max.text()))
+        if len(self.phase_triggers.text()) > 0:
+            conf_map['phase_support_trigger'] = ast.literal_eval(str(self.phase_triggers.text()).replace('\n',''))
+        if len(self.phm_phase_min.text()) > 0:
+            conf_map['phm_phase_min'] = ast.literal_eval(str(self.phm_phase_min.text()))
+        if len(self.phm_phase_max.text()) > 0:
+            conf_map['phm_phase_max'] = ast.literal_eval(str(self.phm_phase_max.text()))
 
 
 class pcdi(Feature):
@@ -1965,14 +1971,18 @@ class pcdi(Feature):
         -------
         nothing
         """
-        conf_map['pc_interval'] = ast.literal_eval(str(self.pc_interval.text()))
-        conf_map['pc_type'] = str(self.pc_type.text())
-        conf_map['pc_LUCY_iterations'] = ast.literal_eval(str(self.pc_iter.text()))
+        if len(self.pc_interval.text()) > 0:
+            conf_map['pc_interval'] = ast.literal_eval(str(self.pc_interval.text()))
+        if len(self.pc_type.text()) > 0:
+            conf_map['pc_type'] = str(self.pc_type.text())
+        if len(self.pc_iter.text()) > 0:
+            conf_map['pc_LUCY_iterations'] = ast.literal_eval(str(self.pc_iter.text()))
         if str(self.pc_normalize.text()).strip() == 'True':
             conf_map['pc_normalize'] = True
         else:
             conf_map['pc_normalize'] = False
-        conf_map['pc_LUCY_kernel'] = ast.literal_eval(str(self.pc_LUCY_kernel.text()).replace('\n',''))
+        if len(self.pc_LUCY_kernel.text()) > 0:
+            conf_map['pc_LUCY_kernel'] = ast.literal_eval(str(self.pc_LUCY_kernel.text()).replace('\n',''))
 
 
 class twin(Feature):
@@ -2047,8 +2057,10 @@ class twin(Feature):
         -------
         nothing
         """
-        conf_map['twin_trigger'] = ast.literal_eval(str(self.twin_triggers.text()).replace('\n',''))
-        conf_map['twin_halves'] = ast.literal_eval(str(self.twin_halves.text()).replace('\n',''))
+        if len(self.twin_triggers.text()) > 0:
+            conf_map['twin_trigger'] = ast.literal_eval(str(self.twin_triggers.text()).replace('\n',''))
+        if len(self.twin_halves.text()) > 0:
+            conf_map['twin_halves'] = ast.literal_eval(str(self.twin_halves.text()).replace('\n',''))
 
 
 class average(Feature):
