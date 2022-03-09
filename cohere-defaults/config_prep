@@ -10,13 +10,13 @@ darkfield_filename = "DARKFIELD"
 whitefield_filename = "WHITEFIELD"
                                             // each detector needs to implement this correctly.
 
-//roi = (0,256,0,256)
+//roi = [0,256,0,256]
                                             // Used to determine corrections on the detector if they are local.
                                             // Read from specfile preferrably
 //min_files = 80
                                             // only scans containing minimum of .tif files will be included
 
-//exclude_scans = (78,81)
+//exclude_scans = [78,81]
                                             // a list containing scan indexes that will be excluded from preparation
 
 separate_scans = False

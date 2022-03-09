@@ -1,2 +1,2 @@
 intensity_threshold = 6
-adjust_dimensions = (-60,-60,-60,-60,-30,-30)
+adjust_dimensions = [-60, -60, -60, -60, -30, -30]

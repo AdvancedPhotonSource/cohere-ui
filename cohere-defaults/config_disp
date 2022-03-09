@@ -6,9 +6,9 @@ rampups = 1
                            // optional, upsize when running ramp removal
                            // default is 1
 
-crop = (.5, .5, .5)
+crop = [.5, .5, .5]
                            // fractions of the cropped array dimensions
-                           // default (1.0, 1.0, 1.0) meaning the whole array
+                           // default [1.0, 1.0, 1.0] meaning the whole array
 
 diffractometer = "34idc"
                            // it typically will be set to a defined class, but in case of new diffractometer
