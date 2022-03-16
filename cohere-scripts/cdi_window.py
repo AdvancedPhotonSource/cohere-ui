@@ -1034,10 +1034,6 @@ class RecTab(QWidget):
                 self.cont_dir_button.setText(str(conf_map['continue_dir']).replace(" ", ""))
         elif conf_map['init_guess'] == 'AI_guess':
             self.init_guess.setCurrentIndex(2)
-            if 'AI_threshold' in conf_map:
-                self.AI_threshold.setText(str(conf_map['AI_threshold']).replace(" ", ""))
-            if 'AI_sigma' in conf_map:
-                self.AI_sigma.setText(str(conf_map['AI_sigma']).replace(" ", ""))
             if 'AI_trained_model' in conf_map:
                 self.AI_trained_model.setText(str(conf_map['AI_trained_model']).replace(" ", ""))
                 self.AI_trained_model.setStyleSheet("Text-align:left")
@@ -1108,10 +1104,6 @@ class RecTab(QWidget):
                 conf_map['continue_dir'] = str(self.cont_dir_button.text()).strip()
         elif self.init_guess.currentIndex() == 2:
             conf_map['init_guess'] = 'AI_guess'
-            if len(self.AI_threshold.text()) > 0:
-                conf_map['AI_threshold'] = ast.literal_eval(str(self.AI_threshold.text()))
-            if len(self.AI_sigma.text()) > 0:
-                conf_map['AI_sigma'] = ast.literal_eval(str(self.AI_sigma.text()))
             if len(self.AI_trained_model.text()) > 0:
                 conf_map['AI_trained_model'] = str(self.AI_trained_model.text())
         for feat_id in self.features.feature_dir:
@@ -1134,10 +1126,6 @@ class RecTab(QWidget):
             layout.addRow("continue directory", self.cont_dir_button)
             self.cont_dir_button.clicked.connect(self.set_cont_dir)
         elif self.init_guess.currentIndex() == 2:
-            self.AI_threshold = QLineEdit()
-            layout.addRow("AI init shrink wrap threshold", self.AI_threshold)
-            self.AI_sigma = QLineEdit()
-            layout.addRow("AI init shrink wrap sigma", self.AI_sigma)
             self.AI_trained_model = QPushButton()
             layout.addRow("AI trained model file", self.AI_trained_model)
             self.AI_trained_model.clicked.connect(self.set_aitm_file)

@@ -27,13 +27,6 @@ init_guess = "random"
                              // valid if init_guess is "continue"
                              // Directory from which results are read for reconstruction continuation
 
-// AI_threshold = .1
-                             // valid if init_guess is "AI_guess"
-                             // defines the threshold used in shrink wrap to calculate initial support
-// AI_sigma = .1
-                             // valid if init_guess is "AI_guess"
-                             // defines the sigma used in shrink wrap to calculate initial support
-
 // AI_trained_model
                              // valid and mandatory if init_guess is "AI_guess"
                              // defines the file of hdf5 format that holds trained model
