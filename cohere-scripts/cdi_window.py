@@ -532,9 +532,12 @@ class cdi_gui(QWidget):
                     self.vbox.addWidget(self.t)
                 except:
                     pass
-            self.t.save_conf(
-
-            )
+            self.t.save_conf()
+        try:
+#            print("notify")
+            self.t.notify(specfile=self.specfile)
+        except:
+            pass
 
 
 class Tabs(QTabWidget):

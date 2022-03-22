@@ -76,7 +76,7 @@ def setup(script_dir, working_dir, det_name, specfile):
     templ_configdispfile = os.path.join(templ_confdir, "config_disp")
     templ_configrecfile = os.path.join(templ_confdir, "config_rec")
 
-    confdir = os.path.join(working_dir, 'cohere-defaults', 'conf')
+    confdir = os.path.join(script_dir, 'cohere-defaults', 'conf')
     if not os.path.exists(confdir):
         os.makedirs(confdir)
     # conf files

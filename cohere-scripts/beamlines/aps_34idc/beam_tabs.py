@@ -664,7 +664,7 @@ class DispTab(QWidget):
         self.scanmot = QLineEdit()
         layout.addRow("scan motor", self.scanmot)
         self.scanmot_del = QLineEdit()
-        layout.addRow("scan motor delay", self.scanmot_del)
+        layout.addRow("scan motor delta", self.scanmot_del)
         self.detector = QLineEdit()
         layout.addRow("detector", self.detector)
         cmd_layout = QHBoxLayout()

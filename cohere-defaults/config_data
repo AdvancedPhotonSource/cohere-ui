@@ -63,7 +63,7 @@ intensity_threshold = 2.0
                              // min data threshold.  Values below this are set to 0. The 
                              // threshold is applied after removing aliens.
 
-adjust_dimensions = [-13, -13, -65, -65, -65, -65]
+adjust_dimensions = [-65, -65, -65, -65, -13, -13]
                              // optional
                              // enter adjust dimensions list
                              // If number is positive, the array will be padded. If negative, cropped.
