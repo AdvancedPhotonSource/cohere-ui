@@ -1508,6 +1508,13 @@ class GA(Feature):
         -------
         nothing
         """
+        if 'ga_generations' in conf_map:
+            gens = conf_map['ga_generations']
+            self.active.setChecked(True)
+            self.generations.setText(str(gens).replace(" ", ""))
+        else:
+            self.active.setChecked(False)
+            return
         if 'ga_fast' in conf_map:
             ga_fast = conf_map['ga_fast']
             if ga_fast:
@@ -1516,13 +1523,6 @@ class GA(Feature):
                 self.ga_fast.setChecked(False)
         else:
             self.ga_fast.setChecked(False)
-        if 'ga_generations' in conf_map:
-            gens = conf_map['ga_generations']
-            self.active.setChecked(True)
-            self.generations.setText(str(gens).replace(" ", ""))
-        else:
-            self.active.setChecked(False)
-            return
         if 'ga_metrics' in conf_map:
             self.metrics.setText(str(conf_map['ga_metrics']).replace(" ", ""))
         if 'ga_breed_modes' in conf_map:
