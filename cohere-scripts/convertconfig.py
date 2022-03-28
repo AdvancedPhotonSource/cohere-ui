@@ -18,7 +18,7 @@ config_rec_map = {'samples': 'reconstructions', 'beta' : 'hio_beta', 'amp_suppor
                   'generations' : 'ga_generations', 'ga_support_thresholds' : 'ga_shrink_wrap_thresholds',
                   'ga_support_sigmas' : 'ga_shrink_wrap_gauss_sigmas', 'ga_low_resolution_sigmas' : 'ga_lowpass_filter_sigmas',
                   'gen_pcdi_start' : 'ga_gen_pc_start'}
-config_disp_map = {'arm': 'detdist', 'dth': 'theta'}
+config_disp_map = {'arm': 'detdist', 'dth': 'scanmot_del'}
 config_data_map = {'aliens': 'aliens', 'amp_threshold' : 'intensity_threshold'}
 
 beamlinedefaultvalue = ' "aps_34idc"'
