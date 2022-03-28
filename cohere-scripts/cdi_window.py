@@ -1508,6 +1508,14 @@ class GA(Feature):
         -------
         nothing
         """
+        if 'ga_fast' in conf_map:
+            ga_fast = conf_map['ga_fast']
+            if ga_fast:
+                self.ga_fast.setChecked(True)
+            else:
+                self.ga_fast.setChecked(False)
+        else:
+            self.ga_fast.setChecked(False)
         if 'ga_generations' in conf_map:
             gens = conf_map['ga_generations']
             self.active.setChecked(True)
@@ -1542,6 +1550,9 @@ class GA(Feature):
         -------
         nothing
         """
+        self.ga_fast = QCheckBox("fast processing, size limited")
+        self.ga_fast.setChecked(False)
+        layout.addWidget(self.ga_fast)
         self.generations = QLineEdit()
         layout.addRow("generations", self.generations)
         self.metrics = QLineEdit()
@@ -1592,6 +1603,8 @@ class GA(Feature):
         -------
         nothing
         """
+        if self.ga_fast.isChecked():
+            conf_map['ga_fast'] = True
         if len(self.generations.text()) > 0:
             conf_map['ga_generations'] = ast.literal_eval(str(self.generations.text()))
         if len(self.metrics.text()) > 0:
