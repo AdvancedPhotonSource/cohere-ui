@@ -228,10 +228,10 @@ def create_exp(prefix, scan, working_dir, **args):
             if len(value) > 0:
                 f.write(key + ' = ' + conf_map[key] + '\n')
     f.close()
-    if not ver.ver_config(temp_file):
-        print('please check the entered parameters. Cannot save this format')
-    else:
-        shutil.copy(temp_file, experiment_main_config)
+#    if not ver.ver_config(temp_file):
+#        print('please check the entered parameters. Cannot save this format')
+#    else:
+    shutil.copy(temp_file, experiment_main_config)
     os.remove(temp_file)
 
     # create simple configuration for each phase
