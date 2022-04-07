@@ -211,31 +211,31 @@ def write_conf(conf_map, dir, file):
                 f.write(key + ' = ' + conf_map[key] + '\n')
     f.close()
 
-    if file == 'config':
-        if not ver.ver_config(temp_file):
-            os.remove(temp_file)
-            msg_window('please check the entries in the main window. Cannot save this format')
-            return False
-    elif file == 'config_prep':
-        if not ver.ver_config_prep(temp_file):
-            os.remove(temp_file)
-            msg_window('please check the entries in the Data prep tab. Cannot save this format')
-            return False
-    elif file == 'config_data':
-        if not ver.ver_config_data(temp_file):
-            os.remove(temp_file)
-            msg_window('please check the entries in the Data tab. Cannot save this format')
-            return False
-    elif file.endswith('config_rec'):
-        if not ver.ver_config_rec(temp_file):
-            os.remove(temp_file)
-            msg_window('please check the entries in the Reconstruction tab. Cannot save this format')
-            return False
-    elif file == 'config_disp':
-        if not ver.ver_config_disp(temp_file):
-            os.remove(temp_file)
-            msg_window('please check the entries in the Display tab. Cannot save this format')
-            return False
+#    if file == 'config':
+#        if not ver.ver_config(temp_file):
+#            os.remove(temp_file)
+#            msg_window('please check the entries in the main window. Cannot save this format')
+#            return False
+#    elif file == 'config_prep':
+#        if not ver.ver_config_prep(temp_file):
+#            os.remove(temp_file)
+#            msg_window('please check the entries in the Data prep tab. Cannot save this format')
+#            return False
+#    elif file == 'config_data':
+#        if not ver.ver_config_data(temp_file):
+#            os.remove(temp_file)
+#            msg_window('please check the entries in the Data tab. Cannot save this format')
+#            return False
+#    elif file.endswith('config_rec'):
+#        if not ver.ver_config_rec(temp_file):
+#            os.remove(temp_file)
+#            msg_window('please check the entries in the Reconstruction tab. Cannot save this format')
+#            return False
+#    elif file == 'config_disp':
+#        if not ver.ver_config_disp(temp_file):
+#            os.remove(temp_file)
+#            msg_window('please check the entries in the Display tab. Cannot save this format')
+#            return False
     # copy if verified
     shutil.copy(temp_file, conf_file)
     os.remove(temp_file)
