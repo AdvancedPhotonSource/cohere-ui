@@ -66,8 +66,8 @@ def prep(fname, conf_info):
         experiment_dir = None
 
     # verify the configuration file
-    if not ver.ver_config_data(conf):
-        return
+#    if not ver.ver_config_data(conf):
+#        return
 
     config_map = ut.read_config(conf)
     if config_map is None:
