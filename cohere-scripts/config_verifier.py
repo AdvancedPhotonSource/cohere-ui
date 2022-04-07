@@ -50,6 +50,8 @@ def ver_list_int(param_name, param_value):
             print (param_name + ' should be list of integer values')
             return False
     return True
+
+
 def ver_list_float(param_name, param_value):
     """
     This function verifies if all elements in a given list are float.
@@ -77,7 +79,6 @@ def ver_list_float(param_name, param_value):
     return True
 
 
-
 def get_config_error_message(config_file_name,map_file,config_parameter,config_error_no):
     """
     This function returns an error message string for this config file from the error map file using
@@ -96,6 +97,7 @@ def get_config_error_message(config_file_name,map_file,config_parameter,config_e
 
     return(presented_message)
 
+
 def ver_config(fname):
     """
     This function verifies experiment main config file
@@ -111,7 +113,6 @@ def ver_config(fname):
     """
     config_map_file = 'config_error_map_file'
     config_parameter = 'File'
-
 
     if not os.path.isfile(fname):
         config_error = 0
@@ -278,7 +279,6 @@ def ver_config_rec(fname):
         return (error_message)
 
     config_parameter = 'Cont'
-
 
     try:
         cont = config_map.cont
@@ -678,7 +678,6 @@ def ver_config_rec(fname):
 
             config_parameter = 'Phasesupporttrigger'
 
-
     except AttributeError:
         pass
 
@@ -688,7 +687,6 @@ def ver_config_rec(fname):
             error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
 
             return (error_message)
-
 
         else:
 
@@ -725,7 +723,6 @@ def ver_config_rec(fname):
                 error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
                 print('phm_phase_max parameter parsing error')
                 return (error_message)
-
 
     except AttributeError:
         pass
@@ -929,7 +926,6 @@ def ver_config_data(fname):
 
     config_parameter = 'Adjustdimensions'
 
-
     try:
         if not ver_list_int('pad_crop', config_map.adjust_dimensions):
             config_error = 0
@@ -975,7 +971,6 @@ def ver_config_data(fname):
         return (error_message)
 
     config_parameter = 'Aliens'
-
 
     alien_alg = 'none'
     try:
@@ -1324,7 +1319,6 @@ def ver_config_disp(fname):
         return (error_message)
 
     config_parameter = 'Diffractometer'
-
 
     try:
         diffractometer = config_map.diffractometer
