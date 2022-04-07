@@ -97,8 +97,8 @@ def setup_rundirs(prefix, scan, conf_dir, **kwargs):
         print('the configuration directory does not contain "config" file')
         return
 
-    if not ver.ver_config_prep(main_conf):
-        return
+#    if not ver.ver_config_prep(main_conf):
+#        return
 
     config_map = ut.read_config(main_conf)
     if config_map is None:
