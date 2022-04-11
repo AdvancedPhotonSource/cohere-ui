@@ -24,7 +24,7 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 import cohere.utilities.utils as ut
 import importlib
-import config_verifier as ver
+# import config_verifier as ver
 import convertconfig as conv
 import ast
 
