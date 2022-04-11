@@ -21,7 +21,7 @@ import argparse
 import cohere.utilities.utils as ut
 import sys
 import os
-import config_verifier as ver
+# import config_verifier as ver
 import shutil
 import glob
 
