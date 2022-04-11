@@ -23,7 +23,7 @@ __all__ = ['create_conf_prep',
 import argparse
 import sys
 import os
-import config_verifier as ver
+# import config_verifier as ver
 import shutil
 
 
