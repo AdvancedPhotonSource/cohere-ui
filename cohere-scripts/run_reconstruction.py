@@ -27,7 +27,7 @@ import cohere.controller.reconstruction_single as rec
 import cohere.controller.reconstruction_GA as gen_rec
 import cohere.controller.reconstruction_multi as mult_rec
 import cohere.utilities.utils as ut
-import config_verifier as ver
+# import config_verifier as ver
 import convertconfig as conv
 
 MEM_FACTOR = 1500
