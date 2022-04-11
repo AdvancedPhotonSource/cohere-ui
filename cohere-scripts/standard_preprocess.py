@@ -14,7 +14,7 @@ import argparse
 import os
 import numpy as np
 import cohere.utilities.utils as ut
-import config_verifier as ver
+# import config_verifier as ver
 import alien_tools as at
 import convertconfig as conv
 
