@@ -3,7 +3,7 @@ import shutil
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 import cohere.utilities.utils as ut
-import config_verifier as ver
+# import config_verifier as ver
 from xrayutilities.io import spec as spec
 import convertconfig as conv
 import ast
