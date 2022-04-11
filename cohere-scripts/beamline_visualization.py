@@ -22,7 +22,7 @@ __all__ = ['process_dir',
 import cohere.utilities.viz_util as vu
 import cohere.utilities.utils as ut
 from cohere.beamlines.viz import CXDViz
-import config_verifier as ver
+# import config_verifier as ver
 import argparse
 import sys
 import os
