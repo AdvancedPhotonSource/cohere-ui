@@ -1305,10 +1305,10 @@ class RecTab(QWidget):
         else:
             self.reconstructions.setText('1')
             self.proc.setCurrentIndex(0)
-            self.device.setText('(0,1)')
+            self.device.setText('[0,1]')
             self.alg_seq.setText('3*(20*ER+180*HIO)+20*ER')
             self.hio_beta.setText('.9')
-            self.initial_support_area.setText('(0.5, 0.5, 0.5)')
+            self.initial_support_area.setText('[0.5, 0.5, 0.5]')
 
 
     def update_rec_configs_choice(self):
@@ -1582,12 +1582,12 @@ class GA(Feature):
         nothing
         """
         self.generations.setText('5')
-        self.metrics.setText('("chi","chi","area","chi","sharpness")')
-        self.breed_modes.setText('("sqrt_ab","sqrt_ab","avg_ab","max_ab_pa","sqrt_ab")')
-        self.removes.setText('(2,2,1)')
-        self.ga_shrink_wrap_thresholds.setText('(.1,.1,.1,.1,.1)')
-        self.ga_shrink_wrap_gauss_sigmas.setText('(1.0,1.0,1.0,1.0,1.0)')
-        self.lr_sigmas.setText('(2.0,1.5)')
+        self.metrics.setText('[chi","chi","area","chi","sharpness"]')
+        self.breed_modes.setText('["sqrt_ab","sqrt_ab","avg_ab","max_ab_pa","sqrt_ab"]')
+        self.removes.setText('[2,2,1]')
+        self.ga_shrink_wrap_thresholds.setText('[.1,.1,.1,.1,.1]')
+        self.ga_shrink_wrap_gauss_sigmas.setText('[1.0,1.0,1.0,1.0,1.0]')
+        self.lr_sigmas.setText('[2.0,1.5]')
         self.gen_pc_start.setText('3')
         self.active.setChecked(True)
 
@@ -1685,9 +1685,9 @@ class low_resolution(Feature):
         -------
         nothing
         """
-        self.res_triggers.setText('(0, 1, 320)')
-        self.sigma_range.setText('(2.0)')
-        self.det_range.setText('(.7)')
+        self.res_triggers.setText('[0, 1, 320]')
+        self.sigma_range.setText('[2.0]')
+        self.det_range.setText('[.7]')
 
 
     def add_feat_conf(self, conf_map):
@@ -1775,7 +1775,7 @@ class shrink_wrap(Feature):
         -------
         nothing
         """
-        self.shrink_wrap_triggers.setText('(1,1)')
+        self.shrink_wrap_triggers.setText('[1,1]')
         self.shrink_wrap_type.setText('GAUSS')
         self.shrink_wrap_gauss_sigma.setText('1.0')
         self.shrink_wrap_threshold.setText('0.1')
@@ -1864,7 +1864,7 @@ class phase_support(Feature):
         -------
         nothing
         """
-        self.phase_triggers.setText('(0,1,320)')
+        self.phase_triggers.setText('[0,1,320]')
         self.phm_phase_min.setText('-1.57')
         self.phm_phase_max.setText('1.57')
 
@@ -1961,7 +1961,7 @@ class pcdi(Feature):
         self.pc_type.setText('LUCY')
         self.pc_iter.setText('20')
         self.pc_normalize.setText('True')
-        self.pc_LUCY_kernel.setText('(16, 16, 16)')
+        self.pc_LUCY_kernel.setText('[16, 16, 16]')
 
 
     def add_feat_conf(self, conf_map):
@@ -2046,8 +2046,8 @@ class twin(Feature):
         -------
         nothing
         """
-        self.twin_triggers.setText('(2)')
-        self.twin_halves.setText('(0,0)')
+        self.twin_triggers.setText('[2]')
+        self.twin_halves.setText('[0,0]')
 
 
     def add_feat_conf(self, conf_map):
@@ -2120,7 +2120,7 @@ class average(Feature):
         -------
         nothing
         """
-        self.average_triggers.setText('(-50,1)')
+        self.average_triggers.setText('[-50,1]')
 
 
     def add_feat_conf(self, conf_map):
@@ -2190,7 +2190,7 @@ class progress(Feature):
         -------
         nothing
         """
-        self.progress_triggers.setText('(0,20)')
+        self.progress_triggers.setText('[0,20]')
 
 
     def add_feat_conf(self, conf_map):
