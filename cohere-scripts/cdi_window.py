@@ -1582,11 +1582,11 @@ class GA(Feature):
         nothing
         """
         self.generations.setText('5')
-        self.metrics.setText('[chi","chi","area","chi","sharpness"]')
-        self.breed_modes.setText('["sqrt_ab","sqrt_ab","avg_ab","max_ab_pa","sqrt_ab"]')
+        self.metrics.setText('["chi","area"]')
+        self.breed_modes.setText('["sqrt_ab"]')
         self.removes.setText('[2,2,1]')
-        self.ga_shrink_wrap_thresholds.setText('[.1,.1,.1,.1,.1]')
-        self.ga_shrink_wrap_gauss_sigmas.setText('[1.0,1.0,1.0,1.0,1.0]')
+        self.ga_shrink_wrap_thresholds.setText('[.1]')
+        self.ga_shrink_wrap_gauss_sigmas.setText('[1.0]')
         self.lr_sigmas.setText('[2.0,1.5]')
         self.gen_pc_start.setText('3')
         self.active.setChecked(True)
