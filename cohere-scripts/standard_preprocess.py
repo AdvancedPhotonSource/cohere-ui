@@ -13,8 +13,8 @@ import sys
 import argparse
 import os
 import numpy as np
+import cohere.utilities.config_verifier as ver
 import cohere.utilities.utils as ut
-# import config_verifier as ver
 import alien_tools as at
 import convertconfig as conv
 
@@ -65,14 +65,14 @@ def prep(fname, conf_info):
         conf = conf_info
         experiment_dir = None
 
-    # verify the configuration file
-#    if not ver.ver_config_data(conf):
-#        return
-
     config_map = ut.read_config(conf)
     if config_map is None:
-        print ('Please check the configuration file ' + conf)
         return
+
+    er_msg = ver.verify('config_data', config_map)
+    if len(er_msg) > 0:
+        # the error message is printed in verifier
+        return None
 
     if 'data_dir' in config_map:
         data_dir = config_map['data_dir']
@@ -174,6 +174,13 @@ def format_data(experiment_dir):
 
     if 'converter_ver' not in config_map or conv.get_version() is None or conv.get_version() < config_map['converter_ver']:
         conv.convert(os.path.join(experiment_dir, 'conf'))
+        # re-parse config
+        config_map = ut.read_config(main_conf)
+
+    er_msg = ver.verify('config', config_map)
+    if len(er_msg) > 0:
+        # the error message is printed in verifier
+        return None
 
     print ('formating data')
     prep_file = os.path.join(experiment_dir, 'preprocessed_data', 'prep_data.tif')

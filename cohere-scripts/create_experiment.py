@@ -23,8 +23,8 @@ __all__ = ['create_conf_prep',
 import argparse
 import sys
 import os
-# import config_verifier as ver
-import shutil
+import cohere.utilities.utils as ut
+import convertconfig as conv
 
 
 def create_conf_prep(conf_dir):
@@ -106,17 +106,17 @@ def create_conf_rec(conf_dir):
     f.write('reconstructions = 1\n')
     f.write('device = [0,1]\n')
     f.write('algorithm_sequence = "3* (20*ER + 180*HIO) + 20*ER"')
-    f.write('hio_beta = .9\n\n')
+    f.write('hio_beta = .9\n')
     f.write('// ga_generations = 1\n')
     f.write('// ga_metrics = ["chi", "sharpness"]\n')
     f.write('// ga_breed_modes = ["sqrt_ab", "dsqrt"]\n')
     f.write('// ga_cullings = [2,1]\n')
     f.write('// ga_shrink_wrap_thresholds = [.15, .1]\n')
     f.write('// ga_shrink_wrap_gauss_sigmas = [1.1, 1.0]\n')
-    f.write('// ga_lowpass_filter_sigmas = [2.0, 1.5]\n\n')
+    f.write('// ga_lowpass_filter_sigmas = [2.0, 1.5]\n')
     f.write('// ga_gen_pc_start = 3\n')
     f.write('twin_trigger = [2]\n')
-    f.write('// twin_halves = [0, 0]\n\n')
+    f.write('// twin_halves = [0, 0]\n')
     f.write('shrink_wrap_trigger = [10, 1]\n')
     f.write('shrink_wrap_type = "GAUSS"\n')
     f.write('shrink_wrap_threshold = 0.1\n')
@@ -124,16 +124,16 @@ def create_conf_rec(conf_dir):
     f.write('initial_support_area = [.5,.5,.5]\n\n')
     f.write('// phase_support_trigger = [0, 1, 320]\n')
     f.write('// phm_phase_min = -1.57\n')
-    f.write('// phm_phase_max = 1.57\n\n')
+    f.write('// phm_phase_max = 1.57\n')
     f.write('// pc_interval = 50\n')
     f.write('// pc_type = "LUCY"\n')
     f.write('// pc_LUCY_iterations = 20\n')
     f.write('// pc_normalize = True\n')
-    f.write('// pc_LUCY_kernel = [16,16,16]\n\n')
+    f.write('// pc_LUCY_kernel = [16,16,16]\n')
     f.write('// resolution_trigger = [0, 1, 320]\n')
     f.write('// lowpass_filter_sw_sigma_range = [2.0]\n')
-    f.write('// lowpass_filter_range = [.7]\n\n')
-    f.write('// average_trigger = [-60, 1]\n\n')
+    f.write('// lowpass_filter_range = [.7]\n')
+    f.write('// average_trigger = [-60, 1]\n')
     f.write('progress_trigger = [0, 20]')
     f.close()
 
@@ -213,26 +213,18 @@ def create_exp(prefix, scan, working_dir, **args):
     # Based on params passed to this function create a temp config file and then copy it to the experiment dir.
     experiment_main_config = os.path.join(experiment_conf_dir, 'config')
     conf_map = {}
-    conf_map['working_dir'] = '"' + working_dir + '"'
-    conf_map['experiment_id'] = '"' + prefix + '"'
-    conf_map['scan'] = '"' + scan + '"'
+    conf_map['working_dir'] = working_dir
+    conf_map['experiment_id'] = prefix
+    conf_map['scan'] = scan
     if 'specfile' in args:
-        conf_map['specfile'] = '"' + args['specfile'] + '"'
+        conf_map['specfile'] = args['specfile']
     if 'beamline' in args:
-        conf_map['beamline'] = '"' + args['beamline'] + '"'
+        conf_map['beamline'] = args['beamline']
 
-    temp_file = os.path.join(experiment_conf_dir, 'temp')
-    with open(temp_file, 'a') as f:
-        for key in conf_map:
-            value = conf_map[key]
-            if len(value) > 0:
-                f.write(key + ' = ' + conf_map[key] + '\n')
-    f.close()
-#    if not ver.ver_config(temp_file):
-#        print('please check the entered parameters. Cannot save this format')
-#    else:
-    shutil.copy(temp_file, experiment_main_config)
-    os.remove(temp_file)
+    # get converter version
+    conf_map['converter_ver'] = conv.get_version()
+
+    ut.write_config(conf_map, experiment_main_config)
 
     # create simple configuration for each phase
     create_conf_prep(experiment_conf_dir)

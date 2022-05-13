@@ -3,7 +3,7 @@ import shutil
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 import cohere.utilities.utils as ut
-# import config_verifier as ver
+import cohere.utilities.config_verifier as ver
 from xrayutilities.io import spec as spec
 import convertconfig as conv
 import ast
@@ -180,66 +180,6 @@ def set_overriden(item):
     nothing
     """
     item.setStyleSheet('color: black')
-
-
-def write_conf(conf_map, dir, file):
-    """
-    It creates configuration file from the parameters included in dictionary, verifies, and saves in the configuration directory.
-    Parameters
-    ----------
-    conf_map : dict
-        dictionary containing configuration parameters
-    dir : str
-        a directory where the configuration file will be saved
-    file : str
-        name of the configuration file to save
-    Returns
-    -------
-    nothing
-    """
-    # create "temp" file first, verify it, and if ok, copy to a configuration file
-    if not os.path.exists(dir):
-        os.makedirs(dir)
-    conf_file = os.path.join(dir, file)
-    temp_file = os.path.join(dir, 'temp')
-    if os.path.isfile(temp_file):
-        os.remove(temp_file)
-    with open(temp_file, 'a') as f:
-        for key in conf_map:
-            value = conf_map[key]
-            if len(value) > 0:
-                f.write(key + ' = ' + conf_map[key] + '\n')
-    f.close()
-
-#    if file == 'config':
-#        if not ver.ver_config(temp_file):
-#            os.remove(temp_file)
-#            msg_window('please check the entries in the main window. Cannot save this format')
-#            return False
-#    elif file == 'config_prep':
-#        if not ver.ver_config_prep(temp_file):
-#            os.remove(temp_file)
-#            msg_window('please check the entries in the Data prep tab. Cannot save this format')
-#            return False
-#    elif file == 'config_data':
-#        if not ver.ver_config_data(temp_file):
-#            os.remove(temp_file)
-#            msg_window('please check the entries in the Data tab. Cannot save this format')
-#            return False
-#    elif file.endswith('config_rec'):
-#        if not ver.ver_config_rec(temp_file):
-#            os.remove(temp_file)
-#            msg_window('please check the entries in the Reconstruction tab. Cannot save this format')
-#            return False
-#    elif file == 'config_disp':
-#        if not ver.ver_config_disp(temp_file):
-#            os.remove(temp_file)
-#            msg_window('please check the entries in the Display tab. Cannot save this format')
-#            return False
-    # copy if verified
-    shutil.copy(temp_file, conf_file)
-    os.remove(temp_file)
-    return True
 
 
 class PrepTab(QWidget):
@@ -478,10 +418,15 @@ class PrepTab(QWidget):
             msg_window('the experiment has not been created yet')
             return
         elif not self.main_win.is_exp_set():
-            msg_window('the experiment has changed, pres "set experiment" button')
+            msg_window('the experiment has changed, press "set experiment" button')
             return
         else:
             conf_map = self.get_prep_config()
+        # verify that prep configuration is ok
+        er_msg = ver.verify('config_prep', conf_map)
+        if len(er_msg) > 0:
+            msg_window(er_msg)
+            return
         # for 34idc prep data directory is needed
         if len(self.data_dir_button.text().strip()) == 0:
             msg_window('cannot prepare data for 34idc, need data directory')
@@ -558,7 +503,11 @@ class PrepTab(QWidget):
     def save_conf(self):
         conf_map = self.get_prep_config()
         if len(conf_map) > 0:
-            ut.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
+            er_msg = ver.verify('config_prep', conf_map)
+            if len(er_msg) > 0:
+                msg_window(er_msg)
+            else:
+                ut.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
 
 
     def parse_spec(self):
@@ -901,6 +850,11 @@ class DispTab(QWidget):
                 return
 
         conf_map = self.get_disp_config()
+        # verify that disp configuration is ok
+        er_msg = ver.verify('config_disp', conf_map)
+        if len(er_msg) > 0:
+            msg_window(er_msg)
+            return
 
         ut.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
         self.tabs.run_viz()
@@ -909,7 +863,11 @@ class DispTab(QWidget):
     def save_conf(self):
         conf_map = self.get_disp_config()
         if len(conf_map) > 0:
-            ut.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
+            er_msg = ver.verify('config_disp', conf_map)
+            if len(er_msg) > 0:
+                msg_window(er_msg)
+            else:
+                ut.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
 
 
     def parse_spec(self):

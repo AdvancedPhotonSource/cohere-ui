@@ -22,9 +22,9 @@ import shutil
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
-import cohere.utilities.utils as ut
+import cohere.utilities.config_verifier as ver
 import importlib
-# import config_verifier as ver
+import cohere.utilities.utils as ut
 import convertconfig as conv
 import ast
 
@@ -87,66 +87,6 @@ def msg_window(text):
     msg.setText(text)
     msg.setWindowTitle("Info")
     msg.exec_()
-
-
-def write_conf(conf_map, dir, file):
-    """
-    It creates configuration file from the parameters included in dictionary, verifies, and saves in the configuration directory.
-    Parameters
-    ----------
-    conf_map : dict
-        dictionary containing configuration parameters
-    dir : str
-        a directory where the configuration file will be saved
-    file : str
-        name of the configuration file to save
-    Returns
-    -------
-    nothing
-    """
-    # create "temp" file first, verify it, and if ok, copy to a configuration file
-    if not os.path.exists(dir):
-        os.makedirs(dir)
-    conf_file = os.path.join(dir, file)
-    temp_file = os.path.join(dir, 'temp')
-    if os.path.isfile(temp_file):
-        os.remove(temp_file)
-    with open(temp_file, 'a') as f:
-        for key in conf_map:
-            value = conf_map[key]
-            if len(value) > 0:
-                f.write(key + ' = ' + conf_map[key] + '\n')
-    f.close()
-
-#    if file == 'config':
-#        if not ver.ver_config(temp_file):
-#            os.remove(temp_file)
-#            msg_window('please check the entries in the main window. Cannot save this format')
-#            return False
-#    elif file == 'config_prep':
-#        if not ver.ver_config_prep(temp_file):
-#            os.remove(temp_file)
-#            msg_window('please check the entries in the Data prep tab. Cannot save this format')
-#            return False
-#    elif file == 'config_data':
-#        if not ver.ver_config_data(temp_file):
-#            os.remove(temp_file)
-#            msg_window('please check the entries in the Data tab. Cannot save this format')
-#            return False
-#    elif file.endswith('config_rec'):
-#        if not ver.ver_config_rec(temp_file):
-#            os.remove(temp_file)
-#            msg_window('please check the entries in the Reconstruction tab. Cannot save this format')
-#            return False
-#    elif file == 'config_disp':
-#        if not ver.ver_config_disp(temp_file):
-#            os.remove(temp_file)
-#            msg_window('please check the entries in the Display tab. Cannot save this format')
-#            return False
-    # copy if verified
-    shutil.copy(temp_file, conf_file)
-    os.remove(temp_file)
-    return True
 
 
 class cdi_gui(QWidget):
@@ -470,7 +410,11 @@ class cdi_gui(QWidget):
         if self.specfile is not None:
             conf_map['specfile'] = str(self.specfile)
         conf_map['converter_ver'] = conv.get_version()
-        ut.write_config(conf_map, os.path.join(self.experiment_dir, 'conf', 'config'))
+        er_msg = ver.verify('config', conf_map)
+        if len(er_msg) > 0:
+            msg_window(er_msg)
+        else:
+            ut.write_config(conf_map, os.path.join(self.experiment_dir, 'conf', 'config'))
 
 
     def set_experiment(self, loaded=False):
@@ -834,7 +778,7 @@ class DataTab(QWidget):
         -------
         nothing
         """
-        self.alien_filename = select_file(self.alien_filename)
+        self.alien_filename = select_file(os.getcwd())
         if self.alien_filename is not None:
             self.alien_file.setStyleSheet("Text-align:left")
             self.alien_file.setText(self.alien_filename)
@@ -868,6 +812,11 @@ class DataTab(QWidget):
                     break
             if found_file:
                 conf_map = self.get_data_config()
+                # verify that data configuration is ok
+                er_msg = ver.verify('config_data', conf_map)
+                if len(er_msg) > 0:
+                    msg_window(er_msg)
+                    return
                 ut.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_data'))
                 run_dt.format_data(self.main_win.experiment_dir)
             else:
@@ -878,6 +827,10 @@ class DataTab(QWidget):
         # save data config
         conf_map = self.get_data_config()
         if len(conf_map) > 0:
+            er_msg = ver.verify('config_data', conf_map)
+            if len(er_msg) > 0:
+                msg_window(er_msg)
+                return
             ut.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_data'))
 
 
@@ -1090,17 +1043,33 @@ class RecTab(QWidget):
         """
         conf_map = {}
         if len(self.reconstructions.text()) > 0:
-            conf_map['reconstructions'] = ast.literal_eval(str(self.reconstructions.text()))
+            try:
+                conf_map['reconstructions'] = ast.literal_eval(self.reconstructions.text())
+            except:
+                msg_window('reconstructions parameter should be int')
+                return {}
         if len(self.proc.currentText()) > 0:
             conf_map['processing'] = str(self.proc.currentText())
         if len(self.device.text()) > 0:
-            conf_map['device'] = ast.literal_eval(str(self.device.text()).replace('\n',''))
+            try:
+                conf_map['device'] = ast.literal_eval(str(self.device.text()).replace('\n',''))
+            except:
+                msg_window('device parameter should be a list of int')
+                return {}
         if len(self.alg_seq.text()) > 0:
             conf_map['algorithm_sequence'] = str(self.alg_seq.text()).strip()
         if len(self.hio_beta.text()) > 0:
-            conf_map['hio_beta'] = ast.literal_eval(str(self.hio_beta.text()))
+            try:
+                conf_map['hio_beta'] = ast.literal_eval(str(self.hio_beta.text()))
+            except:
+                msg_window('hio_beta parameter should be float')
+                return {}
         if len(self.initial_support_area.text()) > 0:
-            conf_map['initial_support_area'] = ast.literal_eval(str(self.initial_support_area.text()).replace('\n',''))
+            try:
+                conf_map['initial_support_area'] = ast.literal_eval(str(self.initial_support_area.text()).replace('\n',''))
+            except:
+                msg_window('initial_support_area parameter should be a list of floats')
+                return {}
         if self.init_guess.currentIndex() == 1:
             conf_map['init_guess'] = 'continue'
             if len(self.cont_dir_button.text().strip()) > 0:
@@ -1117,6 +1086,12 @@ class RecTab(QWidget):
 
     def save_conf(self):
         conf_map = self.get_rec_config()
+        if len(conf_map) == 0:
+            return
+        er_msg = ver.verify('config_rec', conf_map)
+        if len(er_msg) > 0:
+            msg_window(er_msg)
+            return
         if len(conf_map) > 0:
             ut.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_rec'))
 
@@ -1202,6 +1177,8 @@ class RecTab(QWidget):
             conf_file =  'config_rec_' + self.old_conf_id
 
         conf_map = self.get_rec_config()
+        if len(conf_map) == 0:
+            return
         conf_dir = os.path.join(self.main_win.experiment_dir, 'conf')
 
         ut.write_config(conf_map, os.path.join(conf_dir, conf_file))
@@ -1281,7 +1258,14 @@ class RecTab(QWidget):
                     conf_id = self.old_conf_id
 
                 conf_map = self.get_rec_config()
+                if len(conf_map) == 0:
+                    return
 
+                # verify that reconstruction configuration is ok
+                er_msg = ver.verify('config_rec', conf_map)
+                if len(er_msg) > 0:
+                    msg_window(er_msg)
+                    return
                 ut.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', conf_file))
                 run_rc.manage_reconstruction(self.main_win.experiment_dir, conf_id)
                 self.notify()
@@ -1981,10 +1965,11 @@ class pcdi(Feature):
             conf_map['pc_type'] = str(self.pc_type.text())
         if len(self.pc_iter.text()) > 0:
             conf_map['pc_LUCY_iterations'] = ast.literal_eval(str(self.pc_iter.text()))
-        if str(self.pc_normalize.text()).strip() == 'True':
-            conf_map['pc_normalize'] = True
-        else:
+        pc_normalize_txt = str(self.pc_normalize.text()).strip()
+        if pc_normalize_txt == 'False':
             conf_map['pc_normalize'] = False
+        else:
+            conf_map['pc_normalize'] = True
         if len(self.pc_LUCY_kernel.text()) > 0:
             conf_map['pc_LUCY_kernel'] = ast.literal_eval(str(self.pc_LUCY_kernel.text()).replace('\n',''))
 

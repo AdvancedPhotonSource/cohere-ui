@@ -22,7 +22,7 @@ __all__ = ['process_dir',
 import cohere.utilities.viz_util as vu
 import cohere.utilities.utils as ut
 from cohere.beamlines.viz import CXDViz
-# import config_verifier as ver
+import cohere.utilities.config_verifier as ver
 import argparse
 import sys
 import os
@@ -149,44 +149,44 @@ def get_conf_dict(experiment_dir):
         return None
     conf_dir = os.path.join(experiment_dir, 'conf')
 
-    # convert configuration files if needed
-    main_conf = os.path.join(conf_dir, 'config')
-    main_config_map = ut.read_config(main_conf)
-    if main_config_map is None:
-        print("info: missing " + main_conf + " configuration file")
+    main_conf_file = os.path.join(conf_dir, 'config')
+    main_conf_map = ut.read_config(main_conf_file)
+    if main_conf_map is None:
         return None
 
-    if 'converter_ver' not in main_config_map or conv.get_version() is None or conv.get_version() < main_config_map['converter_ver']:
-        main_config_map = conv.get_conf_dict(main_conf, 'config')
+    # convert configuration files if needed
+    if 'converter_ver' not in main_conf_map or conv.get_version() is None or conv.get_version() < main_conf_map[
+        'converter_ver']:
+        conv.convert(conf_dir)
+        # re-parse config
+        main_conf_map = ut.read_config(main_conf_file)
+
+    er_msg = ver.verify('config', main_conf_map)
+    if len(er_msg) > 0:
+        # the error message is printed in verifier
+        return None
 
     disp_conf = os.path.join(conf_dir, 'config_disp')
-    # # verify configuration file
-    # if not ver.ver_config_disp(conf):
-    #     print ('incorrect configuration file ' + conf +', cannot parse')
-    #     return None
 
     # parse the conf once here and save it in dictionary, it will apply to all images in the directory tree
     conf_dict = ut.read_config(disp_conf)
     if conf_dict is None:
         return None
-    #
-    # # get specfile and last_scan from the config file and add it to conf_dict
-    # main_conf = os.path.join(conf_dir, 'config')
-    # if os.path.isfile(main_conf):
-    #     config_map = ut.read_config(main_conf)
-    #     if config_map is None:
-    #         print ("info: can't read " + conf + " configuration file")
-    #         return None
-
-    if 'beamline' in main_config_map:
-        conf_dict['beamline'] = main_config_map['beamline']
-    else:
-        print('beamline must be defined in the configuration file', main_conf)
+    er_msg = ver.verify('config_disp', conf_dict)
+    if len(er_msg) > 0:
+        # the error message is printed in verifier
         return None
 
-    if 'specfile' in main_config_map and 'scan' in main_config_map:
-        conf_dict['specfile'] = main_config_map['specfile']
-        scan = main_config_map['scan']
+    if 'beamline' in main_conf_map:
+        conf_dict['beamline'] = main_conf_map['beamline']
+    else:
+        print('Beamline must be configured in configuration file ' + main_conf_file)
+        return None
+
+    # get specfile and last_scan from the config file and add it to conf_dict
+    if 'specfile' in main_conf_map and 'scan' in main_conf_map:
+        conf_dict['specfile'] = main_conf_map['specfile']
+        scan = main_conf_map['scan']
         last_scan = scan.split(',')[-1].split('-')[-1]
         conf_dict['last_scan'] = int(last_scan)
     else:
@@ -221,9 +221,9 @@ def handle_visualization(experiment_dir, rec_id=None, image_file=None):
     if conf_dict is None:
         return
 
-    if 'beamline' in conf_dict:
+    try:
         disp = importlib.import_module('beamlines.' + conf_dict['beamline'] + '.disp')
-    else:
+    except:
         print ('cannot import beamlines.' + conf_dict['beamline'] + '.disp module.')
         return
 

@@ -27,7 +27,7 @@ import cohere.controller.reconstruction_single as rec
 import cohere.controller.reconstruction_GA as gen_rec
 import cohere.controller.reconstruction_multi as mult_rec
 import cohere.utilities.utils as ut
-# import config_verifier as ver
+import cohere.utilities.config_verifier as ver
 import convertconfig as conv
 
 MEM_FACTOR = 1500
@@ -147,26 +147,26 @@ def manage_reconstruction(experiment_dir, rec_id=None):
 
     if 'converter_ver' not in config_map or conv.get_version() is None or conv.get_version() < config_map['converter_ver']:
         config_map = conv.convert(conf_dir, 'config')
+    # verify main config file
+    er_msg = ver.verify('config', config_map)
+    if len(er_msg) > 0:
+        # the error message is printed in verifier
+        return None
 
     if rec_id is None:
         conf_file = os.path.join(conf_dir, 'config_rec')
     else:
         conf_file = os.path.join(conf_dir, 'config_rec_' + rec_id)
 
-    # check if file exists
-    if not os.path.isfile(conf_file):
-        print('no configuration file ' + conf_file + ' found')
-        return
-
-    # # verify the configuration file
-    # if not ver.ver_config_rec(conf_file):
-    #     # if not verified, the ver will print message
-    #     return
-
     config_map = ut.read_config(conf_file)
     if config_map is None:
-        print("can't read configuration file " + conf_file)
         return
+
+    # verify configuration
+    er_msg = ver.verify('config_rec', config_map)
+    if len(er_msg) > 0:
+        # the error message is printed in verifier
+        return None
 
     # find which librarry to run it on, default is numpy ('np')
     if 'processing' in config_map:

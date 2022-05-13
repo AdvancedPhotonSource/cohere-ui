@@ -25,6 +25,7 @@ import os
 import sys
 import importlib
 import convertconfig as conv
+import cohere.utilities.config_verifier as ver
 
 
 def handle_prep(experiment_dir, *args, **kwargs):
@@ -45,13 +46,18 @@ def handle_prep(experiment_dir, *args, **kwargs):
     main_conf_file = os.path.join(experiment_dir, *("conf", "config"))
     main_conf_map = ut.read_config(main_conf_file)
     if main_conf_map is None:
-        print('Please check the configuration file ' + main_conf_file)
         return None
+
     # convert configuration files if needed
     if 'converter_ver' not in main_conf_map or conv.get_version() is None or conv.get_version() < main_conf_map['converter_ver']:
         conv.convert(os.path.join(experiment_dir, 'conf'))
         #re-parse config
         main_conf_map = ut.read_config(main_conf_file)
+
+    er_msg = ver.verify('config', main_conf_map)
+    if len(er_msg) > 0:
+        # the error message is printed in verifier
+        return
     if 'beamline' in main_conf_map:
         beamline = main_conf_map['beamline']
         try:
@@ -60,17 +66,17 @@ def handle_prep(experiment_dir, *args, **kwargs):
         except Exception as e:
             print(e)
             print('cannot import beamlines.' + beamline + '.prep module.')
-            return
+            return None
     else:
         print('Beamline must be configured in configuration file ' + main_conf_file)
         return None
     prep_conf_file = os.path.join(experiment_dir, *("conf", "config_prep"))
     prep_conf_map = ut.read_config(prep_conf_file)
     if prep_conf_map is None:
-        print('Please check the configuration file ' + prep_conf_file)
         return None
-    if 'data_dir' not in prep_conf_map:
-        print('please provide data_dir in configuration file')
+    er_msg = ver.verify('config_prep', prep_conf_map)
+    if len(er_msg) > 0:
+        # the error message is printed in verifier
         return None
     data_dir = prep_conf_map['data_dir']
     if not os.path.isdir(data_dir):

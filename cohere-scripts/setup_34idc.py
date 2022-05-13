@@ -21,7 +21,7 @@ import argparse
 import cohere.utilities.utils as ut
 import sys
 import os
-# import config_verifier as ver
+import cohere.utilities.config_verifier as ver
 import shutil
 import glob
 
@@ -86,62 +86,39 @@ def setup_rundirs(prefix, scan, conf_dir, **kwargs):
     -------
     nothing
     """
-    id = prefix + '_' + scan
-
     if not os.path.isdir(conf_dir):
         print('configured directory ' + conf_dir + ' does not exist')
         return
 
     main_conf = os.path.join(conf_dir, 'config')
-    if not os.path.isfile(main_conf):
-        print('the configuration directory does not contain "config" file')
-        return
-
-#    if not ver.ver_config_prep(main_conf):
-#        return
-
     config_map = ut.read_config(main_conf)
     if config_map is None:
-        print('Please check the configuration file ' + main_conf)
         return None
 
-    try:
+    id = prefix + '_' + scan
+
+    if 'working_dir' in config_map:
         working_dir = config_map['working_dir']
-    except:
+    else:
         working_dir = os.getcwd()
 
     experiment_dir = os.path.join(working_dir, id)
     if not os.path.exists(experiment_dir):
         os.makedirs(experiment_dir)
-    # copy config_data, config_rec, cofig_disp files from cofig directory into the experiment conf directory
+
     experiment_conf_dir = os.path.join(experiment_dir, 'conf')
     if not os.path.exists(experiment_conf_dir):
         os.makedirs(experiment_conf_dir)
 
-    # here we want the command line to be used if present, so need to check if None was passed or not.
-    if 'specfile' in kwargs:
-        specfile = kwargs['specfile']
-    if specfile is None:
-        try:
-            specfile = config_map['specfile']
-        except:
-            print("Specfile not in config or command line")
+    # override the config_map with values for new experiment
+    config_map['working_dir'] = working_dir
+    config_map['experiment_id'] = prefix
+    config_map['scan'] = scan
+    # here we want the command line to be used if present
+    if 'specfile' in kwargs and kwargs['specfile'] is not None:
+        config_map['specfile'] = kwargs['specfile']
 
-    # Based on params passed to this function create a temp config file and then copy it to the experiment dir.
-    experiment_main_config = os.path.join(experiment_conf_dir, 'config')
-    conf_map = {}
-    conf_map['working_dir'] = '"' + working_dir + '"'
-    conf_map['experiment_id'] = '"' + prefix + '"'
-    conf_map['scan'] = '"' + scan + '"'
-    if specfile is not None:
-        conf_map['specfile'] = '"' + specfile + '"'
-    try:
-#        conf_map['beamline'] = '"' + config_map.beamline + '"'
-        conf_map['beamline'] = config_map.beamline
-    except:
-        pass
-
-    ut.write_config(conf_map, experiment_main_config)
+    ut.write_config(config_map, os.path.join(experiment_conf_dir, 'config'))
 
     copy_conf(conf_dir, experiment_conf_dir)
 
@@ -180,12 +157,7 @@ def main(arg):
     id = args.id
     conf_dir = args.conf_dir
 
-    if args.specfile and os.path.isfile(args.specfile):
-        specfile = args.specfile
-    else:
-        specfile = None
-
-    return setup_rundirs(id, scan, conf_dir, copy_prep=args.copy_prep, specfile=specfile)
+    return setup_rundirs(id, scan, conf_dir, copy_prep=args.copy_prep, specfile=args.specfile)
 
 
 if __name__ == "__main__":

@@ -23,7 +23,7 @@ import beamline_visualization as dsp
 import sys
 import argparse
 
-def run_all(dev, experiment_dir, **kwargs):
+def run_all(experiment_dir, **kwargs):
     """
     Creates a "config_prep" file with some parameters commented out.
 
@@ -40,25 +40,23 @@ def run_all(dev, experiment_dir, **kwargs):
     -------
     nothing
     """
-    prep.set_prep(experiment_dir)
-    dt.data(experiment_dir)
+    prep.handle_prep(experiment_dir)
+    dt.format_data(experiment_dir)
     if 'rec_id' in kwargs:
-        rec.manage_reconstruction(dev, experiment_dir, kwargs['rec_id'])
-        dsp.to_vtk(experiment_dir, kwargs['rec_id'])
+        rec.manage_reconstruction(experiment_dir, kwargs['rec_id'])
+        dsp.handle_visualization(experiment_dir, kwargs['rec_id'])
     else:
-        rec.manage_reconstruction(dev, experiment_dir)
-        dsp.to_vtk(experiment_dir)
+        rec.manage_reconstruction(experiment_dir)
+        dsp.handle_visualization(experiment_dir)
 
 def main(arg):
     parser = argparse.ArgumentParser()
-    parser.add_argument("dev", help="processor to run on (cpu, opencl, cuda)")
     parser.add_argument("experiment_dir", help="experiment directory")
     parser.add_argument("--rec_id", help="reconstruction id, a prefix to '_results' directory")
 
     args = parser.parse_args()
-    dev = args.dev
     experiment_dir = args.experiment_dir
-    run_all(dev, experiment_dir, rec_id=args.rec_id)
+    run_all(experiment_dir, rec_id=args.rec_id)
 
 
 if __name__ == "__main__":
