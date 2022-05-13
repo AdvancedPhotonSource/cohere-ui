@@ -1,4 +1,4 @@
-results_dir = "CUR_DIR/example_workspace/scan_54/results"
+results_dir = "CUR_DIR/example_workspace/scan_54/results_phasing"
 energy = 9.0
 delta = 32.174
 gamma = 12.6346
