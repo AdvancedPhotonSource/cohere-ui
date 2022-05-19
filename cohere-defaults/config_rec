@@ -48,16 +48,18 @@ device = [0,1]
                              // If not defined, it will default to -1 for the OS to select device
 
 algorithm_sequence = "3* (20*ER + 180*HIO) + 20*ER"
-                             // mandatory, defines algorithm applied in each iteration during modulus projection and
-                             // during modulus. The "*" charcter means repeat, and the "+" means add to the sequence.
-                             // The sequence may contain single brackets defining a group that will be repeated by the
-                             // preceding multiplier. The alphabetic entries: ER, ERpc, HIO, HIOpc define algorithms
-                             // used in this iteration. The entries will invoke functions as follows: ER definition will
-                             // invoke 'er' and 'modulus' functions, the ERpc will invoke 'er' and 'pc_modulus', HIO
-                             // will invoke 'hio' and 'modulus', and HIOpc will invoke 'hio' and 'pc_modulus'. The
-                             // pc_modulus is implementation of modulus with partial coherence correction. If defining
-                             // ERpc or HIOpc the pcdi feature must be activated. If not activated, the phasing will use
-                             // modulus function instead.
+                            // mandatory, defines algorithm applied in each iteration during modulus projection and
+                            // during modulus. The "*" character means repeat, and the "+" means add to the sequence.
+                            // The sequence may contain single brackets defining a group that will be repeated by the
+                            // preceding multiplier. The alphabetic entries: 'ER', 'ERpc', 'HIO', 'HIOpc' define algorithms
+                            // used in this iteration. The entries will invoke functions as follows:
+                            // 'ER' definition will invoke 'er' and 'modulus' functions
+                            // 'ERpc' will invoke 'er' and 'pc_modulus'
+                            // 'HIO' will invoke 'hio' and 'modulus'
+                            // 'HIOpc' will invoke 'hio' and 'pc_modulus'.
+                            // The pc_modulus is implementation of modulus with partial coherence correction.
+                            // If defining ERpc or HIOpc the pcdi feature must be activated. If not activated,
+                            // the phasing will use modulus function instead.
 
 hio_beta = .9
                              // used in hio algorithm
@@ -68,14 +70,40 @@ hio_beta = .9
 
 // ga_metrics = ["chi", "sharpness"]
                              // defines which metric should be used to rank the reconstruction results
-                             // supported: 'chi', 'sharpness', 'summed_phase', 'area'
+                             // supported:
+                             // - 'chi' - the last error calculated as norm(rs_amplitudes - data)/norm(data)
+                             //   The smallest 'chi' value is the best.
+                             // - 'sharpness' - sum(power(abs(image), 4))
+                             //   The smallest 'sharpness' value is the best.
+                             // - 'summed_phase' -  angle(image) - sum(angle(image) * support) / sum(support)
+                             //   where support is calculated with shrink wrap using hardcoded threshold=.2 and sigma=.5
+                             //   The greatest 'summed_phase' value is the best.
+                             // - 'area' - sum(support)
+                             //   where support is calculated with shrink wrap using hardcoded threshold=.2 and sigma=.5
+                             //   The greatest 'area' value is the best.
 
-// ga_breed_modes = ["sqrt_ab", "dsqrt"]
+// ga_breed_modes = ["sqrt_ab", "2ab_a_b"]
                              // defines which breeding mode to use to populate new generation. If "none"
-                             // there is no breeding
-                             // supported: 'sqrt_ab', 'dsqrt', 'pixel_switch', 'b_pa', '2ab_a_b',
-                             // '2a_b_pa', 'sqrt_ab_pa', 'sqrt_ab_pa_recip', 'sqrt_ab_recip',
-                             // 'max_ab', 'max_ab_pa', 'min_ab_pa', 'avg_ab', 'avg_ab_pa'
+                             // there is no breeding.
+                             // Breeding starts with choosing alpha image. The rest of the images are crossed with alpha.
+                             // Before the crossing, the image, called beta is aligned with alpha, and phases in both of
+                             // the arrays are normalized to derive ph_alpha = angle(alpha), and ph_beta = angle(beta)
+                             // supported:
+                             // 'sqrt_ab' - sqrt(abs(alpha) * abs(beta)) * exp(0.5j * (ph_beta + ph_alpha))
+                             // 'dsqrt' -  sqrt(abs(beta)) * exp(1j * ph_beta)
+                             // 'pixel_switch' - where((cond > 0.5), beta, alpha), cond = random(shape(beta))
+                             // 'b_pa' - abs(beta) * exp(1j * (ph_alpha))
+                             // '2ab_a_b' - 2 * (beta * alpha) / (beta + alpha)
+                             // '2a_b_pa' - (2 * abs(alpha) - abs(beta)) * exp(1j * ph_alpha)
+                             // 'sqrt_ab_pa' - sqrt(abs(alpha) * abs(beta)) * exp(1j * ph_alpha)
+                             // 'sqrt_ab_recip' - fftshift(ifft(fftshift(temp))), where temp is calculated below
+                             //                      t1 = fftshift(fft(fftshift(beta)))
+                             //                      t2 = fftshift(fft(fftshift(alpha)))
+                             //                      temp = sqrt(abs(t1)*abs(t2))*exp(.5j*angle(t1))*exp(.5j*angle(t2))
+                             // 'max_ab' - max(abs(alpha), abs(beta)) * exp(.5j * (ph_beta + ph_alpha))
+                             // 'max_ab_pa' - max(abs(alpha), abs(beta)) * exp(1j * ph_alpha)
+                             // 'avg_ab' - 0.5 * (alpha + beta)
+                             // 'avg_ab_pa - 0.5 * (abs(alpha) + abs(beta)) * exp(1j * (ph_alpha))
 
 // ga_cullings = [2,1]
                              // defines how many worst samples to remove in breeding phase for each generation
@@ -169,9 +197,9 @@ initial_support_area = [.5,.5,.5]
                              // If only one number given, the last sigma will default to shrink_wrap_gauss_sigma.
 
 // lowpass_filter_range = [.7]
-                             // used when applying low resolution data mask while iterating. 
+                             // used when applying low-pass data filter while iterating.
                              // The det values are linespaced for low resolution iterations from first value to last. 
-                             // The mask is gauss with sigma of linespaced det. If only one number given,
+                             // The filter is gauss with sigma of linespaced det. If only one number given,
                              // the last det will default to 1.
 
 // AVERAGING
