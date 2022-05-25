@@ -14,15 +14,10 @@ __author__ = "Ross Harder"
 __copyright__ = "Copyright (c), UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['process_dir',
-           'save_vtk_file',
            'get_conf_dict',
            'handle_visualization',
            'main']
 
-import cohere.utilities.viz_util as vu
-import cohere.utilities.utils as ut
-from cohere.beamlines.viz import CXDViz
-import cohere.utilities.config_verifier as ver
 import argparse
 import sys
 import os
@@ -31,6 +26,7 @@ from functools import partial
 from multiprocessing import Pool, cpu_count
 import importlib
 import convertconfig as conv
+import cohere
 
 
 def process_dir(geometry, rampups, crop, make_twin, res_dir):
@@ -56,7 +52,7 @@ def process_dir(geometry, rampups, crop, make_twin, res_dir):
     imagefile = os.path.join(res_dir, 'image.npy')
     try:
         image = np.load(imagefile)
-        ut.save_tif(image, os.path.join(save_dir, 'image.tif'))
+        cohere.save_tif(image, os.path.join(save_dir, 'image.tif'))
     except:
         print('cannot load file', imagefile)
         return
@@ -68,7 +64,7 @@ def process_dir(geometry, rampups, crop, make_twin, res_dir):
     if os.path.isfile(supportfile):
         try:
             support = np.load(supportfile)
-            ut.save_tif(support, os.path.join(save_dir, 'support.tif'))
+            cohere.save_tif(support, os.path.join(save_dir, 'support.tif'))
         except:
             print('cannot load file', supportfile)
     else:
@@ -82,20 +78,20 @@ def process_dir(geometry, rampups, crop, make_twin, res_dir):
             print('cannot load file', cohfile)
 
     if support is not None:
-        image, support = vu.center(image, support)
+        image, support = cohere.center(image, support)
     if rampups > 1:
-        image = vu.remove_ramp(image, ups=rampups)
+        image = cohere.remove_ramp(image, ups=rampups)
 
-    viz = CXDViz(crop, geometry)
+    viz = cohere.CXDViz(crop, geometry)
     viz.visualize(image, support, coh, save_dir)
 
     if make_twin:
         image = np.conjugate(np.flip(image))
         if support is not None:
             support = np.flip(support)
-            image, support = vu.center(image, support)
+            image, support = cohere.center(image, support)
         if rampups > 1:
-            image = vu.remove_ramp(image, ups=rampups)
+            image = cohere.remove_ramp(image, ups=rampups)
         viz.visualize(image, support, coh, save_dir, True)
 
 
@@ -124,9 +120,9 @@ def process_file(image_file, geometry, rampups, crop):
         return
 
     if rampups > 1:
-        image = vu.remove_ramp(image, ups=rampups)
+        image = cohere.remove_ramp(image, ups=rampups)
 
-    viz = CXDViz(crop, geometry)
+    viz = cohere.CXDViz(crop, geometry)
     viz.visualize(image, None, None, os.path.dirname(image_file))
 
 
@@ -150,7 +146,7 @@ def get_conf_dict(experiment_dir):
     conf_dir = os.path.join(experiment_dir, 'conf')
 
     main_conf_file = os.path.join(conf_dir, 'config')
-    main_conf_map = ut.read_config(main_conf_file)
+    main_conf_map = cohere.read_config(main_conf_file)
     if main_conf_map is None:
         return None
 
@@ -159,9 +155,9 @@ def get_conf_dict(experiment_dir):
         'converter_ver']:
         conv.convert(conf_dir)
         # re-parse config
-        main_conf_map = ut.read_config(main_conf_file)
+        main_conf_map = cohere.read_config(main_conf_file)
 
-    er_msg = ver.verify('config', main_conf_map)
+    er_msg = cohere.verify('config', main_conf_map)
     if len(er_msg) > 0:
         # the error message is printed in verifier
         return None
@@ -169,10 +165,10 @@ def get_conf_dict(experiment_dir):
     disp_conf = os.path.join(conf_dir, 'config_disp')
 
     # parse the conf once here and save it in dictionary, it will apply to all images in the directory tree
-    conf_dict = ut.read_config(disp_conf)
+    conf_dict = cohere.read_config(disp_conf)
     if conf_dict is None:
         return None
-    er_msg = ver.verify('config_disp', conf_dict)
+    er_msg = cohere.verify('config_disp', conf_dict)
     if len(er_msg) > 0:
         # the error message is printed in verifier
         return None
@@ -194,7 +190,7 @@ def get_conf_dict(experiment_dir):
 
     # get binning from the config_data file and add it to conf_dict
     data_conf = os.path.join(conf_dir, 'config_data')
-    data_conf_map = ut.read_config(data_conf)
+    data_conf_map = cohere.read_config(data_conf)
     if data_conf_map is None:
         return conf_dict
     if 'binning' in data_conf_map:

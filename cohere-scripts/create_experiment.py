@@ -23,7 +23,7 @@ __all__ = ['create_conf_prep',
 import argparse
 import sys
 import os
-import cohere.utilities.utils as ut
+import cohere
 import convertconfig as conv
 
 
@@ -224,7 +224,7 @@ def create_exp(prefix, scan, working_dir, **args):
     # get converter version
     conf_map['converter_ver'] = conv.get_version()
 
-    ut.write_config(conf_map, experiment_main_config)
+    cohere.write_config(conf_map, experiment_main_config)
 
     # create simple configuration for each phase
     create_conf_prep(experiment_conf_dir)

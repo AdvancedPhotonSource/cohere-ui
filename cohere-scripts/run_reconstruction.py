@@ -12,8 +12,7 @@ Depending on configuration it starts either single reconstruction, GA, or multip
 __author__ = "Barbara Frosik"
 __copyright__ = "Copyright (c), UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['interrupt_thread',
-           'rec_process',
+__all__ = ['rec_process',
            'get_gpu_use',
            'manage_reconstruction',
            'main']
@@ -23,11 +22,7 @@ import signal
 import os
 import argparse
 from multiprocessing import Process, Queue
-import cohere.controller.reconstruction_single as rec
-import cohere.controller.reconstruction_GA as gen_rec
-import cohere.controller.reconstruction_multi as mult_rec
-import cohere.utilities.utils as ut
-import cohere.utilities.config_verifier as ver
+import cohere
 import convertconfig as conv
 
 MEM_FACTOR = 1500
@@ -58,11 +53,11 @@ def rec_process(proc, conf_file, datafile, dir, gpus, r, q):
     nothing
     """
     if r == 'g':
-        gen_rec.reconstruction(proc, conf_file, datafile, dir, gpus)
+        cohere.reconstruction_GA.reconstruction(proc, conf_file, datafile, dir, gpus)
     elif r == 'm':
-        mult_rec.reconstruction(proc, conf_file, datafile, dir, gpus)
+        cohere.reconstruction_multi.reconstruction(proc, conf_file, datafile, dir, gpus)
     elif r == 's':
-        rec.reconstruction(proc, conf_file, datafile, dir, gpus)
+        cohere.reconstruction_single.reconstruction(proc, conf_file, datafile, dir, gpus)
     q.put((os.getpid(), gpus))
 
 
@@ -93,10 +88,10 @@ def get_gpu_use(devices, no_dir, no_rec, data_shape):
         # find size of data array
         data_size = reduce((lambda x, y: x * y), data_shape)
         rec_mem_size = data_size / MEM_FACTOR
-        gpu_load = ut.get_gpu_load(rec_mem_size, devices)
+        gpu_load = cohere.get_gpu_load(rec_mem_size, devices)
 
     no_runs = no_dir * no_rec
-    gpu_distribution = ut.get_gpu_distribution(no_runs, gpu_load)
+    gpu_distribution = cohere.get_gpu_distribution(no_runs, gpu_load)
     gpu_use = []
     available = reduce((lambda x, y: x + y), gpu_distribution)
     dev_index = 0
@@ -137,7 +132,7 @@ def manage_reconstruction(experiment_dir, rec_id=None):
     # convert configuration files if needed
     main_conf = os.path.join(conf_dir, 'config')
     if os.path.isfile(main_conf):
-        config_map = ut.read_config(main_conf)
+        config_map = cohere.read_config(main_conf)
         if config_map is None:
             print ("info: can't read " + main_conf + " configuration file")
             return None
@@ -148,7 +143,7 @@ def manage_reconstruction(experiment_dir, rec_id=None):
     if 'converter_ver' not in config_map or conv.get_version() is None or conv.get_version() < config_map['converter_ver']:
         config_map = conv.convert(conf_dir, 'config')
     # verify main config file
-    er_msg = ver.verify('config', config_map)
+    er_msg = cohere.verify('config', config_map)
     if len(er_msg) > 0:
         # the error message is printed in verifier
         return None
@@ -158,17 +153,17 @@ def manage_reconstruction(experiment_dir, rec_id=None):
     else:
         conf_file = os.path.join(conf_dir, 'config_rec_' + rec_id)
 
-    config_map = ut.read_config(conf_file)
+    config_map = cohere.read_config(conf_file)
     if config_map is None:
         return
 
     # verify configuration
-    er_msg = ver.verify('config_rec', config_map)
+    er_msg = cohere.verify('config_rec', config_map)
     if len(er_msg) > 0:
         # the error message is printed in verifier
         return None
 
-    # find which librarry to run it on, default is numpy ('np')
+    # find which library to run it on, default is numpy ('np')
     if 'processing' in config_map:
         proc = config_map['processing']
     else:
@@ -249,7 +244,7 @@ def manage_reconstruction(experiment_dir, rec_id=None):
             devices = [-1]
 
         if no_runs * reconstructions > 1:
-            data_shape = ut.read_tif(exp_dirs_data[0][0]).shape
+            data_shape = cohere.read_tif(exp_dirs_data[0][0]).shape
             device_use = get_gpu_use(devices, no_runs, reconstructions, data_shape)
         else:
             device_use = devices
@@ -261,11 +256,11 @@ def manage_reconstruction(experiment_dir, rec_id=None):
         datafile = dir_data[0]
         dir = dir_data[1]
         if generations > 1:
-            gen_rec.reconstruction(lib, conf_file, datafile, dir, device_use)
+            cohere.reconstruction_GA.reconstruction(lib, conf_file, datafile, dir, device_use)
         elif reconstructions > 1:
-            mult_rec.reconstruction(lib, conf_file, datafile, dir, device_use)
+            cohere.reconstruction_multi.reconstruction(lib, conf_file, datafile, dir, device_use)
         else:
-            rec.reconstruction(lib, conf_file, datafile, dir, device_use)
+            cohere.reconstruction_single.reconstruction(lib, conf_file, datafile, dir, device_use)
     else:
         if len(device_use) == 0:
             device_use = [[-1]]

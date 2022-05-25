@@ -20,12 +20,12 @@ __all__ = ['import_beamline',
            'main']
 
 import argparse
-import cohere.utilities.utils as ut
+#import cohere.utilities.utils as ut
 import os
 import sys
 import importlib
 import convertconfig as conv
-import cohere.utilities.config_verifier as ver
+import cohere
 
 
 def handle_prep(experiment_dir, *args, **kwargs):
@@ -44,7 +44,7 @@ def handle_prep(experiment_dir, *args, **kwargs):
     # check cofiguration
     print ('preaparing data')
     main_conf_file = os.path.join(experiment_dir, *("conf", "config"))
-    main_conf_map = ut.read_config(main_conf_file)
+    main_conf_map = cohere.read_config(main_conf_file)
     if main_conf_map is None:
         return None
 
@@ -52,9 +52,9 @@ def handle_prep(experiment_dir, *args, **kwargs):
     if 'converter_ver' not in main_conf_map or conv.get_version() is None or conv.get_version() < main_conf_map['converter_ver']:
         conv.convert(os.path.join(experiment_dir, 'conf'))
         #re-parse config
-        main_conf_map = ut.read_config(main_conf_file)
+        main_conf_map = cohere.read_config(main_conf_file)
 
-    er_msg = ver.verify('config', main_conf_map)
+    er_msg = cohere.verify('config', main_conf_map)
     if len(er_msg) > 0:
         # the error message is printed in verifier
         return
@@ -71,10 +71,10 @@ def handle_prep(experiment_dir, *args, **kwargs):
         print('Beamline must be configured in configuration file ' + main_conf_file)
         return None
     prep_conf_file = os.path.join(experiment_dir, *("conf", "config_prep"))
-    prep_conf_map = ut.read_config(prep_conf_file)
+    prep_conf_map = cohere.read_config(prep_conf_file)
     if prep_conf_map is None:
         return None
-    er_msg = ver.verify('config_prep', prep_conf_map)
+    er_msg = cohere.verify('config_prep', prep_conf_map)
     if len(er_msg) > 0:
         # the error message is printed in verifier
         return None

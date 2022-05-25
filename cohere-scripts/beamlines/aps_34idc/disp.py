@@ -1,5 +1,4 @@
 import numpy as np
-from cohere.beamlines.viz import CXDViz
 import math as m
 import xrayutilities.experiment as xuexp
 from xrayutilities.io import spec as spec

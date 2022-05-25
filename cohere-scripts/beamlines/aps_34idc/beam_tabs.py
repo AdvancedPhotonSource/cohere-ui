@@ -1,12 +1,10 @@
 import os
-import shutil
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
-import cohere.utilities.utils as ut
-import cohere.utilities.config_verifier as ver
 from xrayutilities.io import spec as spec
 import convertconfig as conv
 import ast
+import cohere
 
 def get_det_from_spec(specfile, scan):
     """
@@ -267,9 +265,9 @@ class PrepTab(QWidget):
         if need_convert:
             conf_map = conv.get_conf_dict(conf, 'config_prep')
             # if experiment set, save the config_prep
-            ut.write_config(conf_map, conf)
+            cohere.write_config(conf_map, conf)
         else:
-            conf_map = ut.read_config(conf)
+            conf_map = cohere.read_config(conf)
             if conf_map is None:
                 msg_window('please check configuration file ' + conf )
                 return
@@ -423,7 +421,7 @@ class PrepTab(QWidget):
         else:
             conf_map = self.get_prep_config()
         # verify that prep configuration is ok
-        er_msg = ver.verify('config_prep', conf_map)
+        er_msg = cohere.verify('config_prep', conf_map)
         if len(er_msg) > 0:
             msg_window(er_msg)
             return
@@ -435,7 +433,7 @@ class PrepTab(QWidget):
         if len(scan) == 0:
             msg_window('cannot prepare data for 34idc, scan not specified')
 
-        ut.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
+        cohere.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
         # the separate_scan and separate_scan_ranges parameters affects other tab (results_dir in dispaly tab)
         # this tab has to notify observer about the initial setup
         self.notify()
@@ -503,11 +501,11 @@ class PrepTab(QWidget):
     def save_conf(self):
         conf_map = self.get_prep_config()
         if len(conf_map) > 0:
-            er_msg = ver.verify('config_prep', conf_map)
+            er_msg = cohere.verify('config_prep', conf_map)
             if len(er_msg) > 0:
                 msg_window(er_msg)
             else:
-                ut.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
+                cohere.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
 
 
     def parse_spec(self):
@@ -665,9 +663,9 @@ class DispTab(QWidget):
         if need_convert:
             conf_map = conv.get_conf_dict(conf, 'config_disp')
             # if experiment set, save the config_disp
-            ut.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
+            cohere.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
         else:
-            conf_map = ut.read_config(conf)
+            conf_map = cohere.read_config(conf)
             if conf_map is None:
                 msg_window('please check configuration file ' + conf)
                 return
@@ -851,23 +849,23 @@ class DispTab(QWidget):
 
         conf_map = self.get_disp_config()
         # verify that disp configuration is ok
-        er_msg = ver.verify('config_disp', conf_map)
+        er_msg = cohere.verify('config_disp', conf_map)
         if len(er_msg) > 0:
             msg_window(er_msg)
             return
 
-        ut.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
+        cohere.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
         self.tabs.run_viz()
 
 
     def save_conf(self):
         conf_map = self.get_disp_config()
         if len(conf_map) > 0:
-            er_msg = ver.verify('config_disp', conf_map)
+            er_msg = cohere.verify('config_disp', conf_map)
             if len(er_msg) > 0:
                 msg_window(er_msg)
             else:
-                ut.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
+                cohere.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
 
 
     def parse_spec(self):

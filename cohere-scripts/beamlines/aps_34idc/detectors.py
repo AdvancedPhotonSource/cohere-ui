@@ -1,6 +1,6 @@
-import cohere.utilities.utils as ut
 import numpy as np
-from cohere.beamlines.detector import Detector
+import cohere
+from cohere import Detector
 
 class Detector_34idcTIM1(Detector):
     """
@@ -30,14 +30,14 @@ class Detector_34idcTIM1(Detector):
         nothing
         """
         try:
-            self.darkfield = ut.read_tif(self.darkfield_filename)
+            self.darkfield = cohere.read_tif(self.darkfield_filename)
         except:
             print("Darkfield filename not set for TIM1, will not correct")
 
 
     def get_raw_frame(self, filename):
         try:
-            self.raw_frame = ut.read_tif(filename)
+            self.raw_frame = cohere.read_tif(filename)
         except:
             print("problem reading raw file ", filename)
             raise
@@ -129,7 +129,7 @@ class Detector_34idcTIM2(Detector):
         nothing
         """
         try:
-            self.whitefield = ut.read_tif(self.whitefield_filename)
+            self.whitefield = cohere.read_tif(self.whitefield_filename)
         except:
             print("Whitefield filename not set for TIM2")
             raise
@@ -156,7 +156,7 @@ class Detector_34idcTIM2(Detector):
         nothing
         """
         try:
-            self.darkfield = ut.read_tif(self.darkfield_filename)
+            self.darkfield = cohere.read_tif(self.darkfield_filename)
         except:
             print("Darkfield filename not set for TIM2")
             raise
@@ -165,7 +165,7 @@ class Detector_34idcTIM2(Detector):
 
     def get_raw_frame(self, filename):
         try:
-            self.raw_frame = ut.read_tif(filename)
+            self.raw_frame = cohere.read_tif(filename)
         except:
             print("problem reading raw file ", filename)
             raise

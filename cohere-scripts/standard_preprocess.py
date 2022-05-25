@@ -13,10 +13,9 @@ import sys
 import argparse
 import os
 import numpy as np
-import cohere.utilities.config_verifier as ver
-import cohere.utilities.utils as ut
 import alien_tools as at
 import convertconfig as conv
+import cohere
 
 
 __author__ = "Barbara Frosik"
@@ -51,7 +50,7 @@ def prep(fname, conf_info):
     """
     
     # The data has been transposed when saved in tif format for the ImageJ to show the right orientation
-    data = ut.read_tif(fname)
+    data = cohere.read_tif(fname)
 
     if os.path.isdir(conf_info):
         experiment_dir = conf_info
@@ -65,11 +64,11 @@ def prep(fname, conf_info):
         conf = conf_info
         experiment_dir = None
 
-    config_map = ut.read_config(conf)
+    config_map = cohere.read_config(conf)
     if config_map is None:
         return
 
-    er_msg = ver.verify('config_data', config_map)
+    er_msg = cohere.verify('config_data', config_map)
     if len(er_msg) > 0:
         # the error message is printed in verifier
         return None
@@ -118,16 +117,16 @@ def prep(fname, conf_info):
         pair = crops_pads[2*i:2*i+2]
         pairs.append(pair)
 
-    prep_data = ut.adjust_dimensions(prep_data, pairs)
+    prep_data = cohere.adjust_dimensions(prep_data, pairs)
     if prep_data is None:
         print('check "adjust_dimensions" configuration')
         return
 
     if 'center_shift' in config_map:
         center_shift = config_map['center_shift']
-        prep_data = ut.get_centered(prep_data, center_shift)
+        prep_data = cohere.get_centered(prep_data, center_shift)
     else:
-        prep_data = ut.get_centered(prep_data, [0,0,0])
+        prep_data = cohere.get_centered(prep_data, [0,0,0])
 
     if 'binning' in config_map:
         binsizes = config_map['binning']
@@ -138,13 +137,13 @@ def prep(fname, conf_info):
             filler = len(prep_data.shape) - len(bins)
             for _ in range(filler):
                 bins.append(1)
-            prep_data = ut.binning(prep_data, bins)
+            prep_data = cohere.binning(prep_data, bins)
         except:
             print ('check "binning" configuration')
 
     # save data
     data_file = os.path.join(data_dir, 'data.tif')
-    ut.save_tif(prep_data, data_file)
+    cohere.save_tif(prep_data, data_file)
     print ('data ready for reconstruction, data dims:', prep_data.shape)
     
     
@@ -164,7 +163,7 @@ def format_data(experiment_dir):
     # convert configuration files if needed
     main_conf = os.path.join(experiment_dir, *("conf", "config"))
     if os.path.isfile(main_conf):
-        config_map = ut.read_config(main_conf)
+        config_map = cohere.read_config(main_conf)
         if config_map is None:
             print ("info: can't read " + main_conf + " configuration file")
             return None
@@ -175,9 +174,9 @@ def format_data(experiment_dir):
     if 'converter_ver' not in config_map or conv.get_version() is None or conv.get_version() < config_map['converter_ver']:
         conv.convert(os.path.join(experiment_dir, 'conf'))
         # re-parse config
-        config_map = ut.read_config(main_conf)
+        config_map = cohere.read_config(main_conf)
 
-    er_msg = ver.verify('config', config_map)
+    er_msg = cohere.verify('config', config_map)
     if len(er_msg) > 0:
         # the error message is printed in verifier
         return None
