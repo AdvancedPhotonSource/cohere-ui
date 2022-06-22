@@ -219,7 +219,7 @@ def manage_reconstruction(experiment_dir, rec_id=None):
             exp_dirs_data.append((datafile, experiment_dir))
     no_runs = len(exp_dirs_data)
     if no_runs == 0:
-        print('did not find data.tif nor data.npy file(s). ')
+        print('did not find data.tif file(s). ')
         return
     if 'ga_generations' in config_map:
         generations = config_map['ga_generations']
