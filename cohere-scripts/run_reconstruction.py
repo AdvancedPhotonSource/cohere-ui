@@ -203,7 +203,7 @@ def manage_reconstruction(experiment_dir, rec_id=None):
     # experiment may be multi-scan in which case reconstruction will run for each scan
     for dir in os.listdir(experiment_dir):
         if dir.startswith('scan'):
-            datafile = os.path.join(experiment_dir, dir, 'data', 'data.tif')
+            datafile = os.path.join(experiment_dir, dir, 'phasing_data', 'data.tif')
             if os.path.isfile(datafile):
                 exp_dirs_data.append((datafile, os.path.join(experiment_dir, dir)))
     # if there are no scan directories, assume it is combined scans experiment
