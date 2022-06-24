@@ -671,11 +671,6 @@ class DispTab(QWidget):
                 return
 
         self.parse_spec()
-        # rather set the directory to the current experiment
-        # try:
-        #     self.results_dir = str(conf_map.results_dir).replace(" ","")
-        # except AttributeError:
-        #     if self.results_dir is None:
         self.results_dir = self.main_win.experiment_dir
 
         self.result_dir_button.setStyleSheet("Text-align:left")

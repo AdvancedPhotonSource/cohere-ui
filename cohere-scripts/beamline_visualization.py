@@ -267,7 +267,7 @@ def handle_visualization(experiment_dir, rec_id=None, image_file=None):
     if 'make_twin' in conf_dict:
         make_twin = conf_dict['make_twin']
     else:
-        make_twin = True
+        make_twin = False
 
     if image_file is not None:
         # find shape without loading the array
