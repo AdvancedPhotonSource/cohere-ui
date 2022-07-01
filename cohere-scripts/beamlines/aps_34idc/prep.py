@@ -157,7 +157,7 @@ class BeamPrepData():
                 unit_dirs_scan_indexes[i][1].append(scan_no)
 
         try:
-            data_dir = kwargs['data_dir']
+            data_dir = kwargs['data_dir'].replace(os.sep, '/')
         except:
             print('please provide data_dir in configuration file')
             return None, None
@@ -173,7 +173,7 @@ class BeamPrepData():
             return dirs, inds
 
         for name in os.listdir(data_dir):
-            subdir = os.path.join(data_dir, name)
+            subdir = data_dir + '/' + name
             if os.path.isdir(subdir):
                 # exclude directories with fewer tif files than min_files
                 if len(glob.glob1(subdir, "*.tif")) < self.min_files and len(glob.glob1(subdir, "*.tiff")) < self.min_files:
@@ -183,6 +183,7 @@ class BeamPrepData():
                     scan = int(last_digits.group())
                     if not scan in self.exclude_scans:
                         add_scan(scan, subdir)
+
         if self.separate_scan_ranges:
             for i in range(no_scan_ranges):
                 if len(unit_dirs_scan_indexes[i]) > 1:
@@ -319,7 +320,7 @@ class BeamPrepData():
 
         for key in ordered_keys:
             file = files_dir[key]
-            files.append(os.path.join(dir, file))
+            files.append(dir + '/' + file)
 
         # look at slice0 to find out shape
         n = 0
@@ -345,10 +346,10 @@ class BeamPrepData():
         experiment or <experiment_dir>/<scan_dir>/prep if writing for separate scans.
         """
         if index == '':
-            prep_data_dir = os.path.join(self.experiment_dir, 'preprocessed_data')
+            prep_data_dir = self.experiment_dir + '/preprocessed_data'
         else:
-            prep_data_dir = os.path.join(self.experiment_dir, *('scan_' + index, 'preprocessed_data'))
-        data_file = os.path.join(prep_data_dir, 'prep_data.tif')
+            prep_data_dir = self.experiment_dir + '/scan_' + index + '/preprocessed_data'
+        data_file = prep_data_dir + '/prep_data.tif'
         if not os.path.exists(prep_data_dir):
             os.makedirs(prep_data_dir)
         arr = self.detector.clear_seam(arr, self.roi)

@@ -1,6 +1,6 @@
 import os
 
-cur_dir = os.getcwd()
+cur_dir = os.getcwd().replace(os.sep, '/')
 
 with open('example_workspace/scan_54/conf/config', 'r') as file :
     filedata = file.read()

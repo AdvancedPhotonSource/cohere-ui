@@ -49,10 +49,10 @@ def process_dir(geometry, rampups, crop, make_twin, res_dir):
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     # image file was checked in calling function
-    imagefile = os.path.join(res_dir, 'image.npy')
+    imagefile = res_dir + '/image.npy'
     try:
         image = np.load(imagefile)
-        cohere.save_tif(image, os.path.join(save_dir, 'image.tif'))
+        cohere.save_tif(image, save_dir + '/image.tif')
     except:
         print('cannot load file', imagefile)
         return
@@ -60,17 +60,17 @@ def process_dir(geometry, rampups, crop, make_twin, res_dir):
     support = None
     coh = None
 
-    supportfile = os.path.join(res_dir, 'support.npy')
+    supportfile = res_dir + '/support.npy'
     if os.path.isfile(supportfile):
         try:
             support = np.load(supportfile)
-            cohere.save_tif(support, os.path.join(save_dir, 'support.tif'))
+            cohere.save_tif(support, save_dir + '/support.tif')
         except:
             print('cannot load file', supportfile)
     else:
         print('support file is missing in ' + res_dir + ' directory')
 
-    cohfile = os.path.join(res_dir, 'coherence.npy')
+    cohfile = res_dir + '/coherence.npy'
     if os.path.isfile(cohfile):
         try:
             coh = np.load(cohfile)
@@ -110,6 +110,7 @@ def process_file(image_file, geometry, rampups, crop):
     -------
     nothing
     """
+    image_file = image_file.replace(os.sep, '/')
     if os.path.isfile(image_file):
         try:
             image = np.load(image_file)
@@ -123,7 +124,7 @@ def process_file(image_file, geometry, rampups, crop):
         image = cohere.remove_ramp(image, ups=rampups)
 
     viz = cohere.CXDViz(crop, geometry)
-    viz.visualize(image, None, None, os.path.dirname(image_file))
+    viz.visualize(image, None, None, os.path.dirname(image_file).replace(os.sep, '/'))
 
 
 def get_conf_dict(experiment_dir):
@@ -140,12 +141,13 @@ def get_conf_dict(experiment_dir):
     conf_dict : dict
         a dictionary containing configuration parameters
     """
+    experiment_dir = experiment_dir.replace(os.sep, '/')
     if not os.path.isdir(experiment_dir):
         print("Please provide a valid experiment directory")
         return None
-    conf_dir = os.path.join(experiment_dir, 'conf')
+    conf_dir = experiment_dir + '/conf'
 
-    main_conf_file = os.path.join(conf_dir, 'config')
+    main_conf_file = conf_dir + '/config'
     main_conf_map = cohere.read_config(main_conf_file)
     if main_conf_map is None:
         return None
@@ -162,7 +164,7 @@ def get_conf_dict(experiment_dir):
         # the error message is printed in verifier
         return None
 
-    disp_conf = os.path.join(conf_dir, 'config_disp')
+    disp_conf = conf_dir + '/config_disp'
 
     # parse the conf once here and save it in dictionary, it will apply to all images in the directory tree
     conf_dict = cohere.read_config(disp_conf)
@@ -181,7 +183,7 @@ def get_conf_dict(experiment_dir):
 
     # get specfile and last_scan from the config file and add it to conf_dict
     if 'specfile' in main_conf_map and 'scan' in main_conf_map:
-        conf_dict['specfile'] = main_conf_map['specfile']
+        conf_dict['specfile'] = main_conf_map['specfile'].replace(os.sep, '/')
         scan = main_conf_map['scan']
         last_scan = scan.split(',')[-1].split('-')[-1]
         conf_dict['last_scan'] = int(last_scan)
@@ -189,12 +191,16 @@ def get_conf_dict(experiment_dir):
         print("specfile or scan range not in main config")
 
     # get binning from the config_data file and add it to conf_dict
-    data_conf = os.path.join(conf_dir, 'config_data')
+    data_conf = conf_dir + '/config_data'
     data_conf_map = cohere.read_config(data_conf)
     if data_conf_map is None:
         return conf_dict
     if 'binning' in data_conf_map:
         conf_dict['binning'] = data_conf_map['binning']
+    if 'separate_scans' in data_conf_map and data_conf['separate_scans'] or 'separate_scan_ranges' in data_conf_map and  data_conf[separate_scan_ranges]:
+        conf_dict['separate'] = True
+    else:
+        conf_dict['separate'] = False
 
     return conf_dict
 
@@ -212,6 +218,7 @@ def handle_visualization(experiment_dir, rec_id=None, image_file=None):
     -------
     nothing
     """
+    experiment_dir = experiment_dir.replace(os.sep, '/')
     print ('starting visualization process')
     conf_dict = get_conf_dict(experiment_dir)
     if conf_dict is None:
@@ -277,11 +284,13 @@ def handle_visualization(experiment_dir, rec_id=None, image_file=None):
         geometry = disp.set_geometry(shape, params)
         process_file(image_file, geometry, rampups, params.crop)
         return
+    elif conf_dict['separate']:
+        results_dir = experiment_dir
     elif rec_id is not None:
-        results_dir = os.path.join(experiment_dir, 'results_phasing_' + rec_id)
+        results_dir = experiment_dir + '/results_phasing_' + rec_id
     else:
         if 'results_dir' in conf_dict:
-            results_dir = conf_dict['results_dir']
+            results_dir = conf_dict['results_dir'].replace(os.sep, '/')
         else:
             results_dir = experiment_dir
     # find directories with image.npy file in the root of results_dir
@@ -289,13 +298,13 @@ def handle_visualization(experiment_dir, rec_id=None, image_file=None):
     for (dirpath, dirnames, filenames) in os.walk(results_dir):
         for file in filenames:
             if file.endswith('image.npy'):
-                dirs.append((dirpath))
+                dirs.append((dirpath).replace(os.sep, '/'))
     if len(dirs) == 0:
         print ('no image.npy files found in the directory tree', results_dir)
         return
     else:
         # find shape without loading the array
-        with open(os.path.join(dirs[0], 'image.npy'), 'rb') as f:
+        with open(dirs[0] + '/image.npy', 'rb') as f:
             np.lib.format.read_magic(f)
             shape, fortran, dtype = np.lib.format.read_array_header_1_0(f)
         geometry = disp.set_geometry(shape, params)

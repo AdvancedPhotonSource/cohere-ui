@@ -56,6 +56,7 @@ def versionfile(file_spec, vtype='copy'):
     import os
     import shutil
 
+    file_spec = file_spec.replace(os.sep, '/')
     if os.path.isfile(file_spec):
         # or, do other error checking:
         if vtype not in ('copy', 'rename'):
@@ -94,6 +95,8 @@ def returnconfigdictionary(cfile_path, cfile):
     extend = False
     currentdic = {}
 
+    cfile_path = cfile_path.replace(os.sep, '/')
+    cfile = cfile.replace(os.sep, '/')
     # Check if file exists, if it does make a backup copy of file with the new name config_backup
     if os.path.exists(cfile_path):
         if os.access(os.path.dirname(cfile_path), os.W_OK):
@@ -248,6 +251,7 @@ def get_conf_dict(cfile_path, cfile):
     currentdic : dict
         a dictionary with the configuration parameters
     """
+    cfile_path = cfile_path.replace(os.sep, '/')
     cdict = returnconfigdictionary(cfile_path, cfile)
     cdict = replace_keys(cdict, cfile)
     cdict = convert_dict(cdict, cfile)
@@ -313,6 +317,7 @@ def convert(startdir):
     -------
     nothing
     """
+    startdir = startdir.replace(os.sep, '/')
     # First check to see if directory exists, if not then exit
     if not os.path.exists(startdir):
         # there is nothing to convert
@@ -321,12 +326,12 @@ def convert(startdir):
     conf_files = []
     for cfile in config_maps.keys():
         # check if file exist
-        if not os.path.isfile(os.path.join(startdir, cfile)):
+        if not os.path.isfile(startdir +'/' + cfile):
             continue
         conf_files.append(cfile)
 
         # Now go into the content of each config  file and create a dictionary of line items to work with
-        thisdic = returnconfigdictionary(os.path.join(startdir, cfile), cfile)
+        thisdic = returnconfigdictionary(startdir + '/' + cfile, cfile)
 
         # Use map file to see what items need to change
         # Use the map file to determine what parameters need to be changed.
@@ -339,7 +344,7 @@ def convert(startdir):
         converted_dict = convert_dict(converted_dict, cfile)
 
         # Write the data out to the same-named file
-        writepath = os.path.join(startdir, cfile)
+        writepath = startdir + '/' + cfile
         fileobj = open(writepath, 'w')
         for subkey in converted_dict.keys():
             string2write = subkey + " =" + converted_dict[subkey] + '\n'

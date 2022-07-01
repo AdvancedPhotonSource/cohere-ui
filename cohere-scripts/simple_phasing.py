@@ -4,6 +4,7 @@ import cohere
 
 
 def reconstruction(datafile):
+        datafile = datafile.replace(os.sep, '/')
         cohere.phasing.reconstruction(datafile,
                 algorithm_sequence='1*(20*ER+80*HIO)+20*ER',
                 shrink_wrap_trigger = [1, 1],

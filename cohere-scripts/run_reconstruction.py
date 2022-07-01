@@ -126,11 +126,11 @@ def manage_reconstruction(experiment_dir, rec_id=None):
     nothing
     """
     print('starting reconstruction')
-
+    experiment_dir = experiment_dir.replace(os.sep, '/')
     # the rec_id is a postfix added to config_rec configuration file. If defined, use this configuration.
-    conf_dir = os.path.join(experiment_dir, 'conf')
+    conf_dir = experiment_dir + '/conf'
     # convert configuration files if needed
-    main_conf = os.path.join(conf_dir, 'config')
+    main_conf = conf_dir + '/config'
     if os.path.isfile(main_conf):
         config_map = cohere.read_config(main_conf)
         if config_map is None:
@@ -149,9 +149,9 @@ def manage_reconstruction(experiment_dir, rec_id=None):
         return None
 
     if rec_id is None:
-        conf_file = os.path.join(conf_dir, 'config_rec')
+        conf_file = conf_dir + '/config_rec'
     else:
-        conf_file = os.path.join(conf_dir, 'config_rec_' + rec_id)
+        conf_file = conf_dir + '/config_rec_' + rec_id
 
     config_map = cohere.read_config(conf_file)
     if config_map is None:
@@ -203,18 +203,18 @@ def manage_reconstruction(experiment_dir, rec_id=None):
     # experiment may be multi-scan in which case reconstruction will run for each scan
     for dir in os.listdir(experiment_dir):
         if dir.startswith('scan'):
-            datafile = os.path.join(experiment_dir, dir, 'phasing_data', 'data.tif')
+            datafile = experiment_dir + '/' + dir + '/phasing_data/data.tif'
             if os.path.isfile(datafile):
-                exp_dirs_data.append((datafile, os.path.join(experiment_dir, dir)))
+                exp_dirs_data.append((datafile, experiment_dir + '/' + dir))
     # if there are no scan directories, assume it is combined scans experiment
     if len(exp_dirs_data) == 0:
         # in typical scenario data_dir is not configured, and it is defaulted to <experiment_dir>/data
         # the data_dir is ignored in multi-scan scenario
         if 'data_dir' in config_map:
-            data_dir = config_map['data_dir']
+            data_dir = config_map['data_dir'].replace(os.sep, '/')
         else:
-            data_dir = os.path.join(experiment_dir, 'phasing_data')
-        datafile = os.path.join(data_dir, 'data.tif')
+            data_dir = experiment_dir + '/phasing_data'
+        datafile = data_dir + '/data.tif'
         if os.path.isfile(datafile):
             exp_dirs_data.append((datafile, experiment_dir))
     no_runs = len(exp_dirs_data)

@@ -40,6 +40,7 @@ def run_all(experiment_dir, **kwargs):
     -------
     nothing
     """
+    experiment_dir = experiment_dir.replace(os.sep, '/')
     prep.handle_prep(experiment_dir)
     dt.format_data(experiment_dir)
     if 'rec_id' in kwargs:

@@ -40,11 +40,12 @@ def select_file(start_dir):
     str
         name of selected file or None
     """
+    start_dir = start_dir.replace(os.sep, '/')
     dialog = QFileDialog(None, 'select dir', start_dir)
     dialog.setFileMode(QFileDialog.ExistingFile)
     dialog.setSidebarUrls([QUrl.fromLocalFile(start_dir)])
     if dialog.exec_() == QDialog.Accepted:
-        return str(dialog.selectedFiles()[0])
+        return str(dialog.selectedFiles()[0]).replace(os.sep, '/')
     else:
         return None
 
@@ -61,11 +62,12 @@ def select_dir(start_dir):
     str
         name of selected directory or None
     """
+    start_dir = start_dir.replace(os.sep, '/')
     dialog = QFileDialog(None, 'select dir', start_dir)
     dialog.setFileMode(QFileDialog.DirectoryOnly)
     dialog.setSidebarUrls([QUrl.fromLocalFile(start_dir)])
     if dialog.exec_() == QDialog.Accepted:
-        return str(dialog.selectedFiles()[0])
+        return str(dialog.selectedFiles()[0]).replace(os.sep, '/')
     else:
         return None
 
@@ -253,7 +255,7 @@ class cdi_gui(QWidget):
         scan = str(self.scan_widget.text()).replace(' ','')
         if scan != '':
             exp_id = exp_id + '_' + scan
-        if not os.path.exists(os.path.join(self.working_dir, exp_id)):
+        if not os.path.exists(self.working_dir + '/' + exp_id):
             return False
         return True
 
@@ -288,11 +290,11 @@ class cdi_gui(QWidget):
         -------
         nothing
         """
-        load_dir = select_dir(os.getcwd())
+        load_dir = select_dir(os.getcwd().replace(os.sep, '/')).replace(os.sep, '/')
         if load_dir is None:
             msg_window('please select valid conf directory')
             return
-        if os.path.isfile(os.path.join(load_dir, 'conf', 'config')):
+        if os.path.isfile(load_dir + '/conf/config'):
             need_convert = self.load_main(load_dir)
             # config file could not be parsed
             if need_convert is None:
@@ -328,7 +330,8 @@ class cdi_gui(QWidget):
         -------
         nothing
         """
-        conf = os.path.join(load_dir, 'conf', 'config')
+        load_dir = load_dir.replace(os.sep, '/')
+        conf = load_dir + '/conf/config'
         conf_map = cohere.read_config(conf)
         if conf_map is None:
             msg_window('please check configuration file ' + conf + '. Cannot parse, ')
@@ -337,7 +340,7 @@ class cdi_gui(QWidget):
         self.working_dir = None
         need_convert = False
         try:
-            working_dir = conf_map['working_dir']
+            working_dir = conf_map['working_dir'].replace(os.sep, '/')
             self.set_work_dir_button.setStyleSheet("Text-align:left")
             self.set_work_dir_button.setText(working_dir)
         except:
@@ -349,7 +352,7 @@ class cdi_gui(QWidget):
         else:
             exp_converter_ver = None
         if exp_converter_ver is None or exp_converter_ver < conv.get_version():
-            conf_map = conv.get_conf_dict(os.path.join(load_dir, 'conf', 'config'), 'config')
+            conf_map = conv.get_conf_dict(load_dir + '/conf/config', 'config')
             need_convert = True
 
         try:
@@ -391,7 +394,7 @@ class cdi_gui(QWidget):
         """
         if not os.path.exists(self.experiment_dir):
             os.makedirs(self.experiment_dir)
-        experiment_conf_dir = os.path.join(self.experiment_dir, 'conf')
+        experiment_conf_dir = self.experiment_dir + '/conf'
         if not os.path.exists(experiment_conf_dir):
             os.makedirs(experiment_conf_dir)
 
@@ -413,7 +416,7 @@ class cdi_gui(QWidget):
         if len(er_msg) > 0:
             msg_window(er_msg)
         else:
-            cohere.write_config(conf_map, os.path.join(self.experiment_dir, 'conf', 'config'))
+            cohere.write_config(conf_map, self.experiment_dir + '/conf/config')
 
 
     def set_experiment(self, loaded=False):
@@ -428,7 +431,7 @@ class cdi_gui(QWidget):
         -------
         nothing
         """
-        working_dir = self.set_work_dir_button.text()
+        working_dir = self.set_work_dir_button.text().replace(os.sep, '/')
         if len(working_dir) == 0:
             msg_window(
                 'The working directory is not defined in config file. Select valid working directory and set experiment')
@@ -455,7 +458,7 @@ class cdi_gui(QWidget):
             self.exp_id = self.id + '_' + str(self.scan_widget.text())
         else:
             self.exp_id = self.id
-        self.experiment_dir = os.path.join(self.working_dir, self.exp_id)
+        self.experiment_dir = self.working_dir + '/' + self.exp_id
         self.assure_experiment_dir()
 
         if len(self.beamline_widget.text().strip()) > 0:
@@ -634,11 +637,11 @@ class DataTab(QWidget):
         -------
         nothing
         """
+        load_from = load_from.replace(os.sep, '/')
         if os.path.isfile(load_from):
             conf = load_from
         else:
-            conf_dir = os.path.join(load_from, 'conf')
-            conf = os.path.join(conf_dir, 'config_data')
+            conf = load_from + '/conf/config_data'
             if not os.path.isfile(conf):
                 msg_window('info: the load directory does not contain config_data file')
                 return
@@ -816,7 +819,7 @@ class DataTab(QWidget):
                 if len(er_msg) > 0:
                     msg_window(er_msg)
                     return
-                cohere.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_data'))
+                cohere.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_data')
                 run_dt.format_data(self.main_win.experiment_dir)
             else:
                 msg_window('Please, run data preparation in previous tab to activate this function')
@@ -830,7 +833,7 @@ class DataTab(QWidget):
             if len(er_msg) > 0:
                 msg_window(er_msg)
                 return
-            cohere.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_data'))
+            cohere.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_data')
 
 
     def load_data_conf(self):
@@ -958,8 +961,8 @@ class RecTab(QWidget):
         -------
         nothing
         """
-        conf_dir = os.path.join(load_dir, 'conf')
-        conf = os.path.join(conf_dir, 'config_rec')
+        load_dir = load_dir.replace(os.sep, '/')
+        conf = load_dir + '/conf/config_rec'
         if not os.path.isfile(conf):
             msg_window('info: the load directory does not contain config_rec file')
             return
@@ -967,7 +970,7 @@ class RecTab(QWidget):
             conf_dict = conv.get_conf_dict(conf, 'config_rec')
             # if experiment set, save the config_rec
             try:
-                cohere.write_config(conf_dict, os.path.join(conf_dir, 'config_rec'))
+                cohere.write_config(conf_dict, conf)
             except:
                 pass
         else:
@@ -986,11 +989,11 @@ class RecTab(QWidget):
         elif conf_map['init_guess'] == 'continue':
             self.init_guess.setCurrentIndex(1)
             if 'continue_dir' in conf_map:
-                self.cont_dir_button.setText(str(conf_map['continue_dir']).replace(" ", ""))
+                self.cont_dir_button.setText(str(conf_map['continue_dir'].replace(os.sep, '/')).replace(" ", ""))
         elif conf_map['init_guess'] == 'AI_guess':
             self.init_guess.setCurrentIndex(2)
             if 'AI_trained_model' in conf_map:
-                self.AI_trained_model.setText(str(conf_map['AI_trained_model']).replace(" ", ""))
+                self.AI_trained_model.setText(str(conf_map['AI_trained_model'].replace(os.sep, '/')).replace(" ", ""))
                 self.AI_trained_model.setStyleSheet("Text-align:left")
 
         # this will update the configuration choices by reading configuration files names
@@ -1072,11 +1075,11 @@ class RecTab(QWidget):
         if self.init_guess.currentIndex() == 1:
             conf_map['init_guess'] = 'continue'
             if len(self.cont_dir_button.text().strip()) > 0:
-                conf_map['continue_dir'] = str(self.cont_dir_button.text()).strip()
+                conf_map['continue_dir'] = str(self.cont_dir_button.text()).replace(os.sep, '/').strip()
         elif self.init_guess.currentIndex() == 2:
             conf_map['init_guess'] = 'AI_guess'
             if len(self.AI_trained_model.text()) > 0:
-                conf_map['AI_trained_model'] = str(self.AI_trained_model.text())
+                conf_map['AI_trained_model'] = str(self.AI_trained_model.text()).replace(os.sep, '/').strip()
         for feat_id in self.features.feature_dir:
             self.features.feature_dir[feat_id].add_config(conf_map)
 
@@ -1092,7 +1095,7 @@ class RecTab(QWidget):
             msg_window(er_msg)
             return
         if len(conf_map) > 0:
-            cohere.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_rec'))
+            cohere.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_rec')
 
 
     def set_init_guess_layout(self, layout):
@@ -1118,7 +1121,7 @@ class RecTab(QWidget):
         -------
         nothing
         """
-        cont_dir = select_dir(os.getcwd())
+        cont_dir = select_dir(os.getcwd().replace(os.sep, '/')).replace(os.sep, '/')
         if cont_dir is not None:
             self.cont_dir_button.setStyleSheet("Text-align:left")
             self.cont_dir_button.setText(cont_dir)
@@ -1127,7 +1130,7 @@ class RecTab(QWidget):
 
 
     def set_aitm_file(self):
-        AI_trained_model = select_file(os.getcwd())
+        AI_trained_model = select_file(os.getcwd().replace(os.sep, '/')).replace(os.sep, '/')
         if AI_trained_model is not None:
             self.AI_trained_model.setStyleSheet("Text-align:left")
             self.AI_trained_model.setText(AI_trained_model)
@@ -1150,8 +1153,8 @@ class RecTab(QWidget):
             return
 
         # copy the config_rec into <id>_config_rec
-        conf_file = os.path.join(self.main_win.experiment_dir, 'conf', 'config_rec')
-        new_conf_file = os.path.join(self.main_win.experiment_dir, 'conf', 'config_rec_' + id)
+        conf_file = self.main_win.experiment_dir + '/conf/config_rec'
+        new_conf_file = self.main_win.experiment_dir + '/conf/config_rec_' + id
         shutil.copyfile(conf_file, new_conf_file)
         self.rec_id.setCurrentIndex(self.rec_id.count() - 1)
 
@@ -1178,9 +1181,9 @@ class RecTab(QWidget):
         conf_map = self.get_rec_config()
         if len(conf_map) == 0:
             return
-        conf_dir = os.path.join(self.main_win.experiment_dir, 'conf')
+        conf_dir = self.main_win.experiment_dir + '/conf'
 
-        cohere.write_config(conf_map, os.path.join(conf_dir, conf_file))
+        cohere.write_config(conf_map, conf_dir + '/' + conf_file)
         if str(self.rec_id.currentText()) == 'main':
             self.old_conf_id = ''
         else:
@@ -1188,9 +1191,9 @@ class RecTab(QWidget):
         # if a config file corresponding to the rec id exists, load it
         # otherwise read from base configuration and load
         if self.old_conf_id == '':
-            conf_file = os.path.join(conf_dir, 'config_rec')
+            conf_file = conf_dir + '/config_rec'
         else:
-            conf_file = os.path.join(conf_dir,  'config_rec_' + self.old_conf_id)
+            conf_file = conf_dir +  '/config_rec_' + self.old_conf_id
 
         conf_map = cohere.read_config(conf_file)
         if conf_map is None:
@@ -1265,7 +1268,7 @@ class RecTab(QWidget):
                 if len(er_msg) > 0:
                     msg_window(er_msg)
                     return
-                cohere.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', conf_file))
+                cohere.write_config(conf_map, self.main_win.experiment_dir + '/conf/' + conf_file)
                 run_rc.manage_reconstruction(self.main_win.experiment_dir, conf_id)
                 self.notify()
             else:
@@ -1309,7 +1312,7 @@ class RecTab(QWidget):
         if not self.main_win.is_exp_set():
             return
         self.rec_ids = []
-        for file in os.listdir(os.path.join(self.main_win.experiment_dir, 'conf')):
+        for file in os.listdir(self.main_win.experiment_dir + '/conf'):
             if file.startswith('config_rec_'):
                 self.rec_ids.append(file[len('config_rec_') : len(file)])
         if len(self.rec_ids) > 0:

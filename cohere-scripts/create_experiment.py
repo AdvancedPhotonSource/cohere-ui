@@ -40,7 +40,8 @@ def create_conf_prep(conf_dir):
     -------
     nothing
     """
-    conf_file_name = os.path.join(conf_dir, 'config_prep')
+    conf_dir = conf_dir.replace(os.sep, '/')
+    conf_file_name = conf_dir + '/config_prep'
     f = open(conf_file_name, "w+")
 
     f.write('data_dir = "/path/to/raw/data"\n')
@@ -69,7 +70,8 @@ def create_conf_data(conf_dir):
     -------
     nothing
     """
-    conf_file_name = os.path.join(conf_dir, 'config_data')
+    conf_dir = conf_dir.replace(os.sep, '/')
+    conf_file_name = conf_dir + '/config_data'
     f = open(conf_file_name, "w+")
     
     f.write('// data_dir = "/path/to/dir/formatted_data/is/saved"\n')
@@ -96,7 +98,8 @@ def create_conf_rec(conf_dir):
     -------
     nothing
     """
-    conf_file_name = os.path.join(conf_dir, 'config_rec')
+    conf_dir = conf_dir.replace(os.sep, '/')
+    conf_file_name = conf_dir + '/config_rec'
     f = open(conf_file_name, "w+")
 
     f.write('// data_dir = "/path/to/dir/with/formatted_data"\n')
@@ -150,8 +153,9 @@ def create_conf_disp(conf_dir):
     Returns
     -------
     nothing
-    """
-    conf_file_name = os.path.join(conf_dir, 'config_disp')
+    """.replace(os.sep, '/')
+    conf_dir = conf_dir
+    conf_file_name = conf_dir + 'config_disp'
     f = open(conf_file_name, "w+")
     
     f.write('// results_dir = "/path/to/dir/with/reconstructed/image(s)"\n')
@@ -194,24 +198,24 @@ def create_exp(prefix, scan, working_dir, **args):
         directory where the new experiment is located
     """
     id = prefix + '_' + scan
-
+    working_dir = working_dir.replace(os.sep, '/')
     if not os.path.isdir(working_dir):
         print('working directory ' + working_dir + ' does not exist')
         return
 
-    experiment_dir = os.path.join(working_dir, id)
+    experiment_dir = working_dir + '/' + id
     if not os.path.exists(experiment_dir):
        os.makedirs(experiment_dir)
     else:
         print('experiment with this id already exists')
         return experiment_dir
  
-    experiment_conf_dir = os.path.join(experiment_dir, 'conf')
+    experiment_conf_dir = experiment_dir + '/conf'
     if not os.path.exists(experiment_conf_dir):
         os.makedirs(experiment_conf_dir)
 
     # Based on params passed to this function create a temp config file and then copy it to the experiment dir.
-    experiment_main_config = os.path.join(experiment_conf_dir, 'config')
+    experiment_main_config = experiment_conf_dir + '/config'
     conf_map = {}
     conf_map['working_dir'] = working_dir
     conf_map['experiment_id'] = prefix

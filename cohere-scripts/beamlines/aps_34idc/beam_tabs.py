@@ -51,6 +51,7 @@ def parse_spec(specfile, scan):
     delta, gamma, theta, phi, chi, scanmot, scanmot_del, detdist, detector_name, energy
     """
     # Scan numbers start at one but the list is 0 indexed
+    specfile = specfile.replace(os.sep, '/')
     try:
         ss = spec.SPECFile(specfile)[scan - 1]
     except  Exception as ex:
@@ -137,11 +138,12 @@ def select_file(start_dir):
     str
         name of selected file or None
     """
+    start_dir = start_dir.replace(os.sep, '/')
     dialog = QFileDialog(None, 'select dir', start_dir)
     dialog.setFileMode(QFileDialog.ExistingFile)
     dialog.setSidebarUrls([QUrl.fromLocalFile(start_dir)])
     if dialog.exec_() == QDialog.Accepted:
-        return str(dialog.selectedFiles()[0])
+        return str(dialog.selectedFiles()[0]).replace(os.sep, '/')
     else:
         return None
 
@@ -158,11 +160,12 @@ def select_dir(start_dir):
     str
         name of selected directory or None
     """
+    start_dir = start_dir.replace(os.sep, '/')
     dialog = QFileDialog(None, 'select dir', start_dir)
     dialog.setFileMode(QFileDialog.DirectoryOnly)
     dialog.setSidebarUrls([QUrl.fromLocalFile(start_dir)])
     if dialog.exec_() == QDialog.Accepted:
-        return str(dialog.selectedFiles()[0])
+        return str(dialog.selectedFiles()[0]).replace(os.sep, '/')
     else:
         return None
 
@@ -255,10 +258,11 @@ class PrepTab(QWidget):
         -------
         nothing
         """
+        load_from = load_from.replace(os.sep, '/')
         if os.path.isfile(load_from):
             conf = load_from
         else:
-            conf = os.path.join(load_from, 'conf', 'config_prep')
+            conf = load_from + '/conf/config_prep'
             if not os.path.isfile(conf):
                 msg_window('info: the load directory does not contain config_prep file')
                 return
@@ -356,7 +360,7 @@ class PrepTab(QWidget):
         -------
         nothing
         """
-        prep_file = select_file(os.getcwd())
+        prep_file = select_file(os.getcwd().replace(os.sep, '/')).replace(os.sep, '/')
         if prep_file is not None:
             self.load_tab(prep_file)
         else:
@@ -433,7 +437,7 @@ class PrepTab(QWidget):
         if len(scan) == 0:
             msg_window('cannot prepare data for 34idc, scan not specified')
 
-        cohere.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
+        cohere.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_prep')
         # the separate_scan and separate_scan_ranges parameters affects other tab (results_dir in dispaly tab)
         # this tab has to notify observer about the initial setup
         self.notify()
@@ -454,7 +458,7 @@ class PrepTab(QWidget):
         -------
         nothing
         """
-        darkfield_filename = select_file(os.getcwd())
+        darkfield_filename = select_file(os.getcwd().replace(os.sep, '/')).replace(os.sep, '/')
         if darkfield_filename is not None:
             self.dark_file_button.setStyleSheet("Text-align:left")
             self.dark_file_button.setText(darkfield_filename)
@@ -472,7 +476,7 @@ class PrepTab(QWidget):
         -------
         nothing
         """
-        whitefield_filename = select_file(os.getcwd())
+        whitefield_filename = select_file(os.getcwd().replace(os.sep, '/')).replace(os.sep, '/')
         if whitefield_filename is not None:
             self.white_file_button.setStyleSheet("Text-align:left")
             self.white_file_button.setText(whitefield_filename)
@@ -490,7 +494,7 @@ class PrepTab(QWidget):
         -------
         nothing
         """
-        data_dir = select_dir(os.getcwd())
+        data_dir = select_dir(os.getcwd().replace(os.sep, '/')).replace(os.sep, '/')
         if data_dir is not None:
             self.data_dir_button.setStyleSheet("Text-align:left")
             self.data_dir_button.setText(data_dir)
@@ -505,7 +509,7 @@ class PrepTab(QWidget):
             if len(er_msg) > 0:
                 msg_window(er_msg)
             else:
-                cohere.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
+                cohere.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_prep')
 
 
     def parse_spec(self):
@@ -651,19 +655,20 @@ class DispTab(QWidget):
         -------
         nothing
         """
+        load_from = load_from.replace(os.sep, '/')
         if os.path.isfile(load_from):
             conf = load_from
-            conf_dir = os.path.dirname(os.path.abspath(conf))
+            conf_dir = os.path.dirname(os.path.abspath(conf).replace(os.sep, '/'))
         else:
-            conf_dir = os.path.join(load_from, 'conf')
-            conf = os.path.join(conf_dir, 'config_disp')
+            conf_dir = load_from + '/conf'
+            conf = conf_dir + '/config_disp'
             if not os.path.isfile(conf):
                 msg_window('info: the load directory does not contain config_disp file')
                 return
         if need_convert:
             conf_map = conv.get_conf_dict(conf, 'config_disp')
             # if experiment set, save the config_disp
-            cohere.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
+            cohere.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_disp')
         else:
             conf_map = cohere.read_config(conf)
             if conf_map is None:
@@ -751,7 +756,7 @@ class DispTab(QWidget):
         -------
         nothing
         """
-        disp_file = select_file(os.getcwd())
+        disp_file = select_file(os.getcwd().replace(os.sep, '/')).replace(os.sep, '/')
         if disp_file is not None:
             self.load_tab(disp_file)
         else:
@@ -771,7 +776,7 @@ class DispTab(QWidget):
         """
         conf_map = {}
         if self.results_dir is not None:
-            conf_map['results_dir'] = self.results_dir
+            conf_map['results_dir'] = self.results_dir.replace(os.sep, '/')
         if self.make_twin.isChecked():
             conf_map['make_twin'] = True
         if len(self.energy.text()) > 0:
@@ -823,6 +828,8 @@ class DispTab(QWidget):
         # check if the results exist
         if self.results_dir is None:
             self.results_dir = self.main_win.experiment_dir
+        else:
+            self.results_dir = self.results_dir.replace(os.sep, '/')
 #        if 'image.npy' in glob.glob1(self.results_dir, recursive=True):
         found_file = False
         for p, d, f in os.walk(self.results_dir):
@@ -849,7 +856,7 @@ class DispTab(QWidget):
             msg_window(er_msg)
             return
 
-        cohere.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
+        cohere.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_disp')
         self.tabs.run_viz()
 
 
@@ -860,7 +867,7 @@ class DispTab(QWidget):
             if len(er_msg) > 0:
                 msg_window(er_msg)
             else:
-                cohere.write_config(conf_map, os.path.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
+                cohere.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_disp')
 
 
     def parse_spec(self):
@@ -944,7 +951,7 @@ class DispTab(QWidget):
             if separate_scans or separate_scan_ranges:
                 self.results_dir = self.main_win.experiment_dir
             else:
-                self.results_dir = os.path.join(self.main_win.experiment_dir, 'results_phasing')
+                self.results_dir = self.main_win.experiment_dir + '/results_phasing'
             self.result_dir_button.setText(self.results_dir)
             self.result_dir_button.setStyleSheet("Text-align:left")
             return
@@ -952,9 +959,9 @@ class DispTab(QWidget):
         if 'rec_id' in args:
             rec_id = args['rec_id']
             if len(rec_id) > 0:
-                self.results_dir = os.path.join(self.main_win.experiment_dir, 'results_phasing_' + rec_id)
+                self.results_dir = self.main_win.experiment_dir + '/results_phasing_' + rec_id
             else:
-                self.results_dir = os.path.join(self.main_win.experiment_dir, 'results_phasing')
+                self.results_dir = self.main_win.experiment_dir + '/results_phasing'
 
         if 'generations' in args:
             generations = args['generations']
@@ -964,9 +971,9 @@ class DispTab(QWidget):
                 rec_no = 1
             if generations > 0:
                 if rec_no > 1:
-                    self.results_dir = os.path.join(self.results_dir, 'g_' + str(generations - 1), '0')
+                    self.results_dir = self.results_dir + '/g_' + str(generations - 1), '0'
                 else:
-                    self.results_dir = os.path.join(self.results_dir, 'g_' + str(generations - 1))
+                    self.results_dir = self.results_dir + '/g_' + str(generations - 1)
 
         self.result_dir_button.setText(self.results_dir)
         self.result_dir_button.setStyleSheet("Text-align:left")
@@ -985,8 +992,8 @@ class DispTab(QWidget):
         nothing
         """
         if self.main_win.is_exp_exists():
-            self.results_dir = os.path.join(self.main_win.experiment_dir, 'results_phasing')
-            self.results_dir = select_dir(self.results_dir)
+            self.results_dir = self.main_win.experiment_dir + '/results_phasing'
+            self.results_dir = select_dir(self.results_dir).replace(os.sep, '/')
             if self.results_dir is not None:
                 self.result_dir_button.setStyleSheet("Text-align:left")
                 self.result_dir_button.setText(self.results_dir)

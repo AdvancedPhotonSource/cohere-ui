@@ -36,8 +36,9 @@ def format_data(experiment_dir):
     -------
     nothing
     """
+    experiment_dir = experiment_dir.replace(os.sep, '/')
     # convert configuration files if needed
-    main_conf = os.path.join(experiment_dir, *("conf", "config"))
+    main_conf = experiment_dir + "/conf/config"
     if os.path.isfile(main_conf):
         config_map = cohere.read_config(main_conf)
         if config_map is None:
@@ -58,7 +59,7 @@ def format_data(experiment_dir):
         return None
 
     # read the config_data
-    data_conf = os.path.join(experiment_dir, *("conf", "config_data"))
+    data_conf = experiment_dir + "/conf/config_data"
     if os.path.isfile(data_conf):
         config_map = cohere.read_config(data_conf)
         if config_map is None:
@@ -73,12 +74,12 @@ def format_data(experiment_dir):
         return None
 
     print('formating data')
-    prep_file = os.path.join(experiment_dir, 'preprocessed_data', 'prep_data.tif')
+    prep_file = experiment_dir + '/preprocessed_data/prep_data.tif'
     if os.path.isfile(prep_file):
         if 'data_dir' in config_map:
             data_dir = config_map['data_dir']
         else:
-            data_dir = os.path.join(experiment_dir, 'phasing_data')
+            data_dir = experiment_dir + '/phasing_data'
             config_map['data_dir'] = data_dir
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
@@ -87,10 +88,10 @@ def format_data(experiment_dir):
     dirs = os.listdir(experiment_dir)
     for dir in dirs:
         if dir.startswith('scan'):
-            scan_dir = os.path.join(experiment_dir, dir)
-            prep_file = os.path.join(scan_dir, 'preprocessed_data', 'prep_data.tif')
+            scan_dir = experiment_dir + '/' + dir
+            prep_file = scan_dir + '/preprocessed_data/prep_data.tif'
             # ignore configured 'data_dir' as it can't be reused by multiple scans
-            data_dir = os.path.join(scan_dir, 'phasing_data')
+            data_dir = scan_dir + '/phasing_data'
             config_map['data_dir'] = data_dir
             if not os.path.exists(data_dir):
                 os.makedirs(data_dir)

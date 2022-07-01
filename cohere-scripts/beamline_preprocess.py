@@ -20,7 +20,6 @@ __all__ = ['import_beamline',
            'main']
 
 import argparse
-#import cohere.utilities.utils as ut
 import os
 import sys
 import importlib
@@ -41,16 +40,17 @@ def handle_prep(experiment_dir, *args, **kwargs):
     experimnent_dir : str
         directory with experiment files
     """
+    experiment_dir = experiment_dir.replace(os.sep, '/')
     # check cofiguration
     print ('preaparing data')
-    main_conf_file = os.path.join(experiment_dir, *("conf", "config"))
+    main_conf_file = experiment_dir + '/conf/config'
     main_conf_map = cohere.read_config(main_conf_file)
     if main_conf_map is None:
         return None
 
     # convert configuration files if needed
     if 'converter_ver' not in main_conf_map or conv.get_version() is None or conv.get_version() < main_conf_map['converter_ver']:
-        conv.convert(os.path.join(experiment_dir, 'conf'))
+        conv.convert(experiment_dir + '/conf')
         #re-parse config
         main_conf_map = cohere.read_config(main_conf_file)
 
@@ -70,7 +70,7 @@ def handle_prep(experiment_dir, *args, **kwargs):
     else:
         print('Beamline must be configured in configuration file ' + main_conf_file)
         return None
-    prep_conf_file = os.path.join(experiment_dir, *("conf", "config_prep"))
+    prep_conf_file = experiment_dir + '/conf/config_prep'
     prep_conf_map = cohere.read_config(prep_conf_file)
     if prep_conf_map is None:
         return None
@@ -78,7 +78,7 @@ def handle_prep(experiment_dir, *args, **kwargs):
     if len(er_msg) > 0:
         # the error message is printed in verifier
         return None
-    data_dir = prep_conf_map['data_dir']
+    data_dir = prep_conf_map['data_dir'].replace(os.sep, '/')
     if not os.path.isdir(data_dir):
         print('data directory ' + data_dir + ' is not a valid directory')
         return None
