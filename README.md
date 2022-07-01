@@ -1,11 +1,12 @@
-# cohere-scripts
+# cohere-ui
 User files
 
 This repository contains supplementary files to the cohere tools https://github.com/advancedPhotonSource/cohere.
 
-After installing this repository run setup.py script:
+After installing this repository run setup.py and install_pkgs.sh/install_pkgs.bat scripts:
 
     python setup.py
+    sh install_pkgs.sh or install_pkgs.bat
     
 Content:
 1. scripts directory containing user scripts
