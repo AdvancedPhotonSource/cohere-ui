@@ -6,7 +6,8 @@ This repository contains supplementary files to the cohere tools https://github.
 After installing this repository run setup.py and install_pkgs.sh/install_pkgs.bat scripts:
 
     python setup.py
-    sh install_pkgs.sh or install_pkgs.bat
+    sh install_pkgs.sh.  # for mac or Linux
+    install_pkgs.bat.    # for Windows
     
 Content:
 1. scripts directory containing user scripts
