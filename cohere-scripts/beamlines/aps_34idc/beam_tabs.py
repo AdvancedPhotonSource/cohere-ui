@@ -971,7 +971,7 @@ class DispTab(QWidget):
                 rec_no = 1
             if generations > 0:
                 if rec_no > 1:
-                    self.results_dir = self.results_dir + '/g_' + str(generations - 1), '0'
+                    self.results_dir = self.results_dir + '/g_' + str(generations - 1) + '/0'
                 else:
                     self.results_dir = self.results_dir + '/g_' + str(generations - 1)
 
