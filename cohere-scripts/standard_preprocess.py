@@ -14,6 +14,7 @@ import argparse
 import os
 import convertconfig as conv
 import cohere
+import util.util as ut
 
 
 __author__ = "Barbara Frosik"
@@ -40,7 +41,7 @@ def format_data(experiment_dir):
     # convert configuration files if needed
     main_conf = experiment_dir + "/conf/config"
     if os.path.isfile(main_conf):
-        config_map = cohere.read_config(main_conf)
+        config_map = ut.read_config(main_conf)
         if config_map is None:
             print ("info: can't read " + main_conf + " configuration file")
             return None
@@ -51,7 +52,7 @@ def format_data(experiment_dir):
     if 'converter_ver' not in config_map or conv.get_version() is None or conv.get_version() < config_map['converter_ver']:
         conv.convert(os.path.join(experiment_dir, 'conf'))
         # re-parse config
-        config_map = cohere.read_config(main_conf)
+        config_map = ut.read_config(main_conf)
 
     er_msg = cohere.verify('config', config_map)
     if len(er_msg) > 0:
@@ -61,7 +62,7 @@ def format_data(experiment_dir):
     # read the config_data
     data_conf = experiment_dir + "/conf/config_data"
     if os.path.isfile(data_conf):
-        config_map = cohere.read_config(data_conf)
+        config_map = ut.read_config(data_conf)
         if config_map is None:
             print ("info: can't read " + data_conf + " configuration file")
             return None

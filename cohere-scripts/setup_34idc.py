@@ -18,11 +18,11 @@ __all__ = ['copy_conf',
            'main']
 
 import argparse
-import cohere
 import sys
 import os
 import shutil
 import glob
+import util.util as ut
 
 
 ######################################################################
@@ -88,7 +88,7 @@ def setup_rundirs(prefix, scan, conf_dir, **kwargs):
         return
 
     main_conf = conf_dir + '/config'
-    config_map = cohere.read_config(main_conf)
+    config_map = ut.read_config(main_conf)
     if config_map is None:
         return None
 
@@ -115,7 +115,7 @@ def setup_rundirs(prefix, scan, conf_dir, **kwargs):
     if 'specfile' in kwargs and kwargs['specfile'] is not None:
         config_map['specfile'] = kwargs['specfile']
 
-    cohere.write_config(config_map, experiment_conf_dir + '/config')
+    ut.write_config(config_map, experiment_conf_dir + '/config')
 
     copy_conf(conf_dir, experiment_conf_dir)
 

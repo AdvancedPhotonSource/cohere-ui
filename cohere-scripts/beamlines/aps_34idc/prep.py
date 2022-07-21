@@ -6,6 +6,7 @@ import numpy as np
 from xrayutilities.io import spec as spec
 from multiprocessing import Pool, Process, cpu_count
 import cohere
+import util.util as ut
 
 
 def get_det_from_spec(specfile, scan, **kwargs):
@@ -258,7 +259,7 @@ class BeamPrepData():
                     continue
                 # estimate number of available cpus for each process
                 arr_size = sys.getsizeof(refarr)
-                nproc = int(cohere.estimate_no_proc(arr_size, 15) / len(dirs_indexes))
+                nproc = int(ut.estimate_no_proc(arr_size, 15) / len(dirs_indexes))
                 p = Process(target=combine_scans, args=(refarr, dirs, max(1, nproc), str(inds[0])+'-'+str(inds[-1])))
                 p.start()
                 pr.append(p)
@@ -285,7 +286,7 @@ class BeamPrepData():
                 if refarr is None:
                     return
                 arr_size = sys.getsizeof(refarr)
-                nproc = cohere.estimate_no_proc(arr_size, 15)
+                nproc = ut.estimate_no_proc(arr_size, 15)
                 combine_scans(refarr, dirs, nproc)
 
 
@@ -395,4 +396,4 @@ class BeamPrepData():
         # read
         arr = self.read_scan(dir)
         # align
-        return np.abs(cohere.shift_to_ref_array(self.fft_refarr, arr))
+        return np.abs(ut.shift_to_ref_array(self.fft_refarr, arr))

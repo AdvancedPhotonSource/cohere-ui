@@ -1,6 +1,6 @@
 class Diffractometer(object):
     """
-    class cohere.Diffractometer(self, diff_name)
+    class Diffractometer(self, diff_name)
     ============================================
 
     Abstract class representing diffractometer. It keeps fields related to the specific diffractometer represented by a subclass.

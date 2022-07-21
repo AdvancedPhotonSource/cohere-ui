@@ -23,6 +23,7 @@ import os
 import argparse
 from multiprocessing import Process, Queue
 import cohere
+import util.util as ut
 import convertconfig as conv
 
 MEM_FACTOR = 1500
@@ -88,10 +89,10 @@ def get_gpu_use(devices, no_dir, no_rec, data_shape):
         # find size of data array
         data_size = reduce((lambda x, y: x * y), data_shape)
         rec_mem_size = data_size / MEM_FACTOR
-        gpu_load = cohere.get_gpu_load(rec_mem_size, devices)
+        gpu_load = ut.get_gpu_load(rec_mem_size, devices)
 
     no_runs = no_dir * no_rec
-    gpu_distribution = cohere.get_gpu_distribution(no_runs, gpu_load)
+    gpu_distribution = ut.get_gpu_distribution(no_runs, gpu_load)
     gpu_use = []
     available = reduce((lambda x, y: x + y), gpu_distribution)
     dev_index = 0
@@ -132,7 +133,7 @@ def manage_reconstruction(experiment_dir, rec_id=None):
     # convert configuration files if needed
     main_conf = conf_dir + '/config'
     if os.path.isfile(main_conf):
-        config_map = cohere.read_config(main_conf)
+        config_map = ut.read_config(main_conf)
         if config_map is None:
             print ("info: can't read " + main_conf + " configuration file")
             return None
@@ -153,7 +154,7 @@ def manage_reconstruction(experiment_dir, rec_id=None):
     else:
         conf_file = conf_dir + '/config_rec_' + rec_id
 
-    config_map = cohere.read_config(conf_file)
+    config_map = ut.read_config(conf_file)
     if config_map is None:
         return
 

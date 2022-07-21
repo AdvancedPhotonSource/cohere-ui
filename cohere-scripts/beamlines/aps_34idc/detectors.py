@@ -4,7 +4,7 @@ import cohere
 
 class Detector(object):
     """
-    class cohere.Detector(self)
+    class Detector(self)
     ===========================
 
     Abstract class representing detector.

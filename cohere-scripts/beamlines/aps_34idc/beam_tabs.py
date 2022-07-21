@@ -5,6 +5,7 @@ from xrayutilities.io import spec as spec
 import convertconfig as conv
 import ast
 import cohere
+import util.util as ut
 
 def get_det_from_spec(specfile, scan):
     """
@@ -269,9 +270,9 @@ class PrepTab(QWidget):
         if need_convert:
             conf_map = conv.get_conf_dict(conf, 'config_prep')
             # if experiment set, save the config_prep
-            cohere.write_config(conf_map, conf)
+            ut.write_config(conf_map, conf)
         else:
-            conf_map = cohere.read_config(conf)
+            conf_map = ut.read_config(conf)
             if conf_map is None:
                 msg_window('please check configuration file ' + conf )
                 return
@@ -437,7 +438,7 @@ class PrepTab(QWidget):
         if len(scan) == 0:
             msg_window('cannot prepare data for 34idc, scan not specified')
 
-        cohere.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_prep')
+        ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_prep')
         # the separate_scan and separate_scan_ranges parameters affects other tab (results_dir in dispaly tab)
         # this tab has to notify observer about the initial setup
         self.notify()
@@ -509,7 +510,7 @@ class PrepTab(QWidget):
             if len(er_msg) > 0:
                 msg_window(er_msg)
             else:
-                cohere.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_prep')
+                ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_prep')
 
 
     def parse_spec(self):
@@ -668,9 +669,9 @@ class DispTab(QWidget):
         if need_convert:
             conf_map = conv.get_conf_dict(conf, 'config_disp')
             # if experiment set, save the config_disp
-            cohere.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_disp')
+            ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_disp')
         else:
-            conf_map = cohere.read_config(conf)
+            conf_map = ut.read_config(conf)
             if conf_map is None:
                 msg_window('please check configuration file ' + conf)
                 return
@@ -856,7 +857,7 @@ class DispTab(QWidget):
             msg_window(er_msg)
             return
 
-        cohere.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_disp')
+        ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_disp')
         self.tabs.run_viz()
 
 
@@ -867,7 +868,7 @@ class DispTab(QWidget):
             if len(er_msg) > 0:
                 msg_window(er_msg)
             else:
-                cohere.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_disp')
+                ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_disp')
 
 
     def parse_spec(self):

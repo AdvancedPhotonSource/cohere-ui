@@ -26,6 +26,7 @@ import importlib
 import convertconfig as conv
 import ast
 import cohere
+import util.util as ut
 
 
 def select_file(start_dir):
@@ -332,7 +333,7 @@ class cdi_gui(QWidget):
         """
         load_dir = load_dir.replace(os.sep, '/')
         conf = load_dir + '/conf/config'
-        conf_map = cohere.read_config(conf)
+        conf_map = ut.read_config(conf)
         if conf_map is None:
             msg_window('please check configuration file ' + conf + '. Cannot parse, ')
             return None
@@ -416,7 +417,7 @@ class cdi_gui(QWidget):
         if len(er_msg) > 0:
             msg_window(er_msg)
         else:
-            cohere.write_config(conf_map, self.experiment_dir + '/conf/config')
+            ut.write_config(conf_map, self.experiment_dir + '/conf/config')
 
 
     def set_experiment(self, loaded=False):
@@ -648,7 +649,7 @@ class DataTab(QWidget):
         if need_convert:
             conf_map = conv.get_conf_dict(conf, 'config_data')
         else:
-            conf_map = cohere.read_config(conf)
+            conf_map = ut.read_config(conf)
             if conf_map is None:
                 msg_window('please check configuration file ' + conf)
                 return
@@ -819,7 +820,7 @@ class DataTab(QWidget):
                 if len(er_msg) > 0:
                     msg_window(er_msg)
                     return
-                cohere.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_data')
+                ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_data')
                 run_dt.format_data(self.main_win.experiment_dir)
             else:
                 msg_window('Please, run data preparation in previous tab to activate this function')
@@ -833,7 +834,7 @@ class DataTab(QWidget):
             if len(er_msg) > 0:
                 msg_window(er_msg)
                 return
-            cohere.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_data')
+            ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_data')
 
 
     def load_data_conf(self):
@@ -970,11 +971,11 @@ class RecTab(QWidget):
             conf_dict = conv.get_conf_dict(conf, 'config_rec')
             # if experiment set, save the config_rec
             try:
-                cohere.write_config(conf_dict, conf)
+                ut.write_config(conf_dict, conf)
             except:
                 pass
         else:
-            conf_map = cohere.read_config(conf)
+            conf_map = ut.read_config(conf)
             if conf_map is None:
                 msg_window('please check configuration file ' + conf)
                 return
@@ -1095,7 +1096,7 @@ class RecTab(QWidget):
             msg_window(er_msg)
             return
         if len(conf_map) > 0:
-            cohere.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_rec')
+            ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_rec')
 
 
     def set_init_guess_layout(self, layout):
@@ -1183,7 +1184,7 @@ class RecTab(QWidget):
             return
         conf_dir = self.main_win.experiment_dir + '/conf'
 
-        cohere.write_config(conf_map, conf_dir + '/' + conf_file)
+        ut.write_config(conf_map, conf_dir + '/' + conf_file)
         if str(self.rec_id.currentText()) == 'main':
             self.old_conf_id = ''
         else:
@@ -1195,7 +1196,7 @@ class RecTab(QWidget):
         else:
             conf_file = conf_dir +  '/config_rec_' + self.old_conf_id
 
-        conf_map = cohere.read_config(conf_file)
+        conf_map = ut.read_config(conf_file)
         if conf_map is None:
             msg_window('please check configuration file ' + conf_file)
             return
@@ -1215,7 +1216,7 @@ class RecTab(QWidget):
         """
         rec_file = select_file(os.getcwd())
         if rec_file is not None:
-            conf_map = cohere.read_config(rec_file)
+            conf_map = ut.read_config(rec_file)
             if conf_map is None:
                 msg_window('please check configuration file ' + rec_file)
                 return
@@ -1268,7 +1269,7 @@ class RecTab(QWidget):
                 if len(er_msg) > 0:
                     msg_window(er_msg)
                     return
-                cohere.write_config(conf_map, self.main_win.experiment_dir + '/conf/' + conf_file)
+                ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/' + conf_file)
                 run_rc.manage_reconstruction(self.main_win.experiment_dir, conf_id)
                 self.notify()
             else:
