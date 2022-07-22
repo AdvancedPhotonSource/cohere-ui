@@ -26,7 +26,7 @@ from functools import partial
 from multiprocessing import Pool, cpu_count
 import importlib
 import convertconfig as conv
-import cohere
+import cohere_core as cohere
 import util.util as ut
 from tvtk.api import tvtk
 

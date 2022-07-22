@@ -5,7 +5,7 @@ import glob
 import numpy as np
 from xrayutilities.io import spec as spec
 from multiprocessing import Pool, Process, cpu_count
-import cohere
+import cohere_core as cohere
 import util.util as ut
 
 

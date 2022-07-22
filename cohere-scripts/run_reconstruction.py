@@ -22,7 +22,7 @@ import signal
 import os
 import argparse
 from multiprocessing import Process, Queue
-import cohere
+import cohere_core as cohere
 import util.util as ut
 import convertconfig as conv
 

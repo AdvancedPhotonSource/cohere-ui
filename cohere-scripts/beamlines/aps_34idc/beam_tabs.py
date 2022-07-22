@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import *
 from xrayutilities.io import spec as spec
 import convertconfig as conv
 import ast
-import cohere
+import cohere_core as cohere
 import util.util as ut
 
 def get_det_from_spec(specfile, scan):

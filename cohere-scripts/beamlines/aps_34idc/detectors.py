@@ -1,5 +1,5 @@
 import numpy as np
-import cohere
+import cohere_core as cohere
 
 
 class Detector(object):

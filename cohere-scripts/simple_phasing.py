@@ -1,6 +1,6 @@
 import sys
 import argparse
-import cohere
+import cohere_core as cohere
 import os
 
 

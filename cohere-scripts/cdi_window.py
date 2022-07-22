@@ -25,7 +25,7 @@ from PyQt5.QtWidgets import *
 import importlib
 import convertconfig as conv
 import ast
-import cohere
+import cohere_core as cohere
 import util.util as ut
 
 
