@@ -1,5 +1,6 @@
+pip install guesslang
 pip install mayavi
-conda install xrayutilities -c conda-forge
-conda install psutil -c conda-forge
-conda install gputil -c conda-forge
-conda install pyqt -c conda-forge
+pip install xrayutilities
+pip install psutil
+pip install gputil
+conda install pyqt
