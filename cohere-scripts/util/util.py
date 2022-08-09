@@ -15,12 +15,15 @@ import os
 import numpy as np
 import scipy.ndimage as ndi
 import math as m
+import tifffile as tf
 
 
 __author__ = "Ross Harder"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['read_config',
+__all__ = ['read_tif',
+           'save_tif',
+           'read_config',
            'write_config',
            'fast_shift',
            'shift_to_ref_array',
@@ -33,6 +36,40 @@ __all__ = ['read_config',
            'get_gpu_distribution',
            'estimate_no_proc',
            ]
+
+
+def read_tif(filename):
+    """
+    This method reads tif type file and returns the data as ndarray.
+
+    Parameters
+    ----------
+    filename : str
+        tif format file name
+
+    Returns
+    -------
+    ndarray
+        an array containing the data parsed from the file
+    """
+    ar = tf.imread(filename.replace(os.sep, '/')).transpose()
+    return ar
+
+
+def save_tif(arr, filename):
+    """
+    This method saves array in tif format file.
+
+    Parameters
+    ----------
+    arr : ndarray
+        array to save
+    filename : str
+        tif format file name
+    """
+    if arr.dtype == complex:
+        arr = np.abs(arr)
+    tf.imsave(filename.replace(os.sep, '/'), arr.transpose().astype(np.float32))
 
 
 def read_config(config):
@@ -166,7 +203,7 @@ def shift_to_ref_array(fft_ref, array):
     return shifted_arr
 
 
-def center(image, support):
+def center(image, support=None):
     """
     Shifts the image and support arrays so the center of mass is in the center of array.
     Parameters
@@ -179,6 +216,9 @@ def center(image, support):
         shifted arrays
     """
     shape = image.shape
+    no_support = support is None
+    if no_support:
+        support = np.ones(shape, dtype=int)
     max_coordinates = list(np.unravel_index(np.argmax(image), shape))
     for i in range(len(max_coordinates)):
         image = np.roll(image, int(shape[i] / 2) - max_coordinates[i], i)
@@ -194,6 +234,8 @@ def center(image, support):
     phi0 = m.atan2(image.flatten().imag[int(image.flatten().shape[0] / 2)],
                    image.flatten().real[int(image.flatten().shape[0] / 2)])
     image = image * np.exp(-1j * phi0)
+    if no_support:
+        support = None
 
     return image, support
 

@@ -93,6 +93,7 @@ class DispalyParams:
         -------
         none
         """
+        print('creating DispParams')
         self.detector = None
         deg2rad = np.pi / 180.0
         if 'specfile' in config and 'last_scan' in config:
@@ -215,20 +216,22 @@ class DispalyParams:
         return True
 
 
-def set_geometry(shape, p):
+def get_geometry3(shape, p):
     """
-    Sets geometry.
+    Calculates geometry based on instruments. Applies to 3D shapes.
 
     Parameters
     ----------
     shape : tuple
-        shape of reconstructed array
+        3D shape of array
 
-    p : DisplayParmas object
+    p : object
+        parameters, encapsulated in DisplayParmas object
 
     Returns
     -------
-    nothing
+    (Trecip, Tdir) : tuple
+        geometry in reciprocal and direst spaces
     """
     # DisplayParams is not expected to do any modifications of params (units, etc)
     px = p.pixel[0] * p.binning[0]

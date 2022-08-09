@@ -1,5 +1,5 @@
 pip install guesslang
-pip install mayavi
+pip install uvw
 pip install xrayutilities
 pip install psutil
 pip install gputil
