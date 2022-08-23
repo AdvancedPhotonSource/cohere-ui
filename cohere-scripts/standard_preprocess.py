@@ -50,7 +50,7 @@ def format_data(experiment_dir):
         return None
 
     if 'converter_ver' not in config_map or conv.get_version() is None or conv.get_version() < config_map['converter_ver']:
-        conv.convert(os.path.join(experiment_dir, 'conf'))
+        conv.convert(experiment_dir + '/conf')
         # re-parse config
         config_map = ut.read_config(main_conf)
 
