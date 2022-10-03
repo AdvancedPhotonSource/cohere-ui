@@ -21,6 +21,7 @@ import standard_preprocess as dt
 import run_reconstruction as rec
 import beamline_visualization as dsp
 import sys
+import os
 import argparse
 
 def run_all(experiment_dir, **kwargs):
