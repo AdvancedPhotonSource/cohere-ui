@@ -7,7 +7,6 @@
 """
 viz_util
 ===============
-
 This module is a suite of utility functions supporting visualization.
 It supports 3D visualization.
 """
@@ -41,12 +40,10 @@ __all__ = ['read_tif',
 def read_tif(filename):
     """
     This method reads tif type file and returns the data as ndarray.
-
     Parameters
     ----------
     filename : str
         tif format file name
-
     Returns
     -------
     ndarray
@@ -59,7 +56,6 @@ def read_tif(filename):
 def save_tif(arr, filename):
     """
     This method saves array in tif format file.
-
     Parameters
     ----------
     arr : ndarray
@@ -69,18 +65,16 @@ def save_tif(arr, filename):
     """
     if arr.dtype == complex:
         arr = np.abs(arr)
-    tf.imsave(filename.replace(os.sep, '/'), arr.transpose().astype(np.float32))
+    tf.imsave(filename, arr.transpose().astype(np.float32))
 
 
 def read_config(config):
     """
     This function gets configuration file. It checks if the file exists and parses it into a dictionary.
-
     Parameters
     ----------
     config : str
         configuration file name
-
     Returns
     -------
     dict
@@ -117,12 +111,10 @@ def read_config(config):
 def write_config(param_dict, config):
     """
     Writes configuration to a file.
-
     Parameters
     ----------
     param_dict : dict
         dictionary containing configuration parameters
-
     config : str
         configuration name theparameters will be written into
     """
@@ -176,7 +168,6 @@ def fast_shift(arr, shifty, fill_val=0):
 def shift_to_ref_array(fft_ref, array):
     """
     Returns an array shifted to align with ref.
-
     Parameters
     ----------
     fft_ref : ndarray
@@ -187,7 +178,6 @@ def shift_to_ref_array(fft_ref, array):
     -------
     ndarray
         array shifted to be aligned with reference array
-
     """
     # get cross correlation and pixel shift
     fft_array = np.fft.fftn(array)
@@ -203,7 +193,7 @@ def shift_to_ref_array(fft_ref, array):
     return shifted_arr
 
 
-def center(image, support=None):
+def center(image, support):
     """
     Shifts the image and support arrays so the center of mass is in the center of array.
     Parameters
@@ -216,9 +206,6 @@ def center(image, support=None):
         shifted arrays
     """
     shape = image.shape
-    no_support = support is None
-    if no_support:
-        support = np.ones(shape, dtype=int)
     max_coordinates = list(np.unravel_index(np.argmax(image), shape))
     for i in range(len(max_coordinates)):
         image = np.roll(image, int(shape[i] / 2) - max_coordinates[i], i)
@@ -234,8 +221,6 @@ def center(image, support=None):
     phi0 = m.atan2(image.flatten().imag[int(image.flatten().shape[0] / 2)],
                    image.flatten().real[int(image.flatten().shape[0] / 2)])
     image = image * np.exp(-1j * phi0)
-    if no_support:
-        support = None
 
     return image, support
 
@@ -244,15 +229,12 @@ def crop_center(arr, new_shape):
     """
     This function crops the array to the new size, leaving the array in the center.
     The new_size must be smaller or equal to the original size in each dimension.
-
     Parameters
     ----------
     arr : ndarray
         the array to crop
-
     new_shape : tuple
         new size
-
     Returns
     -------
     cropped : ndarray
@@ -275,15 +257,12 @@ def crop_center(arr, new_shape):
 def get_zero_padded_centered(arr, new_shape):
     """
     This function pads the array with zeros to the new shape with the array in the center.
-
     Parameters
     ----------
     arr : ndarray
         the original array to be padded
-
     new_shape : tuple
         new dimensions
-
     Returns
     -------
     centered : ndarray
@@ -307,16 +286,12 @@ def get_zero_padded_centered(arr, new_shape):
 def sub_pixel_shift(arr, shf):
     """
     Shifts pixels in a regularly sampled LR image with a subpixel precision according to local gradient.
-
-
     Parameters
     ----------
     arr : ndarray
         array to shift
-
     sft : list of floats
         shift in each dimension
-
     Returns
     -------
     ndarray
@@ -379,15 +354,12 @@ def get_gpu_load(mem_size, ids):
     This function is only used when running on Linux OS. The GPUtil module is not supported on Mac.
     This function finds available GPU memory in each GPU that id is included in ids list. It calculates
     how many reconstruction can fit in each GPU available memory.
-
     Parameters
     ----------
     mem_size : int
         array size
-
     ids : list
         list of GPU ids user configured for use
-
     Returns
     -------
     list
@@ -418,15 +390,12 @@ def get_gpu_load(mem_size, ids):
 def get_gpu_distribution(runs, available):
     """
     Finds how to distribute the available runs to perform the given number of runs.
-
     Parameters
     ----------
     runs : int
         number of reconstruction requested
-
     available : list
         list of available runs aligned with the GPU id list
-
     Returns
     -------
     list
@@ -454,14 +423,12 @@ def estimate_no_proc(arr_size, factor):
     """
     Estimates number of processes the prep can be run on. Determined by number of available cpus and size
     of array.
-
     Parameters
     ----------
     arr_size : int
         size of array
     factor : int
         an estimate of how much memory is required to process comparing to array size
-
     Returns
     -------
     int

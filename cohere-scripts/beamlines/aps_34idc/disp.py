@@ -3,6 +3,7 @@ import math as m
 import xrayutilities.experiment as xuexp
 from xrayutilities.io import spec as spec
 
+
 def parse_spec(specfile, scan):
     """
     Reads parameters necessary to run visualization from spec file for given scan.
@@ -10,7 +11,7 @@ def parse_spec(specfile, scan):
     ----------
     specfile : str
         spec file name
-         
+
     scan : int
         scan number to use to recover the saved measurements
     Returns
@@ -22,8 +23,8 @@ def parse_spec(specfile, scan):
         ss = spec.SPECFile(specfile)[scan - 1]
     except  Exception as ex:
         print(str(ex))
-        print ('Could not parse ' + specfile )
-        return None,None,None,None,None,None,None,None,None,None
+        print('Could not parse ' + specfile)
+        return None, None, None, None, None, None, None, None, None, None
 
     # Stuff from the header
     try:
@@ -83,24 +84,22 @@ class DispalyParams:
     def __init__(self, config):
         """
         The constructor gets config file and fills out the class members.
-
         Parameters
         ----------
         config : str
             configuration file name
-
         Returns
         -------
         none
         """
-        print('creating DispParams')
         self.detector = None
         deg2rad = np.pi / 180.0
         if 'specfile' in config and 'last_scan' in config:
             specfile = config['specfile']
             last_scan = config['last_scan']
             # get stuff from the spec file.
-            self.delta, self.gamma, self.th, self.phi, self.chi, self.scanmot, self.scanmot_del, self.detdist, self.detector, self.energy = parse_spec(specfile, last_scan)
+            self.delta, self.gamma, self.th, self.phi, self.chi, self.scanmot, self.scanmot_del, self.detdist, self.detector, self.energy = parse_spec(
+                specfile, last_scan)
         # drop the ':' from detector name
         if self.detector is not None and self.detector.endswith(':'):
             self.detector = self.detector[:-1]
@@ -189,14 +188,13 @@ class DispalyParams:
         else:
             self.crop = (1.0, 1.0, 1.0)
 
-
     def set_instruments(self, detector, diffractometer):
         # for beamline aps_34idc both detector and diffractometer must be defined
         if detector is None:
-            print ('detector must be defined')
+            print('detector must be defined')
             return False
         if diffractometer is None:
-            print ('diffractometer must be defined')
+            print('diffractometer must be defined')
             return False
 
         for attr in diffractometer.__class__.__dict__.keys():
@@ -216,22 +214,17 @@ class DispalyParams:
         return True
 
 
-def get_geometry3(shape, p):
+def set_geometry(shape, p):
     """
-    Calculates geometry based on instruments. Applies to 3D shapes.
-
+    Sets geometry.
     Parameters
     ----------
     shape : tuple
-        3D shape of array
-
-    p : object
-        parameters, encapsulated in DisplayParmas object
-
+        shape of reconstructed array
+    p : DisplayParmas object
     Returns
     -------
-    (Trecip, Tdir) : tuple
-        geometry in reciprocal and direst spaces
+    nothing
     """
     # DisplayParams is not expected to do any modifications of params (units, etc)
     px = p.pixel[0] * p.binning[0]
@@ -252,7 +245,7 @@ def get_geometry3(shape, p):
 
     # compute for 4pixel (2x2) detector
     qc.init_area(p.pixelorientation[0], p.pixelorientation[1], shape[0], shape[1], 2, 2, distance=detdist,
-                      pwidth1=px, pwidth2=py)
+                 pwidth1=px, pwidth2=py)
     # I think q2 will always be (3,2,2,2) (vec, scanarr, px, py)
     # should put some try except around this in case something goes wrong.
     if scanmot == 'en':  # seems en scans always have to be treated differently since init is unique
