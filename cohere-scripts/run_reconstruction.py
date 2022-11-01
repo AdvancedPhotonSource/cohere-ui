@@ -187,13 +187,6 @@ def manage_reconstruction(experiment_dir, rec_id=None):
             return
     elif proc == 'np':
         pass  # lib set to 'np'
-    elif proc == 'af' or 'cpu' or proc == 'cuda' or proc == 'opencl':
-        try:
-            import arrayfire
-            lib = proc
-        except:
-            print('arrayfire is not installed, select different library (proc)')
-            return
     else:
         print('invalid "proc" value', proc, 'is not supported')
         return

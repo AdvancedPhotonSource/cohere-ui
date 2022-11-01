@@ -903,11 +903,6 @@ class RecTab(QWidget):
         if sys.platform != 'darwin':
             self.proc.addItem("cp")
         self.proc.addItem("np")
-        self.proc.addItem("af")
-        if sys.platform != 'darwin':
-            self.proc.addItem("cuda")
-        self.proc.addItem("opencl")
-        self.proc.addItem("cpu")
         ulayout.addRow("processor type", self.proc)
         self.device = QLineEdit()
         ulayout.addRow("device(s)", self.device)
