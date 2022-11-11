@@ -65,7 +65,7 @@ hio_beta = .9
                              // used in hio algorithm
 
 // GENERATIc ALGORITHM
-// generations = 4
+// ga_generations = 4
                              // number of generations
 
 // ga_metrics = ["chi", "sharpness"]
