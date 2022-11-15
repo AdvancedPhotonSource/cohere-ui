@@ -367,6 +367,7 @@ def get_gpu_load(mem_size, ids):
     """
     import GPUtil
 
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     gpus = GPUtil.getGPUs()
     total_avail = 0
     available_dir = {}
