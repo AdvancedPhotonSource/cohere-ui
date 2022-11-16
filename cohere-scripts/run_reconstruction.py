@@ -27,6 +27,7 @@ import util.util as ut
 import convertconfig as conv
 
 MEM_FACTOR = 170
+GA_MEM_FACTOR = 250
 ADJUST = 0.0
 
 
@@ -62,7 +63,7 @@ def rec_process(proc, conf_file, datafile, dir, gpus, r, q):
     q.put((os.getpid(), gpus))
 
 
-def get_gpu_use(devices, no_dir, no_rec, data_shape, pc_in_use):
+def get_gpu_use(devices, no_dir, no_rec, data_shape, pc_in_use, ga_in_use):
     """
     Determines the use case, available GPUs that match configured devices, and selects the optimal distribution of reconstructions on available devices.
     Parameters
@@ -90,7 +91,10 @@ def get_gpu_use(devices, no_dir, no_rec, data_shape, pc_in_use):
     else:
         # find size of data array
         data_size = reduce((lambda x, y: x * y), data_shape) / 1000000.
-        rec_mem_size = data_size * MEM_FACTOR
+        mem_factor = MEM_FACTOR
+        if ga_in_use:
+            mem_factor = GA_MEM_FACTOR
+        rec_mem_size = data_size * mem_factor
         if pc_in_use:
             rec_mem_size = rec_mem_size * 2
         gpu_load = ut.get_gpu_load(rec_mem_size, devices)
@@ -243,7 +247,7 @@ def manage_reconstruction(experiment_dir, rec_id=None):
 
         if no_runs * reconstructions > 1:
             data_shape = cohere.read_tif(exp_dirs_data[0][0]).shape
-            device_use = get_gpu_use(devices, no_runs, reconstructions, data_shape, 'pc' in config_map['algorithm_sequence'])
+            device_use = get_gpu_use(devices, no_runs, reconstructions, data_shape, 'pc' in config_map['algorithm_sequence'], generations > 1)
         else:
             device_use = devices
 
