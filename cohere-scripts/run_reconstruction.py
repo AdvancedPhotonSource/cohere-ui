@@ -232,7 +232,7 @@ def manage_reconstruction(experiment_dir, rec_id=None):
     else:
         reconstructions = 1
     device_use = []
-    if lib == 'cpu' or lib == 'np':
+    if lib == 'np':
         cpu_use = [-1] * reconstructions
         if no_runs > 1:
             for _ in range(no_runs):
@@ -268,7 +268,7 @@ def manage_reconstruction(experiment_dir, rec_id=None):
             device_use = [[-1]]
         else:
             # check if is it worth to use last chunk
-            if lib != 'cpu' and lib != 'np' and len(device_use[0]) > len(device_use[-1]) * 2:
+            if lib != 'np' and len(device_use[0]) > len(device_use[-1]) * 2:
                 device_use = device_use[0:-1]
         if generations > 1:
             r = 'g'
