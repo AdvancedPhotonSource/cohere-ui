@@ -153,9 +153,9 @@ def create_conf_disp(conf_dir):
     Returns
     -------
     nothing
-    """.replace(os.sep, '/')
-    conf_dir = conf_dir
-    conf_file_name = conf_dir + 'config_disp'
+    """
+    conf_dir = conf_dir.replace(os.sep, '/')
+    conf_file_name = conf_dir + '/config_disp'
     f = open(conf_file_name, "w+")
     
     f.write('// results_dir = "/path/to/dir/with/reconstructed/image(s)"\n')
