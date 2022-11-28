@@ -112,7 +112,7 @@ def create_conf_rec(conf_dir):
     f.write('hio_beta = .9\n')
     f.write('// ga_generations = 1\n')
     f.write('// ga_metrics = ["chi", "sharpness"]\n')
-    f.write('// ga_breed_modes = ["sqrt_ab", "dsqrt"]\n')
+    f.write('// ga_breed_modes = ["sqrt_ab"]\n')
     f.write('// ga_cullings = [2,1]\n')
     f.write('// ga_shrink_wrap_thresholds = [.15, .1]\n')
     f.write('// ga_shrink_wrap_gauss_sigmas = [1.1, 1.0]\n')

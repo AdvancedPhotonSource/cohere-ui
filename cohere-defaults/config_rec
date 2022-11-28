@@ -90,7 +90,6 @@ hio_beta = .9
                              // the arrays are normalized to derive ph_alpha = angle(alpha), and ph_beta = angle(beta)
                              // supported:
                              // 'sqrt_ab' - sqrt(abs(alpha) * abs(beta)) * exp(0.5j * (ph_beta + ph_alpha))
-                             // 'dsqrt' -  sqrt(abs(beta)) * exp(1j * ph_beta)
                              // 'pixel_switch' - where((cond > 0.5), beta, alpha), cond = random(shape(beta))
                              // 'b_pa' - abs(beta) * exp(1j * (ph_alpha))
                              // '2ab_a_b' - 2 * (beta * alpha) / (beta + alpha)
