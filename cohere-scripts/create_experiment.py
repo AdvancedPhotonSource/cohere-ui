@@ -108,7 +108,7 @@ def create_conf_rec(conf_dir):
     f.write('// processing = "auto"\n')
     f.write('reconstructions = 1\n')
     f.write('device = [0,1]\n')
-    f.write('algorithm_sequence = "3* (20*ER + 180*HIO) + 20*ER"')
+    f.write('algorithm_sequence = "3* (20*ER + 180*HIO) + 20*ER"\n')
     f.write('hio_beta = .9\n')
     f.write('// ga_generations = 1\n')
     f.write('// ga_metrics = ["chi", "sharpness"]\n')

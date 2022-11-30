@@ -769,17 +769,27 @@ class DataTab(QWidget):
             self.AA1_save_arrs.setChecked(False)
             self.AA1_expandcleanedsigma = QLineEdit()
             layout.addRow("expand cleaned sigma", self.AA1_expandcleanedsigma)
+            self.AA1_default_button = QPushButton('set AutoAlien1 parameters to defaults', self)
+            layout.addWidget(self.AA1_default_button)
+
+            self.AA1_default_button.clicked.connect(self.set_AA1_defaults)
+
+
+    def set_AA1_defaults(self):
+        """
+        Sets the AutoAlien1 parameters in the data tab to hardcoded defaults.
+        """
+        self.AA1_size_threshold.setText('0.01')
+        self.AA1_asym_threshold.setText('1.75')
+        self.AA1_min_pts.setText('5')
+        self.AA1_eps.setText('1.1')
+        self.AA1_save_arrs.setText('False')
+        self.AA1_amp_threshold.setText('6.0')
 
 
     def set_alien_file(self):
         """
         It display a select dialog for user to select an alien file.
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        nothing
         """
         self.alien_filename = select_file(os.getcwd())
         if self.alien_filename is not None:
@@ -1287,7 +1297,7 @@ class RecTab(QWidget):
         else:
             self.reconstructions.setText('1')
             self.proc.setCurrentIndex(0)
-            self.device.setText('[0,1]')
+            self.device.setText('[0]')
             self.alg_seq.setText('3*(20*ER+180*HIO)+20*ER')
             self.hio_beta.setText('.9')
             self.initial_support_area.setText('[0.5, 0.5, 0.5]')
@@ -1564,12 +1574,10 @@ class GA(Feature):
         nothing
         """
         self.generations.setText('5')
-        self.metrics.setText('["chi","area"]')
+        self.metrics.setText('["chi"]')
         self.breed_modes.setText('["sqrt_ab"]')
-        self.removes.setText('[2,2,1]')
         self.ga_shrink_wrap_thresholds.setText('[.1]')
         self.ga_shrink_wrap_gauss_sigmas.setText('[1.0]')
-        self.lr_sigmas.setText('[2.0,1.5]')
         self.gen_pc_start.setText('3')
         self.active.setChecked(True)
 
@@ -1651,6 +1659,7 @@ class low_resolution(Feature):
         """
         self.res_triggers = QLineEdit()
         layout.addRow("low resolution triggers", self.res_triggers)
+        self.res_triggers.setToolTip('suggested trigger: [0, 1, <half iteration number>]')
         self.sigma_range = QLineEdit()
         layout.addRow("sigma range", self.sigma_range)
         self.det_range = QLineEdit()
@@ -1830,6 +1839,7 @@ class phase_support(Feature):
         """
         self.phase_triggers = QLineEdit()
         layout.addRow("phase support triggers", self.phase_triggers)
+        self.phase_triggers.setToolTip('suggested trigger: [0, 1, <half iteration number>]')
         self.phm_phase_min = QLineEdit()
         layout.addRow("phase minimum", self.phm_phase_min)
         self.phm_phase_max = QLineEdit()
