@@ -25,6 +25,7 @@ import importlib
 import convertconfig as conv
 import cohere_core as cohere
 import util.util as ut
+import beamlines.prep as prep
 
 
 def handle_prep(experiment_dir, *args, **kwargs):
@@ -61,7 +62,7 @@ def handle_prep(experiment_dir, *args, **kwargs):
     if 'beamline' in main_conf_map:
         beamline = main_conf_map['beamline']
         try:
-            prep = importlib.import_module('beamlines.' + beamline + '.prep')
+            beam_prep = importlib.import_module('beamlines.' + beamline + '.prep')
             det = importlib.import_module('beamlines.' + beamline + '.detectors')
         except Exception as e:
             print(e)
@@ -84,13 +85,13 @@ def handle_prep(experiment_dir, *args, **kwargs):
         return None
 
     # create BeamPrepData object defined for the configured beamline
-    prep_obj = prep.BeamPrepData(experiment_dir, main_conf_map, prep_conf_map, *args)
+    prep_obj = beam_prep.BeamPrepData(experiment_dir, main_conf_map, prep_conf_map, *args)
     if prep_obj.scan_ranges is None:
         print('no scan given')
         return
 
     # get directories from prep_obj
-    dirs_indexes = prep_obj.get_dirs(data_dir=data_dir)
+    dirs_indexes = prep.get_dirs(prep_obj, data_dir=data_dir)
     if len(dirs_indexes) == 0:
         print('no data found')
         return None
@@ -103,7 +104,7 @@ def handle_prep(experiment_dir, *args, **kwargs):
         else:
             print('detector not created')
             return None
-    prep_obj.prep_data(dirs_indexes)
+    prep.prep_data(prep_obj, dirs_indexes)
 
     print('done with preprocessing')
     return experiment_dir
