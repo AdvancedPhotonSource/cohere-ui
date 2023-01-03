@@ -92,7 +92,7 @@ def prep_data(prep_obj, dirs_indexes, **kwargs):
     def combine_scans(refarr, dirs, nproc, scan=''):
         sumarr = np.zeros_like(refarr)
         sumarr = sumarr + refarr
-        fft_refarr = np.fft.fftn(refarr)
+        prep_obj.fft_refarr = np.fft.fftn(refarr)
 
         # https://www.edureka.co/community/1245/splitting-a-list-into-chunks-in-python
         # Need to further chunck becauase the result queue needs to hold N arrays.
