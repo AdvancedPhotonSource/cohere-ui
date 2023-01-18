@@ -63,9 +63,7 @@ def save_tif(arr, filename):
     filename : str
         tif format file name
     """
-    if arr.dtype == complex:
-        arr = np.abs(arr)
-    tf.imsave(filename, arr.transpose().astype(np.float32))
+    tf.imsave(filename, np.abs(arr).transpose().astype(np.float32))
 
 
 def read_config(config):

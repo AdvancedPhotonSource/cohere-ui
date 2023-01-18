@@ -186,12 +186,25 @@ def manage_reconstruction(experiment_dir, rec_id=None):
         except:
             # currently we could not install arrayfire on linux, so numpy is the second choice
             pass
+        try:
+            import torch
+            lib = 'torch'
+        except:
+            # currently we could not install arrayfire on linux, so numpy is the second choice
+            pass
     elif proc == 'cp':
         try:
             import cupy
             lib = 'cp'
         except:
             print('cupy is not installed, select different library (proc)')
+            return
+    elif proc == 'torch':
+        try:
+            import torch
+            lib = 'torch'
+        except:
+            print('pytorch is not installed, select different library (proc)')
             return
     elif proc == 'np':
         pass  # lib set to 'np'
