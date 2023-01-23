@@ -913,6 +913,7 @@ class RecTab(QWidget):
         if sys.platform != 'darwin':
             self.proc.addItem("cp")
         self.proc.addItem("np")
+        self.proc.addItem("torch")
         ulayout.addRow("processor type", self.proc)
         self.device = QLineEdit()
         ulayout.addRow("device(s)", self.device)
