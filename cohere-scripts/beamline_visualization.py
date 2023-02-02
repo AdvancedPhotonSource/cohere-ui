@@ -440,13 +440,13 @@ def handle_visualization(experiment_dir, rec_id=None, image_file=None):
         return
 
     try:
-        disp = importlib.import_module('beamlines.' + conf_dict['beamline'] + '.disp')
+        disp = importlib.import_module('beamlines.' + conf_dict['beamline'] + '.beam_stuff')
     except:
-        print ('cannot import beamlines.' + conf_dict['beamline'] + '.disp module.')
+        print ('cannot import beamlines.' + conf_dict['beamline'] + '.beam_stuff module.')
         return
 
     try:
-        params = disp.DispalyParams(conf_dict)
+        params = disp.Params(conf_dict)
     except Exception as e:
         print ('exception', e)
         return

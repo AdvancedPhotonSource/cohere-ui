@@ -1,39 +1,7 @@
 import os
 import re
 import numpy as np
-from xrayutilities.io import spec as spec
-import cohere_core as cohere
-import util.util as ut
-
-
-def get_det_from_spec(specfile, scan, **kwargs):
-    """
-    Reads detector area and detector name from spec file for given scan.
-    Parameters
-    ----------
-    specfile : str
-        spec file name
-         
-    scan : int
-        scan number to use to recover the saved measurements
-    Returns
-    -------
-    detector_name : str
-        detector name
-    det_area : list
-        detector area
-    """
-    try:
-    # Scan numbers start at one but the list is 0 indexed
-        ss = spec.SPECFile(specfile)[scan - 1]
-    # Stuff from the header
-        detector_name = str(ss.getheader_element('UIMDET'))
-        det_area = [int(n) for n in ss.getheader_element('UIMR5').split()]
-        return detector_name, det_area
-    except  Exception as ex:
-        print(str(ex))
-        print ('Could not parse ' + specfile)
-        return None, None
+import beamlines.aps_34idc.spec_parser as spec
 
 
 class BeamPrepData():
@@ -53,13 +21,13 @@ class BeamPrepData():
         -------
         PrepData object
         """
-        self.printed_dims = False
         self.args = args
         self.experiment_dir = experiment_dir
 
         self.det_name = None
         self.roi = None
         self.scan_ranges = []
+        self.data_dir = prep_conf_map['data_dir'].replace(os.sep, '/')
         if 'scan' in main_conf_map:
             scan_units = [u for u in main_conf_map['scan'].replace(' ','').split(',')]
             for u in scan_units:
@@ -77,7 +45,13 @@ class BeamPrepData():
                 specfile = main_conf_map['specfile']
                 # parse det name and saved roi from spec
                 try:
-                    self.det_name, self.roi = get_det_from_spec(specfile, scan_end)
+                    pars = ['det_name', 'det_area']
+                    spec_values = spec.parse_spec(pars, specfile, scan_end)
+                    for attr in pars:
+                        if attr in spec_values.keys():
+                            setattr(self, attr, spec_values[attr])
+                        else:
+                            setattr(self, attr, None)
                 except:
                     print("exception parsing spec file")
                 if self.det_name is not None and self.det_name.endswith(':'):
@@ -176,25 +150,6 @@ class BeamPrepData():
         return arr
 
 
-    def write_prep_arr(self, arr, index='', **kwargs):
-        """
-        This clear the seam dependable on detector from the prepared array and saves the prepared data in <experiment_dir>/prep directory of
-        experiment or <experiment_dir>/<scan_dir>/prep if writing for separate scans.
-        """
-        if index == '':
-            prep_data_dir = self.experiment_dir + '/preprocessed_data'
-        else:
-            prep_data_dir = self.experiment_dir + '/scan_' + index + '/preprocessed_data'
-        data_file = prep_data_dir + '/prep_data.tif'
-        if not os.path.exists(prep_data_dir):
-            os.makedirs(prep_data_dir)
-        arr = self.detector.clear_seam(arr, self.roi)
-        if not self.printed_dims:
-            print('data array dimensions', arr.shape)
-            self.printed_dims = True
-        cohere.save_tif(arr, data_file)
-
-
     def get_detector_name(self):
         return self.det_name
 
@@ -211,24 +166,25 @@ class BeamPrepData():
                 setattr(self.detector, attr, prep_conf_map.get(attr))
 
 
-    def read_write(self, scan_dir, index, **kwargs):
-        arr = self.read_scan(scan_dir)
-        self.write_prep_arr(arr, index)
+class MPBeamPrepData(BeamPrepData):
+    """
+    This class contains fields needed for the data preparation multipeak.
+    """
 
+    def __init__(self, experiment_dir, main_conf_map, prep_conf_map, *args, **kwargs):
+        super().__init__(experiment_dir, main_conf_map, prep_conf_map, *args, **kwargs)
 
-    def read_align(self, dir, **kwargs):
-        """
-        Aligns scan with reference array.  Referrence array is field of this class.
-        Parameters
-        ----------
-        dir : str
-            directory to the raw data
-        Returns
-        -------
-        aligned_array : array
-            aligned array
-        """
-        # read
-        arr = self.read_scan(dir)
-        # align
-        return np.abs(ut.shift_to_ref_array(self.fft_refarr, arr))
+        if 'multipeak' in main_conf_map and main_conf_map['multipeak']:
+            self.multipeak = True
+        if 'orientations' in main_conf_map:
+            self.orientations = main_conf_map['orientations']
+        if 'hkl_in' in prep_conf_map:
+            self.hkl_in = prep_conf_map['hkl_in']
+        if 'twin_plane' in prep_conf_map:
+            self.twin_plane = prep_conf_map['twin_plane']
+        if 'hkl_out' in prep_conf_map:
+            self.hkl_out = prep_conf_map['hkl_out']
+        if 'sample_axis' in prep_conf_map:
+            self.sample_axis = prep_conf_map['sample_axis']
+        if 'final_size' in prep_conf_map:
+            self.final_size = prep_conf_map['final_size']

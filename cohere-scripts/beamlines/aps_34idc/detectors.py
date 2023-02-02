@@ -1,4 +1,5 @@
 import numpy as np
+import os
 import cohere_core as cohere
 
 
@@ -61,7 +62,7 @@ class Detector(object):
         """
         return arr
 
-    def clear_seam(self, arr, roi=None):
+    def clear_seam(self, arr):
         """
         Corrects the non-continuous areas of detector. Concrete function in subclass removes rows/columns in frame as instrument correction.
 
@@ -99,6 +100,7 @@ class Detector_34idcTIM1(Detector):
     """
     name = "34idcTIM1"
     dims = (256, 256)
+    roi = (256, 256)
     pixel = (55.0e-6, 55e-6)
     pixelorientation = ('x+', 'y-')  # in xrayutilities notation
     darkfield_filename = None
@@ -196,6 +198,7 @@ class Detector_34idcTIM2(Detector):
     """
     name = "34idcTIM2"
     dims = (512, 512)
+    roi = (512, 512)
     pixel = (55.0e-6, 55e-6)
     pixelorientation = ('x+', 'y-')  # in xrayutilities notation
     whitefield_filename = None
@@ -355,7 +358,7 @@ seam.
     # This is needed if the seam has already been inserted and shifts have moved intensity
     # into the seam.  Found that alignment of data sets was best done with the seam inserted.
     # For instance.
-    def clear_seam(self, arr, roi):
+    def clear_seam(self, arr):
         """
         Removes rows/columns correction from a frame for 34idcTIM2 detector.
         Parameters
@@ -370,6 +373,7 @@ seam.
             frame after removing rows/columns
         """
         # modify the slices if 256 is in roi
+        roi = self.roi
         s1range = range(roi[0], roi[0] + roi[1])
         s2range = range(roi[2], roi[2] + roi[3])
         try:
@@ -414,13 +418,5 @@ def create_detector(det_name):
     else:
         print ('detector ' + det_name + ' not defined.')
         return None
-
-#
-# def verify_detector(det_name):
-#     if det_name == '34idcTIM1' or det_name == '34idcTIM2':
-#         return True
-#     else:
-#         print ('detector ' + det_name + ' is not defined.')
-#         return False
 
 

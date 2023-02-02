@@ -75,7 +75,7 @@ def parse_spec(specfile, scan):
     return delta, gamma, theta, phi, chi, scanmot, scanmot_del, detdist, detector_name, energy
 
 
-class DispalyParams:
+class Params:
     """
       This class encapsulates parameters defining image display. The parameters are read from config file on construction.
       This class is basically an information agglomerator for the viz generation.

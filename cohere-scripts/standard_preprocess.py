@@ -88,7 +88,7 @@ def format_data(experiment_dir):
 
     dirs = os.listdir(experiment_dir)
     for dir in dirs:
-        if dir.startswith('scan'):
+        if dir.startswith('scan') or dir.startswith('mp'):
             scan_dir = experiment_dir + '/' + dir
             prep_file = scan_dir + '/preprocessed_data/prep_data.tif'
             # ignore configured 'data_dir' as it can't be reused by multiple scans

@@ -34,6 +34,7 @@ __all__ = ['read_tif',
            'get_gpu_load',
            'get_gpu_distribution',
            'estimate_no_proc',
+           'normalize'
            ]
 
 
@@ -444,3 +445,8 @@ def estimate_no_proc(arr_size, factor):
         return ncpu
     else:
         return int(nmem)
+
+def normalize(vec):
+    return vec / np.linalg.norm(vec)
+
+

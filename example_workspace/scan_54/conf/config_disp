@@ -1,4 +1,4 @@
-results_dir = "CUR_DIR/example_workspace/scan_54/results_phasing"
+results_dir = "/home/phoebus3/BFROSIK/cui/example_workspace/scan_54"
 energy = 9.0
 delta = 32.174
 gamma = 12.6346
@@ -10,5 +10,5 @@ scanmot = "th"
 scanmot_del = 0.005
 detector = "34idcTIM2"
 diffractometer = "34idc"
-crop = [0.5,0.5,0.5]
+crop = [0.5, 0.5, 0.5]
 rampups = 1

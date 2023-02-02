@@ -1,5 +1,5 @@
-data_dir = "CUR_DIR/example_data/AD34idcTIM2_example"
-darkfield_filename = "CUR_DIR/example_data/dark.tif"
-whitefield_filename = "CUR_DIR/example_data/whitefield.tif"
+data_dir = "/home/phoebus3/BFROSIK/cui/example_data/AD34idcTIM2_example"
+darkfield_filename = "/home/phoebus3/BFROSIK/cui/example_data/dark.tif"
+whitefield_filename = "/home/phoebus3/BFROSIK/cui/example_data/whitefield.tif"
 detector = "34idcTIM2"
-roi = [0,256,0,256,1]
+roi = [0, 256, 0, 256, 1]

@@ -5,80 +5,239 @@ import glob
 import numpy as np
 from multiprocessing import Pool, Process, cpu_count
 import util.util as ut
+import beamlines.mp_prep as mp
+from functools import partial
 
 
-def get_dirs(prep_obj, **kwargs):
+def write_prep_arr(arr, save_dir, filename):
     """
-    Finds directories with data files.
-    The names of the directories end with the scan number. Only the directories with a scan range and the ones covered by configuration are included.
+    This function saves the prepared data in given directory. Creates the directory if
+    it does not exist.
+    """
+    print('data array dimensions', arr.shape)
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    ut.save_tif(arr, save_dir + '/' + filename)
+
+
+def read_align(prep_obj, refarr, dir):
+    """
+    Aligns scan with reference array.  Referrence array is field of this class.
     Parameters
     ----------
-    prep_map : config object
-        a configuration object containing experiment prep configuration parameters
+    dir : str
+        directory to the raw data
     Returns
     -------
-    dirs : list
-        list of directories with raw data that will be included in prepared data
-    scan_inxs : list
-        list of scan numbers corresponding to the directories in the dirs list
+    aligned_array : array
+        aligned array
     """
-    no_scan_ranges = len(prep_obj.scan_ranges)
-    unit_dirs_scan_indexes = {i: ([], []) for i in range(no_scan_ranges)}
+    # read
+    arr = prep_obj.read_scan(dir)
+    fft_refarr = np.fft.fftn(refarr)
+    # align
+    return np.abs(ut.shift_to_ref_array(fft_refarr, arr))
 
-    def add_scan(scan_no, subdir):
+
+def combine_scans(prep_obj, dirs, inds):
+    if len(dirs) == 1:
+        return prep_obj.read_scan(dirs[0])
+    scans_order = np.argsort(inds).tolist()
+    ref_dir = dirs.pop(scans_order[0])
+    refarr = prep_obj.read_scan(ref_dir)
+    if refarr is None:
+        return None
+    arr_size = sys.getsizeof(refarr)
+    nproc = min(len(dirs), ut.estimate_no_proc(arr_size, 15))
+
+    sumarr = np.zeros_like(refarr)
+    sumarr = sumarr + refarr
+
+    # https://www.edureka.co/community/1245/splitting-a-list-into-chunks-in-python
+    # Need to further chunck becauase the result queue needs to hold N arrays.
+    # if there are a lot of them and they are big, it runs out of ram.
+    # since process takes 10-12 arrays, divide nscans/15 (to be safe) and make that many
+    # chunks to pool.  Also ask between pools how much ram is avaiable and modify nproc.
+    while (len(dirs) > 0):
+        chunklist = dirs[0:nproc]
+        poollist = [dirs.pop(0) for i in range(len(chunklist))]
+        func = partial(read_align, prep_obj, refarr)
+        with Pool(processes=nproc) as pool:
+            res = pool.map_async(func, poollist)
+            pool.close()
+            pool.join()
+        for arr in res.get():
+            sumarr = sumarr + arr
+    sumarr = prep_obj.detector.clear_seam(sumarr)
+    return sumarr
+
+
+class Preparer():
+    def __init__(self, prep_obj):
+        """
+        Creates PrepData instance for beamline aps_34idc. Sets fields to configuration parameters.
+        Parameters
+        ----------
+        experiment_dir : str
+            directory where the files for the experiment processing are created
+        Returns
+        -------
+        PrepData object
+        """
+        self.prep_obj = prep_obj
+        self.no_scan_ranges = len(self.prep_obj.scan_ranges)
+        self.unit_dirs_scan_indexes = {i: [[], []] for i in range(self.no_scan_ranges)}
+
+    def add_scan(self, scan_no, subdir):
         i = 0
-        while scan_no > prep_obj.scan_ranges[i][1]:
+        while scan_no > self.prep_obj.scan_ranges[i][1]:
             i += 1
-            if i == no_scan_ranges:
+            if i == self.no_scan_ranges:
                 return
-        if scan_no >= prep_obj.scan_ranges[i][0]:
+        if scan_no >= self.prep_obj.scan_ranges[i][0]:
             # add the scan
-            unit_dirs_scan_indexes[i][0].append(subdir)
-            unit_dirs_scan_indexes[i][1].append(scan_no)
+            self.unit_dirs_scan_indexes[i][0].append(subdir)
+            self.unit_dirs_scan_indexes[i][1].append(scan_no)
 
-    try:
-        data_dir = kwargs['data_dir'].replace(os.sep, '/')
-    except:
-        print('please provide data_dir in configuration file')
-        return None, None
+    def get_batches(self):
+        data_dir = self.prep_obj.data_dir
+        for name in os.listdir(data_dir):
+            subdir = data_dir + '/' + name
+            if os.path.isdir(subdir):
+                # exclude directories with fewer tif files than min_files
+                if len(glob.glob1(subdir, "*.tif")) < self.prep_obj.min_files and len(
+                        glob.glob1(subdir, "*.tiff")) < self.prep_obj.min_files:
+                    continue
+                last_digits = re.search(r'\d+$', name)
+                if last_digits is not None:
+                    scan = int(last_digits.group())
+                    if not scan in self.prep_obj.exclude_scans:
+                        self.add_scan(scan, subdir)
+        return list(self.unit_dirs_scan_indexes.values())
 
-    def order_lists(dirs, inds):
-        # The directory with the smallest index is placed as first, so all data files will
-        # be alligned to the data file in this directory
-        scans_order = np.argsort(inds).tolist()
-        first_index = inds.pop(scans_order[0])
-        first_dir = dirs.pop(scans_order[0])
-        inds.insert(0, first_index)
-        dirs.insert(0, first_dir)
-        return dirs, inds
-
-    for name in os.listdir(data_dir):
-        subdir = data_dir + '/' + name
-        if os.path.isdir(subdir):
-            # exclude directories with fewer tif files than min_files
-            if len(glob.glob1(subdir, "*.tif")) < prep_obj.min_files and len(
-                    glob.glob1(subdir, "*.tiff")) < prep_obj.min_files:
-                continue
-            last_digits = re.search(r'\d+$', name)
-            if last_digits is not None:
-                scan = int(last_digits.group())
-                if not scan in prep_obj.exclude_scans:
-                    add_scan(scan, subdir)
-
-    if prep_obj.separate_scan_ranges:
-        for i in range(no_scan_ranges):
-            if len(unit_dirs_scan_indexes[i]) > 1:
-                unit_dirs_scan_indexes[i] = order_lists(unit_dirs_scan_indexes[i][0], unit_dirs_scan_indexes[i][1])
-    else:
-        # combine all scans
-        dirs = [unit_dirs_scan_indexes[i][0] for i in range(no_scan_ranges)]
-        inds = [unit_dirs_scan_indexes[i][1] for i in range(no_scan_ranges)]
-        unit_dirs_scan_indexes = (sum(dirs, []), sum(inds, []))
-        unit_dirs_scan_indexes = order_lists(unit_dirs_scan_indexes[0], unit_dirs_scan_indexes[1])
-    return unit_dirs_scan_indexes
+    def process_batch(self, dirs, scans, save_dir, filename):
+        batch_arr = combine_scans(self.prep_obj, dirs, scans)
+        batch_arr = self.prep_obj.detector.clear_seam(batch_arr)
+        write_prep_arr(batch_arr, save_dir, filename)
 
 
-def prep_data(prep_obj, dirs_indexes, **kwargs):
+class SinglePreparer(Preparer):
+    def __init__(self, prep_obj):
+        """
+        Creates PrepData instance for beamline aps_34idc. Sets fields to configuration parameters.
+        Parameters
+        ----------
+        experiment_dir : str
+            directory where the files for the experiment processing are created
+        Returns
+        -------
+        PrepData object
+        """
+        super().__init__(prep_obj)
+
+    def prepare(self, batches):
+        all_dirs = []
+        all_scans = []
+        for batch in batches:
+            all_dirs.extend(batch[0])
+            all_scans.extend(batch[1])
+        self.process_batch(all_dirs, all_scans, self.prep_obj.experiment_dir + '/preprocessed_data', 'prep_data.tif')
+
+
+class SepPreparer(Preparer):
+    def __init__(self, prep_obj):
+        """
+        Creates PrepData instance for beamline aps_34idc. Sets fields to configuration parameters.
+        Parameters
+        ----------
+        experiment_dir : str
+            directory where the files for the experiment processing are created
+        Returns
+        -------
+        PrepData object
+        """
+        super().__init__(prep_obj)
+
+    def prepare(self, batches):
+        processes = []
+        if self.prep_obj.separate_scans:
+            dirs = []
+            for batch in batches:
+                dirs.extend(batch[0])
+            for i in range(len(dirs)):
+                save_dir = self.prep_obj.experiment_dir + '/scan_' + str(i) + '/preprocessed_data'
+                self.process_batch([dirs[i]], None, save_dir, 'prep_data.tif')
+        else:
+            for i in range(len(batches)):
+                dirs = batches[i][0]
+                scans = batches[i][1]
+                save_dir = self.prep_obj.experiment_dir + '/scan_' + str(i) + '/preprocessed_data'
+                p = Process(target=self.process_batch,
+                            args=(dirs, scans, save_dir, 'prep_data.tif'))
+                p.start()
+                processes.append(p)
+            for p in processes:
+                p.join()
+
+
+class MultPeakPreparer(Preparer):
+    def __init__(self, prep_obj):
+        """
+        Creates PrepData instance for beamline aps_34idc. Sets fields to configuration parameters.
+        Parameters
+        ----------
+        experiment_dir : str
+            directory where the files for the experiment processing are created
+        Returns
+        -------
+        PrepData object
+        """
+        super().__init__(prep_obj)
+        try:
+            self.o_twin = mp.twin_matrix(prep_obj.hkl_in, prep_obj.hkl_out, prep_obj.twin_plane,
+                                 prep_obj.sample_axis)
+        except KeyError:
+            self.o_twin = np.identity(3)
+
+
+    def get_batches(self):
+        batches = super().get_batches()
+        for batch in batches:
+            # figure order of the batches relative to params stored in prep_obj
+            index = batch[1][0]  # first index of scan in batch
+            i = 0
+            while index > self.prep_obj.scan_ranges[i][-1]:
+                i += 1
+            batch.append(i)
+        return batches
+
+
+    def prepare(self, batches):
+        processes = []
+        for i in range(len(batches)):
+            dirs = batches[i][0]
+            scans = batches[i][1]
+            order = batches[i][2]
+            conf_scans = str(self.prep_obj.scan_ranges[order][0]) + '-' + str(self.prep_obj.scan_ranges[order][1])
+            orientation = self.prep_obj.orientations[order]
+            orientation = str(orientation[0]) + str(orientation[1]) + str(orientation[2])
+            save_dir = self.prep_obj.experiment_dir + '/mp_' + conf_scans + '_' + orientation + '/preprocessed_data'
+            p = Process(target=self.process_batch,
+                        args=(dirs, scans, save_dir, 'prep_data.tif'))
+            p.start()
+            processes.append(p)
+        for p in processes:
+            p.join()
+
+
+    def process_batch(self, dirs, scans, save_dir, filename):
+        batch_arr = combine_scans(self.prep_obj, dirs, scans)
+        batch_arr = self.prep_obj.detector.clear_seam(batch_arr)
+        data = mp.rotate_peaks(self.prep_obj, batch_arr, scans, self.o_twin)
+        write_prep_arr(data, save_dir, filename)
+
+
+def prep_data(prep_obj, **kwargs):
     """
     Creates prep_data.tif file in <experiment_dir>/preprocessed_data directory or multiple prep_data.tif in <experiment_dir>/<scan_<scan_no>>/preprocessed_data directories.
     Parameters
@@ -86,87 +245,14 @@ def prep_data(prep_obj, dirs_indexes, **kwargs):
     none
     Returns
     -------
-    nothing
+    nothingcreated mp
     """
-
-    def combine_scans(refarr, dirs, nproc, scan=''):
-        sumarr = np.zeros_like(refarr)
-        sumarr = sumarr + refarr
-        prep_obj.fft_refarr = np.fft.fftn(refarr)
-
-        # https://www.edureka.co/community/1245/splitting-a-list-into-chunks-in-python
-        # Need to further chunck becauase the result queue needs to hold N arrays.
-        # if there are a lot of them and they are big, it runs out of ram.
-        # since process takes 10-12 arrays, divide nscans/15 (to be safe) and make that many
-        # chunks to pool.  Also ask between pools how much ram is avaiable and modify nproc.
-        while (len(dirs) > 0):
-            chunklist = dirs[0:min(len(dirs), nproc)]
-            poollist = [dirs.pop(0) for i in range(len(chunklist))]
-            with Pool(processes=nproc) as pool:
-                res = pool.map_async(prep_obj.read_align, poollist)
-                pool.close()
-                pool.join()
-            for arr in res.get():
-                sumarr = sumarr + arr
-        prep_obj.write_prep_arr(sumarr, scan)
-
-    if prep_obj.separate_scan_ranges:
-        single = []
-        pops = []
-        for key in dirs_indexes:
-            (dirs, inds) = dirs_indexes[key]
-            if len(dirs) == 0:
-                pops.append(key)
-            elif len(dirs) == 1:
-                single.append((dirs_indexes[key][0][0], str(dirs_indexes[key][1][0])))
-                pops.append(key)
-        for key in pops:
-            dirs_indexes.pop(key)
-        # process first the single scans
-        if len(single) > 0:
-            with Pool(processes=min(len(single), cpu_count())) as pool:
-                pool.starmap_async(prep_obj.read_write, single)
-                pool.close()
-                pool.join()
-        # then process scan ranges
-        if len(dirs_indexes) == 0:
-            return
-        pr = []
-        for dir_ind in dirs_indexes.values():
-            (dirs, inds) = dir_ind
-            first_dir = dirs.pop(0)
-            refarr = prep_obj.read_scan(first_dir)
-            if refarr is None:
-                continue
-            # estimate number of available cpus for each process
-            arr_size = sys.getsizeof(refarr)
-            nproc = int(ut.estimate_no_proc(arr_size, 15) / len(dirs_indexes))
-            p = Process(target=combine_scans,
-                        args=(refarr, dirs, max(1, nproc), str(inds[0]) + '-' + str(inds[-1])))
-            p.start()
-            pr.append(p)
-        for p in pr:
-            p.join()
+    if hasattr(prep_obj, 'multipeak') and hasattr(prep_obj, 'orientations'):
+        preparer = MultPeakPreparer(prep_obj)
+    elif prep_obj.separate_scan_ranges or prep_obj.separate_scans:
+        preparer = SepPreparer(prep_obj)
     else:
-        dirs, indexes = dirs_indexes[0], dirs_indexes[1]
-        # dir_indexes consists of list of directories and corresponding list of indexes
-        if len(dirs) == 1:
-            arr = prep_obj.read_scan(dirs[0])
-            if arr is not None:
-                prep_obj.write_prep_arr(arr)
-            return
+        preparer = SinglePreparer(prep_obj)
 
-        if prep_obj.separate_scans:
-            iterable = list(zip(dirs, [str(ix) for ix in indexes]))
-            with Pool(processes=min(len(dirs_indexes), cpu_count())) as pool:
-                pool.starmap_async(prep_obj.read_write, iterable)
-                pool.close()
-                pool.join()
-        else:
-            first_dir = dirs.pop(0)
-            refarr = prep_obj.read_scan(first_dir)
-            if refarr is None:
-                return
-            arr_size = sys.getsizeof(refarr)
-            nproc = ut.estimate_no_proc(arr_size, 15)
-            combine_scans(refarr, dirs, nproc)
+    batches = preparer.get_batches()
+    preparer.prepare(batches)

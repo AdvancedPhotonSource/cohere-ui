@@ -1,6 +1,6 @@
-working_dir = "CUR_DIR/example_workspace"
+working_dir = "/home/phoebus3/BFROSIK/cui/example_workspace"
 experiment_id = "scan"
 scan = "54"
 beamline = "aps_34idc"
-specfile = "CUR_DIR/example_data/example.spec"
+specfile = "/home/phoebus3/BFROSIK/cui/example_data/example.spec"
 converter_ver = 0

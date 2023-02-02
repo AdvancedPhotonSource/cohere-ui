@@ -20,7 +20,7 @@ class Diffractometer(object):
             diffractometer name
 
         """
-        self.det_name = diff_name
+        self.diff_name = diff_name
 
 
 class Diffractometer_34idc(Diffractometer):

@@ -48,7 +48,6 @@ def handle_prep(experiment_dir, *args, **kwargs):
     main_conf_map = ut.read_config(main_conf_file)
     if main_conf_map is None:
         return None
-
     # convert configuration files if needed
     if 'converter_ver' not in main_conf_map or conv.get_version() is None or conv.get_version() < main_conf_map['converter_ver']:
         conv.convert(experiment_dir + '/conf')
@@ -59,6 +58,7 @@ def handle_prep(experiment_dir, *args, **kwargs):
     if len(er_msg) > 0:
         # the error message is printed in verifier
         return
+
     if 'beamline' in main_conf_map:
         beamline = main_conf_map['beamline']
         try:
@@ -71,6 +71,7 @@ def handle_prep(experiment_dir, *args, **kwargs):
     else:
         print('Beamline must be configured in configuration file ' + main_conf_file)
         return None
+
     prep_conf_file = experiment_dir + '/conf/config_prep'
     prep_conf_map = ut.read_config(prep_conf_file)
     if prep_conf_map is None:
@@ -85,16 +86,13 @@ def handle_prep(experiment_dir, *args, **kwargs):
         return None
 
     # create BeamPrepData object defined for the configured beamline
-    prep_obj = beam_prep.BeamPrepData(experiment_dir, main_conf_map, prep_conf_map, *args)
+    if 'multipeak' in main_conf_map and main_conf_map['multipeak']:
+        prep_obj = beam_prep.MPBeamPrepData(experiment_dir, main_conf_map, prep_conf_map, *args)
+    else:
+        prep_obj = beam_prep.BeamPrepData(experiment_dir, main_conf_map, prep_conf_map, *args)
     if prep_obj.scan_ranges is None:
         print('no scan given')
         return
-
-    # get directories from prep_obj
-    dirs_indexes = prep.get_dirs(prep_obj, data_dir=data_dir)
-    if len(dirs_indexes) == 0:
-        print('no data found')
-        return None
 
     det_name = prep_obj.get_detector_name()
     if det_name is not None:
@@ -104,7 +102,7 @@ def handle_prep(experiment_dir, *args, **kwargs):
         else:
             print('detector not created')
             return None
-    prep.prep_data(prep_obj, dirs_indexes)
+    prep.prep_data(prep_obj)
 
     print('done with preprocessing')
     return experiment_dir
