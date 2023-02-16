@@ -184,14 +184,11 @@ def manage_reconstruction(experiment_dir, rec_id=None):
             import cupy
             lib = 'cp'
         except:
-            # currently we could not install arrayfire on linux, so numpy is the second choice
-            pass
-        try:
-            import torch
-            lib = 'torch'
-        except:
-            # currently we could not install arrayfire on linux, so numpy is the second choice
-            pass
+            try:
+                import torch
+                lib = 'torch'
+            except:
+               pass
     elif proc == 'cp':
         try:
             import cupy
