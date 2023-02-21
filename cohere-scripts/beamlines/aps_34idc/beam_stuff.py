@@ -214,7 +214,7 @@ class Params:
         return True
 
 
-def set_geometry(shape, p):
+def set_geometry(shape, p, xtal=False):
     """
     Sets geometry.
     Parameters
@@ -270,6 +270,14 @@ def set_geometry(shape, p):
     Astar = q2[:, 0, 1, 0] - q2[:, 0, 0, 0]
     Bstar = q2[:, 0, 0, 1] - q2[:, 0, 0, 0]
     Cstar = q2[:, 1, 0, 0] - q2[:, 0, 0, 0]
+
+    if xtal:
+        Trecip_cryst = np.zeros(9)
+        Trecip_cryst.shape = (3, 3)
+        Trecip_cryst[:, 0] = Astar * 10
+        Trecip_cryst[:, 1] = Bstar * 10
+        Trecip_cryst[:, 2] = Cstar * 10
+        return Trecip_cryst, None
 
     # transform to lab coords from sample reference frame
     Astar = qc.transformSample2Lab(Astar, p.th, p.chi, p.phi) * 10.0  # convert to inverse nm.

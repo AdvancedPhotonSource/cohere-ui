@@ -1,3 +1,21 @@
+# #########################################################################
+# Copyright (c) , UChicago Argonne, LLC. All rights reserved.             #
+#                                                                         #
+# See LICENSE file.                                                       #
+# #########################################################################
+
+"""
+This user script processes the multi-peak reconstructed image for visualization.
+After the script is executed the experiment directory will contain image.vti file containing density, support, and the
+three components of atomic displacement.
+"""
+
+__author__ = "Nick Porter"
+__copyright__ = "Copyright (c), UChicago Argonne, LLC."
+__docformat__ = 'restructuredtext en'
+__all__ = ['rotate_peaks',
+           'twin_matrix']
+
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator as RGI
 from scipy.spatial.transform import Rotation as R
@@ -13,7 +31,7 @@ def rotate_peaks(prep_obj, data, scans, o_twin):
     p = geo.Params(main_config)
     p.set_instruments(det.create_detector(p.detector), diff.create_diffractometer(p.diffractometer))
     shape = data.shape
-    B_recip, _ = geo.set_geometry(shape, p)
+    B_recip, _ = geo.set_geometry(shape, p, xtal=True)
     B_recip = np.stack([B_recip[1, :], B_recip[0, :], B_recip[2, :]])
     voxel_size = np.abs(np.linalg.det(B_recip))**(1/3)
 

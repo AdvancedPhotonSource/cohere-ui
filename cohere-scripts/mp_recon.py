@@ -1,3 +1,15 @@
+"""
+This user script processes the multi-peak reconstructed image for visualization.
+After the script is executed the experiment directory will contain image.vti file containing density, support, and the
+three components of atomic displacement.
+"""
+
+__author__ = "Nick Porter"
+__copyright__ = "Copyright (c), UChicago Argonne, LLC."
+__docformat__ = 'restructuredtext en'
+__all__ = ['manage_reconstruction',
+           'main']
+
 import sys
 import os
 import argparse
