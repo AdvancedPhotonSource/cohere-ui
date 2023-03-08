@@ -82,11 +82,6 @@ def parse_spec(params, specfile, scan):
             params_values['energy'] = ss.init_motor_pos['INIT_MOPO_Energy']
         except:
             pass
-    if 'det_area' in params:
-        try:
-            params_values['det_area'] = [int(n) for n in ss.getheader_element('UIMR5').split()]
-        except  Exception as ex:
-            pass
 
     return params_values
 

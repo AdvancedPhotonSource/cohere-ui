@@ -25,7 +25,29 @@ import importlib
 import convertconfig as conv
 import cohere_core as cohere
 import util.util as ut
-import beamlines.prep as prep
+from multipeak import MultPeakPreparer
+from prep_helper import SepPreparer, SinglePreparer
+
+
+def prep_data(prep_obj, **kwargs):
+    """
+    Creates prep_data.tif file in <experiment_dir>/preprocessed_data directory or multiple prep_data.tif in <experiment_dir>/<scan_<scan_no>>/preprocessed_data directories.
+    Parameters
+    ----------
+    none
+    Returns
+    -------
+    nothingcreated mp
+    """
+    if hasattr(prep_obj, 'multipeak') and prep_obj.multipeak:
+        preparer = MultPeakPreparer(prep_obj)
+    elif prep_obj.separate_scan_ranges or prep_obj.separate_scans:
+        preparer = SepPreparer(prep_obj)
+    else:
+        preparer = SinglePreparer(prep_obj)
+
+    batches = preparer.get_batches()
+    preparer.prepare(batches)
 
 
 def handle_prep(experiment_dir, *args, **kwargs):
@@ -86,10 +108,11 @@ def handle_prep(experiment_dir, *args, **kwargs):
         return None
 
     # create BeamPrepData object defined for the configured beamline
+    conf_map = main_conf_map
+    conf_map.update(prep_conf_map)
     if 'multipeak' in main_conf_map and main_conf_map['multipeak']:
-        prep_obj = beam_prep.MPBeamPrepData(experiment_dir, main_conf_map, prep_conf_map, *args)
-    else:
-        prep_obj = beam_prep.BeamPrepData(experiment_dir, main_conf_map, prep_conf_map, *args)
+        conf_map.update(ut.read_config(experiment_dir + '/conf/config_mp'))
+    prep_obj = beam_prep.BeamPrepData(experiment_dir, conf_map, *args)
     if prep_obj.scan_ranges is None:
         print('no scan given')
         return
@@ -102,7 +125,8 @@ def handle_prep(experiment_dir, *args, **kwargs):
         else:
             print('detector not created')
             return None
-    prep.prep_data(prep_obj)
+
+    prep_data(prep_obj)
 
     print('done with preprocessing')
     return experiment_dir

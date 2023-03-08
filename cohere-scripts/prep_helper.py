@@ -3,9 +3,8 @@ import sys
 import re
 import glob
 import numpy as np
-from multiprocessing import Pool, Process, cpu_count
+from multiprocessing import Pool, Process
 import util.util as ut
-import beamlines.mp_prep as mp
 from functools import partial
 
 
@@ -170,89 +169,12 @@ class SepPreparer(Preparer):
         else:
             for i in range(len(batches)):
                 dirs = batches[i][0]
-                scans = batches[i][1]
-                save_dir = self.prep_obj.experiment_dir + '/scan_' + str(i) + '/preprocessed_data'
-                p = Process(target=self.process_batch,
-                            args=(dirs, scans, save_dir, 'prep_data.tif'))
-                p.start()
-                processes.append(p)
+                if len(dirs) > 0:
+                    scans = batches[i][1]
+                    save_dir = self.prep_obj.experiment_dir + '/scan_' + str(i) + '/preprocessed_data'
+                    p = Process(target=self.process_batch,
+                                args=(dirs, scans, save_dir, 'prep_data.tif'))
+                    p.start()
+                    processes.append(p)
             for p in processes:
                 p.join()
-
-
-class MultPeakPreparer(Preparer):
-    def __init__(self, prep_obj):
-        """
-        Creates PrepData instance for beamline aps_34idc. Sets fields to configuration parameters.
-        Parameters
-        ----------
-        experiment_dir : str
-            directory where the files for the experiment processing are created
-        Returns
-        -------
-        PrepData object
-        """
-        super().__init__(prep_obj)
-        try:
-            self.o_twin = mp.twin_matrix(prep_obj.hkl_in, prep_obj.hkl_out, prep_obj.twin_plane,
-                                 prep_obj.sample_axis)
-        except KeyError:
-            self.o_twin = np.identity(3)
-
-
-    def get_batches(self):
-        batches = super().get_batches()
-        for batch in batches:
-            # figure order of the batches relative to params stored in prep_obj
-            index = batch[1][0]  # first index of scan in batch
-            i = 0
-            while index > self.prep_obj.scan_ranges[i][-1]:
-                i += 1
-            batch.append(i)
-        return batches
-
-
-    def prepare(self, batches):
-        processes = []
-        for i in range(len(batches)):
-            dirs = batches[i][0]
-            scans = batches[i][1]
-            order = batches[i][2]
-            conf_scans = str(self.prep_obj.scan_ranges[order][0]) + '-' + str(self.prep_obj.scan_ranges[order][1])
-            orientation = self.prep_obj.orientations[order]
-            orientation = str(orientation[0]) + str(orientation[1]) + str(orientation[2])
-            save_dir = self.prep_obj.experiment_dir + '/mp_' + conf_scans + '_' + orientation + '/preprocessed_data'
-            p = Process(target=self.process_batch,
-                        args=(dirs, scans, save_dir, 'prep_data.tif'))
-            p.start()
-            processes.append(p)
-        for p in processes:
-            p.join()
-
-
-    def process_batch(self, dirs, scans, save_dir, filename):
-        batch_arr = combine_scans(self.prep_obj, dirs, scans)
-        batch_arr = self.prep_obj.detector.clear_seam(batch_arr)
-        data = mp.rotate_peaks(self.prep_obj, batch_arr, scans, self.o_twin)
-        write_prep_arr(data, save_dir, filename)
-
-
-def prep_data(prep_obj, **kwargs):
-    """
-    Creates prep_data.tif file in <experiment_dir>/preprocessed_data directory or multiple prep_data.tif in <experiment_dir>/<scan_<scan_no>>/preprocessed_data directories.
-    Parameters
-    ----------
-    none
-    Returns
-    -------
-    nothingcreated mp
-    """
-    if hasattr(prep_obj, 'multipeak') and hasattr(prep_obj, 'orientations'):
-        preparer = MultPeakPreparer(prep_obj)
-    elif prep_obj.separate_scan_ranges or prep_obj.separate_scans:
-        preparer = SepPreparer(prep_obj)
-    else:
-        preparer = SinglePreparer(prep_obj)
-
-    batches = preparer.get_batches()
-    preparer.prepare(batches)

@@ -141,18 +141,18 @@ def manage_reconstruction(experiment_dir, rec_id=None):
     # convert configuration files if needed
     main_conf = conf_dir + '/config'
     if os.path.isfile(main_conf):
-        config_map = ut.read_config(main_conf)
-        if config_map is None:
+        main_config_map = ut.read_config(main_conf)
+        if main_config_map is None:
             print ("info: can't read " + main_conf + " configuration file")
             return None
     else:
         print("info: missing " + main_conf + " configuration file")
         return None
 
-    if 'converter_ver' not in config_map or conv.get_version() is None or conv.get_version() < config_map['converter_ver']:
-        config_map = conv.convert(conf_dir, 'config')
+    if 'converter_ver' not in main_config_map or conv.get_version() is None or conv.get_version() < main_config_map['converter_ver']:
+        main_config_map = conv.convert(conf_dir, 'config')
     # verify main config file
-    er_msg = cohere.verify('config', config_map)
+    er_msg = cohere.verify('config', main_config_map)
     if len(er_msg) > 0:
         # the error message is printed in verifier
         return None
@@ -162,19 +162,19 @@ def manage_reconstruction(experiment_dir, rec_id=None):
     else:
         conf_file = conf_dir + '/config_rec_' + rec_id
 
-    config_map = ut.read_config(conf_file)
-    if config_map is None:
+    rec_config_map = ut.read_config(conf_file)
+    if rec_config_map is None:
         return
 
     # verify configuration
-    er_msg = cohere.verify('config_rec', config_map)
+    er_msg = cohere.verify('config_rec', rec_config_map)
     if len(er_msg) > 0:
         # the error message is printed in verifier
         return None
 
     # find which library to run it on, default is numpy ('np')
-    if 'processing' in config_map:
-        proc = config_map['processing']
+    if 'processing' in rec_config_map:
+        proc = rec_config_map['processing']
     else:
         proc = 'auto'
 
@@ -209,110 +209,125 @@ def manage_reconstruction(experiment_dir, rec_id=None):
         print('invalid "proc" value', proc, 'is not supported')
         return
 
-    # exp_dirs_data list hold pairs of data and directory, where the directory is the root of data/data.tif file, and
-    # data is the data.tif file in this directory.
-    exp_dirs_data = []
-    # experiment may be multi-scan in which case reconstruction will run for each scan
-    for dir in os.listdir(experiment_dir):
-        if dir.startswith('scan') or dir.startswith('mp'):
-            datafile = experiment_dir + '/' + dir + '/phasing_data/data.tif'
-            if os.path.isfile(datafile):
-                exp_dirs_data.append((datafile, experiment_dir + '/' + dir))
-    # if there are no scan directories, assume it is combined scans experiment
-    if len(exp_dirs_data) == 0:
-        # in typical scenario data_dir is not configured, and it is defaulted to <experiment_dir>/data
-        # the data_dir is ignored in multi-scan scenario
-        if 'data_dir' in config_map:
-            data_dir = config_map['data_dir'].replace(os.sep, '/')
-        else:
-            data_dir = experiment_dir + '/phasing_data'
-        datafile = data_dir + '/data.tif'
-        if os.path.isfile(datafile):
-            exp_dirs_data.append((datafile, experiment_dir))
-    no_runs = len(exp_dirs_data)
-    if no_runs == 0:
-        print('did not find data.tif file(s). ')
-        return
-    if 'ga_generations' in config_map:
-        generations = config_map['ga_generations']
-    else:
-        generations = 0
-    if 'reconstructions' in config_map:
-        reconstructions = config_map['reconstructions']
-    else:
-        reconstructions = 1
-    device_use = []
-    if lib == 'np':
-        cpu_use = [-1] * reconstructions
-        if no_runs > 1:
-            for _ in range(no_runs):
-                device_use.append(cpu_use)
-        else:
-            device_use = cpu_use
-    else:
+    # for multipeak reconstruction divert here
+    if 'multipeak' in main_config_map and main_config_map['multipeak']:
+        config_map = ut.read_config(experiment_dir + "/conf/config_mp")
+        config_map.update(main_config_map)
+        config_map.update(rec_config_map)
         if 'device' in config_map:
-            devices = config_map['device']
+            dev = config_map['device']
         else:
-            devices = [-1]
-
-        if no_runs * reconstructions > 1:
-            data_shape = cohere.read_tif(exp_dirs_data[0][0]).shape
-            device_use = get_gpu_use(devices, no_runs, reconstructions, data_shape, 'pc' in config_map['algorithm_sequence'], generations > 1)
-        else:
-            device_use = devices
-
-    if no_runs == 1:
-        if len(device_use) == 0:
-            device_use = [-1]
-        dir_data = exp_dirs_data[0]
-        datafile = dir_data[0]
-        dir = dir_data[1]
-        if generations > 1:
-            cohere.reconstruction_GA.reconstruction(lib, conf_file, datafile, dir, device_use)
-        elif reconstructions > 1:
-            cohere.reconstruction_multi.reconstruction(lib, conf_file, datafile, dir, device_use)
-        else:
-            cohere.reconstruction_single.reconstruction(lib, conf_file, datafile, dir, device_use)
+            dev = [-1]
+        peak_dirs = []
+        for dir in os.listdir(experiment_dir):
+            if dir.startswith('mp'):
+                peak_dirs.append(experiment_dir + '/' + dir)
+        cohere.reconstruction_coupled.reconstruction(lib, config_map, peak_dirs, dev)
     else:
-        if len(device_use) == 0:
-            device_use = [[-1]]
+        # exp_dirs_data list hold pairs of data and directory, where the directory is the root of data/data.tif file, and
+        # data is the data.tif file in this directory.
+        exp_dirs_data = []
+        # experiment may be multi-scan in which case reconstruction will run for each scan
+        for dir in os.listdir(experiment_dir):
+            if dir.startswith('scan') or dir.startswith('mp'):
+                datafile = experiment_dir + '/' + dir + '/phasing_data/data.tif'
+                if os.path.isfile(datafile):
+                    exp_dirs_data.append((datafile, experiment_dir + '/' + dir))
+        # if there are no scan directories, assume it is combined scans experiment
+        if len(exp_dirs_data) == 0:
+            # in typical scenario data_dir is not configured, and it is defaulted to <experiment_dir>/data
+            # the data_dir is ignored in multi-scan scenario
+            if 'data_dir' in rec_config_map:
+                data_dir = rec_config_map['data_dir'].replace(os.sep, '/')
+            else:
+                data_dir = experiment_dir + '/phasing_data'
+            datafile = data_dir + '/data.tif'
+            if os.path.isfile(datafile):
+                exp_dirs_data.append((datafile, experiment_dir))
+        no_runs = len(exp_dirs_data)
+        if no_runs == 0:
+            print('did not find data.tif file(s). ')
+            return
+        if 'ga_generations' in rec_config_map:
+            generations = rec_config_map['ga_generations']
         else:
-            # check if is it worth to use last chunk
-            if lib != 'np' and len(device_use[0]) > len(device_use[-1]) * 2:
-                device_use = device_use[0:-1]
-        if generations > 1:
-            r = 'g'
-        elif reconstructions > 1:
-            r = 'm'
+            generations = 0
+        if 'reconstructions' in rec_config_map:
+            reconstructions = rec_config_map['reconstructions']
         else:
-            r = 's'
-        q = Queue()
-        for gpus in device_use:
-            q.put((None, gpus))
-        # index keeps track of the multiple directories
-        index = 0
-        processes = {}
-        pr = []
-        while index < no_runs:
-            pid, gpus = q.get()
-            if pid is not None:
-                os.kill(pid, signal.SIGKILL)
-                del processes[pid]
-            datafile = exp_dirs_data[index][0]
-            dir = exp_dirs_data[index][1]
-            p = Process(target=rec_process, args=(lib, conf_file, datafile, dir, gpus, r, q))
-            p.start()
-            pr.append(p)
-            processes[p.pid] = index
-            index += 1
+            reconstructions = 1
+        device_use = []
+        if lib == 'np':
+            cpu_use = [-1] * reconstructions
+            if no_runs > 1:
+                for _ in range(no_runs):
+                    device_use.append(cpu_use)
+            else:
+                device_use = cpu_use
+        else:
+            if 'device' in rec_config_map:
+                devices = rec_config_map['device']
+            else:
+                devices = [-1]
 
-        for p in pr:
-            p.join()
+            if no_runs * reconstructions > 1:
+                data_shape = cohere.read_tif(exp_dirs_data[0][0]).shape
+                device_use = get_gpu_use(devices, no_runs, reconstructions, data_shape, 'pc' in rec_config_map['algorithm_sequence'], generations > 1)
+            else:
+                device_use = devices
 
-        # close the queue
-        q.close()
+        if no_runs == 1:
+            if len(device_use) == 0:
+                device_use = [-1]
+            dir_data = exp_dirs_data[0]
+            datafile = dir_data[0]
+            dir = dir_data[1]
+            if generations > 1:
+                cohere.reconstruction_GA.reconstruction(lib, conf_file, datafile, dir, device_use)
+            elif reconstructions > 1:
+                cohere.reconstruction_multi.reconstruction(lib, conf_file, datafile, dir, device_use)
+            else:
+                cohere.reconstruction_single.reconstruction(lib, conf_file, datafile, dir, device_use)
+        else:
+            if len(device_use) == 0:
+                device_use = [[-1]]
+            else:
+                # check if is it worth to use last chunk
+                if lib != 'np' and len(device_use[0]) > len(device_use[-1]) * 2:
+                    device_use = device_use[0:-1]
+            if generations > 1:
+                r = 'g'
+            elif reconstructions > 1:
+                r = 'm'
+            else:
+                r = 's'
+            q = Queue()
+            for gpus in device_use:
+                q.put((None, gpus))
+            # index keeps track of the multiple directories
+            index = 0
+            processes = {}
+            pr = []
+            while index < no_runs:
+                pid, gpus = q.get()
+                if pid is not None:
+                    os.kill(pid, signal.SIGKILL)
+                    del processes[pid]
+                datafile = exp_dirs_data[index][0]
+                dir = exp_dirs_data[index][1]
+                p = Process(target=rec_process, args=(lib, conf_file, datafile, dir, gpus, r, q))
+                p.start()
+                pr.append(p)
+                processes[p.pid] = index
+                index += 1
 
-    print('finished reconstruction')
+            for p in pr:
+                p.join()
+
+            # close the queue
+            q.close()
+
+        print('finished reconstruction')
 
 
 def main(arg):
@@ -331,4 +346,3 @@ def main(arg):
 if __name__ == "__main__":
     main(sys.argv[1:])
 
-# python run_reconstruction.py opencl experiment_dir
