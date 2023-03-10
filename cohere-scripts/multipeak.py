@@ -33,9 +33,11 @@ from beamlines.aps_34idc import beam_stuff as geo, diffractometers as diff, dete
 
 def rotate_peaks(prep_obj, data, scans, o_twin):
     print("rotating diffraction pattern")
-    main_config = ut.read_config(prep_obj.experiment_dir + '/conf/config')
-    main_config['last_scan'] = scans[-1]
-    p = geo.Params(main_config)
+    config = ut.read_config(prep_obj.experiment_dir + '/conf/config')
+    config.update(ut.read_config(prep_obj.experiment_dir + '/conf/config_disp'))
+    config['last_scan'] = scans[-1]
+    print(config['last_scan'])
+    p = geo.Params(config)
     p.set_instruments(det.create_detector(p.detector), diff.create_diffractometer(p.diffractometer))
     shape = data.shape
     B_recip, _ = geo.set_geometry(shape, p, xtal=True)
