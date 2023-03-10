@@ -126,6 +126,9 @@ class cdi_gui(QWidget):
         ruplayout.addRow("beamline", self.beamline_widget)
         self.spec_file_button = QPushButton()
         ruplayout.addRow("spec file", self.spec_file_button)
+        self.multipeak = QCheckBox('multi peak')
+        self.multipeak.setChecked(False)
+        ruplayout.addWidget(self.multipeak)
 
         self.vbox = QVBoxLayout()
         self.vbox.addLayout(uplayout)
@@ -380,6 +383,9 @@ class cdi_gui(QWidget):
         except:
             self.beamline_widget.setText('')
 
+        if 'multipeak' in conf_map and conf_map['multipeak']:
+            self.multipeak.setChecked(True)
+
         return need_convert
 
 
@@ -412,12 +418,15 @@ class cdi_gui(QWidget):
             conf_map['beamline'] = self.beamline
         if self.specfile is not None:
             conf_map['specfile'] = str(self.specfile)
+        if self.multipeak.isChecked():
+            conf_map['multipeak'] = True
         conf_map['converter_ver'] = conv.get_version()
         er_msg = cohere.verify('config', conf_map)
         if len(er_msg) > 0:
             msg_window(er_msg)
         else:
             ut.write_config(conf_map, self.experiment_dir + '/conf/config')
+
 
 
     def set_experiment(self, loaded=False):
@@ -481,7 +490,6 @@ class cdi_gui(QWidget):
                     pass
             self.t.save_conf()
         try:
-#            print("notify")
             self.t.notify(specfile=self.specfile)
         except:
             pass
@@ -516,6 +524,9 @@ class Tabs(QTabWidget):
             self.format_tab = DataTab()
             self.rec_tab = RecTab()
             self.tabs = [self.format_tab, self.rec_tab]
+        if self.main_win.multipeak.isChecked():
+            self.mp_tab = MpTab()
+            self.tabs = self.tabs + [self.mp_tab]
 
         for tab in self.tabs:
             self.addTab(tab, tab.name)
@@ -537,7 +548,8 @@ class Tabs(QTabWidget):
 
     def run_all(self):
         for tab in self.tabs:
-            tab.run_tab()
+            if tab.name != 'Multi peak':
+                tab.run_tab()
 
     def run_prep(self):
         import beamline_preprocess as prep
@@ -2236,6 +2248,183 @@ class Features(QWidget):
 
     def display(self, i):
         self.Stack.setCurrentIndex(i)
+
+
+class MpTab(QWidget):
+    def __init__(self, parent=None):
+        """
+        Constructor, initializes the tabs.
+        """
+        super(MpTab, self).__init__(parent)
+        self.name = 'Multi peak'
+
+
+    def init(self, tabs, main_window):
+        """
+        Creates and initializes the 'data' tab.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        self.tabs = tabs
+        self.main_win = main_window
+
+        layout = QFormLayout()
+        self.scan = QLineEdit()
+        layout.addRow("scan(s)", self.scan)
+        self.orientations = QLineEdit()
+        layout.addRow("peak orientations", self.orientations)
+        self.hkl_in = QLineEdit()
+        layout.addRow("hkl in", self.hkl_in)
+        self.hkl_out = QLineEdit()
+        layout.addRow("hkl out", self.hkl_out)
+        self.twin_plane = QLineEdit()
+        layout.addRow("twin plane", self.twin_plane)
+        self.sample_axis = QLineEdit()
+        layout.addRow("sample axis", self.sample_axis)
+        self.final_size = QLineEdit()
+        layout.addRow("final size", self.final_size)
+        self.mp_max_weight = QLineEdit()
+        layout.addRow("mp max weight", self.mp_max_weight)
+        self.mp_taper = QLineEdit()
+        layout.addRow("mp taper", self.mp_taper)
+        self.lattice_size = QLineEdit()
+        layout.addRow("lattice size", self.lattice_size)
+        self.switch_peak_trigger = QLineEdit()
+        layout.addRow("switch peak trigger", self.switch_peak_trigger)
+
+        cmd_layout = QHBoxLayout()
+        self.set_mp_conf_from_button = QPushButton("Load conf from")
+        self.set_mp_conf_from_button.setStyleSheet("background-color:rgb(205,178,102)")
+        cmd_layout.addWidget(self.set_mp_conf_from_button)
+        self.set_params_button = QPushButton("Save parameters")
+        self.set_params_button.setStyleSheet("background-color:rgb(175,208,156)")
+        cmd_layout.addWidget(self.set_params_button)
+        layout.addRow(cmd_layout)
+        self.setLayout(layout)
+
+        self.set_mp_conf_from_button.clicked.connect(self.load_mp_conf)
+        self.set_params_button.clicked.connect(self.save_conf)
+
+
+    def clear_conf(self):
+        self.scan.setText('')
+        self.orientations.setText('')
+        self.hkl_in.setText('')
+        self.hkl_out.setText('')
+        self.twin_plane.setText('')
+        self.sample_axis.setText('')
+        self.final_size.setText('')
+        self.mp_max_weight.setText('')
+        self.mp_taper.setText('')
+        self.lattice_size.setText('')
+        self.switch_peak_trigger.setText('')
+
+
+    def load_tab(self, load_from, need_convert=False):
+        """
+        It verifies given configuration file, reads the parameters, and fills out the window.
+        Parameters
+        ----------
+        conf : str
+            configuration file (config_data)
+        Returns
+        -------
+        nothing
+        """
+        load_from = load_from.replace(os.sep, '/')
+        if os.path.isfile(load_from):
+            conf = load_from
+        else:
+            conf = load_from + '/conf/config_mp'
+            if not os.path.isfile(conf):
+                msg_window('info: the load directory does not contain config_mp file')
+                return
+        conf_map = ut.read_config(conf)
+        if conf_map is None:
+            msg_window('please check configuration file ' + conf)
+            return
+
+        if 'scan' in conf_map:
+            self.scan.setText(str(conf_map['scan']).replace(" ", ""))
+        if 'orientations' in conf_map:
+            self.orientations.setText(str(conf_map['orientations']))
+        if 'hkl_in' in conf_map:
+            self.hkl_in.setText(str(conf_map['hkl_in']))
+        if 'hkl_out' in conf_map:
+            self.hkl_out.setText(str(conf_map['hkl_out']))
+        if 'twin_plane' in conf_map:
+            self.twin_plane.setText(str(conf_map['twin_plane']))
+        if 'sample_axis' in conf_map:
+            self.sample_axis.setText(str(conf_map['sample_axis']))
+        if 'final_size' in conf_map:
+            self.final_size.setText(str(conf_map['final_size']))
+        if 'mp_max_weight' in conf_map:
+            self.mp_max_weight.setText(str(conf_map['mp_max_weight']))
+        if 'mp_taper' in conf_map:
+            self.mp_taper.setText(str(conf_map['mp_taper']))
+        if 'lattice_size' in conf_map:
+            self.lattice_size.setText(str(conf_map['lattice_size']))
+        if 'switch_peak_trigger' in conf_map:
+            self.switch_peak_trigger.setText(str(conf_map['switch_peak_trigger']))
+
+
+    def save_conf(self):
+        """
+        It reads parameters related to multi peak from the window and saves in config_mp file.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        conf_map : dict
+            contains parameters read from window
+        """
+        conf_map = {}
+
+        if len(self.scan.text()) > 0:
+            conf_map['scan'] = str(self.scan.text())
+        if len(self.orientations.text()) > 0:
+            conf_map['orientations'] = ast.literal_eval(str(self.orientations.text()))
+        if len(self.hkl_in.text()) > 0:
+            conf_map['hkl_in'] = ast.literal_eval(str(self.hkl_in.text()))
+        if len(self.hkl_out.text()) > 0:
+            conf_map['hkl_out'] = ast.literal_eval(str(self.hkl_out.text()))
+        if len(self.twin_plane.text()) > 0:
+            conf_map['twin_plane'] = ast.literal_eval(str(self.twin_plane.text()))
+        if len(self.sample_axis.text()) > 0:
+            conf_map['sample_axis'] = ast.literal_eval(str(self.sample_axis.text()))
+        if len(self.final_size.text()) > 0:
+            conf_map['final_size'] = ast.literal_eval(str(self.final_size.text()))
+        if len(self.mp_max_weight.text()) > 0:
+            conf_map['mp_max_weight'] = ast.literal_eval(str(self.mp_max_weight.text()))
+        if len(self.mp_taper.text()) > 0:
+            conf_map['mp_taper'] = ast.literal_eval(str(self.mp_taper.text()))
+        if len(self.lattice_size.text()) > 0:
+            conf_map['lattice_size'] = ast.literal_eval(str(self.lattice_size.text()))
+        if len(self.switch_peak_trigger.text()) > 0:
+            conf_map['switch_peak_trigger'] = ast.literal_eval(str(self.switch_peak_trigger.text()))
+
+        ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_mp')
+
+    def load_mp_conf(self):
+        """
+        It displays a select dialog for user to select a configuration file. When selected, the parameters from that file will be loaded to the window.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        conf_file = select_file(os.getcwd())
+        if conf_file is not None:
+            self.load_tab(conf_file)
+        else:
+            msg_window('please select valid config file')
 
 
 def main(args):

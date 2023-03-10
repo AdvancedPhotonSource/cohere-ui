@@ -41,8 +41,7 @@ class CXDViz:
     geometry : tuple of arrays
         arrays containing geometry in reciprocal and direct space
     """
-    __all__ = ['visualize'
-               ]
+    __all__ = ['visualize']
 
     dir_arrs = {}
     recip_arrs = {}

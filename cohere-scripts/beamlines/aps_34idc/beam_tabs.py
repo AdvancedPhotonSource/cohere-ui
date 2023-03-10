@@ -435,18 +435,17 @@ class PrepTab(QWidget):
             msg_window('cannot prepare data for 34idc, need data directory')
             return
         scan = str(self.main_win.scan_widget.text())
-        if len(scan) == 0:
-            msg_window('cannot prepare data for 34idc, scan not specified')
 
         ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_prep')
         # the separate_scan and separate_scan_ranges parameters affects other tab (results_dir in dispaly tab)
         # this tab has to notify observer about the initial setup
         self.notify()
 
-        if len(self.main_win.scan_widget.text()) == 0:
-            msg_window('cannot prepare data for 34idc, scan not specified')
-        else:
-            self.tabs.run_prep()
+        # if len(self.main_win.scan_widget.text()) == 0:
+        #     msg_window('cannot prepare data for 34idc, scan not specified')
+        # else:
+        #     self.tabs.run_prep()
+        self.tabs.run_prep()
 
 
     def set_dark_file(self):
@@ -523,15 +522,15 @@ class PrepTab(QWidget):
         -------
         nothing
         """
+        if self.main_win.multipeak:
+            return
         if self.main_win.specfile is None:
             return
         if not self.main_win.is_exp_exists():
             # do not parse on initial assignment
             return
         scan = str(self.main_win.scan_widget.text())
-        if len(scan) == 0:
-            msg_window('scan number is needed to parse spec file')
-        else:
+        if len(scan) > 0:
             try:
                 last_scan = int(scan.split('-')[-1].split(',')[-1])
                 detector_name, roi = get_det_from_spec(self.main_win.specfile, last_scan)
@@ -887,9 +886,7 @@ class DispTab(QWidget):
             # do not parse on initial assignment
             return
         scan = str(self.main_win.scan_widget.text())
-        if len(scan) == 0:
-            msg_window('scan number is needed to parse spec file')
-        else:
+        if len(scan) > 0:
             try:
                 last_scan = int(scan.split('-')[-1].split(',')[-1])
                 delta, gamma, theta, phi, chi, scanmot, scanmot_del, detdist, detector_name, energy = parse_spec(self.main_win.specfile, last_scan)
