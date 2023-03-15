@@ -28,19 +28,21 @@ from prep_helper import Preparer, combine_scans, write_prep_arr
 from scipy.interpolate import RegularGridInterpolator as RGI
 from scipy.spatial.transform import Rotation as R
 import util.util as ut
-from beamlines.aps_34idc import beam_stuff as geo, diffractometers as diff, detectors as det
+from beamlines.aps_34idc import instrument as instr, diffractometers as diff, detectors as det
 
 
 def rotate_peaks(prep_obj, data, scans, o_twin):
     print("rotating diffraction pattern")
-    config = ut.read_config(prep_obj.experiment_dir + '/conf/config')
-    config.update(ut.read_config(prep_obj.experiment_dir + '/conf/config_disp'))
-    config['last_scan'] = scans[-1]
-    print(config['last_scan'])
-    p = geo.Params(config)
-    p.set_instruments(det.create_detector(p.detector), diff.create_diffractometer(p.diffractometer))
+    config_map = ut.read_config(prep_obj.experiment_dir + '/conf/config_instr')
+    config_map['last_scan'] = scans[-1]
+    instr_obj = instr.Instrument()
+    msg = instr_obj.initialize(config_map)
+    if len(msg) > 0:
+        print(msg)
+        return msg
+
     shape = data.shape
-    B_recip, _ = geo.set_geometry(shape, p, xtal=True)
+    B_recip, _ = instr_obj.get_geometry(shape, xtal=True)
     B_recip = np.stack([B_recip[1, :], B_recip[0, :], B_recip[2, :]])
     voxel_size = np.abs(np.linalg.det(B_recip))**(1/3)
 
@@ -143,7 +145,7 @@ class MultPeakPreparer(Preparer):
 
     def process_batch(self, dirs, scans, save_dir, filename):
         batch_arr = combine_scans(self.prep_obj, dirs, scans)
-        batch_arr = self.prep_obj.detector.clear_seam(batch_arr)
+        batch_arr = self.prep_obj.det_obj.clear_seam(batch_arr)
         data = rotate_peaks(self.prep_obj, batch_arr, scans, self.o_twin)
         write_prep_arr(data, save_dir, filename)
 

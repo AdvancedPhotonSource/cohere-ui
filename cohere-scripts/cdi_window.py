@@ -108,7 +108,6 @@ class cdi_gui(QWidget):
         self.exp_id = None
         self.experiment_dir = None
         self.working_dir = None
-        self.specfile = None
 
         uplayout = QHBoxLayout()
         luplayout = QFormLayout()
@@ -124,8 +123,6 @@ class cdi_gui(QWidget):
         luplayout.addRow("scan(s)", self.scan_widget)
         self.beamline_widget = QLineEdit()
         ruplayout.addRow("beamline", self.beamline_widget)
-        self.spec_file_button = QPushButton()
-        ruplayout.addRow("spec file", self.spec_file_button)
         self.multipeak = QCheckBox('multi peak')
         self.multipeak.setChecked(False)
         ruplayout.addWidget(self.multipeak)
@@ -157,39 +154,12 @@ class cdi_gui(QWidget):
 
         self.set_exp_button.clicked.connect(self.load_experiment)
         self.set_work_dir_button.clicked.connect(self.set_working_dir)
-        self.spec_file_button.clicked.connect(self.set_spec_file)
         self.run_button.clicked.connect(self.run_everything)
         self.create_exp_button.clicked.connect(self.set_experiment)
 
 
     def set_args(self, args):
         self.args = args
-
-
-    def set_spec_file(self):
-        """
-        Calls selection dialog. The selected spec file is parsed.
-        The specfile is saved in config.
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        noting
-        """
-        self.specfile = select_file(os.getcwd())
-        if self.specfile is not None:
-            self.spec_file_button.setStyleSheet("Text-align:left")
-            self.spec_file_button.setText(self.specfile)
-        else:
-            self.specfile = None
-            self.spec_file_button.setText('')
-        if self.is_exp_exists() or self.is_exp_set():
-            # this will update configuration when the specfile is updated
-            self.save_main()
-            self.t.notify(**{'specfile':self.specfile})
-        else:
-            msg_window('set experiment first and then update spec file')
 
 
     def run_everything(self):
@@ -214,7 +184,6 @@ class cdi_gui(QWidget):
         self.exp_id = None
         self.experiment_dir = None
         self.working_dir = None
-        self.specfile = None
         if self.t is not None:
             self.t.clear_configs()
 
@@ -368,15 +337,6 @@ class cdi_gui(QWidget):
         except:
             self.scan_widget.setText('')
 
-        try:
-            specfile = conf_map['specfile']
-            if os.path.isfile(specfile):
-                self.spec_file_button.setStyleSheet("Text-align:left")
-                self.spec_file_button.setText(specfile)
-            else:
-                msg_window('The specfile file ' + specfile + ' in config file does not exist')
-        except:
-            self.spec_file_button.setText('')
 
         try:
             self.beamline_widget.setText(conf_map['beamline'])
@@ -416,8 +376,6 @@ class cdi_gui(QWidget):
             conf_map['scan'] = str(self.scan_widget.text())
         if self.beamline is not None:
             conf_map['beamline'] = self.beamline
-        if self.specfile is not None:
-            conf_map['specfile'] = str(self.specfile)
         if self.multipeak.isChecked():
             conf_map['multipeak'] = True
         conf_map['converter_ver'] = conv.get_version()
@@ -475,10 +433,6 @@ class cdi_gui(QWidget):
             self.beamline = str(self.beamline_widget.text()).strip()
         else:
             self.beamline = None
-        if len(self.spec_file_button.text()) > 0:
-            self.specfile = str(self.spec_file_button.text()).strip()
-        else:
-            self.specfile = None
 
         if not loaded:
             self.save_main()
@@ -489,10 +443,6 @@ class cdi_gui(QWidget):
                 except:
                     pass
             self.t.save_conf()
-        try:
-            self.t.notify(specfile=self.specfile)
-        except:
-            pass
 
 
 class Tabs(QTabWidget):
@@ -515,11 +465,12 @@ class Tabs(QTabWidget):
                 print (e)
                 msg_window('cannot import beamlines.' + beamline + ' module' )
                 raise
+            self.instr_tab = beam.InstrTab()
             self.prep_tab = beam.PrepTab()
             self.format_tab = DataTab()
             self.rec_tab = RecTab()
             self.display_tab = beam.DispTab()
-            self.tabs = [self.prep_tab, self.format_tab, self.rec_tab, self.display_tab]
+            self.tabs = [self.instr_tab, self.prep_tab, self.format_tab, self.rec_tab, self.display_tab]
         else:
             self.format_tab = DataTab()
             self.rec_tab = RecTab()
@@ -548,8 +499,7 @@ class Tabs(QTabWidget):
 
     def run_all(self):
         for tab in self.tabs:
-            if tab.name != 'Multi peak':
-                tab.run_tab()
+            tab.run_tab()
 
     def run_prep(self):
         import beamline_preprocess as prep
@@ -2308,6 +2258,10 @@ class MpTab(QWidget):
 
         self.set_mp_conf_from_button.clicked.connect(self.load_mp_conf)
         self.set_params_button.clicked.connect(self.save_conf)
+
+
+    def run_tab(self):
+        pass
 
 
     def clear_conf(self):

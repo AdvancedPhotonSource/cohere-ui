@@ -1,6 +1,7 @@
 import os
 import re
 import numpy as np
+import beamlines.aps_34idc.detectors as det
 from xrayutilities.io import spec as spec
 
 
@@ -31,9 +32,9 @@ def parse_spec(specfile, scan):
         return params_values
 
     try:
-        params_values['detector_name'] = str(ss.getheader_element('UIMDET'))
-        if params_values['detector_name'].endswith(':'):
-            params_values['detector_name'] = params_values['detector_name'][:-1]
+        params_values['detector'] = str(ss.getheader_element('UIMDET'))
+        if params_values['detector'].endswith(':'):
+            params_values['detector'] = params_values['detector'][:-1]
     except Exception as ex:
         print(str(ex))
 
@@ -51,22 +52,19 @@ class BeamPrepData():
     The class uses helper functions to prepare the data.
     """
 
-    def __init__(self, experiment_dir, conf_map, *args, **kwargs):
+    def initialize(self, experiment_dir, conf_map):
         """
         Creates PrepData instance for beamline aps_34idc. Sets fields to configuration parameters.
         Parameters
         ----------
-        experiment_dir : str
-            directory where the files for the experiment processing are created
+        conf_map : dict
+            dictionary containing parameters
         Returns
         -------
         PrepData object
         """
-        self.args = args
-        self.experiment_dir = experiment_dir
-
         # set defaults
-        self.det_name = None
+        self.detector = None
         self.roi = None
         self.separate_scans = False
         self.separate_scan_ranges = False
@@ -75,6 +73,8 @@ class BeamPrepData():
         self.min_files = 0
         self.exclude_scans = []
         self.last_scan = None
+
+        self.experiment_dir = experiment_dir
 
         self.scan_ranges = []
         if 'scan' in conf_map:
@@ -86,25 +86,26 @@ class BeamPrepData():
                 else:
                     self.scan_ranges.append([int(u), int(u)])
             self.last_scan = self.scan_ranges[-1][-1]
+        else:
+            return ('scan not defined in configuration')
+
+        if self.last_scan is not None and 'specfile' in conf_map:
+            # parse det name and saved roi from spec
+            spec_values = parse_spec(conf_map['specfile'], self.last_scan)
+            for attr in spec_values.keys():
+                setattr(self, attr, spec_values[attr])
+        else:
+            return("specfile not configured")
 
         # set members to values from configuration map
-        for attr in conf_map.keys():
-            if attr == 'detector':
-                setattr(self, 'det_name', conf_map.get(attr))
-            else:
-                setattr(self, attr, conf_map.get(attr))
+        for key, val in conf_map.items():
+            setattr(self, key, val)
 
-        if self.last_scan is not None:
-            if 'specfile' in conf_map:
-                specfile = conf_map['specfile']
-                # parse det name and saved roi from spec
-                spec_values = parse_spec(specfile, self.last_scan)
-                for attr in spec_values.keys():
-                    setattr(self, attr, spec_values[attr])
-            else:
-                print("specfile not configured")
-
+        self.det_obj = det.create_detector(self.detector)
+        self.det_obj.set_detector(conf_map)
         self.data_dir = self.data_dir.replace(os.sep, '/')
+
+        return ''
 
 
     def read_scan(self, dir, **kwargs):
@@ -143,7 +144,7 @@ class BeamPrepData():
         # look at slice0 to find out shape
         n = 0
         try:
-            slice0 = self.detector.get_frame(files[n], self.roi, self.Imult)
+            slice0 = self.det_obj.get_frame(files[n], self.roi, self.Imult)
         except Exception as e:
             print(e)
             return None
@@ -153,22 +154,6 @@ class BeamPrepData():
 
         for file in files[1:]:
             n = n + 1
-            slice = self.detector.get_frame(file, self.roi, self.Imult)
+            slice = self.det_obj.get_frame(file, self.roi, self.Imult)
             arr[:, :, n] = slice
         return arr
-
-
-    def get_detector_name(self):
-        return self.det_name
-
-
-    def set_detector(self, det_obj, prep_conf_map, **kwargs):
-        # The detector attributes for background/whitefield/etc need to be set to read frames
-        self.detector = det_obj
-
-        # if anything in config file has the same name as a required detector attribute, copy it to
-        # the detector
-        # this will capture things like whitefield_filename, etc.
-        for attr in prep_conf_map.keys():
-            if hasattr(self.detector, attr):
-                setattr(self.detector, attr, prep_conf_map.get(attr))

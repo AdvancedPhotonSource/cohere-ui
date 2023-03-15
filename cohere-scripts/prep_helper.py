@@ -67,7 +67,7 @@ def combine_scans(prep_obj, dirs, inds):
             pool.join()
         for arr in res.get():
             sumarr = sumarr + arr
-    sumarr = prep_obj.detector.clear_seam(sumarr)
+    sumarr = prep_obj.det_obj.clear_seam(sumarr)
     return sumarr
 
 
@@ -116,7 +116,8 @@ class Preparer():
 
     def process_batch(self, dirs, scans, save_dir, filename):
         batch_arr = combine_scans(self.prep_obj, dirs, scans)
-        batch_arr = self.prep_obj.detector.clear_seam(batch_arr)
+        print(batch_arr.shape)
+        batch_arr = self.prep_obj.det_obj.clear_seam(batch_arr)
         write_prep_arr(batch_arr, save_dir, filename)
 
 

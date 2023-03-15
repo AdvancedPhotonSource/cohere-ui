@@ -85,7 +85,6 @@ def handle_prep(experiment_dir, *args, **kwargs):
         beamline = main_conf_map['beamline']
         try:
             beam_prep = importlib.import_module('beamlines.' + beamline + '.prep')
-            det = importlib.import_module('beamlines.' + beamline + '.detectors')
         except Exception as e:
             print(e)
             print('cannot import beamlines.' + beamline + '.prep module.')
@@ -102,29 +101,24 @@ def handle_prep(experiment_dir, *args, **kwargs):
     if len(er_msg) > 0:
         # the error message is printed in verifier
         return None
+
     data_dir = prep_conf_map['data_dir'].replace(os.sep, '/')
     if not os.path.isdir(data_dir):
         print('data directory ' + data_dir + ' is not a valid directory')
         return None
 
+    instr_config_map = ut.read_config(experiment_dir + '/conf/config_instr')
     # create BeamPrepData object defined for the configured beamline
     conf_map = main_conf_map
     conf_map.update(prep_conf_map)
+    conf_map.update(instr_config_map)
     if 'multipeak' in main_conf_map and main_conf_map['multipeak']:
         conf_map.update(ut.read_config(experiment_dir + '/conf/config_mp'))
-    prep_obj = beam_prep.BeamPrepData(experiment_dir, conf_map, *args)
-    if prep_obj.scan_ranges is None:
-        print('no scan given')
-        return
-
-    det_name = prep_obj.get_detector_name()
-    if det_name is not None:
-        det_obj = det.create_detector(det_name)
-        if det_obj is not None:
-            prep_obj.set_detector(det_obj, prep_conf_map)
-        else:
-            print('detector not created')
-            return None
+    prep_obj = beam_prep.BeamPrepData()
+    msg = prep_obj.initialize(experiment_dir, conf_map)
+    if len(msg) > 0:
+        print(msg)
+        return msg
 
     prep_data(prep_obj)
 

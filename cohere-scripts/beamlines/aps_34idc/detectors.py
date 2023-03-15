@@ -81,6 +81,17 @@ class Detector(object):
         """
         return arr
 
+
+    def set_detector(self, conf_map):
+        # The detector attributes for background/whitefield/etc need to be set to read frames
+        # if anything in config file has the same name as a required detector attribute, copy it to
+        # the detector
+        # this will capture things like whitefield_filename, etc.
+        for key, val in conf_map.items():
+            if hasattr(self, key):
+                setattr(self, key, val)
+
+
     def get_pixel(self):
         """
         Returns detector pixel size.  Concrete function in subclass returns value applicable to the detector.
