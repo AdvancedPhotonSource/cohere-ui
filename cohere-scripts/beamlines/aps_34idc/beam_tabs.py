@@ -1,7 +1,6 @@
 import os
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
-import convertconfig as conv
 import ast
 import cohere_core as cohere
 import util.util as ut
@@ -89,6 +88,7 @@ class PrepTab(QWidget):
         """
         super(PrepTab, self).__init__(parent)
         self.name = 'Prep Data'
+        self.conf_name = 'config_prep'
 
 
     def init(self, tabs, main_window):
@@ -104,14 +104,6 @@ class PrepTab(QWidget):
         self.tabs = tabs
         self.main_win = main_window
         layout = QFormLayout()
-        scan_layout = QHBoxLayout()
-        self.separate_scans = QCheckBox('separate scans')
-        self.separate_scans.setChecked(False)
-        scan_layout.addWidget(self.separate_scans)
-        self.separate_scan_ranges = QCheckBox('separate scan ranges')
-        self.separate_scan_ranges.setChecked(False)
-        scan_layout.addWidget(self.separate_scan_ranges)
-        layout.addRow(scan_layout)
         self.data_dir_button = QPushButton()
         layout.addRow("data directory", self.data_dir_button)
         self.dark_file_button = QPushButton()
@@ -144,54 +136,17 @@ class PrepTab(QWidget):
         self.set_prep_conf_from_button.clicked.connect(self.load_prep_conf)
 
 
-    def load_tab(self, load_from, need_convert):
+    def load_tab(self, conf_map):
         """
         It verifies given configuration file, reads the parameters, and fills out the window.
         Parameters
         ----------
-        conf : str
-            configuration file (config_prep)
+        conf : dict
+            configuration (config_prep)
         Returns
         -------
         nothing
         """
-        load_from = load_from.replace(os.sep, '/')
-        if os.path.isfile(load_from):
-            conf = load_from
-        else:
-            conf = load_from + '/conf/config_prep'
-            if not os.path.isfile(conf):
-                msg_window('info: the load directory does not contain config_prep file')
-                return
-        if need_convert:
-            conf_map = conv.get_conf_dict(conf, 'config_prep')
-            # if experiment set, save the config_prep
-            ut.write_config(conf_map, conf)
-        else:
-            conf_map = ut.read_config(conf)
-            if conf_map is None:
-                msg_window('please check configuration file ' + conf )
-                return
-
-        if 'separate_scans' in conf_map:
-            separate_scans = conf_map['separate_scans']
-            if separate_scans:
-                self.separate_scans.setChecked(True)
-            else:
-                self.separate_scans.setChecked(False)
-        else:
-            self.separate_scans.setChecked(False)
-        if 'separate_scan_ranges' in conf_map:
-            separate_scan_ranges = conf_map['separate_scan_ranges']
-            if separate_scan_ranges:
-                self.separate_scan_ranges.setChecked(True)
-            else:
-                self.separate_scan_ranges.setChecked(False)
-        else:
-            self.separate_scan_ranges.setChecked(False)
-        # the separate_scan and separate_scan_ranges parameters affects other tab (results_dir in dispaly tab)
-        # this tab has to notify observer about the initial setup
-        self.notify()
         if 'data_dir' in conf_map:
             if os.path.isdir(conf_map['data_dir']):
                 self.data_dir_button.setStyleSheet("Text-align:left")
@@ -230,8 +185,6 @@ class PrepTab(QWidget):
 
 
     def clear_conf(self):
-        self.separate_scans.setChecked(False)
-        self.separate_scan_ranges.setChecked(False)
         self.data_dir_button.setText('')
         self.dark_file_button.setText('')
         self.white_file_button.setText('')
@@ -252,9 +205,10 @@ class PrepTab(QWidget):
         -------
         nothing
         """
-        prep_file = select_file(os.getcwd().replace(os.sep, '/')).replace(os.sep, '/')
+        prep_file = select_file(os.getcwd())
         if prep_file is not None:
-            self.load_tab(prep_file)
+            conf_map = ut.read_config(prep_file.replace(os.sep, '/'))
+            self.load_tab(conf_map)
         else:
             msg_window('please select valid prep config file')
 
@@ -279,10 +233,6 @@ class PrepTab(QWidget):
             conf_map['whitefield_filename'] = str(self.white_file_button.text().strip())
         if len(self.Imult.text()) > 0:
             conf_map['Imult'] = ast.literal_eval(str(self.Imult.text()).replace('\n',''))
-        if self.separate_scans.isChecked():
-            conf_map['separate_scans'] = True
-        if self.separate_scan_ranges.isChecked():
-            conf_map['separate_scan_ranges'] = True
         if len(self.min_files.text()) > 0:
             min_files = ast.literal_eval(str(self.min_files.text()))
             conf_map['min_files'] = min_files
@@ -323,17 +273,10 @@ class PrepTab(QWidget):
         if len(self.data_dir_button.text().strip()) == 0:
             msg_window('cannot prepare data for 34idc, need data directory')
             return
-        scan = str(self.main_win.scan_widget.text())
+  #      scan = str(self.main_win.scan_widget.text())
 
         ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_prep')
-        # the separate_scan and separate_scan_ranges parameters affects other tab (results_dir in dispaly tab)
-        # this tab has to notify observer about the initial setup
-        self.notify()
 
-        # if len(self.main_win.scan_widget.text()) == 0:
-        #     msg_window('cannot prepare data for 34idc, scan not specified')
-        # else:
-        #     self.tabs.run_prep()
         self.tabs.run_prep()
 
 
@@ -402,7 +345,7 @@ class PrepTab(QWidget):
 
 
     def notify(self):
-        self.tabs.notify(**{'separate_scans':self.separate_scans.isChecked(), 'separate_scan_ranges':self.separate_scan_ranges.isChecked()})
+        self.tabs.notify(**{})
 
 
 class DispTab(QWidget):
@@ -412,6 +355,7 @@ class DispTab(QWidget):
         """
         super(DispTab, self).__init__(parent)
         self.name = 'Display'
+        self.conf_name = 'config_disp'
 
 
     def init(self, tabs, main_window):
@@ -452,44 +396,31 @@ class DispTab(QWidget):
         self.result_dir_button.clicked.connect(self.set_res_dir)
         self.config_disp.clicked.connect(self.run_tab)
         self.set_disp_conf_from_button.clicked.connect(self.load_disp_conf)
-        #self.layout4 = layout
 
 
-    def load_tab(self, load_from, need_convert):
+    def load_tab(self, conf_map):
         """
         It verifies given configuration file, reads the parameters, and fills out the window.
         Parameters
         ----------
-        conf : str
-            configuration file (config_disp)
+        conf : dict
+            configuration (config_disp)
         Returns
         -------
         nothing
         """
-        load_from = load_from.replace(os.sep, '/')
-        if os.path.isfile(load_from):
-            conf = load_from
-            conf_dir = os.path.dirname(os.path.abspath(conf).replace(os.sep, '/'))
-        else:
-            conf_dir = load_from + '/conf'
-            conf = conf_dir + '/config_disp'
-            if not os.path.isfile(conf):
-                msg_window('info: the load directory does not contain config_disp file')
-                return
-        if need_convert:
-            conf_map = conv.get_conf_dict(conf, 'config_disp')
-            # if experiment set, save the config_disp
-            ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_disp')
-        else:
-            conf_map = ut.read_config(conf)
-            if conf_map is None:
-                msg_window('please check configuration file ' + conf)
-                return
+        if 'results_dir' in conf_map and len(conf_map['results_dir']) > 0:
+            results_dir = conf_map['results_dir'].replace(os.sep, '/')
+            self.update_tab(conf=results_dir)
 
-        self.results_dir = self.main_win.experiment_dir
+        # elif self.main_win.separate_scans.isChecked() or self.main_win.separate_scan_ranges.isChecked():
+        #     print('is checked')
+        #     results_dir = self.main_win.experiment_dir
+        # else:
+        #     results_dir = self.main_win.experiment_dir + '/results_phasing'
+        # self.result_dir_button.setStyleSheet("Text-align:left")
+        # self.result_dir_button.setText(results_dir)
 
-        self.result_dir_button.setStyleSheet("Text-align:left")
-        self.result_dir_button.setText(self.results_dir)
         # if parameters are configured, override the readings from spec file
         if 'make_twin' in conf_map:
             make_twin = conf_map['make_twin']
@@ -523,9 +454,10 @@ class DispTab(QWidget):
         -------
         nothing
         """
-        disp_file = select_file(os.getcwd().replace(os.sep, '/')).replace(os.sep, '/')
+        disp_file = select_file(os.getcwd())
         if disp_file is not None:
-            self.load_tab(disp_file)
+            conf_map = ut.read_config(disp_file.replace(os.sep, '/'))
+            self.load_tab(conf_map)
         else:
             msg_window('please select valid disp config file')
 
@@ -542,8 +474,8 @@ class DispTab(QWidget):
             contains parameters read from window
         """
         conf_map = {}
-        if self.results_dir is not None:
-            conf_map['results_dir'] = self.results_dir.replace(os.sep, '/')
+        if len(self.result_dir_button.text()) > 0:
+            conf_map['results_dir'] = str(self.result_dir_button.text()).replace(os.sep, '/')
         if self.make_twin.isChecked():
             conf_map['make_twin'] = True
         if len(self.crop.text()) > 0:
@@ -570,14 +502,14 @@ class DispTab(QWidget):
         if not self.main_win.is_exp_set():
             msg_window('the experiment has changed, pres "set experiment" button')
             return
-        # check if the results exist
-        if self.results_dir is None:
-            self.results_dir = self.main_win.experiment_dir
-        else:
-            self.results_dir = self.results_dir.replace(os.sep, '/')
-#        if 'image.npy' in glob.glob1(self.results_dir, recursive=True):
+        if len(str(self.result_dir_button.text())) == 0:
+            msg_window('the results directory is not set')
+            return
+
+        results_dir = str(self.result_dir_button.text()).replace(os.sep, '/')
+
         found_file = False
-        for p, d, f in os.walk(self.results_dir):
+        for p, d, f in os.walk(results_dir):
             if 'image.npy' in f:
                 found_file = True
                 break
@@ -620,25 +552,22 @@ class DispTab(QWidget):
         -------
         nothing
         """
-        if 'separate_scans' in args or 'separate_scan_ranges' in args:
-            if 'separate_scans' in args:
-                separate_scans = args['separate_scans']
-            if 'separate_scan_ranges' in args:
-                separate_scan_ranges = args['separate_scan_ranges']
-            if separate_scans or separate_scan_ranges:
-                self.results_dir = self.main_win.experiment_dir
+        if 'experiment_dir' in args:
+            if self.main_win.separate_scans.isChecked() or \
+                    self.main_win.separate_scan_ranges.isChecked():
+                results_dir = self.main_win.experiment_dir
             else:
-                self.results_dir = self.main_win.experiment_dir + '/results_phasing'
-            self.result_dir_button.setText(self.results_dir)
-            self.result_dir_button.setStyleSheet("Text-align:left")
-            return
+                results_dir = self.main_win.experiment_dir + '/results_phasing'
+
+        if 'conf' in args:
+            results_dir = args['conf']
 
         if 'rec_id' in args:
             rec_id = args['rec_id']
             if len(rec_id) > 0:
-                self.results_dir = self.main_win.experiment_dir + '/results_phasing_' + rec_id
+                results_dir = self.main_win.experiment_dir + '/results_phasing_' + rec_id
             else:
-                self.results_dir = self.main_win.experiment_dir + '/results_phasing'
+                results_dir = self.main_win.experiment_dir + '/results_phasing'
 
         if 'generations' in args:
             generations = args['generations']
@@ -646,13 +575,11 @@ class DispTab(QWidget):
                 rec_no = args['rec_no']
             else:
                 rec_no = 1
-            if generations > 0:
-                if rec_no > 1:
-                    self.results_dir = self.results_dir + '/g_' + str(generations - 1) + '/0'
-                else:
-                    self.results_dir = self.results_dir + '/g_' + str(generations - 1)
+            if generations > 0 and rec_no > 1:
+                results_dir = results_dir + '/g_' + str(generations - 1) + '/0'
 
-        self.result_dir_button.setText(self.results_dir)
+
+        self.result_dir_button.setText(results_dir)
         self.result_dir_button.setStyleSheet("Text-align:left")
 
 
@@ -668,16 +595,12 @@ class DispTab(QWidget):
         -------
         nothing
         """
-        if self.main_win.is_exp_exists():
-            self.results_dir = self.main_win.experiment_dir + '/results_phasing'
-            self.results_dir = select_dir(self.results_dir).replace(os.sep, '/')
-            if self.results_dir is not None:
-                self.result_dir_button.setStyleSheet("Text-align:left")
-                self.result_dir_button.setText(self.results_dir)
-            else:
-                self.result_dir_button.setText('')
+        results_dir = select_dir(os.getcwd())
+        if results_dir is not None:
+            self.result_dir_button.setStyleSheet("Text-align:left")
+            self.result_dir_button.setText(results_dir.replace(os.sep, '/'))
         else:
-            msg_window('the experiment has not been created yet')
+            msg_window('please select valid results directory')
 
 
 class InstrTab(QWidget):
@@ -687,6 +610,7 @@ class InstrTab(QWidget):
         """
         super(InstrTab, self).__init__(parent)
         self.name = 'Instrument'
+        self.conf_name = 'config_instr'
 
 
     def init(self, tabs, main_window):
@@ -738,7 +662,7 @@ class InstrTab(QWidget):
         self.setLayout(layout)
 
         self.spec_file_button.clicked.connect(self.set_spec_file)
-        self.save_instr_conf.clicked.connect(self.save_config)
+        self.save_instr_conf.clicked.connect(self.save_conf)
         self.energy.textChanged.connect(lambda: set_overriden(self.energy))
         self.delta.textChanged.connect(lambda: set_overriden(self.delta))
         self.gamma.textChanged.connect(lambda: set_overriden(self.gamma))
@@ -750,44 +674,23 @@ class InstrTab(QWidget):
         self.scanmot_del.textChanged.connect(lambda: set_overriden(self.scanmot_del))
         self.detector.textChanged.connect(lambda: set_overriden(self.detector))
         self.set_instr_conf_from_button.clicked.connect(self.load_instr_conf)
- #       self.layout4 = layout
 
 
     def run_tab(self):
         pass
 
 
-    def load_tab(self, load_from, need_convert):
+    def load_tab(self, conf_map):
         """
         It verifies given configuration file, reads the parameters, and fills out the window.
         Parameters
         ----------
-        conf : str
-            configuration file (config_disp)
+        conf : dict
+            configuration (config_disp)
         Returns
         -------
         nothing
         """
-        load_from = load_from.replace(os.sep, '/')
-        if os.path.isfile(load_from):
-            conf = load_from
-            conf_dir = os.path.dirname(os.path.abspath(conf).replace(os.sep, '/'))
-        else:
-            conf_dir = load_from + '/conf'
-            conf = conf_dir + '/config_instr'
-            if not os.path.isfile(conf):
-                msg_window('info: the load directory does not contain config_disp file')
-                return
-        if need_convert:
-            conf_map = conv.get_conf_dict(conf, 'config_instr')
-            # if experiment set, save the config_disp
-            ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_instr')
-        else:
-            conf_map = ut.read_config(conf)
-            if conf_map is None:
-                msg_window('please check configuration file ' + conf)
-                return
-
         if 'diffractometer' in conf_map:
             self.diffractometer.setText(str(conf_map['diffractometer']).replace(" ", ""))
         if 'specfile' in conf_map:
@@ -797,6 +700,8 @@ class InstrTab(QWidget):
                 self.spec_file_button.setText(specfile)
             else:
                 msg_window('The specfile file ' + specfile + ' in config file does not exist')
+
+        self.parse_spec()
 
         # if parameters are configured, override the readings from spec file
         if 'energy' in conf_map:
@@ -812,7 +717,7 @@ class InstrTab(QWidget):
             self.detdist.setText(str(conf_map['detdist']).replace(" ", ""))
             self.detdist.setStyleSheet('color: black')
         if 'th' in conf_map:
-            self.th.setText(str(conf_map['theta']).replace(" ", ""))
+            self.th.setText(str(conf_map['th']).replace(" ", ""))
             self.th.setStyleSheet('color: black')
         if 'chi' in conf_map:
             self.chi.setText(str(conf_map['chi']).replace(" ", ""))
@@ -829,8 +734,6 @@ class InstrTab(QWidget):
         if 'detector' in conf_map:
             self.detector.setText(str(conf_map['detector']).replace(" ", ""))
             self.detector.setStyleSheet('color: black')
-
-        self.parse_spec()
 
 
     def set_spec_file(self):
@@ -880,11 +783,12 @@ class InstrTab(QWidget):
         -------
         nothing
         """
-        instr_file = select_file(os.getcwd().replace(os.sep, '/')).replace(os.sep, '/')
+        instr_file = select_file(os.getcwd())
         if instr_file is not None:
-            self.load_tab(instr_file)
+            conf_map = ut.read_config(instr_file.replace(os.sep, '/'))
+            self.load_tab(conf_map)
         else:
-            msg_window('please select valid disp config file')
+            msg_window('please select valid instrument config file')
 
 
     def get_instr_config(self):
@@ -908,7 +812,7 @@ class InstrTab(QWidget):
         if len(self.detdist.text()) > 0:
             conf_map['detdist'] = ast.literal_eval(str(self.detdist.text()))
         if len(self.th.text()) > 0:
-            conf_map['theta'] = ast.literal_eval(str(self.th.text()))
+            conf_map['th'] = ast.literal_eval(str(self.th.text()))
         if len(self.chi.text()) > 0:
             conf_map['chi'] = ast.literal_eval(str(self.chi.text()))
         if len(self.phi.text()) > 0:
@@ -921,11 +825,13 @@ class InstrTab(QWidget):
             conf_map['detector'] = str(self.detector.text())
         if len(self.diffractometer.text()) > 0:
             conf_map['diffractometer'] = str(self.diffractometer.text())
+        if len(self.spec_file_button.text()) > 0:
+            conf_map['specfile'] = str(self.spec_file_button.text())
 
         return conf_map
 
 
-    def save_config(self):
+    def save_conf(self):
         """
         Reads the parameters needed by format display script. Saves the config_disp configuration file with parameters from the window and runs the display script.
         Parameters
@@ -1009,6 +915,6 @@ class InstrTab(QWidget):
         if 'scanmot_del' in spec_dict:
             self.scanmot_del.setText(str(spec_dict['scanmot_del']))
             self.scanmot_del.setStyleSheet('color: blue')
-        if 'detector_name' in spec_dict:
-            self.detector.setText(str(spec_dict['detector_name'])[:-1])
+        if 'detector' in spec_dict:
+            self.detector.setText(str(spec_dict['detector']))
             self.detector.setStyleSheet('color: blue')

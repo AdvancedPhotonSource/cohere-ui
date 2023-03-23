@@ -9,26 +9,3 @@ rampups = 1
 crop = [.5, .5, .5]
                            // fractions of the cropped array dimensions
                            // default [1.0, 1.0, 1.0] meaning the whole array
-
-diffractometer = "34idc"
-                           // it typically will be set to a defined class, but in case of new diffractometer
-                           // one can enter the parameters below instead
-
-// typically these parameters will be parsed from spec file
-// the parsed parameters will be overridden if they are configured
-//energy = 7.2
-                             // wavelength
-//delta = 30.1
-                             // delta (degrees)
-//gamma = 14.0
-                             // gamma (degrees)
-//detdist = 500.0
-                             // camera distance (mm)
-//theta = 0.1999946
-                             // angular step size
-//chi = 90.0
-//phi = -5.0
-//scanmot = "th"
-//scanmot_del = 0.005
-//detector = "34idcTIM2"
-                             // If detector is not in specfile one can enter it here

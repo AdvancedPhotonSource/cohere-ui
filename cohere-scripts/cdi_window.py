@@ -123,9 +123,17 @@ class cdi_gui(QWidget):
         luplayout.addRow("scan(s)", self.scan_widget)
         self.beamline_widget = QLineEdit()
         ruplayout.addRow("beamline", self.beamline_widget)
+        scan_layout = QHBoxLayout()
+        self.separate_scans = QCheckBox('separate scans')
+        self.separate_scans.setChecked(False)
+        scan_layout.addWidget(self.separate_scans)
+        self.separate_scan_ranges = QCheckBox('separate scan ranges')
+        self.separate_scan_ranges.setChecked(False)
+        scan_layout.addWidget(self.separate_scan_ranges)
         self.multipeak = QCheckBox('multi peak')
         self.multipeak.setChecked(False)
-        ruplayout.addWidget(self.multipeak)
+        scan_layout.addWidget(self.multipeak)
+        luplayout.addRow(scan_layout)
 
         self.vbox = QVBoxLayout()
         self.vbox.addLayout(uplayout)
@@ -184,6 +192,14 @@ class cdi_gui(QWidget):
         self.exp_id = None
         self.experiment_dir = None
         self.working_dir = None
+        self.set_work_dir_button.setText('')
+        self.Id_widget.setText('')
+        self.scan_widget.setText('')
+        self.beamline_widget.setText('')
+        self.separate_scans.setChecked(False)
+        self.separate_scan_ranges.setChecked(False)
+        self.multipeak.setChecked(False)
+
         if self.t is not None:
             self.t.clear_configs()
 
@@ -263,36 +279,59 @@ class cdi_gui(QWidget):
         -------
         nothing
         """
-        load_dir = select_dir(os.getcwd().replace(os.sep, '/')).replace(os.sep, '/')
+        load_dir = select_dir(os.getcwd())
         if load_dir is None:
             msg_window('please select valid conf directory')
             return
-        if os.path.isfile(load_dir + '/conf/config'):
-            need_convert = self.load_main(load_dir)
-            # config file could not be parsed
-            if need_convert is None:
-                return
-        else:
+        load_dir = load_dir.replace(os.sep, '/')
+        self.reset_window()
+
+        if not os.path.isfile(load_dir + '/conf/config'):
             msg_window('missing conf/config file, not experiment directory')
             return
 
-        self.reset_window()
-        self.set_experiment(True)
+        conf_dicts, converted = self.get_conf_dicts(load_dir)
+        if conf_dicts is None:
+            return
+        self.load_main(conf_dicts['config'])
+
         if self.t is None:
             try:
                 self.t = Tabs(self, self.beamline_widget.text())
                 self.vbox.addWidget(self.t)
             except:
                 pass
-        self.t.load_conf(load_dir, need_convert)
+        self.t.load_conf(conf_dicts)
+
+        self.set_experiment(True)
         if not self.is_exp_set():
             return
-        self.save_main()
-        if need_convert:
+
+        if converted:
+            self.save_main()
             self.t.save_conf()
 
 
-    def load_main(self, load_dir):
+    def get_conf_dicts(self, load_dir):
+        load_dir = load_dir.replace(os.sep, '/')
+        conf_file = load_dir + '/conf/config'
+        conf_map = ut.read_config(conf_file)
+        if conf_map is None:
+            msg_window('please check configuration file ' + conf_file + '. Cannot parse, ')
+            return None
+        # convert configuration files if needed
+        if 'converter_ver' not in conf_map or conv.get_version() is None or conv.get_version() > conf_map[
+            'converter_ver']:
+            return conv.convert(load_dir + '/conf', False), True
+        else:
+            conf_dirs = {}
+            for cf in os.listdir(load_dir + '/conf'):
+                if os.path.isfile(load_dir + '/conf/' + cf) and cf.startswith('conf'):
+                    conf_dirs[cf] = ut.read_config(load_dir + '/conf/' + cf)
+            return conf_dirs, False
+
+
+    def load_main(self, conf_map):
         """
         It reads 'config' file from the given directory, parses all parameters, verifies, and sets the display in window and class members to parsed values.
         Parameters
@@ -303,50 +342,22 @@ class cdi_gui(QWidget):
         -------
         nothing
         """
-        load_dir = load_dir.replace(os.sep, '/')
-        conf = load_dir + '/conf/config'
-        conf_map = ut.read_config(conf)
-        if conf_map is None:
-            msg_window('please check configuration file ' + conf + '. Cannot parse, ')
-            return None
-
-        self.working_dir = None
-        need_convert = False
-        try:
+        if 'working_dir' in conf_map:
             working_dir = conf_map['working_dir'].replace(os.sep, '/')
             self.set_work_dir_button.setStyleSheet("Text-align:left")
             self.set_work_dir_button.setText(working_dir)
-        except:
-            self.set_work_dir_button.setText('')
-
-        # if the converter version in config file is old or none, get the conf with new version
-        if 'converter_ver' in conf_map:
-            exp_converter_ver = conf_map['converter_ver']
-        else:
-            exp_converter_ver = None
-        if exp_converter_ver is None or exp_converter_ver < conv.get_version():
-            conf_map = conv.get_conf_dict(load_dir + '/conf/config', 'config')
-            need_convert = True
-
-        try:
+        if 'experiment_id' in conf_map:
             self.Id_widget.setText(conf_map['experiment_id'])
-        except:
-            self.Id_widget.setText('')
-        try:
+        if 'scan' in conf_map:
             self.scan_widget.setText(conf_map['scan'].replace(' ',''))
-        except:
-            self.scan_widget.setText('')
-
-
-        try:
+        if 'beamline' in conf_map:
             self.beamline_widget.setText(conf_map['beamline'])
-        except:
-            self.beamline_widget.setText('')
-
+        if 'separate_scans' in conf_map and conf_map['separate_scans']:
+            self.separate_scans.setChecked(True)
+        if 'separate_scan_ranges' in conf_map and conf_map['separate_scan_ranges']:
+            self.separate_scan_ranges.setChecked(True)
         if 'multipeak' in conf_map and conf_map['multipeak']:
             self.multipeak.setChecked(True)
-
-        return need_convert
 
 
     def assure_experiment_dir(self):
@@ -378,6 +389,10 @@ class cdi_gui(QWidget):
             conf_map['beamline'] = self.beamline
         if self.multipeak.isChecked():
             conf_map['multipeak'] = True
+        if self.separate_scans.isChecked():
+            conf_map['separate_scans'] = True
+        if self.separate_scan_ranges.isChecked():
+            conf_map['separate_scan_ranges'] = True
         conf_map['converter_ver'] = conv.get_version()
         er_msg = cohere.verify('config', conf_map)
         if len(er_msg) > 0:
@@ -386,10 +401,9 @@ class cdi_gui(QWidget):
             ut.write_config(conf_map, self.experiment_dir + '/conf/config')
 
 
-
     def set_experiment(self, loaded=False):
         """
-        Reads the parameters in the window, and sets the experiment to this values, i.e. creates experiment directory,
+        Reads the parameters in the window, and sets the experiment to read values, i.e. creates experiment directory,
         and saves all configuration files with parameters from window.
 
         Parameters
@@ -423,7 +437,7 @@ class cdi_gui(QWidget):
         self.working_dir = working_dir
         self.id = id
         if len(self.scan_widget.text()) > 0:
-            self.exp_id = self.id + '_' + str(self.scan_widget.text())
+            self.exp_id = self.id + '_' + str(self.scan_widget.text()).replace(' ','')
         else:
             self.exp_id = self.id
         self.experiment_dir = self.working_dir + '/' + self.exp_id
@@ -444,6 +458,8 @@ class cdi_gui(QWidget):
                     pass
             self.t.save_conf()
 
+        self.t.notify(**{'experiment_dir': self.experiment_dir})
+
 
 class Tabs(QTabWidget):
     """
@@ -463,7 +479,7 @@ class Tabs(QTabWidget):
                 beam = importlib.import_module('beamlines.' + beamline + '.beam_tabs')
             except Exception as e:
                 print (e)
-                msg_window('cannot import beamlines.' + beamline + ' module' )
+                msg_window('cannot import beamlines.' + beamline + ' module')
                 raise
             self.instr_tab = beam.InstrTab()
             self.prep_tab = beam.PrepTab()
@@ -506,17 +522,21 @@ class Tabs(QTabWidget):
 
         # this line is passing all parameters from command line to prep script. 
         # if there are other parameters, one can add some code here
-        prep.handle_prep(self.main_win.experiment_dir, self.main_win.args)
+        msg = prep.handle_prep(self.main_win.experiment_dir, self.main_win.args)
+        if len(msg) > 0:
+            msg_window(msg)
 
     def run_viz(self):
         import beamline_visualization as dp
 
-        dp.handle_visualization(self.main_win.experiment_dir)
+        msg = dp.handle_visualization(self.main_win.experiment_dir)
+        if len(msg) > 0:
+            msg_window(msg)
 
 
-    def load_conf(self, load_dir, need_convert):
+    def load_conf(self, conf_dirs):
         for tab in self.tabs:
-            tab.load_tab(load_dir, need_convert)
+            tab.load_tab(conf_dirs[tab.conf_name])
 
 
     def save_conf(self):
@@ -531,6 +551,7 @@ class DataTab(QWidget):
         """
         super(DataTab, self).__init__(parent)
         self.name = 'Data'
+        self.conf_name = 'config_data'
 
 
     def init(self, tabs, main_window):
@@ -589,32 +610,17 @@ class DataTab(QWidget):
         self.adjust_dimensions.setText('')
 
 
-    def load_tab(self, load_from, need_convert):
+    def load_tab(self, conf_map):
         """
         It verifies given configuration file, reads the parameters, and fills out the window.
         Parameters
         ----------
-        conf : str
-            configuration file (config_data)
+        conf_map : dict
+            configuration (config_data)
         Returns
         -------
         nothing
         """
-        load_from = load_from.replace(os.sep, '/')
-        if os.path.isfile(load_from):
-            conf = load_from
-        else:
-            conf = load_from + '/conf/config_data'
-            if not os.path.isfile(conf):
-                msg_window('info: the load directory does not contain config_data file')
-                return
-        if need_convert:
-            conf_map = conv.get_conf_dict(conf, 'config_data')
-        else:
-            conf_map = ut.read_config(conf)
-            if conf_map is None:
-                msg_window('please check configuration file ' + conf)
-                return
         if 'alien_alg' not in conf_map:
             conf_map['alien_alg'] = 'random'
         if conf_map['alien_alg'] == 'random':
@@ -821,7 +827,8 @@ class DataTab(QWidget):
         """
         data_file = select_file(os.getcwd())
         if data_file is not None:
-            self.load_tab(data_file)
+            conf_map = ut.read_config(data_file.replace(os.sep, '/'))
+            self.load_tab(conf_map)
         else:
             msg_window('please select valid data config file')
 
@@ -833,6 +840,7 @@ class RecTab(QWidget):
         """
         super(RecTab, self).__init__(parent)
         self.name = 'Reconstruction'
+        self.conf_name = 'config_rec'
 
 
     def init(self, tabs, main_window):
@@ -919,38 +927,7 @@ class RecTab(QWidget):
         self.set_rec_conf_from_button.clicked.connect(self.load_rec_conf_dir)
 
 
-    def load_tab(self, load_dir, need_convert):
-        """
-        It verifies given configuration file, reads the parameters, and fills out the window.
-        Parameters
-        ----------
-        conf : str
-            configuration file (config_rec)
-        Returns
-        -------
-        nothing
-        """
-        load_dir = load_dir.replace(os.sep, '/')
-        conf = load_dir + '/conf/config_rec'
-        if not os.path.isfile(conf):
-            msg_window('info: the load directory does not contain config_rec file')
-            return
-        if need_convert:
-            conf_dict = conv.get_conf_dict(conf, 'config_rec')
-            # if experiment set, save the config_rec
-            try:
-                ut.write_config(conf_dict, conf)
-            except:
-                pass
-        else:
-            conf_map = ut.read_config(conf)
-            if conf_map is None:
-                msg_window('please check configuration file ' + conf)
-                return
-        self.load_tab_common(conf_map)
-
-
-    def load_tab_common(self, conf_map, update_rec_choice=True):
+    def load_tab(self, conf_map, update_rec_choice=True):
         if 'init_guess' not in conf_map:
             conf_map['init_guess'] = 'random'
         if conf_map['init_guess'] == 'random':
@@ -967,6 +944,7 @@ class RecTab(QWidget):
 
         # this will update the configuration choices by reading configuration files names
         # do not update when doing toggle
+        self.rec_ids = []
         if update_rec_choice:
             self.update_rec_configs_choice()
 
@@ -1168,7 +1146,7 @@ class RecTab(QWidget):
         if conf_map is None:
             msg_window('please check configuration file ' + conf_file)
             return
-        self.load_tab_common(conf_map, False)
+        self.load_tab(conf_map, False)
         self.notify()
 
 
@@ -1184,12 +1162,12 @@ class RecTab(QWidget):
         """
         rec_file = select_file(os.getcwd())
         if rec_file is not None:
-            conf_map = ut.read_config(rec_file)
+            conf_map = ut.read_config(rec_file.replace(os.sep, '/'))
             if conf_map is None:
                 msg_window('please check configuration file ' + rec_file)
                 return
 
-            self.load_tab_common(conf_map)
+            self.load_tab(conf_map)
         else:
             msg_window('please select valid rec config file')
 
@@ -1280,7 +1258,7 @@ class RecTab(QWidget):
         # fill out the config_id choice bar by reading configuration files names
         if not self.main_win.is_exp_set():
             return
-        self.rec_ids = []
+#        self.rec_ids = []
         for file in os.listdir(self.main_win.experiment_dir + '/conf'):
             if file.startswith('config_rec_'):
                 self.rec_ids.append(file[len('config_rec_') : len(file)])
@@ -2207,6 +2185,7 @@ class MpTab(QWidget):
         """
         super(MpTab, self).__init__(parent)
         self.name = 'Multi peak'
+        self.conf_name = 'config_mp'
 
 
     def init(self, tabs, main_window):
@@ -2278,30 +2257,17 @@ class MpTab(QWidget):
         self.switch_peak_trigger.setText('')
 
 
-    def load_tab(self, load_from, need_convert=False):
+    def load_tab(self, conf_map):
         """
         It verifies given configuration file, reads the parameters, and fills out the window.
         Parameters
         ----------
-        conf : str
-            configuration file (config_data)
+        conf : dict
+            configuration (config_data)
         Returns
         -------
         nothing
         """
-        load_from = load_from.replace(os.sep, '/')
-        if os.path.isfile(load_from):
-            conf = load_from
-        else:
-            conf = load_from + '/conf/config_mp'
-            if not os.path.isfile(conf):
-                msg_window('info: the load directory does not contain config_mp file')
-                return
-        conf_map = ut.read_config(conf)
-        if conf_map is None:
-            msg_window('please check configuration file ' + conf)
-            return
-
         if 'scan' in conf_map:
             self.scan.setText(str(conf_map['scan']).replace(" ", ""))
         if 'orientations' in conf_map:
@@ -2364,6 +2330,7 @@ class MpTab(QWidget):
 
         ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_mp')
 
+
     def load_mp_conf(self):
         """
         It displays a select dialog for user to select a configuration file. When selected, the parameters from that file will be loaded to the window.
@@ -2376,7 +2343,8 @@ class MpTab(QWidget):
         """
         conf_file = select_file(os.getcwd())
         if conf_file is not None:
-            self.load_tab(conf_file)
+            conf_map = ut.read_config(conf_file.replace(os.sep, '/'))
+            self.load_tab(conf_map)
         else:
             msg_window('please select valid config file')
 

@@ -361,7 +361,7 @@ def get_conf_dict(experiment_dir, main_conf_map):
         a dictionary containing configuration parameters needed to initialize instrument
     """
     # convert configuration files if needed
-    if 'converter_ver' not in main_conf_map or conv.get_version() is None or conv.get_version() < main_conf_map[
+    if 'converter_ver' not in main_conf_map or conv.get_version() is None or conv.get_version() > main_conf_map[
         'converter_ver']:
         conv.convert(experiment_dir + '/conf')
         # re-parse config
@@ -493,6 +493,7 @@ def handle_visualization(experiment_dir, rec_id=None, image_file=None):
                pool.close()
                pool.join()
     print ('done with processing display')
+    return ''
 
 
 def main(arg):

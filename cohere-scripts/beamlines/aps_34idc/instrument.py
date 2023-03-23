@@ -49,13 +49,10 @@ def parse_spec(specfile, scan, diff):
     except:
         pass
 
-    for mot in diff.sampleaxes_name + diff.detectoraxes_name:
-        cmot = mot.capitalize()
-        if cmot == 'Th':
-            cmot = 'Theta'
+    for mot_mne, mot_name in zip(diff.sampleaxes_mne + diff.detectoraxes_mne, diff.sampleaxes_name + diff.detectoraxes_name):
         try:
-            motname = "INIT_MOPO_{m}".format(m=cmot)
-            spec_dict[mot] = ss.init_motor_pos[motname]
+            motname = "INIT_MOPO_{m}".format(m=mot_name)
+            spec_dict[mot_mne] = ss.init_motor_pos[motname]
         except:
             pass
 
@@ -127,10 +124,9 @@ class Instrument:
         for attr in config:
             setattr(self, attr, config[attr])
 
-        try:
-            self.det_obj = det.create_detector(self.detector)
-        except:
-            return('cannot create detector', self.detector)
+        self.det_obj = det.create_detector(self.detector)
+        if self.det_obj is None:
+            return 'detector ' + self.detector + ' not defined in detectors.py file.'
 
         return ''
 
@@ -173,16 +169,16 @@ class Instrument:
         # should put some try except around this in case something goes wrong.
         if scanmot == 'en':  # seems en scans always have to be treated differently since init is unique
             q2 = np.array(qc.area(self.th, self.chi, self.phi, self.delta, self.gamma, deg=True))
-        elif scanmot in self.diff_obj.sampleaxes_name:  # based on scanmot args are made for qc.area
+        elif scanmot in self.diff_obj.sampleaxes_mne:  # based on scanmot args are made for qc.area
             args = []
-            axisindex = self.diff_obj.sampleaxes_name.index(scanmot)
-            for n in range(len(self.diff_obj.sampleaxes_name)):
+            axisindex = self.diff_obj.sampleaxes_mne.index(scanmot)
+            for n in range(len(self.diff_obj.sampleaxes_mne)):
                 if n == axisindex:
                     scanstart = getattr(self, scanmot)
                     args.append(np.array((scanstart, scanstart + self.scanmot_del * self.binning[2])))
                 else:
-                    args.append(self.__dict__[self.diff_obj.sampleaxes_name[n]])
-            for axis in self.diff_obj.detectoraxes_name:
+                    args.append(self.__dict__[self.diff_obj.sampleaxes_mne[n]])
+            for axis in self.diff_obj.detectoraxes_mne:
                 args.append(getattr(self, axis))
             q2 = np.array(qc.area(*args, deg=True))
         else:

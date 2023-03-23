@@ -87,6 +87,7 @@ class BeamPrepData():
                     self.scan_ranges.append([int(u), int(u)])
             self.last_scan = self.scan_ranges[-1][-1]
         else:
+            print ('scan not defined in configuration')
             return ('scan not defined in configuration')
 
         if self.last_scan is not None and 'specfile' in conf_map:
@@ -95,6 +96,7 @@ class BeamPrepData():
             for attr in spec_values.keys():
                 setattr(self, attr, spec_values[attr])
         else:
+            print ("specfile not configured")
             return("specfile not configured")
 
         # set members to values from configuration map
@@ -102,6 +104,8 @@ class BeamPrepData():
             setattr(self, key, val)
 
         self.det_obj = det.create_detector(self.detector)
+        if self.det_obj is None:
+            return 'cannot create detector ' + self.detector
         self.det_obj.set_detector(conf_map)
         self.data_dir = self.data_dir.replace(os.sep, '/')
 
