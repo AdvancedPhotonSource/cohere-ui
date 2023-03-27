@@ -108,15 +108,15 @@ hio_beta = .9
                              // defines how many worst samples to remove in breeding phase for each generation
                              // defaults to 0
 
-// ga_shrink_wrap_thresholds = [.15, .1]
+// ga_sw_thresholds = [.15, .1]
                              // the support is recalculated with this threshold after breeding phase
                              // defaults to support threshold
 
-// ga_shrink_wrap_gauss_sigmas = [1.1, 1.0]
+// ga_sw_gauss_sigmas = [1.1, 1.0]
                              // the support is recalculated with this sigma after breeding phase
                              // defaults to support sigma
 
-// ga_lowpass_filter_sigmas = [2.0, 1.5]
+// ga_lpf_sigmas = [2.0, 1.5]
                              // list of sigmas that will be used in subsequent generations to calculate
                              // Gauss (assuming algorithm is GAUSS) and apply it to the data
                              // This determines low resolution generations number
@@ -140,12 +140,12 @@ twin_halves = [0, 0]
 // Support area is an array that defines region in which the image is meaningful. This area is recalculated at the
 // trigger iteration. The calculation employ an algorithm defined here as shrink_wrap_type.
 
-shrink_wrap_trigger = [1, 1]
+sw_trigger = [1, 1]
                              // defines when to update support array using the parameters below.
                              // Comment out, if support feature not used.
-shrink_wrap_type = "GAUSS"
-shrink_wrap_threshold = 0.1
-shrink_wrap_gauss_sigma = 1.0
+sw_type = "GAUSS"
+sw_threshold = 0.1
+sw_gauss_sigma = 1.0
 initial_support_area = [.5,.5,.5]
                              // initial support area. If the values are fractional, the support area will be calculated
                              // by multiplying by the data array dimensions. The support will be set to 1s to this
@@ -155,7 +155,7 @@ initial_support_area = [.5,.5,.5]
 // At the begginning iterations the support area is modified in respect to the phase. Support area will exclude points
 // that phase is outside of the defined bounds
 
-// phase_support_trigger = [0, 1, 310]
+// phm_trigger = [0, 1, 310]
                              // defines when to update support array using the parameters below by applaying phase constrain.
                              // Comment out, if phase constrain feature not used.
                              // when running GA applied only in first generation
@@ -185,17 +185,17 @@ initial_support_area = [.5,.5,.5]
 // The iter_res_det_range is similiary linespaced for the duration of low resolution iterations. The values are used
 // as sigmas to calculate Gaussian distribution and applied (multiplied) to data.
 
-// resolution_trigger = [0, 1, 320]
+// lpf_trigger = [0, 1, 320]
                              // defines when to apply low resolution using the parameters below.
                              // Comment out, if low resolution feature not used.
                              // when running GA applied only in first generation
 
-// lowpass_filter_sw_sigma_range = [2.0]
+// lpf_sw_sigma_range = [2.0]
                              // used when applying low resolution to replace support sigma.
                              // The sigmas are linespaced for low resolution iterations from first value to last. 
                              // If only one number given, the last sigma will default to shrink_wrap_gauss_sigma.
 
-// lowpass_filter_range = [.7]
+// lpf_range = [.7]
                              // used when applying low-pass data filter while iterating.
                              // The det values are linespaced for low resolution iterations from first value to last. 
                              // The filter is gauss with sigma of linespaced det. If only one number given,

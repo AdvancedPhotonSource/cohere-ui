@@ -969,6 +969,7 @@ class RecTab(QWidget):
 
     def clear_conf(self):
         self.init_guess.setCurrentIndex(0)
+        self.rec_id.setCurrentIndex(0)
         self.device.setText('')
         self.proc.setCurrentIndex(0)
         self.reconstructions.setText('')
@@ -1462,12 +1463,12 @@ class GA(Feature):
             self.breed_modes.setText(str(conf_map['ga_breed_modes']).replace(" ", ""))
         if 'ga_cullings' in conf_map:
             self.removes.setText(str(conf_map['ga_cullings']).replace(" ", ""))
-        if 'ga_shrink_wrap_thresholds' in conf_map:
-            self.ga_shrink_wrap_thresholds.setText(str(conf_map['ga_shrink_wrap_thresholds']).replace(" ", ""))
-        if 'ga_shrink_wrap_gauss_sigmas' in conf_map:
-            self.ga_shrink_wrap_gauss_sigmas.setText(str(conf_map['ga_shrink_wrap_gauss_sigmas']).replace(" ", ""))
-        if 'ga_lowpass_filter_sigmas' in conf_map:
-            self.lr_sigmas.setText(str(conf_map['ga_lowpass_filter_sigmas']).replace(" ", ""))
+        if 'ga_sw_thresholds' in conf_map:
+            self.ga_sw_thresholds.setText(str(conf_map['ga_sw_thresholds']).replace(" ", ""))
+        if 'ga_sw_gauss_sigmas' in conf_map:
+            self.ga_sw_gauss_sigmas.setText(str(conf_map['ga_sw_gauss_sigmas']).replace(" ", ""))
+        if 'ga_lpf_sigmas' in conf_map:
+            self.lr_sigmas.setText(str(conf_map['ga_lpf_sigmas']).replace(" ", ""))
         if 'ga_gen_pc_start' in conf_map:
             self.gen_pc_start.setText(str(conf_map['ga_gen_pc_start']).replace(" ", ""))
 
@@ -1494,10 +1495,10 @@ class GA(Feature):
         layout.addRow("breed modes", self.breed_modes)
         self.removes = QLineEdit()
         layout.addRow("cullings", self.removes)
-        self.ga_shrink_wrap_thresholds = QLineEdit()
-        layout.addRow("after breed support thresholds", self.ga_shrink_wrap_thresholds)
-        self.ga_shrink_wrap_gauss_sigmas = QLineEdit()
-        layout.addRow("after breed shrink wrap sigmas", self.ga_shrink_wrap_gauss_sigmas)
+        self.ga_sw_thresholds = QLineEdit()
+        layout.addRow("after breed support thresholds", self.ga_sw_thresholds)
+        self.ga_sw_gauss_sigmas = QLineEdit()
+        layout.addRow("after breed shrink wrap sigmas", self.ga_sw_gauss_sigmas)
         self.lr_sigmas = QLineEdit()
         layout.addRow("low resolution sigmas", self.lr_sigmas)
         self.gen_pc_start = QLineEdit()
@@ -1517,8 +1518,8 @@ class GA(Feature):
         self.generations.setText('5')
         self.metrics.setText('["chi"]')
         self.breed_modes.setText('["sqrt_ab"]')
-        self.ga_shrink_wrap_thresholds.setText('[.1]')
-        self.ga_shrink_wrap_gauss_sigmas.setText('[1.0]')
+        self.ga_sw_thresholds.setText('[.1]')
+        self.ga_sw_gauss_sigmas.setText('[1.0]')
         self.gen_pc_start.setText('3')
         self.active.setChecked(True)
 
@@ -1544,12 +1545,12 @@ class GA(Feature):
           conf_map['ga_breed_modes'] = ast.literal_eval(str(self.breed_modes.text()).replace('\n',''))
         if len(self.removes.text()) > 0:
            conf_map['ga_cullings'] = ast.literal_eval(str(self.removes.text()).replace('\n',''))
-        if len(self.ga_shrink_wrap_thresholds.text()) > 0:
-            conf_map['ga_shrink_wrap_thresholds'] = ast.literal_eval(str(self.ga_shrink_wrap_thresholds.text()).replace('\n',''))
-        if len(self.ga_shrink_wrap_gauss_sigmas.text()) > 0:
-            conf_map['ga_shrink_wrap_gauss_sigmas'] = ast.literal_eval(str(self.ga_shrink_wrap_gauss_sigmas.text()).replace('\n',''))
+        if len(self.ga_sw_thresholds.text()) > 0:
+            conf_map['ga_sw_thresholds'] = ast.literal_eval(str(self.ga_sw_thresholds.text()).replace('\n',''))
+        if len(self.ga_sw_gauss_sigmas.text()) > 0:
+            conf_map['ga_sw_gauss_sigmas'] = ast.literal_eval(str(self.ga_sw_gauss_sigmas.text()).replace('\n',''))
         if len(self.lr_sigmas.text()) > 0:
-            conf_map['ga_lowpass_filter_sigmas'] = ast.literal_eval(str(self.lr_sigmas.text()).replace('\n',''))
+            conf_map['ga_lpf_sigmas'] = ast.literal_eval(str(self.lr_sigmas.text()).replace('\n',''))
         if len(self.gen_pc_start.text()) > 0:
             conf_map['ga_gen_pc_start'] = ast.literal_eval(str(self.gen_pc_start.text()))
 
@@ -1574,17 +1575,17 @@ class low_resolution(Feature):
         -------
         nothing
         """
-        if 'resolution_trigger' in conf_map:
-            triggers = conf_map['resolution_trigger']
+        if 'lpf_trigger' in conf_map:
+            triggers = conf_map['lpf_trigger']
             self.active.setChecked(True)
             self.res_triggers.setText(str(triggers).replace(" ", ""))
         else:
             self.active.setChecked(False)
             return
-        if 'lowpass_filter_sw_sigma_range' in conf_map:
-            self.sigma_range.setText(str(conf_map['lowpass_filter_sw_sigma_range']).replace(" ", ""))
-        if 'lowpass_filter_range' in conf_map:
-            self.det_range.setText(str(conf_map['lowpass_filter_range']).replace(" ", ""))
+        if 'lpf_sw_sigma_range' in conf_map:
+            self.sigma_range.setText(str(conf_map['lpf_sw_sigma_range']).replace(" ", ""))
+        if 'lpf_range' in conf_map:
+            self.det_range.setText(str(conf_map['lpf_range']).replace(" ", ""))
 
 
     def fill_active(self, layout):
@@ -1634,11 +1635,11 @@ class low_resolution(Feature):
         nothing
         """
         if len(self.res_triggers.text()) > 0:
-            conf_map['resolution_trigger'] = ast.literal_eval(str(self.res_triggers.text()).replace('\n',''))
+            conf_map['lpf_trigger'] = ast.literal_eval(str(self.res_triggers.text()).replace('\n',''))
         if len(self.sigma_range.text()) > 0:
-            conf_map['lowpass_filter_sw_sigma_range'] = ast.literal_eval(str(self.sigma_range.text()).replace('\n',''))
+            conf_map['lpf_sw_sigma_range'] = ast.literal_eval(str(self.sigma_range.text()).replace('\n',''))
         if len(self.det_range.text()) > 0:
-            conf_map['lowpass_filter_range'] = ast.literal_eval(str(self.det_range.text()).replace('\n',''))
+            conf_map['lpf_range'] = ast.literal_eval(str(self.det_range.text()).replace('\n',''))
 
 
 class shrink_wrap(Feature):
@@ -1661,19 +1662,19 @@ class shrink_wrap(Feature):
         -------
         nothing
         """
-        if 'shrink_wrap_trigger' in conf_map:
-            triggers = conf_map['shrink_wrap_trigger']
+        if 'sw_trigger' in conf_map:
+            triggers = conf_map['sw_trigger']
             self.active.setChecked(True)
-            self.shrink_wrap_triggers.setText(str(triggers).replace(" ", ""))
+            self.sw_triggers.setText(str(triggers).replace(" ", ""))
         else:
             self.active.setChecked(False)
             return
-        if 'shrink_wrap_type' in conf_map:
-            self.shrink_wrap_type.setText(str(conf_map['shrink_wrap_type']).replace(" ", ""))
-        if 'shrink_wrap_threshold' in conf_map:
-            self.shrink_wrap_threshold.setText(str(conf_map['shrink_wrap_threshold']).replace(" ", ""))
-        if 'shrink_wrap_gauss_sigma' in conf_map:
-            self.shrink_wrap_gauss_sigma.setText(str(conf_map['shrink_wrap_gauss_sigma']).replace(" ", ""))
+        if 'sw_type' in conf_map:
+            self.sw_type.setText(str(conf_map['sw_type']).replace(" ", ""))
+        if 'sw_threshold' in conf_map:
+            self.sw_threshold.setText(str(conf_map['sw_threshold']).replace(" ", ""))
+        if 'sw_gauss_sigma' in conf_map:
+            self.sw_gauss_sigma.setText(str(conf_map['sw_gauss_sigma']).replace(" ", ""))
 
 
     def fill_active(self, layout):
@@ -1687,14 +1688,14 @@ class shrink_wrap(Feature):
         -------
         nothing
         """
-        self.shrink_wrap_triggers = QLineEdit()
-        layout.addRow("shrink wrap triggers", self.shrink_wrap_triggers)
-        self.shrink_wrap_type = QLineEdit()
-        layout.addRow("shrink wrap algorithm", self.shrink_wrap_type)
-        self.shrink_wrap_threshold = QLineEdit()
-        layout.addRow("shrink wrap threshold", self.shrink_wrap_threshold)
-        self.shrink_wrap_gauss_sigma = QLineEdit()
-        layout.addRow("shrink wrap Gauss sigma", self.shrink_wrap_gauss_sigma)
+        self.sw_triggers = QLineEdit()
+        layout.addRow("shrink wrap triggers", self.sw_triggers)
+        self.sw_type = QLineEdit()
+        layout.addRow("shrink wrap algorithm", self.sw_type)
+        self.sw_threshold = QLineEdit()
+        layout.addRow("shrink wrap threshold", self.sw_threshold)
+        self.sw_gauss_sigma = QLineEdit()
+        layout.addRow("shrink wrap Gauss sigma", self.sw_gauss_sigma)
 
 
     def rec_default(self):
@@ -1707,10 +1708,10 @@ class shrink_wrap(Feature):
         -------
         nothing
         """
-        self.shrink_wrap_triggers.setText('[1,1]')
-        self.shrink_wrap_type.setText('GAUSS')
-        self.shrink_wrap_gauss_sigma.setText('1.0')
-        self.shrink_wrap_threshold.setText('0.1')
+        self.sw_triggers.setText('[1,1]')
+        self.sw_type.setText('GAUSS')
+        self.sw_gauss_sigma.setText('1.0')
+        self.sw_threshold.setText('0.1')
 
 
     def add_feat_conf(self, conf_map):
@@ -1724,14 +1725,14 @@ class shrink_wrap(Feature):
         -------
         nothing
         """
-        if len(self.shrink_wrap_triggers.text()) > 0:
-            conf_map['shrink_wrap_trigger'] = ast.literal_eval(str(self.shrink_wrap_triggers.text()).replace('\n',''))
-        if len(self.shrink_wrap_type.text()) > 0:
-            conf_map['shrink_wrap_type'] = str(self.shrink_wrap_type.text())
-        if len(self.shrink_wrap_threshold.text()) > 0:
-            conf_map['shrink_wrap_threshold'] = ast.literal_eval(str(self.shrink_wrap_threshold.text()))
-        if len(self.shrink_wrap_gauss_sigma.text()) > 0:
-            conf_map['shrink_wrap_gauss_sigma'] = ast.literal_eval(str(self.shrink_wrap_gauss_sigma.text()))
+        if len(self.sw_triggers.text()) > 0:
+            conf_map['sw_trigger'] = ast.literal_eval(str(self.sw_triggers.text()).replace('\n',''))
+        if len(self.sw_type.text()) > 0:
+            conf_map['sw_type'] = str(self.sw_type.text())
+        if len(self.sw_threshold.text()) > 0:
+            conf_map['sw_threshold'] = ast.literal_eval(str(self.sw_threshold.text()))
+        if len(self.sw_gauss_sigma.text()) > 0:
+            conf_map['sw_gauss_sigma'] = ast.literal_eval(str(self.sw_gauss_sigma.text()))
 
 
 class phase_support(Feature):
@@ -1754,8 +1755,8 @@ class phase_support(Feature):
         -------
         nothing
         """
-        if 'phase_support_trigger' in conf_map:
-            triggers = conf_map['phase_support_trigger']
+        if 'phm_trigger' in conf_map:
+            triggers = conf_map['phm_trigger']
             self.active.setChecked(True)
             self.phase_triggers.setText(str(triggers).replace(" ", ""))
         else:
@@ -1814,7 +1815,7 @@ class phase_support(Feature):
         nothing
         """
         if len(self.phase_triggers.text()) > 0:
-            conf_map['phase_support_trigger'] = ast.literal_eval(str(self.phase_triggers.text()).replace('\n',''))
+            conf_map['phm_trigger'] = ast.literal_eval(str(self.phase_triggers.text()).replace('\n',''))
         if len(self.phm_phase_min.text()) > 0:
             conf_map['phm_phase_min'] = ast.literal_eval(str(self.phm_phase_min.text()))
         if len(self.phm_phase_max.text()) > 0:

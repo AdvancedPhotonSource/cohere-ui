@@ -17,8 +17,6 @@ beamline = "aps_34idc"
                                             // beamline the experiment was performed at
                                             // if not configured, only the format data and reconstruction components will be usable
 
-converter_ver = 0
-                                            // optional, coverter version, if current, the configuration files won't be converted
 separate_scans = False
                                             // in typical scenario the data from all scans in experiment are
                                             // combined.
@@ -38,3 +36,7 @@ separate_scan_ranges = False
 multipeak = False
                                             // True if running multipeak experiment.
                                             // This requires config_mp file in conf directory
+
+converter_ver = 1
+                                            // optional, coverter version, if current, the configuration files won't be
+                                            // converted

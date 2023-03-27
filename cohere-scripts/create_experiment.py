@@ -50,10 +50,7 @@ def create_conf_prep(conf_dir):
     f.write('// roi = [0,256,0,256]\n')
     f.write('// min_files = 80\n')
     f.write('// exclude_scans = [78,81]\n')
-    f.write('separate_scans = False\n')
-    f.write('separate_scan_ranges = False\n')
     f.write('// Imult = 10000\n')
-    f.write('detector = "34idcTIM1"\n')
     f.close()
 
 
@@ -114,18 +111,18 @@ def create_conf_rec(conf_dir):
     f.write('// ga_metrics = ["chi", "sharpness"]\n')
     f.write('// ga_breed_modes = ["sqrt_ab"]\n')
     f.write('// ga_cullings = [2,1]\n')
-    f.write('// ga_shrink_wrap_thresholds = [.15, .1]\n')
-    f.write('// ga_shrink_wrap_gauss_sigmas = [1.1, 1.0]\n')
-    f.write('// ga_lowpass_filter_sigmas = [2.0, 1.5]\n')
+    f.write('// ga_sw_thresholds = [.15, .1]\n')
+    f.write('// ga_sw_gauss_sigmas = [1.1, 1.0]\n')
+    f.write('// ga_lpf_sigmas = [2.0, 1.5]\n')
     f.write('// ga_gen_pc_start = 3\n')
     f.write('twin_trigger = [2]\n')
     f.write('// twin_halves = [0, 0]\n')
-    f.write('shrink_wrap_trigger = [10, 1]\n')
-    f.write('shrink_wrap_type = "GAUSS"\n')
-    f.write('shrink_wrap_threshold = 0.1\n')
-    f.write('shrink_wrap_gauss_sigma = 1.0\n')
+    f.write('sw_trigger = [10, 1]\n')
+    f.write('sw_type = "GAUSS"\n')
+    f.write('sw_threshold = 0.1\n')
+    f.write('sw_gauss_sigma = 1.0\n')
     f.write('initial_support_area = [.5,.5,.5]\n\n')
-    f.write('// phase_support_trigger = [0, 1, 320]\n')
+    f.write('// phm_trigger = [0, 1, 320]\n')
     f.write('// phm_phase_min = -1.57\n')
     f.write('// phm_phase_max = 1.57\n')
     f.write('// pc_interval = 50\n')
@@ -133,9 +130,9 @@ def create_conf_rec(conf_dir):
     f.write('// pc_LUCY_iterations = 20\n')
     f.write('// pc_normalize = True\n')
     f.write('// pc_LUCY_kernel = [16,16,16]\n')
-    f.write('// resolution_trigger = [0, 1, 320]\n')
-    f.write('// lowpass_filter_sw_sigma_range = [2.0]\n')
-    f.write('// lowpass_filter_range = [.7]\n')
+    f.write('// lpf_trigger = [0, 1, 320]\n')
+    f.write('// lpf_sw_sigma_range = [2.0]\n')
+    f.write('// lpf_range = [.7]\n')
     f.write('// average_trigger = [-60, 1]\n')
     f.write('progress_trigger = [0, 20]')
     f.close()
@@ -161,17 +158,28 @@ def create_conf_disp(conf_dir):
     f.write('// results_dir = "/path/to/dir/with/reconstructed/image(s)"\n')
     f.write('// rampups = 1\n')
     f.write('crop = [.5, .5, .5]\n')
+    f.close()
+
+
+def create_conf_disp(conf_dir):
+    """
+    Creates a "config_disp" file with some parameters commented out.
+
+    Parameters
+    ----------
+    conf_dir : str
+        directory where the file will be saved
+
+    Returns
+    -------
+    nothing
+    """
+    conf_dir = conf_dir.replace(os.sep, '/')
+    conf_file_name = conf_dir + '/config_instr'
+    f = open(conf_file_name, "w+")
+
     f.write('diffractometer = "34idc"\n')
-    f.write('// detector = "34idcTIM1"\n')
-    f.write('// energy = 7.2\n')
-    f.write('// delta = 30.1\n')
-    f.write('// gamma = 14.0\n')
-    f.write('// detdist = 500.0\n')
-    f.write('// theta = 0.1999946\n')
-    f.write('// chi = 90\n')
-    f.write('// phi = -5\n')
-    f.write('// scanmot = "th"')
-    f.write('// scanmot_del = 0.002\n')
+    f.write('// scanfile = "path/to/scanfile/scanfile"\n')
     f.close()
 
 
@@ -220,13 +228,13 @@ def create_exp(prefix, scan, working_dir, **args):
     conf_map['working_dir'] = working_dir
     conf_map['experiment_id'] = prefix
     conf_map['scan'] = scan
-    if 'specfile' in args:
-        conf_map['specfile'] = args['specfile']
     if 'beamline' in args:
         conf_map['beamline'] = args['beamline']
 
     # get converter version
     conf_map['converter_ver'] = conv.get_version()
+    conf_map['separate_scans'] = False
+    conf_map['separate_scan_ranges'] = False
 
     ut.write_config(conf_map, experiment_main_config)
 
