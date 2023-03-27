@@ -146,7 +146,7 @@ class MultPeakPreparer(Preparer):
         write_prep_arr(data, save_dir, filename)
 
 
-def center_mp(image, support):
+def center_mp(image):
     """
     Shifts the image and support arrays so the center of mass is in the center of array.
     Parameters
@@ -158,31 +158,24 @@ def center_mp(image, support):
     image, support : ndarray, ndarray
         shifted arrays
     """
-    density = image[0]
-    shape = density.shape
-    max_coordinates = list(np.unravel_index(np.argmax(density), shape))
+    shape = image[0].shape
+    max_coordinates = list(np.unravel_index(np.argmax(image[0]), shape))
     for i in range(len(max_coordinates)):
-        image[0] = np.roll(image[0], int(shape[i] / 2) - max_coordinates[i], i)
-        image[1] = np.roll(image[1], int(shape[i] / 2) - max_coordinates[i], i)
-        image[2] = np.roll(image[2], int(shape[i] / 2) - max_coordinates[i], i)
-        image[3] = np.roll(image[3], int(shape[i] / 2) - max_coordinates[i], i)
-        support = np.roll(support, int(shape[i] / 2) - max_coordinates[i], i)
+        for j, _ in enumerate(image):
+            image[j] = np.roll(image[j], int(shape[i] / 2) - max_coordinates[i], i)
 
-    com = ndi.center_of_mass(density * support)
+    com = ndi.center_of_mass(image[0] * image[1])
     # place center of mass in the center
     for i in range(len(shape)):
-        image[0] = np.roll(image[0], int(shape[i] / 2 - com[i]), axis=i)
-        image[1] = np.roll(image[1], int(shape[i] / 2 - com[i]), axis=i)
-        image[2] = np.roll(image[2], int(shape[i] / 2 - com[i]), axis=i)
-        image[3] = np.roll(image[3], int(shape[i] / 2 - com[i]), axis=i)
-        support = np.roll(support, int(shape[i] / 2 - com[i]), axis=i)
+        for j, _ in enumerate(image):
+            image[j] = np.roll(image[j], int(shape[i] / 2 - com[i]), axis=i)
 
-    # set center displacement to zero, use as a reference
+    # # set center displacement to zero, use as a reference
     half = np.array(shape) // 2
-    for i in [1, 2, 3]:
+    for i in [2, 3, 4, 5, 6, 7, 8, 9, 10]:
         image[i] = image[i] - image[i, half[0], half[1], half[2]]
 
-    return image, support
+    return image
 
 
 def write_vti(data, px, savedir):
@@ -191,7 +184,8 @@ def write_vti(data, px, savedir):
     print("Preparing VTK data")
     grid = tvtk.ImageData(dimensions=data[0].shape, spacing=(px, px, px))
     # Set the data to the image/support/distortion
-    for img, name in zip(data, ["density", "u_x", "u_y", "u_z", "support"]):
+    names = ["density", "support", "u_x", "u_y", "u_z", "s_xx", "s_yy", "s_zz", "s_xy", "s_yz", "s_xz"]
+    for img, name in zip(data, names):
         arr = tvtk.DoubleArray()
         arr.from_array(img.ravel())
         arr.name = name
@@ -229,22 +223,17 @@ def process_dir(res_dir, rampups=1, make_twin=False):
     for f in save_dir.iterdir():
         f.unlink()
 
-    image = np.load(f"{res_dir}/image.npy")
-    image = np.moveaxis(image, 3, 0)
+    image = np.load(f"{res_dir}/full_image.npy")
     image[0] = image[0] / np.max(image[0])
-    support = np.load(f"{res_dir}/support.npy")
 
-    image, support = center_mp(image, support)
+    image = center_mp(image)
     if rampups > 1:
         image = ut.remove_ramp(image, ups=rampups)
 
-    write_vti(np.concatenate((image, support[None])), 1.0, save_dir)
+    write_vti(image, 1.0, save_dir)
 
     if make_twin:
         image = np.flip(image)
-        if support is not None:
-            support = np.flip(support)
-            image, support = center_mp(image, support)
         if rampups > 1:
             image = ut.remove_ramp(image, ups=rampups)
-        write_vti(np.concatenate((image, support[None])), 1.0, save_dir)
+        write_vti(image, 1.0, save_dir)
