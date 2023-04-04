@@ -189,17 +189,14 @@ initial_support_area = [.5,.5,.5]
                              // defines when to apply low resolution using the parameters below.
                              // Comment out, if low resolution feature not used.
                              // when running GA applied only in first generation
-
-// lpf_sw_sigma_range = [2.0]
-                             // used when applying low resolution to replace support sigma.
-                             // The sigmas are linespaced for low resolution iterations from first value to last. 
-                             // If only one number given, the last sigma will default to shrink_wrap_gauss_sigma.
-
-// lpf_range = [.7]
+// lpf_range = [.7, 1]
                              // used when applying low-pass data filter while iterating.
                              // The det values are linespaced for low resolution iterations from first value to last. 
                              // The filter is gauss with sigma of linespaced det. If only one number given,
                              // the last det will default to 1.
+// lpf_sw_threshold = 0.1
+                             // during lowpass iterations a GAUSS type shrink wrap is applied with
+                             // this threshold ans sigma calculated as reverse of low pass filter
 
 // AVERAGING
 // The amplitudes of the last several iterations are averaged. This trigger defines at which iteration the averaging
