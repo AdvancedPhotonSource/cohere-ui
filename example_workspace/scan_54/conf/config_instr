@@ -1,10 +1,2 @@
-energy = 9.0
-delta = 32.174
-gamma = 12.6346
-detdist = 500.0
-theta = 0.2200042
-chi = 90.0
-phi = -5.0
-scanmot = "th"
-scanmot_del = 0.005
 diffractometer = "34idc"
+specfile = "CUR_DIR/example_data/example.spec"
