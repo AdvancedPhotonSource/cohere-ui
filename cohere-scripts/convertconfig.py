@@ -8,26 +8,38 @@ import util.util as ut
 version = 1
 
 # Map file of before/after keys to remap
-config_map = {'beamline': 'beamline', 'specfile': 'specfile'}
-config_prep_map = {'darkfile': 'darkfield_filename', 'whitefile': 'whitefield_filename'}
-config_rec_map = {'samples': 'reconstructions', 'beta' : 'hio_beta', 'amp_support_trigger': 'sw_trigger',
-                  'shrink_wrap_trigger' :'sw_trigger', 'shrink_wrap_type' : 'sw_type', 'support_type': 'sw_type',
-                  'support_threshold' : 'sw_threshold', 'shrink_wrap_threshold': 'sw_threshold',
-                  'support_sigma' : 'sw_gauss_sigma', 'shrink_wrap_gauss_sigma' : 'sw_gauss_sigma',
-                  'support_area' : 'initial_support_area', 'pcdi_trigger' : 'pc_interval', 'pc_trigger' : 'pc_interval',
-                  'partial_coherence_type' : 'pc_type', 'partial_coherence_iteration_num' : 'pc_LUCY_iterations',
-                  'partial_coherence_normalize' : 'pc_normalize', 'partial_coherence_roi' : 'pc_LUCY_kernel',
-                  'phase_min' : 'phm_phase_min', 'phase_max' : 'phm_phase_max', 'phase_support_trigger' : 'phm_trigger',
-                  'resolution_trigger' : 'lpf_trigger', 'iter_res_sigma_range' : 'lpf_sw_sigma_range',
-                  'lowpass_filter_sw_sigma_range' : 'lpf_sw_sigma_range', 'iter_res_det_range' : 'lpf_range',
-                  'lowpass_filter_range' : 'lpf_range', 'generations' : 'ga_generations',
-                  'ga_support_thresholds' : 'ga_sw_thresholds', 'ga_shrink_wrap_thresholds' : 'ga_sw_thresholds',
-                  'ga_support_sigmas' : 'ga_sw_gauss_sigmas', 'ga_shrink_wrap_gauss_sigmas' : 'ga_sw_gauss_sigmas',
-                  'ga_low_resolution_sigmas' : 'ga_lpf_sigmas', 'ga_lowpass_filter_sigmas' : 'ga_lpf_sigmas',
+config_map = {}
+config_prep_map = {'darkfile': 'darkfield_filename',
+                   'whitefile': 'whitefield_filename'}
+config_rec_map = {'samples': 'reconstructions',
+                  'beta': 'hio_beta',
+                  'amp_support_trigger': 'shrink_wrap_trigger',
+                  'support_type': 'shrink_wrap_type',
+                  'support_threshold': 'shrink_wrap_threshold',
+                  'support_sigma': 'shrink_wrap_gauss_sigma',
+                  'support_area': 'initial_support_area',
+                  'pcdi_trigger': 'pc_interval',
+                  'pc_trigger' : 'pc_interval',
+                  'partial_coherence_type' : 'pc_type',
+                  'partial_coherence_iteration_num' : 'pc_LUCY_iterations',
+                  'partial_coherence_normalize' : 'pc_normalize',
+                  'partial_coherence_roi' : 'pc_LUCY_kernel',
+                  'phase_min' : 'phm_phase_min',
+                  'phase_max' : 'phm_phase_max',
+                  'phase_support_trigger' : 'phm_trigger',
+                  'resolution_trigger' : 'lowpass_filter_trigger',
+                  'iter_res_det_range' : 'lowpass_filter_range',
+                  'generations' : 'ga_generations',
+                  'ga_support_thresholds' : 'ga_sw_thresholds',
+                  'ga_support_sigmas' : 'ga_sw_gauss_sigmas',
+                  'ga_low_resolution_sigmas' : 'ga_lowpass_filter_sigmas',
                   'gen_pcdi_start' : 'ga_gen_pc_start'}
-config_disp_map = {'arm': 'detdist', 'dth': 'scanmot_del'}
-config_data_map = {'aliens': 'aliens', 'amp_threshold' : 'intensity_threshold'}
+config_disp_map = {'arm': 'detdist',
+                   'dth': 'scanmot_del'}
+config_data_map = {'aliens': 'aliens',
+                   'amp_threshold' : 'intensity_threshold'}
 config_instr_map = {}
+config_mp_map = {}
 
 beamlinedefaultvalue = '"aps_34idc"'
 
@@ -36,7 +48,8 @@ config_maps = {'config': config_map,
                'config_rec': config_rec_map,
                'config_disp': config_disp_map,
                'config_data': config_data_map,
-               'config_instr': config_instr_map}
+               'config_instr': config_instr_map,
+               'config_mp': config_mp_map}
 
 # the key is the configuration file parameters are removed from
 # the parameters in list are inserted into the configuration file of subdict key

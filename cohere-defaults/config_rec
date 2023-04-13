@@ -140,12 +140,12 @@ twin_halves = [0, 0]
 // Support area is an array that defines region in which the image is meaningful. This area is recalculated at the
 // trigger iteration. The calculation employ an algorithm defined here as shrink_wrap_type.
 
-sw_trigger = [1, 1]
+shrink_wrap_trigger = [1, 1]
                              // defines when to update support array using the parameters below.
                              // Comment out, if support feature not used.
-sw_type = "GAUSS"
-sw_threshold = 0.1
-sw_gauss_sigma = 1.0
+shrink_wrap_type = "GAUSS"
+shrink_wrap_threshold = 0.1
+shrink_wrap_gauss_sigma = 1.0
 initial_support_area = [.5,.5,.5]
                              // initial support area. If the values are fractional, the support area will be calculated
                              // by multiplying by the data array dimensions. The support will be set to 1s to this
@@ -185,16 +185,16 @@ initial_support_area = [.5,.5,.5]
 // The iter_res_det_range is similiary linespaced for the duration of low resolution iterations. The values are used
 // as sigmas to calculate Gaussian distribution and applied (multiplied) to data.
 
-// lpf_trigger = [0, 1, 320]
+// lowpass_filter_trigger = [0, 1, 320]
                              // defines when to apply low resolution using the parameters below.
                              // Comment out, if low resolution feature not used.
                              // when running GA applied only in first generation
-// lpf_range = [.7, 1]
+// lowpass_filter_range = [.7, 1]
                              // used when applying low-pass data filter while iterating.
                              // The det values are linespaced for low resolution iterations from first value to last. 
                              // The filter is gauss with sigma of linespaced det. If only one number given,
                              // the last det will default to 1.
-// lpf_sw_threshold = 0.1
+// lowpass_filter_sw_threshold = 0.1
                              // during lowpass iterations a GAUSS type shrink wrap is applied with
                              // this threshold ans sigma calculated as reverse of low pass filter
 

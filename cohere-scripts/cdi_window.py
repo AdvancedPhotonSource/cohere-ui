@@ -1575,17 +1575,17 @@ class low_resolution(Feature):
         -------
         nothing
         """
-        if 'lpf_trigger' in conf_map:
-            triggers = conf_map['lpf_trigger']
+        if 'lowpass_filter_trigger' in conf_map:
+            triggers = conf_map['lowpass_filter_trigger']
             self.active.setChecked(True)
-            self.res_triggers.setText(str(triggers).replace(" ", ""))
+            self.lpf_triggers.setText(str(triggers).replace(" ", ""))
         else:
             self.active.setChecked(False)
             return
-        if 'lpf_sw_sigma_range' in conf_map:
-            self.sigma_range.setText(str(conf_map['lpf_sw_sigma_range']).replace(" ", ""))
-        if 'lpf_range' in conf_map:
-            self.det_range.setText(str(conf_map['lpf_range']).replace(" ", ""))
+        if 'lowpass_filter_sw_threshold' in conf_map:
+            self.lpf_sw_threshold.setText(str(conf_map['lowpass_filter_sw_threshold']).replace(" ", ""))
+        if 'lowpass_filter_range' in conf_map:
+            self.lpf_range.setText(str(conf_map['lowpass_filter_range']).replace(" ", ""))
 
 
     def fill_active(self, layout):
@@ -1599,13 +1599,13 @@ class low_resolution(Feature):
         -------
         nothing
         """
-        self.res_triggers = QLineEdit()
-        layout.addRow("low resolution triggers", self.res_triggers)
-        self.res_triggers.setToolTip('suggested trigger: [0, 1, <half iteration number>]')
-        self.sigma_range = QLineEdit()
-        layout.addRow("sigma range", self.sigma_range)
-        self.det_range = QLineEdit()
-        layout.addRow("det range", self.det_range)
+        self.lpf_triggers = QLineEdit()
+        layout.addRow("lowpass filter triggers", self.lpf_triggers)
+        self.lpf_triggers.setToolTip('suggested trigger: [0, 1, <half iteration number>]')
+        self.lpf_sw_threshold = QLineEdit()
+        layout.addRow("shrink wrap threshold", self.lpf_sw_threshold)
+        self.lpf_range = QLineEdit()
+        layout.addRow("lowpass filter range", self.lpf_range)
 
 
     def rec_default(self):
@@ -1618,9 +1618,9 @@ class low_resolution(Feature):
         -------
         nothing
         """
-        self.res_triggers.setText('[0, 1, 320]')
-        self.sigma_range.setText('[2.0]')
-        self.det_range.setText('[.7]')
+        self.lpf_triggers.setText('[0, 1, 320]')
+        self.lpf_sw_threshold.setText('.1')
+        self.lpf_range.setText('[.7]')
 
 
     def add_feat_conf(self, conf_map):
@@ -1634,12 +1634,12 @@ class low_resolution(Feature):
         -------
         nothing
         """
-        if len(self.res_triggers.text()) > 0:
-            conf_map['lpf_trigger'] = ast.literal_eval(str(self.res_triggers.text()).replace('\n',''))
-        if len(self.sigma_range.text()) > 0:
-            conf_map['lpf_sw_sigma_range'] = ast.literal_eval(str(self.sigma_range.text()).replace('\n',''))
-        if len(self.det_range.text()) > 0:
-            conf_map['lpf_range'] = ast.literal_eval(str(self.det_range.text()).replace('\n',''))
+        if len(self.lpf_triggers.text()) > 0:
+            conf_map['lowpass_filter_trigger'] = ast.literal_eval(str(self.lpf_triggers.text()).replace('\n', ''))
+        if len(self.lpf_sw_threshold.text()) > 0:
+            conf_map['lowpass_filter_sw_threshold'] = ast.literal_eval(str(self.lpf_sw_threshold.text()).replace('\n', ''))
+        if len(self.lpf_range.text()) > 0:
+            conf_map['lowpass_filter_range'] = ast.literal_eval(str(self.lpf_range.text()).replace('\n', ''))
 
 
 class shrink_wrap(Feature):
@@ -1662,19 +1662,19 @@ class shrink_wrap(Feature):
         -------
         nothing
         """
-        if 'sw_trigger' in conf_map:
-            triggers = conf_map['sw_trigger']
+        if 'shrink_wrap_trigger' in conf_map:
+            triggers = conf_map['shrink_wrap_trigger']
             self.active.setChecked(True)
-            self.sw_triggers.setText(str(triggers).replace(" ", ""))
+            self.shrink_wrap_triggers.setText(str(triggers).replace(" ", ""))
         else:
             self.active.setChecked(False)
             return
-        if 'sw_type' in conf_map:
-            self.sw_type.setText(str(conf_map['sw_type']).replace(" ", ""))
-        if 'sw_threshold' in conf_map:
-            self.sw_threshold.setText(str(conf_map['sw_threshold']).replace(" ", ""))
-        if 'sw_gauss_sigma' in conf_map:
-            self.sw_gauss_sigma.setText(str(conf_map['sw_gauss_sigma']).replace(" ", ""))
+        if 'shrink_wrap_type' in conf_map:
+            self.shrink_wrap_type.setText(str(conf_map['shrink_wrap_type']).replace(" ", ""))
+        if 'shrink_wrap_threshold' in conf_map:
+            self.shrink_wrap_threshold.setText(str(conf_map['shrink_wrap_threshold']).replace(" ", ""))
+        if 'shrink_wrap_gauss_sigma' in conf_map:
+            self.shrink_wrap_gauss_sigma.setText(str(conf_map['shrink_wrap_gauss_sigma']).replace(" ", ""))
 
 
     def fill_active(self, layout):
@@ -1688,14 +1688,14 @@ class shrink_wrap(Feature):
         -------
         nothing
         """
-        self.sw_triggers = QLineEdit()
-        layout.addRow("shrink wrap triggers", self.sw_triggers)
-        self.sw_type = QLineEdit()
-        layout.addRow("shrink wrap algorithm", self.sw_type)
-        self.sw_threshold = QLineEdit()
-        layout.addRow("shrink wrap threshold", self.sw_threshold)
-        self.sw_gauss_sigma = QLineEdit()
-        layout.addRow("shrink wrap Gauss sigma", self.sw_gauss_sigma)
+        self.shrink_wrap_triggers = QLineEdit()
+        layout.addRow("shrink wrap triggers", self.shrink_wrap_triggers)
+        self.shrink_wrap_type = QLineEdit()
+        layout.addRow("shrink wrap algorithm", self.shrink_wrap_type)
+        self.shrink_wrap_threshold = QLineEdit()
+        layout.addRow("shrink wrap threshold", self.shrink_wrap_threshold)
+        self.shrink_wrap_gauss_sigma = QLineEdit()
+        layout.addRow("shrink wrap Gauss sigma", self.shrink_wrap_gauss_sigma)
 
 
     def rec_default(self):
@@ -1708,10 +1708,10 @@ class shrink_wrap(Feature):
         -------
         nothing
         """
-        self.sw_triggers.setText('[1,1]')
-        self.sw_type.setText('GAUSS')
-        self.sw_gauss_sigma.setText('1.0')
-        self.sw_threshold.setText('0.1')
+        self.shrink_wrap_triggers.setText('[1,1]')
+        self.shrink_wrap_type.setText('GAUSS')
+        self.shrink_wrap_gauss_sigma.setText('1.0')
+        self.shrink_wrap_threshold.setText('0.1')
 
 
     def add_feat_conf(self, conf_map):
@@ -1725,14 +1725,19 @@ class shrink_wrap(Feature):
         -------
         nothing
         """
-        if len(self.sw_triggers.text()) > 0:
-            conf_map['sw_trigger'] = ast.literal_eval(str(self.sw_triggers.text()).replace('\n',''))
-        if len(self.sw_type.text()) > 0:
-            conf_map['sw_type'] = str(self.sw_type.text())
-        if len(self.sw_threshold.text()) > 0:
-            conf_map['sw_threshold'] = ast.literal_eval(str(self.sw_threshold.text()))
-        if len(self.sw_gauss_sigma.text()) > 0:
-            conf_map['sw_gauss_sigma'] = ast.literal_eval(str(self.sw_gauss_sigma.text()))
+        if len(self.shrink_wrap_triggers.text()) > 0:
+            conf_map['shrink_wrap_trigger'] = ast.literal_eval(str(self.shrink_wrap_triggers.text()).replace('\n',''))
+        if len(self.shrink_wrap_type.text()) > 0:
+            sw_type = str(self.shrink_wrap_type.text())
+            # in case of multiple shrink wraps the shrink_wrap_type is a list of strings
+            if sw_type.startswith('['):
+                conf_map['shrink_wrap_type'] = ast.literal_eval(sw_type)
+            else:
+                conf_map['shrink_wrap_type'] = sw_type
+        if len(self.shrink_wrap_threshold.text()) > 0:
+            conf_map['shrink_wrap_threshold'] = ast.literal_eval(str(self.shrink_wrap_threshold.text()))
+        if len(self.shrink_wrap_gauss_sigma.text()) > 0:
+            conf_map['shrink_wrap_gauss_sigma'] = ast.literal_eval(str(self.shrink_wrap_gauss_sigma.text()))
 
 
 class phase_support(Feature):
