@@ -1,7 +1,7 @@
 import numpy as np
 import os
 import cohere_core as cohere
-
+import util.util as ut
 
 class Detector(object):
     """
@@ -209,7 +209,7 @@ class Detector_34idcTIM2(Detector):
     """
     name = "34idcTIM2"
     dims = (512, 512)
-    roi = (512, 512)
+    roi = (0, 512, 0, 512)
     pixel = (55.0e-6, 55e-6)
     pixelorientation = ('x+', 'y-')  # in xrayutilities notation
     whitefield_filename = None
@@ -246,8 +246,6 @@ class Detector_34idcTIM2(Detector):
             self.whitefield = np.where( self.whitefield < self.wfavg-3*self.wfstd, 0, self.whitefield)
         except:
             print("Corrections to the TIM2 whitefield image failed in detector module.")
-
-
 
 
     def load_darkfield(self):
@@ -390,16 +388,16 @@ seam.
         try:
             i1 = s1range.index(256)  # if not in range try will except
             if i1 != 0:
-                s1[0] = slice(i1, i1 + 4)
-                arr[tuple(s1)] = 0
+                s1range[0] = slice(i1, i1 + 4)
+                arr[tuple(s1range)] = 0
         except:
             pass
             #print("no clear on dim0")
         try:
             i2 = s2range.index(256)
             if i2 != 0:
-                s2[1] = slice(i2, i2 + 5)
-                arr[tuple(s2)] = 0
+                s2range[1] = slice(i2, i2 + 5)
+                arr[tuple(s2range)] = 0
         except:
             pass
             #print("no clear on dim1")

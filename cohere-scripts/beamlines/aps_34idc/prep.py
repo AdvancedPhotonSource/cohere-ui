@@ -39,7 +39,7 @@ def parse_spec(specfile, scan):
         print(str(ex))
 
     try:
-        params_values['det_area'] = [int(n) for n in ss.getheader_element('UIMR5').split()]
+        params_values['roi'] = [int(n) for n in ss.getheader_element('UIMR5').split()]
     except Exception as ex:
         print (str(ex))
 
@@ -72,11 +72,9 @@ class BeamPrepData():
         self.Imult = None
         self.min_files = 0
         self.exclude_scans = []
-        self.last_scan = None
-
         self.experiment_dir = experiment_dir
-
         self.scan_ranges = []
+
         if 'scan' in conf_map:
             scan_units = [u for u in conf_map['scan'].replace(' ','').split(',')]
             for u in scan_units:
@@ -85,14 +83,14 @@ class BeamPrepData():
                     self.scan_ranges.append([int(r[0]), int(r[1])])
                 else:
                     self.scan_ranges.append([int(u), int(u)])
-            self.last_scan = self.scan_ranges[-1][-1]
+            last_scan = self.scan_ranges[-1][-1]
         else:
             print ('scan not defined in configuration')
             return ('scan not defined in configuration')
 
-        if self.last_scan is not None and 'specfile' in conf_map:
+        if last_scan is not None and 'specfile' in conf_map:
             # parse det name and saved roi from spec
-            spec_values = parse_spec(conf_map['specfile'], self.last_scan)
+            spec_values = parse_spec(conf_map['specfile'], last_scan)
             for attr in spec_values.keys():
                 setattr(self, attr, spec_values[attr])
         else:
@@ -102,6 +100,8 @@ class BeamPrepData():
         # set members to values from configuration map
         for key, val in conf_map.items():
             setattr(self, key, val)
+
+        conf_map['roi'] = self.roi
 
         self.det_obj = det.create_detector(self.detector)
         if self.det_obj is None:
