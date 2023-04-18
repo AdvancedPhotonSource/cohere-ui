@@ -447,13 +447,14 @@ def handle_visualization(experiment_dir, rec_id=None, image_file=None):
         if 'crop' in disp_config_map:
             crop = disp_config_map['crop']
         else:
-            crop = False
+            crop = []
 
         if image_file is not None:
             # find shape without loading the array
             with open(image_file, 'rb') as f:
                 np.lib.format.read_magic(f)
                 shape, fortran, dtype = np.lib.format.read_array_header_1_0(f)
+            crop = crop + [1] * (len(shape) - len(crop))
             geometry = instr_obj.get_geometry(shape)
             process_file(image_file, geometry, rampups, crop)
             return
@@ -482,6 +483,7 @@ def handle_visualization(experiment_dir, rec_id=None, image_file=None):
                 np.lib.format.read_magic(f)
                 shape, fortran, dtype = np.lib.format.read_array_header_1_0(f)
             geometry = instr_obj.get_geometry(shape)
+            crop = crop + [1] * (len(shape) - len(crop))
 
         if len(dirs) == 1:
             process_dir(geometry, rampups, crop, make_twin, dirs[0])

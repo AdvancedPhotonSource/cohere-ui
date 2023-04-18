@@ -328,7 +328,6 @@ class cdi_gui(QWidget):
             for cf in os.listdir(load_dir + '/conf'):
                 if os.path.isfile(load_dir + '/conf/' + cf) and cf.startswith('conf'):
                     conf_dirs[cf] = ut.read_config(load_dir + '/conf/' + cf)
-            print(conf_dirs)
             return conf_dirs, False
 
 

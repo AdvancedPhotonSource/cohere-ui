@@ -413,15 +413,7 @@ class DispTab(QWidget):
             results_dir = conf_map['results_dir'].replace(os.sep, '/')
             self.update_tab(conf=results_dir)
 
-        # elif self.main_win.separate_scans.isChecked() or self.main_win.separate_scan_ranges.isChecked():
-        #     print('is checked')
-        #     results_dir = self.main_win.experiment_dir
-        # else:
-        #     results_dir = self.main_win.experiment_dir + '/results_phasing'
-        # self.result_dir_button.setStyleSheet("Text-align:left")
-        # self.result_dir_button.setText(results_dir)
-
-        # if parameters are configured, override the readings from spec file
+         # if parameters are configured, override the readings from spec file
         if 'make_twin' in conf_map:
             make_twin = conf_map['make_twin']
             if make_twin:

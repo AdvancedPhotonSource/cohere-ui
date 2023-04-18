@@ -263,10 +263,6 @@ def convert(conf_dir, save=True):
         print('configuration directory', conf_dir, 'does not exist')
         return None
 
-    if not os.access(os.path.dirname(conf_dir), os.W_OK):
-        print('configuration directory does not have write access')
-        return None
-
     # read main config and check the converter version
     main_conf = ut.read_config(conf_dir + '/config')
     if main_conf is None:
@@ -277,16 +273,17 @@ def convert(conf_dir, save=True):
         conf_version = None
     if conf_version == get_version():
         return None
+
     config_dicts = {}
-    f = open(conf_dir + '/config_instr', 'a')
-    f.close()
+    if not os.path.isfile(conf_dir + '/config_instr'):
+        config_dicts['config_instr'] = {}
     for cfile in config_maps.keys():
         conf_file = conf_dir + '/' + cfile
         # check if file exist
         if not os.path.isfile(conf_file):
             continue
-
-        shutil.copy(conf_file, conf_file + '_backup')
+        if os.access(os.path.dirname(conf_dir), os.W_OK):
+            shutil.copy(conf_file, conf_file + '_backup')
 
         config_dicts[cfile] = ut.read_config(conf_file)
 
