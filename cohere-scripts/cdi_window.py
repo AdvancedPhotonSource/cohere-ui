@@ -301,9 +301,9 @@ class cdi_gui(QWidget):
                 self.vbox.addWidget(self.t)
             except:
                 pass
+        self.set_experiment(True)
         self.t.load_conf(conf_dicts)
 
-        self.set_experiment(True)
         if not self.is_exp_set():
             return
 
@@ -1260,7 +1260,6 @@ class RecTab(QWidget):
         # fill out the config_id choice bar by reading configuration files names
         if not self.main_win.is_exp_set():
             return
-#        self.rec_ids = []
         for file in os.listdir(self.main_win.experiment_dir + '/conf'):
             if file.startswith('config_rec_'):
                 self.rec_ids.append(file[len('config_rec_') : len(file)])
