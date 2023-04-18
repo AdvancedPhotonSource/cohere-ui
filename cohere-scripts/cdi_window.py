@@ -328,6 +328,7 @@ class cdi_gui(QWidget):
             for cf in os.listdir(load_dir + '/conf'):
                 if os.path.isfile(load_dir + '/conf/' + cf) and cf.startswith('conf'):
                     conf_dirs[cf] = ut.read_config(load_dir + '/conf/' + cf)
+            print(conf_dirs)
             return conf_dirs, False
 
 
@@ -536,7 +537,8 @@ class Tabs(QTabWidget):
 
     def load_conf(self, conf_dirs):
         for tab in self.tabs:
-            tab.load_tab(conf_dirs[tab.conf_name])
+            if tab.conf_name in conf_dirs.keys():
+                tab.load_tab(conf_dirs[tab.conf_name])
 
 
     def save_conf(self):
