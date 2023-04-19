@@ -1459,18 +1459,32 @@ class GA(Feature):
             self.ga_fast.setChecked(False)
         if 'ga_metrics' in conf_map:
             self.metrics.setText(str(conf_map['ga_metrics']).replace(" ", ""))
+        else:
+            self.metrics.setText('')
         if 'ga_breed_modes' in conf_map:
             self.breed_modes.setText(str(conf_map['ga_breed_modes']).replace(" ", ""))
+        else:
+            self.breed_modes.setText('')
         if 'ga_cullings' in conf_map:
             self.removes.setText(str(conf_map['ga_cullings']).replace(" ", ""))
+        else:
+            self.removes.setText('')
         if 'ga_sw_thresholds' in conf_map:
             self.ga_sw_thresholds.setText(str(conf_map['ga_sw_thresholds']).replace(" ", ""))
+        else:
+            self.ga_sw_thresholds.setText('')
         if 'ga_sw_gauss_sigmas' in conf_map:
             self.ga_sw_gauss_sigmas.setText(str(conf_map['ga_sw_gauss_sigmas']).replace(" ", ""))
+        else:
+            self.ga_sw_gauss_sigmas.setText('')
         if 'ga_lpf_sigmas' in conf_map:
             self.lr_sigmas.setText(str(conf_map['ga_lpf_sigmas']).replace(" ", ""))
+        else:
+            self.lr_sigmas.setText('')
         if 'ga_gen_pc_start' in conf_map:
             self.gen_pc_start.setText(str(conf_map['ga_gen_pc_start']).replace(" ", ""))
+        else:
+            self.gen_pc_start.setText('')
 
 
     def fill_active(self, layout):
@@ -1584,8 +1598,12 @@ class low_resolution(Feature):
             return
         if 'lowpass_filter_sw_threshold' in conf_map:
             self.lpf_sw_threshold.setText(str(conf_map['lowpass_filter_sw_threshold']).replace(" ", ""))
+        else:
+            self.lpf_sw_threshold.setText('')
         if 'lowpass_filter_range' in conf_map:
             self.lpf_range.setText(str(conf_map['lowpass_filter_range']).replace(" ", ""))
+        else:
+            self.lpf_range.setText('')
 
 
     def fill_active(self, layout):
@@ -1740,16 +1758,10 @@ class shrink_wrap(Feature):
                 conf_map['shrink_wrap_type'] = ast.literal_eval(sw_type)
             else:
                 conf_map['shrink_wrap_type'] = sw_type
-        else:
-            self.shrink_wrap_type.setText('')
         if len(self.shrink_wrap_threshold.text()) > 0:
             conf_map['shrink_wrap_threshold'] = ast.literal_eval(str(self.shrink_wrap_threshold.text()))
-        else:
-            self.shrink_wrap_threshold.setText('')
         if len(self.shrink_wrap_gauss_sigma.text()) > 0:
             conf_map['shrink_wrap_gauss_sigma'] = ast.literal_eval(str(self.shrink_wrap_gauss_sigma.text()))
-        else:
-            self.shrink_wrap_gauss_sigma.setText('')
 
 
 class phase_support(Feature):
@@ -1781,8 +1793,12 @@ class phase_support(Feature):
             return
         if 'phm_phase_min' in conf_map:
             self.phm_phase_min.setText(str(conf_map['phm_phase_min']).replace(" ", ""))
+        else:
+            self.phm_phase_min.setText('')
         if 'phm_phase_max' in conf_map:
             self.phm_phase_max.setText(str(conf_map['phm_phase_max']).replace(" ", ""))
+        else:
+            self.phm_phase_max.setText('')
 
 
     def fill_active(self, layout):
@@ -1867,12 +1883,20 @@ class pcdi(Feature):
             return
         if 'pc_type' in conf_map:
             self.pc_type.setText(str(conf_map['pc_type']).replace(" ", ""))
+        else:
+            self.pc_type.setText('')
         if 'pc_LUCY_iterations' in conf_map:
             self.pc_iter.setText(str(conf_map['pc_LUCY_iterations']).replace(" ", ""))
+        else:
+            self.pc_iter.setText('')
         if 'pc_normalize' in conf_map:
             self.pc_normalize.setText(str(conf_map['pc_normalize']).replace(" ", ""))
+        else:
+            self.pc_normalize.setText('')
         if 'pc_LUCY_kernel' in conf_map:
             self.pc_LUCY_kernel.setText(str(conf_map['pc_LUCY_kernel']).replace(" ", ""))
+        else:
+            self.pc_LUCY_kernel.setText('')
 
 
     def fill_active(self, layout):
@@ -1969,6 +1993,8 @@ class twin(Feature):
             return
         if 'twin_halves' in conf_map:
             self.twin_halves.setText(str(conf_map['twin_halves']).replace(" ", ""))
+        else:
+            self.twin_halves.setText('')
 
 
     def fill_active(self, layout):
