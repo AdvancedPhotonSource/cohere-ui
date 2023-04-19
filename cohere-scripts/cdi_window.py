@@ -1671,10 +1671,16 @@ class shrink_wrap(Feature):
             return
         if 'shrink_wrap_type' in conf_map:
             self.shrink_wrap_type.setText(str(conf_map['shrink_wrap_type']).replace(" ", ""))
+        else:
+            self.shrink_wrap_type.setText('')
         if 'shrink_wrap_threshold' in conf_map:
             self.shrink_wrap_threshold.setText(str(conf_map['shrink_wrap_threshold']).replace(" ", ""))
+        else:
+            self.shrink_wrap_threshold.setText('')
         if 'shrink_wrap_gauss_sigma' in conf_map:
             self.shrink_wrap_gauss_sigma.setText(str(conf_map['shrink_wrap_gauss_sigma']).replace(" ", ""))
+        else:
+            self.shrink_wrap_gauss_sigma.setText('')
 
 
     def fill_active(self, layout):
@@ -1734,10 +1740,16 @@ class shrink_wrap(Feature):
                 conf_map['shrink_wrap_type'] = ast.literal_eval(sw_type)
             else:
                 conf_map['shrink_wrap_type'] = sw_type
+        else:
+            self.shrink_wrap_type.setText('')
         if len(self.shrink_wrap_threshold.text()) > 0:
             conf_map['shrink_wrap_threshold'] = ast.literal_eval(str(self.shrink_wrap_threshold.text()))
+        else:
+            self.shrink_wrap_threshold.setText('')
         if len(self.shrink_wrap_gauss_sigma.text()) > 0:
             conf_map['shrink_wrap_gauss_sigma'] = ast.literal_eval(str(self.shrink_wrap_gauss_sigma.text()))
+        else:
+            self.shrink_wrap_gauss_sigma.setText('')
 
 
 class phase_support(Feature):
