@@ -112,6 +112,7 @@ class Preparer():
                     scan = int(last_digits.group())
                     if not scan in self.prep_obj.exclude_scans:
                         self.add_scan(scan, subdir)
+        print(self.unit_dirs_scan_indexes)
         return list(self.unit_dirs_scan_indexes.values())
 
     def process_batch(self, dirs, scans, save_dir, filename):

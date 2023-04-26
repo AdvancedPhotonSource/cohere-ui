@@ -47,7 +47,11 @@ def prep_data(prep_obj, **kwargs):
         preparer = SinglePreparer(prep_obj)
 
     batches = preparer.get_batches()
+    if len(batches[0][0]) == 0:
+        return 'no scans to process'
     preparer.prepare(batches)
+
+    return ''
 
 
 def handle_prep(experiment_dir, *args, **kwargs):
@@ -121,7 +125,10 @@ def handle_prep(experiment_dir, *args, **kwargs):
         print(msg)
         return msg
 
-    prep_data(prep_obj)
+    msg = prep_data(prep_obj)
+    if len(msg) > 0:
+        print(msg)
+        return msg
 
     print('done with preprocessing')
     return ''

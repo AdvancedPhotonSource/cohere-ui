@@ -108,6 +108,7 @@ class cdi_gui(QWidget):
         self.exp_id = None
         self.experiment_dir = None
         self.working_dir = None
+        self.beamline = None
 
         uplayout = QHBoxLayout()
         luplayout = QFormLayout()
@@ -139,7 +140,6 @@ class cdi_gui(QWidget):
         self.vbox.addLayout(uplayout)
 
         self.t = None
-        # self.vbox.addWidget(self.t)
 
         downlayout = QHBoxLayout()
         downlayout.setAlignment(Qt.AlignCenter)
@@ -164,6 +164,7 @@ class cdi_gui(QWidget):
         self.set_work_dir_button.clicked.connect(self.set_working_dir)
         self.run_button.clicked.connect(self.run_everything)
         self.create_exp_button.clicked.connect(self.set_experiment)
+        self.multipeak.stateChanged.connect(self.toggle_multipeak)
 
 
     def set_args(self, args):
@@ -279,12 +280,13 @@ class cdi_gui(QWidget):
         -------
         nothing
         """
+        self.reset_window()
         load_dir = select_dir(os.getcwd())
         if load_dir is None:
             msg_window('please select valid conf directory')
             return
         load_dir = load_dir.replace(os.sep, '/')
-        self.reset_window()
+        # self.reset_window()
 
         if not os.path.isfile(load_dir + '/conf/config'):
             msg_window('missing conf/config file, not experiment directory')
@@ -445,6 +447,8 @@ class cdi_gui(QWidget):
 
         if len(self.beamline_widget.text().strip()) > 0:
             self.beamline = str(self.beamline_widget.text()).strip()
+            if not self.t is None:
+                self.t.update_beamline(self.beamline)
         else:
             self.beamline = None
 
@@ -459,6 +463,11 @@ class cdi_gui(QWidget):
             self.t.save_conf()
 
         self.t.notify(**{'experiment_dir': self.experiment_dir})
+
+    def toggle_multipeak(self):
+        if not self.t is None:
+            self.t.toggle_multipeak(self.multipeak.isChecked())
+
 
 
 class Tabs(QTabWidget):
@@ -476,21 +485,24 @@ class Tabs(QTabWidget):
 
         if beamline is not None and len(beamline) > 0:
             try:
-                beam = importlib.import_module('beamlines.' + beamline + '.beam_tabs')
+                self.beam = importlib.import_module('beamlines.' + beamline + '.beam_tabs')
             except Exception as e:
                 print (e)
                 msg_window('cannot import beamlines.' + beamline + ' module')
                 raise
-            self.instr_tab = beam.InstrTab()
-            self.prep_tab = beam.PrepTab()
+            self.instr_tab = self.beam.InstrTab()
+            self.prep_tab = self.beam.PrepTab()
             self.format_tab = DataTab()
             self.rec_tab = RecTab()
-            self.display_tab = beam.DispTab()
+            self.display_tab = self.beam.DispTab()
             self.tabs = [self.instr_tab, self.prep_tab, self.format_tab, self.rec_tab, self.display_tab]
         else:
             self.format_tab = DataTab()
             self.rec_tab = RecTab()
             self.tabs = [self.format_tab, self.rec_tab]
+            self.instr_tab = None
+            self.prep_tab = None
+            self.display_tab = None
         if self.main_win.multipeak.isChecked():
             self.mp_tab = MpTab()
             self.tabs = self.tabs + [self.mp_tab]
@@ -499,6 +511,26 @@ class Tabs(QTabWidget):
             self.addTab(tab, tab.name)
             tab.init(self, main_win)
 
+
+    def update_beamline(self, beamline):
+        if not self.instr_tab is None:
+            return
+        try:
+            self.beam = importlib.import_module('beamlines.' + beamline + '.beam_tabs')
+        except Exception as e:
+            print (e)
+            msg_window('cannot import beamlines.' + beamline + ' module')
+            raise
+        self.instr_tab = self.beam.InstrTab()
+        self.insertTab(0, self.instr_tab, self.instr_tab.name)
+        self.instr_tab.init(self, self.main_win)
+        self.prep_tab = self.beam.PrepTab()
+        self.insertTab(1, self.prep_tab, self.prep_tab.name)
+        self.prep_tab.init(self, self.main_win)
+        self.display_tab = self.beam.DispTab()
+        self.insertTab(4, self.display_tab, self.display_tab.name)
+        self.display_tab.init(self, self.main_win)
+        self.tabs = self.tabs + [self.instr_tab, self.prep_tab, self.display_tab]
 
     def notify(self, **args):
         try:
@@ -543,6 +575,18 @@ class Tabs(QTabWidget):
     def save_conf(self):
         for tab in self.tabs:
             tab.save_conf()
+
+
+    def toggle_multipeak(self, is_checked):
+        if is_checked:
+            self.mp_tab = MpTab()
+            self.addTab(self.mp_tab, self.mp_tab.name)
+            self.mp_tab.init(self, self.main_win)
+            self.tabs = self.tabs + [self.mp_tab]
+        else:
+            self.removeTab(self.count()-1)
+            self.tabs.remove(self.mp_tab)
+            self.mp_tab = None
 
 
 class DataTab(QWidget):
@@ -970,7 +1014,10 @@ class RecTab(QWidget):
 
     def clear_conf(self):
         self.init_guess.setCurrentIndex(0)
-        self.rec_id.setCurrentIndex(0)
+        nu_to_remove = self.rec_id.count() - 1
+        for _ in range(nu_to_remove):
+            self.rec_id.removeItem(1)
+        self.old_conf_id = ''
         self.device.setText('')
         self.proc.setCurrentIndex(0)
         self.reconstructions.setText('')
@@ -1121,6 +1168,8 @@ class RecTab(QWidget):
         -------
         nothing
         """
+        if self.main_win.experiment_dir is None:
+            return
         # save the configuration file before updating the incoming config
         if self.old_conf_id == '':
             conf_file = 'config_rec'

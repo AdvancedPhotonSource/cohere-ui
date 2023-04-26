@@ -290,8 +290,9 @@ class PrepTab(QWidget):
         -------
         nothing
         """
-        darkfield_filename = select_file(os.getcwd().replace(os.sep, '/')).replace(os.sep, '/')
+        darkfield_filename = select_file(os.getcwd().replace(os.sep, '/'))
         if darkfield_filename is not None:
+            darkfield_filename = darkfield_filename.replace(os.sep, '/')
             self.dark_file_button.setStyleSheet("Text-align:left")
             self.dark_file_button.setText(darkfield_filename)
         else:
@@ -308,8 +309,9 @@ class PrepTab(QWidget):
         -------
         nothing
         """
-        whitefield_filename = select_file(os.getcwd().replace(os.sep, '/')).replace(os.sep, '/')
+        whitefield_filename = select_file(os.getcwd().replace(os.sep, '/'))
         if whitefield_filename is not None:
+            whitefield_filename = whitefield_filename.replace(os.sep, '/')
             self.white_file_button.setStyleSheet("Text-align:left")
             self.white_file_button.setText(whitefield_filename)
         else:
