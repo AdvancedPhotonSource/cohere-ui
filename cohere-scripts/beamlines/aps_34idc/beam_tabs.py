@@ -912,3 +912,165 @@ class InstrTab(QWidget):
         if 'detector' in spec_dict:
             self.detector.setText(str(spec_dict['detector']))
             self.detector.setStyleSheet('color: blue')
+
+
+
+class InstrTabMp(QWidget):
+    def __init__(self, parent=None):
+        """
+        Constructor, initializes the tabs.
+        """
+        super(InstrTabMp, self).__init__(parent)
+        self.name = 'Instrument'
+        self.conf_name = 'config_instr'
+
+
+    def init(self, tabs, main_window):
+        """
+        Creates and initializes the 'Instrument' tab.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        self.tabs = tabs
+        self.main_win = main_window
+
+        layout = QFormLayout()
+        self.diffractometer = QLineEdit()
+        layout.addRow("diffractometer", self.diffractometer)
+        self.spec_file_button = QPushButton()
+        layout.addRow("spec file", self.spec_file_button)
+        cmd_layout = QHBoxLayout()
+        self.set_instr_conf_from_button = QPushButton("Load instr conf from")
+        self.set_instr_conf_from_button.setStyleSheet("background-color:rgb(205,178,102)")
+        self.save_instr_conf = QPushButton('save config', self)
+        self.save_instr_conf.setStyleSheet("background-color:rgb(175,208,156)")
+        cmd_layout.addWidget(self.set_instr_conf_from_button)
+        cmd_layout.addWidget(self.save_instr_conf)
+        layout.addRow(cmd_layout)
+        self.setLayout(layout)
+
+        self.spec_file_button.clicked.connect(self.set_spec_file)
+        self.save_instr_conf.clicked.connect(self.save_conf)
+        self.set_instr_conf_from_button.clicked.connect(self.load_instr_conf)
+
+
+    def run_tab(self):
+        pass
+
+
+    def load_tab(self, conf_map):
+        """
+        It verifies given configuration file, reads the parameters, and fills out the window.
+        Parameters
+        ----------
+        conf : dict
+            configuration (config_disp)
+        Returns
+        -------
+        nothing
+        """
+        if 'diffractometer' in conf_map:
+            self.diffractometer.setText(str(conf_map['diffractometer']).replace(" ", ""))
+        if 'specfile' in conf_map:
+            specfile = conf_map['specfile']
+            if os.path.isfile(specfile):
+                self.spec_file_button.setStyleSheet("Text-align:left")
+                self.spec_file_button.setText(specfile)
+            else:
+                msg_window('The specfile file ' + specfile + ' in config file does not exist')
+
+
+    def set_spec_file(self):
+        """
+        Calls selection dialog. The selected spec file is parsed.
+        The specfile is saved in config.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        noting
+        """
+        self.specfile = select_file(os.getcwd())
+        if self.specfile is not None:
+            self.spec_file_button.setStyleSheet("Text-align:left")
+            self.spec_file_button.setText(self.specfile)
+        else:
+            self.specfile = None
+            self.spec_file_button.setText('')
+
+
+    def clear_conf(self):
+        self.diffractometer.setText('')
+        self.spec_file_button.setText('')
+
+
+    def load_instr_conf(self):
+        """
+        It display a select dialog for user to select a configuration file. When selected, the parameters
+        from that file will be loaded to the window.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        instr_file = select_file(os.getcwd())
+        if instr_file is not None:
+            conf_map = ut.read_config(instr_file.replace(os.sep, '/'))
+            self.load_tab(conf_map)
+        else:
+            msg_window('please select valid instrument config file')
+
+
+    def get_instr_config(self):
+        """
+        It reads parameters related to instrument from the window into a dictionary.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        conf_map : dict
+            contains parameters read from window
+        """
+        conf_map = {}
+        if len(self.diffractometer.text()) > 0:
+            conf_map['diffractometer'] = str(self.diffractometer.text())
+        if len(self.spec_file_button.text()) > 0:
+            conf_map['specfile'] = str(self.spec_file_button.text())
+
+        return conf_map
+
+
+    def save_conf(self):
+        """
+        Reads the parameters needed by format display script. Saves the config_disp configuration file with parameters from the window and runs the display script.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        if not self.main_win.is_exp_exists():
+            msg_window('the experiment has not been created yet')
+            return
+        if not self.main_win.is_exp_set():
+            msg_window('the experiment has changed, pres "set experiment" button')
+            return
+
+        conf_map = self.get_instr_config()
+        # verify that disp configuration is ok
+        # er_msg = cohere.verify('config_instr', conf_map)
+        # if len(er_msg) > 0:
+        #     msg_window(er_msg)
+        #     return
+
+        ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_instr')
+

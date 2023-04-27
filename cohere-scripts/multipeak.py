@@ -35,6 +35,7 @@ def rotate_peaks(prep_obj, data, scans, o_twin):
     print("rotating diffraction pattern")
     config_map = ut.read_config(prep_obj.experiment_dir + '/conf/config_instr')
     config_map['last_scan'] = scans[-1]
+    config_map['multipeak'] = True
     instr_obj = instr.Instrument()
     msg = instr_obj.initialize(config_map)
     if len(msg) > 0:

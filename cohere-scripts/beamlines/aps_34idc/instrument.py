@@ -120,9 +120,11 @@ class Instrument:
         for attr in attrs:
             setattr(self, attr, attrs[attr])
 
-        # override the parsed parameters with entries in config file
-        for attr in config:
-            setattr(self, attr, config[attr])
+        if 'multipeak' in config and config['multipeak']:
+            # override the parsed parameters with entries in config file
+            # do not override for multipeak as there is no common configuration for the peaks
+            for attr in config:
+                setattr(self, attr, config[attr])
 
         self.det_obj = det.create_detector(self.detector)
         if self.det_obj is None:

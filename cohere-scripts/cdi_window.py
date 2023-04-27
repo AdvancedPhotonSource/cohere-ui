@@ -490,7 +490,10 @@ class Tabs(QTabWidget):
                 print (e)
                 msg_window('cannot import beamlines.' + beamline + ' module')
                 raise
-            self.instr_tab = self.beam.InstrTab()
+            if self.main_win.multipeak.isChecked():
+                self.instr_tab = self.beam.InstrTabMp()
+            else:
+                self.instr_tab = self.beam.InstrTab()
             self.prep_tab = self.beam.PrepTab()
             self.format_tab = DataTab()
             self.rec_tab = RecTab()
@@ -513,6 +516,7 @@ class Tabs(QTabWidget):
 
 
     def update_beamline(self, beamline):
+        # a case when beamline tab is already set
         if not self.instr_tab is None:
             return
         try:
@@ -587,6 +591,18 @@ class Tabs(QTabWidget):
             self.removeTab(self.count()-1)
             self.tabs.remove(self.mp_tab)
             self.mp_tab = None
+        # change the Instrument tab if present
+        if not self.instr_tab is None:
+            self.removeTab(0)
+            self.tabs.remove(self.instr_tab)
+            if is_checked:
+                self.instr_tab = self.beam.InstrTabMp()
+            else:
+                self.instr_tab = self.beam.InstrTab()
+            self.insertTab(0, self.instr_tab, self.instr_tab.name)
+            self.instr_tab.init(self, self.main_win)
+            self.tabs = self.tabs + [self.instr_tab]
+        self.setCurrentIndex(0)
 
 
 class DataTab(QWidget):
