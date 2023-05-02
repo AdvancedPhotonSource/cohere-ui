@@ -40,9 +40,9 @@ def calc_geometry(prep_obj, scans, shape, o_twin):
     p.set_instruments(det.create_detector(p.detector), diff.create_diffractometer(p.diffractometer))
     B_recip, _ = geo.set_geometry(shape, p, xtal=True)
     B_recip = np.stack([B_recip[1, :], B_recip[0, :], B_recip[2, :]])
-    voxel_size = np.abs(np.linalg.det(B_recip))**(1/3)
+    rs_voxel_size = np.abs(np.linalg.det(B_recip))**(1/3)  # Units are inverse nanometers
     B_recip = o_twin @ B_recip
-    return B_recip, voxel_size
+    return B_recip, rs_voxel_size
 
 
 def rotate_peaks(prep_obj, data, B_recip, voxel_size):
@@ -123,16 +123,23 @@ class MultPeakPreparer(Preparer):
                 i += 1
             batch.append(i)
             shape = self.prep_obj.read_scan(batch[0][0]).shape
-            B_recip, voxel_size = calc_geometry(self.prep_obj, batch[1], shape, self.o_twin)
+            B_recip, rs_voxel_size = calc_geometry(self.prep_obj, batch[1], shape, self.o_twin)
             batch.append(B_recip)
-            batch.append(voxel_size)
+            batch.append(rs_voxel_size)  # reciprocal-space voxel size in inverse nanometers
+            batch.append(2*np.pi/(rs_voxel_size*shape[0]))  # direct-space voxel size in nanometers
         return batches
 
 
     def prepare(self, batches):
         processes = []
         # The maximum voxel size should guarantee the highest resultion
-        voxel_size = max(batch[4] for batch in batches)
+        rs_voxel_size = max(batch[4] for batch in batches)
+        ds_voxel_size = min(batch[5] for batch in batches)
+        f = self.prep_obj.experiment_dir + '/conf/config_mp'
+        mp_config = ut.read_config(f)
+        mp_config["rs_voxel_size"] = rs_voxel_size
+        mp_config["ds_voxel_size"] = ds_voxel_size
+        ut.write_config(mp_config, f)
         for batch in batches:
             dirs = batch[0]
             scans = batch[1]
@@ -143,7 +150,7 @@ class MultPeakPreparer(Preparer):
             orientation = "".join(f"{o}" for o in orientation)
             save_dir = f"{self.prep_obj.experiment_dir}/mp_{conf_scans}_{orientation}/preprocessed_data"
             p = Process(target=self.process_batch,
-                        args=(dirs, scans, B_recip, voxel_size, save_dir, 'prep_data.tif'))
+                        args=(dirs, scans, B_recip, rs_voxel_size, save_dir, 'prep_data.tif'))
             p.start()
             processes.append(p)
         for p in processes:
@@ -197,7 +204,6 @@ def center_mp(image, support):
 
 
 def write_vti(data, px, savedir, is_twin=False):
-    # TODO get the voxel size directly from config_mp
     # Create the vtk object for the data
     if is_twin:
         prepend = "twin_"
@@ -221,22 +227,22 @@ def write_vti(data, px, savedir, is_twin=False):
     print(f"saved file: {savedir}/{prepend}full_data.vti")
 
 
-def process_dir(res_dir, rampups=1, make_twin=True):
+def process_dir(exp_dir, rampups=1, make_twin=True):
     """
     Loads arrays from files in results directory. If reciprocal array exists, it will save reciprocal info in tif
     format.
 
     Parameters
     ----------
-    res_dir : str
+    exp_dir : str
         the directory where phasing results are saved
     rampups : int
         factor to apply to rampups operation, i.e. smoothing the image
     make_twin : bool
         if True visualize twin
     """
-    save_dir = Path(res_dir.replace('_phasing', '_viz'))
-    res_dir = Path(res_dir)
+    res_dir = Path(exp_dir) / "results_phasing"
+    save_dir = Path(exp_dir) / "results_viz"
     # create dir if does not exist
     print(save_dir)
     if not save_dir.exists():
@@ -253,14 +259,16 @@ def process_dir(res_dir, rampups=1, make_twin=True):
     if rampups > 1:
         image = ut.remove_ramp(image, ups=rampups)
 
-    write_vti(np.concatenate((image, support[None])), 1.0, save_dir)
+    px = ut.read_config(f"{exp_dir}/conf/config_mp")["ds_voxel_size"]
+
+    write_vti(np.concatenate((image, support[None])), px, save_dir)
 
     if make_twin:
-        image = np.flip(image, axis=(1,2,3))
+        image = np.flip(image, axis=(1, 2, 3))
         image[1:-1] *= -1
         if support is not None:
             support = np.flip(support)
             image, support = center_mp(image, support)
         if rampups > 1:
             image = ut.remove_ramp(image, ups=rampups)
-        write_vti(np.concatenate((image, support[None])), 1.0, save_dir, is_twin=True)
+        write_vti(np.concatenate((image, support[None])), px, save_dir, is_twin=True)

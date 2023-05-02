@@ -274,7 +274,7 @@ def set_geometry(shape, p, xtal=False):
     if xtal:
         Trecip_cryst = np.zeros(9)
         Trecip_cryst.shape = (3, 3)
-        Trecip_cryst[:, 0] = Astar * 10
+        Trecip_cryst[:, 0] = Astar * 10  # Inverse nanometers
         Trecip_cryst[:, 1] = Bstar * 10
         Trecip_cryst[:, 2] = Cstar * 10
         return Trecip_cryst, None

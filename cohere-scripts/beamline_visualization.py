@@ -447,7 +447,7 @@ def handle_visualization(experiment_dir, rec_id=None, image_file=None):
         return None
 
     if 'multipeak' in main_conf_map and main_conf_map['multipeak']:
-        mp.process_dir(experiment_dir + '/results_phasing', make_twin=True)
+        mp.process_dir(experiment_dir, make_twin=True)
     else:
         conf_dict = get_conf_dict(experiment_dir)
         if conf_dict is None:
