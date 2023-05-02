@@ -13,7 +13,8 @@ three components of atomic displacement.
 __author__ = "Nick Porter"
 __copyright__ = "Copyright (c), UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['rotate_peaks',
+__all__ = ['calc_geometry',
+           'rotate_peaks',
            'twin_matrix',
            'center_mp',
            'write_vti',
@@ -31,20 +32,23 @@ import util.util as ut
 from beamlines.aps_34idc import beam_stuff as geo, diffractometers as diff, detectors as det
 
 
-def rotate_peaks(prep_obj, data, scans, o_twin):
-    print("rotating diffraction pattern")
+def calc_geometry(prep_obj, scans, shape, o_twin):
+    """Calculates the rotation matrix and voxel size for a given peak"""
     main_config = ut.read_config(prep_obj.experiment_dir + '/conf/config')
     main_config['last_scan'] = scans[-1]
     p = geo.Params(main_config)
     p.set_instruments(det.create_detector(p.detector), diff.create_diffractometer(p.diffractometer))
-    shape = data.shape
     B_recip, _ = geo.set_geometry(shape, p, xtal=True)
     B_recip = np.stack([B_recip[1, :], B_recip[0, :], B_recip[2, :]])
     voxel_size = np.abs(np.linalg.det(B_recip))**(1/3)
-
-
     B_recip = o_twin @ B_recip
+    return B_recip, voxel_size
 
+
+def rotate_peaks(prep_obj, data, B_recip, voxel_size):
+    """Rotates the diffraction pattern of a given peak to the common reference frame"""
+    print("rotating diffraction pattern")
+    shape = data.shape
     x = np.arange(-shape[0] // 2, shape[0] // 2)  # define old grid
     y = np.arange(-shape[1] // 2, shape[1] // 2)
     z = np.arange(-shape[2] // 2, shape[2] // 2)
@@ -53,7 +57,6 @@ def rotate_peaks(prep_obj, data, scans, o_twin):
 
     new_points = B_recip @ old_grid
     min_max = np.array([[np.min(row), np.max(row)] for row in new_points])
-
     a = np.arange(min_max[0, 0], min_max[0, 1], voxel_size)  # define new grid from the smallest to largest value
     b = np.arange(min_max[1, 0], min_max[1, 1], voxel_size)  # ensure that the step size is that of the unit cell
     c = np.arange(min_max[2, 0], min_max[2, 1], voxel_size)  # edge length
@@ -119,31 +122,38 @@ class MultPeakPreparer(Preparer):
             while index > self.prep_obj.scan_ranges[i][-1]:
                 i += 1
             batch.append(i)
+            shape = self.prep_obj.read_scan(batch[0][0]).shape
+            B_recip, voxel_size = calc_geometry(self.prep_obj, batch[1], shape, self.o_twin)
+            batch.append(B_recip)
+            batch.append(voxel_size)
         return batches
 
 
     def prepare(self, batches):
         processes = []
-        for i in range(len(batches)):
-            dirs = batches[i][0]
-            scans = batches[i][1]
-            order = batches[i][2]
-            conf_scans = str(self.prep_obj.scan_ranges[order][0]) + '-' + str(self.prep_obj.scan_ranges[order][1])
+        # The maximum voxel size should guarantee the highest resultion
+        voxel_size = max(batch[4] for batch in batches)
+        for batch in batches:
+            dirs = batch[0]
+            scans = batch[1]
+            order = batch[2]
+            B_recip = batch[3]
+            conf_scans = f"{self.prep_obj.scan_ranges[order][0]}-{self.prep_obj.scan_ranges[order][1]}"
             orientation = self.prep_obj.orientations[order]
-            orientation = str(orientation[0]) + str(orientation[1]) + str(orientation[2])
-            save_dir = self.prep_obj.experiment_dir + '/mp_' + conf_scans + '_' + orientation + '/preprocessed_data'
+            orientation = "".join(f"{o}" for o in orientation)
+            save_dir = f"{self.prep_obj.experiment_dir}/mp_{conf_scans}_{orientation}/preprocessed_data"
             p = Process(target=self.process_batch,
-                        args=(dirs, scans, save_dir, 'prep_data.tif'))
+                        args=(dirs, scans, B_recip, voxel_size, save_dir, 'prep_data.tif'))
             p.start()
             processes.append(p)
         for p in processes:
             p.join()
 
 
-    def process_batch(self, dirs, scans, save_dir, filename):
+    def process_batch(self, dirs, scans, B_recip, voxel_size, save_dir, filename):
         batch_arr = combine_scans(self.prep_obj, dirs, scans)
         batch_arr = self.prep_obj.detector.clear_seam(batch_arr)
-        data = rotate_peaks(self.prep_obj, batch_arr, scans, self.o_twin)
+        data = rotate_peaks(self.prep_obj, batch_arr, B_recip, voxel_size)
         write_prep_arr(data, save_dir, filename)
 
 
