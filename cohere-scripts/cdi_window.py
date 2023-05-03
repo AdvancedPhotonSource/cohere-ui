@@ -165,6 +165,8 @@ class cdi_gui(QWidget):
         self.run_button.clicked.connect(self.run_everything)
         self.create_exp_button.clicked.connect(self.set_experiment)
         self.multipeak.stateChanged.connect(self.toggle_multipeak)
+        self.separate_scans.stateChanged.connect(self.toggle_separate_scans)
+        self.separate_scan_ranges.stateChanged.connect(self.toggle_separate_scan_ranges)
 
 
     def set_args(self, args):
@@ -452,21 +454,36 @@ class cdi_gui(QWidget):
         else:
             self.beamline = None
 
-        if not loaded:
+        if self.t is None:
             self.save_main()
             if self.t is None:
                 try:
                     self.t = Tabs(self, self.beamline_widget.text())
                     self.vbox.addWidget(self.t)
-                except:
+                except Exception as e:
+                    print(e.text())
                     pass
             self.t.save_conf()
 
         self.t.notify(**{'experiment_dir': self.experiment_dir})
 
     def toggle_multipeak(self):
+        if self.is_exp_set():
+            self.save_main()
         if not self.t is None:
-            self.t.toggle_multipeak(self.multipeak.isChecked())
+            self.t.toggle_checked(self.multipeak.isChecked(), True)
+
+    def toggle_separate_scans(self):
+        if self.is_exp_set():
+            self.save_main()
+        if not self.t is None:
+            self.t.toggle_checked(self.separate_scans.isChecked(), False)
+
+    def toggle_separate_scan_ranges(self):
+        if self.is_exp_set():
+            self.save_main()
+        if not self.t is None:
+            self.t.toggle_checked(self.separate_scan_ranges.isChecked(), False)
 
 
 
@@ -490,10 +507,7 @@ class Tabs(QTabWidget):
                 print (e)
                 msg_window('cannot import beamlines.' + beamline + ' module')
                 raise
-            if self.main_win.multipeak.isChecked():
-                self.instr_tab = self.beam.InstrTabMp()
-            else:
-                self.instr_tab = self.beam.InstrTab()
+            self.instr_tab = self.beam.InstrTab()
             self.prep_tab = self.beam.PrepTab()
             self.format_tab = DataTab()
             self.rec_tab = RecTab()
@@ -581,28 +595,21 @@ class Tabs(QTabWidget):
             tab.save_conf()
 
 
-    def toggle_multipeak(self, is_checked):
-        if is_checked:
-            self.mp_tab = MpTab()
-            self.addTab(self.mp_tab, self.mp_tab.name)
-            self.mp_tab.init(self, self.main_win)
-            self.tabs = self.tabs + [self.mp_tab]
-        else:
-            self.removeTab(self.count()-1)
-            self.tabs.remove(self.mp_tab)
-            self.mp_tab = None
+    def toggle_checked(self, is_checked, is_multipeak):
+        if is_multipeak:
+            if is_checked:
+                self.mp_tab = MpTab()
+                self.addTab(self.mp_tab, self.mp_tab.name)
+                self.mp_tab.init(self, self.main_win)
+                self.tabs = self.tabs + [self.mp_tab]
+            else:
+                self.removeTab(self.count()-1)
+                self.tabs.remove(self.mp_tab)
+                self.mp_tab = None
+
         # change the Instrument tab if present
         if not self.instr_tab is None:
-            self.removeTab(0)
-            self.tabs.remove(self.instr_tab)
-            if is_checked:
-                self.instr_tab = self.beam.InstrTabMp()
-            else:
-                self.instr_tab = self.beam.InstrTab()
-            self.insertTab(0, self.instr_tab, self.instr_tab.name)
-            self.instr_tab.init(self, self.main_win)
-            self.tabs = self.tabs + [self.instr_tab]
-        self.setCurrentIndex(0)
+            self.instr_tab.toggle_config()
 
 
 class DataTab(QWidget):

@@ -85,7 +85,7 @@ class Preparer():
         """
         self.prep_obj = prep_obj
         self.no_scan_ranges = len(self.prep_obj.scan_ranges)
-        self.unit_dirs_scan_indexes = {i: [[], []] for i in range(self.no_scan_ranges)}
+        self.unit_dirs_scan_indexes = {}
 
     def add_scan(self, scan_no, subdir):
         i = 0
@@ -95,29 +95,29 @@ class Preparer():
                 return
         if scan_no >= self.prep_obj.scan_ranges[i][0]:
             # add the scan
+            if i not in self.unit_dirs_scan_indexes.keys():
+                self.unit_dirs_scan_indexes[i] = [[], []]
             self.unit_dirs_scan_indexes[i][0].append(subdir)
             self.unit_dirs_scan_indexes[i][1].append(scan_no)
 
     def get_batches(self):
         data_dir = self.prep_obj.data_dir
-        for name in os.listdir(data_dir):
-            subdir = data_dir + '/' + name
+        for scan_dir in os.listdir(data_dir):
+            subdir = data_dir + '/' + scan_dir
             if os.path.isdir(subdir):
                 # exclude directories with fewer tif files than min_files
                 if len(glob.glob1(subdir, "*.tif")) < self.prep_obj.min_files and len(
                         glob.glob1(subdir, "*.tiff")) < self.prep_obj.min_files:
                     continue
-                last_digits = re.search(r'\d+$', name)
+                last_digits = re.search(r'\d+$', scan_dir)
                 if last_digits is not None:
                     scan = int(last_digits.group())
                     if not scan in self.prep_obj.exclude_scans:
                         self.add_scan(scan, subdir)
-        print(self.unit_dirs_scan_indexes)
         return list(self.unit_dirs_scan_indexes.values())
 
     def process_batch(self, dirs, scans, save_dir, filename):
         batch_arr = combine_scans(self.prep_obj, dirs, scans)
-        print(batch_arr.shape)
         batch_arr = self.prep_obj.det_obj.clear_seam(batch_arr)
         write_prep_arr(batch_arr, save_dir, filename)
 
@@ -163,20 +163,24 @@ class SepPreparer(Preparer):
         processes = []
         if self.prep_obj.separate_scans:
             dirs = []
+            scans = []
             for batch in batches:
                 dirs.extend(batch[0])
+                scans.extend(batch[1])
             for i in range(len(dirs)):
-                save_dir = self.prep_obj.experiment_dir + '/scan_' + str(i) + '/preprocessed_data'
+                save_dir = self.prep_obj.experiment_dir + '/scan_' + str(scans[i]) + '/preprocessed_data'
                 self.process_batch([dirs[i]], None, save_dir, 'prep_data.tif')
         else:
-            for i in range(len(batches)):
-                dirs = batches[i][0]
-                if len(dirs) > 0:
-                    scans = batches[i][1]
-                    save_dir = self.prep_obj.experiment_dir + '/scan_' + str(i) + '/preprocessed_data'
-                    p = Process(target=self.process_batch,
-                                args=(dirs, scans, save_dir, 'prep_data.tif'))
-                    p.start()
-                    processes.append(p)
+            for batch in batches:
+                dirs = batch[0]
+                scans = batch[1]
+                indx = str(scans[0])
+                if len(scans) > 1:
+                    indx = indx + '-' + str(scans[-1])
+                save_dir = self.prep_obj.experiment_dir + '/scan_' + indx + '/preprocessed_data'
+                p = Process(target=self.process_batch,
+                            args=(dirs, scans, save_dir, 'prep_data.tif'))
+                p.start()
+                processes.append(p)
             for p in processes:
                 p.join()

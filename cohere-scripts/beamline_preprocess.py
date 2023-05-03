@@ -47,7 +47,7 @@ def prep_data(prep_obj, **kwargs):
         preparer = SinglePreparer(prep_obj)
 
     batches = preparer.get_batches()
-    if len(batches[0][0]) == 0:
+    if len(batches) == 0:
         return 'no scans to process'
     preparer.prepare(batches)
 

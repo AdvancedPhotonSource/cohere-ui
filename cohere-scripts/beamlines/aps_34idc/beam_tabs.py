@@ -597,14 +597,12 @@ class DispTab(QWidget):
             msg_window('please select valid results directory')
 
 
-class InstrTab(QWidget):
+class SubInstrTab(QWidget):
     def __init__(self, parent=None):
         """
         Constructor, initializes the tabs.
         """
-        super(InstrTab, self).__init__(parent)
-        self.name = 'Instrument'
-        self.conf_name = 'config_instr'
+        super(SubInstrTab, self).__init__(parent)
 
 
     def init(self, tabs, main_window):
@@ -617,46 +615,32 @@ class InstrTab(QWidget):
         -------
         nothing
         """
-        self.tabs = tabs
-        self.main_win = main_window
+        self.main_window = main_window
 
-        layout = QFormLayout()
-        self.diffractometer = QLineEdit()
-        layout.addRow("diffractometer", self.diffractometer)
-        self.spec_file_button = QPushButton()
-        layout.addRow("spec file", self.spec_file_button)
+        self.spec_widget = QWidget()
+        spec_layout = QFormLayout()
+        self.spec_widget.setLayout(spec_layout)
         self.energy = QLineEdit()
-        layout.addRow("energy", self.energy)
+        spec_layout.addRow("energy", self.energy)
         self.delta = QLineEdit()
-        layout.addRow("delta (deg)", self.delta)
+        spec_layout.addRow("delta (deg)", self.delta)
         self.gamma = QLineEdit()
-        layout.addRow("gamma (deg)", self.gamma)
+        spec_layout.addRow("gamma (deg)", self.gamma)
         self.detdist = QLineEdit()
-        layout.addRow("detdist (mm)", self.detdist)
+        spec_layout.addRow("detdist (mm)", self.detdist)
         self.th = QLineEdit()
-        layout.addRow("th (deg)", self.th)
+        spec_layout.addRow("th (deg)", self.th)
         self.chi = QLineEdit()
-        layout.addRow("chi (deg)", self.chi)
+        spec_layout.addRow("chi (deg)", self.chi)
         self.phi = QLineEdit()
-        layout.addRow("phi (deg)", self.phi)
+        spec_layout.addRow("phi (deg)", self.phi)
         self.scanmot = QLineEdit()
-        layout.addRow("scan motor", self.scanmot)
+        spec_layout.addRow("scan motor", self.scanmot)
         self.scanmot_del = QLineEdit()
-        layout.addRow("scan motor delta", self.scanmot_del)
+        spec_layout.addRow("scan motor delta", self.scanmot_del)
         self.detector = QLineEdit()
-        layout.addRow("detector", self.detector)
-        cmd_layout = QHBoxLayout()
-        self.set_instr_conf_from_button = QPushButton("Load instr conf from")
-        self.set_instr_conf_from_button.setStyleSheet("background-color:rgb(205,178,102)")
-        self.save_instr_conf = QPushButton('save config', self)
-        self.save_instr_conf.setStyleSheet("background-color:rgb(175,208,156)")
-        cmd_layout.addWidget(self.set_instr_conf_from_button)
-        cmd_layout.addWidget(self.save_instr_conf)
-        layout.addRow(cmd_layout)
-        self.setLayout(layout)
+        spec_layout.addRow("detector", self.detector)
 
-        self.spec_file_button.clicked.connect(self.set_spec_file)
-        self.save_instr_conf.clicked.connect(self.save_conf)
         self.energy.textChanged.connect(lambda: set_overriden(self.energy))
         self.delta.textChanged.connect(lambda: set_overriden(self.delta))
         self.gamma.textChanged.connect(lambda: set_overriden(self.gamma))
@@ -667,14 +651,9 @@ class InstrTab(QWidget):
         self.scanmot.textChanged.connect(lambda: set_overriden(self.scanmot))
         self.scanmot_del.textChanged.connect(lambda: set_overriden(self.scanmot_del))
         self.detector.textChanged.connect(lambda: set_overriden(self.detector))
-        self.set_instr_conf_from_button.clicked.connect(self.load_instr_conf)
 
 
-    def run_tab(self):
-        pass
-
-
-    def load_tab(self, conf_map):
+    def load_tab(self, conf_map, specfile, diff):
         """
         It verifies given configuration file, reads the parameters, and fills out the window.
         Parameters
@@ -685,17 +664,7 @@ class InstrTab(QWidget):
         -------
         nothing
         """
-        if 'diffractometer' in conf_map:
-            self.diffractometer.setText(str(conf_map['diffractometer']).replace(" ", ""))
-        if 'specfile' in conf_map:
-            specfile = conf_map['specfile']
-            if os.path.isfile(specfile):
-                self.spec_file_button.setStyleSheet("Text-align:left")
-                self.spec_file_button.setText(specfile)
-            else:
-                msg_window('The specfile file ' + specfile + ' in config file does not exist')
-
-        self.parse_spec()
+        self.parse_spec(specfile, diff)
 
         # if parameters are configured, override the readings from spec file
         if 'energy' in conf_map:
@@ -730,30 +699,7 @@ class InstrTab(QWidget):
             self.detector.setStyleSheet('color: black')
 
 
-    def set_spec_file(self):
-        """
-        Calls selection dialog. The selected spec file is parsed.
-        The specfile is saved in config.
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        noting
-        """
-        self.specfile = select_file(os.getcwd())
-        if self.specfile is not None:
-            self.spec_file_button.setStyleSheet("Text-align:left")
-            self.spec_file_button.setText(self.specfile)
-            self.parse_spec()
-        else:
-            self.specfile = None
-            self.spec_file_button.setText('')
-
-
     def clear_conf(self):
-        self.diffractometer.setText('')
-        self.spec_file_button.setText('')
         self.energy.setText('')
         self.delta.setText('')
         self.gamma.setText('')
@@ -764,25 +710,6 @@ class InstrTab(QWidget):
         self.scanmot.setText('')
         self.scanmot_del.setText('')
         self.detector.setText('')
-
-
-    def load_instr_conf(self):
-        """
-        It display a select dialog for user to select a configuration file. When selected, the parameters
-        from that file will be loaded to the window.
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        nothing
-        """
-        instr_file = select_file(os.getcwd())
-        if instr_file is not None:
-            conf_map = ut.read_config(instr_file.replace(os.sep, '/'))
-            self.load_tab(conf_map)
-        else:
-            msg_window('please select valid instrument config file')
 
 
     def get_instr_config(self):
@@ -817,42 +744,11 @@ class InstrTab(QWidget):
             conf_map['scanmot_del'] = ast.literal_eval(str(self.scanmot_del.text()))
         if len(self.detector.text()) > 0:
             conf_map['detector'] = str(self.detector.text())
-        if len(self.diffractometer.text()) > 0:
-            conf_map['diffractometer'] = str(self.diffractometer.text())
-        if len(self.spec_file_button.text()) > 0:
-            conf_map['specfile'] = str(self.spec_file_button.text())
 
         return conf_map
 
 
-    def save_conf(self):
-        """
-        Reads the parameters needed by format display script. Saves the config_disp configuration file with parameters from the window and runs the display script.
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        nothing
-        """
-        if not self.main_win.is_exp_exists():
-            msg_window('the experiment has not been created yet')
-            return
-        if not self.main_win.is_exp_set():
-            msg_window('the experiment has changed, pres "set experiment" button')
-            return
-
-        conf_map = self.get_instr_config()
-        # verify that disp configuration is ok
-        # er_msg = cohere.verify('config_instr', conf_map)
-        # if len(er_msg) > 0:
-        #     msg_window(er_msg)
-        #     return
-
-        ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_instr')
-
-
-    def parse_spec(self):
+    def parse_spec(self, specfile, diffractometer):
         """
         Calls utility function to parse spec file. Displas the parsed parameters in the window with blue text.
         Parameters
@@ -862,23 +758,18 @@ class InstrTab(QWidget):
         -------
         nothing
         """
-        scan = str(self.main_win.scan_widget.text())
+        scan = str(self.main_window.scan_widget.text())
         if len(scan) == 0:
-            return
-        specfile = self.spec_file_button.text()
-        if len(specfile) == 0:
-            msg_window('spec file not configured')
             return
 
         import beamlines.aps_34idc.diffractometers as diff
         import beamlines.aps_34idc.instrument as instr
 
-        if len(self.diffractometer.text()) > 0:
-            try:
-                diff_obj = diff.create_diffractometer(self.diffractometer.text())
-            except:
-                msg_window ('cannot create diffractometer', self.diffractometer.text())
-                return
+        try:
+            diff_obj = diff.create_diffractometer(diffractometer)
+        except:
+            msg_window ('cannot create diffractometer', diffractometer)
+            return
 
         last_scan = int(scan.split('-')[-1].split(',')[-1])
         spec_dict = instr.parse_spec(specfile, last_scan, diff_obj)
@@ -915,14 +806,26 @@ class InstrTab(QWidget):
 
 
 
-class InstrTabMp(QWidget):
+class InstrTab(QWidget):
     def __init__(self, parent=None):
         """
         Constructor, initializes the tabs.
         """
-        super(InstrTabMp, self).__init__(parent)
+        super(InstrTab, self).__init__(parent)
         self.name = 'Instrument'
         self.conf_name = 'config_instr'
+
+
+    def toggle_config(self):
+        if self.main_win.multipeak.isChecked() or self.main_win.separate_scans.isChecked() or self.main_win.separate_scan_ranges.isChecked():
+            self.add_config = False
+            self.extended.clear_conf()
+            self.extended.spec_widget.hide()
+            self.save_conf()
+        else:
+            self.add_config = True
+            self.extended.spec_widget.show()
+            self.extended.parse_spec(self.spec_file_button.text(), self.diffractometer.text())
 
 
     def init(self, tabs, main_window):
@@ -937,12 +840,24 @@ class InstrTabMp(QWidget):
         """
         self.tabs = tabs
         self.main_win = main_window
+        self.extended = None
+        if main_window.multipeak.isChecked() or main_window.separate_scans.isChecked() or main_window.separate_scan_ranges.isChecked():
+            self.add_config = False
+        else:
+            self.add_config = True
+        self.extended = SubInstrTab()
+        self.extended.init(tabs, main_window)
 
-        layout = QFormLayout()
+        tab_layout = QVBoxLayout()
+        gen_layout = QFormLayout()
         self.diffractometer = QLineEdit()
-        layout.addRow("diffractometer", self.diffractometer)
+        gen_layout.addRow("diffractometer", self.diffractometer)
         self.spec_file_button = QPushButton()
-        layout.addRow("spec file", self.spec_file_button)
+        gen_layout.addRow("spec file", self.spec_file_button)
+        tab_layout.addLayout(gen_layout)
+        tab_layout.addWidget(self.extended.spec_widget)
+        if not self.add_config:
+            self.extended.spec_widget.hide()
         cmd_layout = QHBoxLayout()
         self.set_instr_conf_from_button = QPushButton("Load instr conf from")
         self.set_instr_conf_from_button.setStyleSheet("background-color:rgb(205,178,102)")
@@ -950,8 +865,9 @@ class InstrTabMp(QWidget):
         self.save_instr_conf.setStyleSheet("background-color:rgb(175,208,156)")
         cmd_layout.addWidget(self.set_instr_conf_from_button)
         cmd_layout.addWidget(self.save_instr_conf)
-        layout.addRow(cmd_layout)
-        self.setLayout(layout)
+        tab_layout.addLayout(cmd_layout)
+        tab_layout.addStretch()
+        self.setLayout(tab_layout)
 
         self.spec_file_button.clicked.connect(self.set_spec_file)
         self.save_instr_conf.clicked.connect(self.save_conf)
@@ -974,12 +890,15 @@ class InstrTabMp(QWidget):
         nothing
         """
         if 'diffractometer' in conf_map:
-            self.diffractometer.setText(str(conf_map['diffractometer']).replace(" ", ""))
+            diff = str(conf_map['diffractometer']).replace(" ", "")
+            self.diffractometer.setText(diff)
         if 'specfile' in conf_map:
             specfile = conf_map['specfile']
             if os.path.isfile(specfile):
                 self.spec_file_button.setStyleSheet("Text-align:left")
                 self.spec_file_button.setText(specfile)
+                if self.add_config:
+                    self.extended.load_tab(conf_map, specfile, diff)
             else:
                 msg_window('The specfile file ' + specfile + ' in config file does not exist')
 
@@ -999,6 +918,8 @@ class InstrTabMp(QWidget):
         if self.specfile is not None:
             self.spec_file_button.setStyleSheet("Text-align:left")
             self.spec_file_button.setText(self.specfile)
+            if self.add_config:
+                self.extended.parse_spec(self.specfile, self.diffractometer.text())
         else:
             self.specfile = None
             self.spec_file_button.setText('')
@@ -1007,6 +928,8 @@ class InstrTabMp(QWidget):
     def clear_conf(self):
         self.diffractometer.setText('')
         self.spec_file_button.setText('')
+        if self.add_config:
+            self.extended.clear_conf()
 
 
     def load_instr_conf(self):
@@ -1044,6 +967,9 @@ class InstrTabMp(QWidget):
             conf_map['diffractometer'] = str(self.diffractometer.text())
         if len(self.spec_file_button.text()) > 0:
             conf_map['specfile'] = str(self.spec_file_button.text())
+
+        if self.add_config:
+            conf_map.update(self.extended.get_instr_config())
 
         return conf_map
 
