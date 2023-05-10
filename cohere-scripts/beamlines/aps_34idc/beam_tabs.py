@@ -432,6 +432,7 @@ class DispTab(QWidget):
 
 
     def clear_conf(self):
+        self.result_dir_button.setText('')
         self.make_twin.setChecked(False)
         self.crop.setText('')
         self.rampups.setText('')
@@ -821,11 +822,12 @@ class InstrTab(QWidget):
             self.add_config = False
             self.extended.clear_conf()
             self.extended.spec_widget.hide()
-            self.save_conf()
         else:
             self.add_config = True
             self.extended.spec_widget.show()
             self.extended.parse_spec(self.spec_file_button.text(), self.diffractometer.text())
+        if self.main_win.is_exp_exists():
+            self.save_conf()
 
 
     def init(self, tabs, main_window):
@@ -984,19 +986,12 @@ class InstrTab(QWidget):
         -------
         nothing
         """
-        if not self.main_win.is_exp_exists():
-            msg_window('the experiment has not been created yet')
-            return
-        if not self.main_win.is_exp_set():
-            msg_window('the experiment has changed, pres "set experiment" button')
-            return
-
         conf_map = self.get_instr_config()
         # verify that disp configuration is ok
-        # er_msg = cohere.verify('config_instr', conf_map)
-        # if len(er_msg) > 0:
-        #     msg_window(er_msg)
-        #     return
+        er_msg = cohere.verify('config_instr', conf_map)
+        if len(er_msg) > 0:
+            msg_window(er_msg)
+            return
 
         ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_instr')
 

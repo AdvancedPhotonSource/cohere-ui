@@ -1824,10 +1824,14 @@ class shrink_wrap(Feature):
         if len(self.shrink_wrap_triggers.text()) > 0:
             conf_map['shrink_wrap_trigger'] = ast.literal_eval(str(self.shrink_wrap_triggers.text()).replace('\n',''))
         if len(self.shrink_wrap_type.text()) > 0:
-            sw_type = str(self.shrink_wrap_type.text())
+            sw_type = str(self.shrink_wrap_type.text()).replace(' ','')
             # in case of multiple shrink wraps the shrink_wrap_type is a list of strings
             if sw_type.startswith('['):
-                conf_map['shrink_wrap_type'] = ast.literal_eval(sw_type)
+                if sw_type.startswith('["') or sw_type.startswith(("['")):
+                    conf_map['shrink_wrap_type'] = ast.literal_eval(sw_type)
+                else: # parse as one string
+                    sw_type = sw_type.replace('[', '["').replace(',', '","').replace(']', '"]')
+                    conf_map['shrink_wrap_type'] = ast.literal_eval(sw_type)
             else:
                 conf_map['shrink_wrap_type'] = sw_type
         if len(self.shrink_wrap_threshold.text()) > 0:

@@ -82,7 +82,7 @@ class Instrument:
       parsed parameters will be overridden with configured parameters in config_instr file.
     """
 
-    def initialize(self, config):
+    def initialize(self, config, scan):
         """
         The constructor.
 
@@ -96,41 +96,29 @@ class Instrument:
         str
             a string containing error message or empty
         """
-        if 'diffractometer' in config:
-            try:
-                self.diff_obj = diff.create_diffractometer(config['diffractometer'])
-            except:
-                return('cannot create diffractometer', config['diffractometer'])
-        else:
-            return('diffractometer name not in config file')
-
-        if not 'specfile' in config or not 'last_scan' in config:
-            return('missing spec file or last_scan')
+        # The calling code ensures diffractometer and specfile are configured
+        self.diff_obj = diff.create_diffractometer(config['diffractometer'])
+        self.specfile = config['specfile']
 
         if 'binning' in config:
             self.binning = config['binning']
         else:
             self.binning = [1, 1, 1]
 
-        specfile = config['specfile']
-        last_scan = config['last_scan']
-        attrs = parse_spec(specfile, last_scan, self.diff_obj)
+        attrs = parse_spec(self.specfile, scan, self.diff_obj)
 
         # set the attributes with values parsed from spec
         for attr in attrs:
             setattr(self, attr, attrs[attr])
 
-        if 'multipeak' in config and config['multipeak']:
-            # override the parsed parameters with entries in config file
-            # do not override for multipeak as there is no common configuration for the peaks
-            for attr in config:
-                setattr(self, attr, config[attr])
+        # save the instrument parameters from configuration
+        # and override the parsed parameters with entries in config file
+        # Note: the multipeak and separate scans configuration will not
+        # include the spec parsed parameters
+        for attr in config:
+            setattr(self, attr, config[attr])
 
         self.det_obj = det.create_detector(self.detector)
-        if self.det_obj is None:
-            return 'detector ' + self.detector + ' not defined in detectors.py file.'
-
-        return ''
 
 
     def get_geometry(self, shape, xtal=False):

@@ -13,7 +13,7 @@ __author__ = "Ross Harder"
 __copyright__ = "Copyright (c), UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['process_dir',
-           'get_conf_dict',
+           'get_conf_dicts',
            'handle_visualization',
            'main']
 
@@ -252,7 +252,7 @@ class CXDViz:
         print('saved file', filename)
 
 
-def process_dir(geometry, rampups, crop, make_twin, res_dir):
+def process_dir(instrument, config_map, rampups, crop, make_twin, res_dir_scan):
     """
     Loads arrays from files in results directory. If reciprocal array exists, it will save reciprocal info in tif format. It calls the save_CX function with the relevant parameters.
     Parameters
@@ -265,6 +265,7 @@ def process_dir(geometry, rampups, crop, make_twin, res_dir):
     -------
     nothing
     """
+    [res_dir, scan] = res_dir_scan
     save_dir = res_dir.replace('_phasing', '_viz')
     # create dir if it does not exist
     if not os.path.exists(save_dir):
@@ -278,6 +279,9 @@ def process_dir(geometry, rampups, crop, make_twin, res_dir):
         print('cannot load file', imagefile)
         return
 
+    # get geometry
+    instrument.initialize(config_map, scan)
+    geometry = instrument.get_geometry(image.shape)
     support = None
     coh = None
 
@@ -303,6 +307,7 @@ def process_dir(geometry, rampups, crop, make_twin, res_dir):
     if rampups > 1:
         image = ut.remove_ramp(image, ups=rampups)
 
+    crop = crop + [1.0] * (len(image.shape) - len(crop))
     viz = CXDViz(crop, geometry)
     viz.visualize(image, support, coh, save_dir)
 
@@ -316,83 +321,7 @@ def process_dir(geometry, rampups, crop, make_twin, res_dir):
         viz.visualize(image, support, coh, save_dir, True)
 
 
-def process_file(image_file, geometry, rampups, crop):
-    """
-    Loads array from given image file. Determines the vts file name and calls savw_CX function to process this  file. The vts file will have the same name as image file, with different extension and will be saved in the same directory.
-    Parameters
-    ----------
-    image_file : str
-        name of file in npy format containing reconstructrd image
-    conf_dir : str
-        dictionary containing configuration parameters
-    Returns
-    -------
-    nothing
-    """
-    image_file = image_file.replace(os.sep, '/')
-    if os.path.isfile(image_file):
-        try:
-            image = np.load(image_file)
-        except:
-            print('cannot load file', image_file)
-    else:
-        print(image_file, 'file is missing')
-        return
-
-    if rampups > 1:
-        image = ut.remove_ramp(image, ups=rampups)
-
-    viz = CXDViz(crop, geometry)
-    viz.visualize(image, None, None, os.path.dirname(image_file).replace(os.sep, '/'))
-
-
-def get_conf_dict(experiment_dir, main_conf_map):
-    """
-    Reads configuration files and creates dictionary with parameters that are needed for visualization.
-    Parameters
-    ----------
-    experiment_dir : str
-        directory where the experiment files are located
-    main_conf_map : dir
-        parsed main config file
-    Returns
-    -------
-    conf_dict : dict
-        a dictionary containing configuration parameters needed to initialize instrument
-    """
-    # convert configuration files if needed
-    if 'converter_ver' not in main_conf_map or conv.get_version() is None or conv.get_version() > main_conf_map[
-        'converter_ver']:
-        conv.convert(experiment_dir + '/conf')
-        # re-parse config
-        main_conf_map = ut.read_config(experiment_dir + '/conf/config')
-
-    msg = cohere.verify('config', main_conf_map)
-    if len(msg) > 0:
-        # the error message is printed in verifier
-        return msg
-
-    config_map = ut.read_config(experiment_dir + '/conf/config_instr')
-    try:
-        # the binning parameter from the standard preprocessing configuration file
-        data_config_map = ut.read_config(experiment_dir + '/conf/config_data')
-        if 'binning' in data_config_map:
-            config_map['binning'] = data_config_map['binning']
-    except:
-        pass
-
-    # get specfile and last_scan from the config file and add it to conf_dict
-    if 'scan' in main_conf_map:
-        scan = main_conf_map['scan']
-        last_scan = scan.split(',')[-1].split('-')[-1]
-        config_map['last_scan'] = int(last_scan)
-    else:
-        print("specfile or scan range not in main config")
-
-    return config_map
-
-
-def handle_visualization(experiment_dir, rec_id=None, image_file=None):
+def handle_visualization(experiment_dir, rec_id=None):
     """
     If the image_file parameter is defined, the file is processed and vts file saved. Otherwise this function determines root directory with results that should be processed for visualization. Multiple images will be processed concurrently.
     Parameters
@@ -411,26 +340,60 @@ def handle_visualization(experiment_dir, rec_id=None, image_file=None):
     print ('starting visualization process')
 
     main_conf_file = experiment_dir + '/conf/config'
+    if not os.path.isfile(main_conf_file):
+        print('main configuration file', main_conf_file, 'does not exist')
+        return ('main configuration file', main_conf_file, 'does not exist')
     main_conf_map = ut.read_config(main_conf_file)
     if main_conf_map is None:
-        print('Cannot parse main configuration file', main_conf_file)
+        print('Cannont parse main configuration file', main_conf_file)
         return ('Cannot parse main configuration file', main_conf_file)
+
+    # convert configuration files if needed
+    if 'converter_ver' not in main_conf_map or conv.get_version() is None or conv.get_version() > main_conf_map[
+        'converter_ver']:
+        conf_maps = conv.convert(experiment_dir + '/conf')
+        main_conf_map = conf_maps['config']
+
+    msg = cohere.verify('config', main_conf_map)
+    if len(msg) > 0:
+        # the error message is printed in verifier
+        return msg
+
+    if not os.path.isfile(experiment_dir + '/conf/config_instr'):
+        print('configuration file', experiment_dir + '/conf/config_instr', 'does not exist')
+        return ('configuration file', experiment_dir + '/conf/config_instr', 'does not exist')
+
+    instr_conf_map = ut.read_config(experiment_dir + '/conf/config_instr')
+
+    msg = cohere.verify('config_instr', instr_conf_map)
+    if len(msg) > 0:
+        # the error message is printed in verifier
+        return msg
 
     if 'multipeak' in main_conf_map and main_conf_map['multipeak']:
         mp.process_dir(experiment_dir + '/results_phasing')
     else:
         try:
             instr = importlib.import_module('beamlines.' + main_conf_map['beamline'] + '.instrument')
+            instrument = instr.Instrument()
         except:
             print('cannot import beamlines.' + main_conf_map['beamline'] + '.instrument module.')
             return ('cannot import beamlines.' + main_conf_map['beamline'] + '.instrument module.')
 
-        config_map = get_conf_dict(experiment_dir, main_conf_map)
-        instr_obj = instr.Instrument()
-        msg = instr_obj.initialize(config_map)
-        if len(msg) > 0:
-            print(msg)
-            return msg
+        config_map = {}
+        if ('separate_scans' in main_conf_map and main_conf_map['separate_scans']) or \
+                ('separate_scan_ranges' in main_conf_map and main_conf_map['separate_scan_ranges']):
+            config_map['diffractometer'] = instr_conf_map['diffractometer']
+            config_map['specfile'] = instr_conf_map['specfile']
+            separate = True
+        else:
+            config_map = instr_conf_map
+            separate = False
+
+        if os.path.isfile(experiment_dir + '/conf/config_data'):
+            data_config_map = ut.read_config(experiment_dir + '/conf/config_data')
+            if 'binning' in data_config_map:
+                config_map['binning'] = data_config_map['binning']
 
         # get the visualization config
         disp_config_map = ut.read_config(experiment_dir + '/conf/config_disp')
@@ -449,25 +412,14 @@ def handle_visualization(experiment_dir, rec_id=None, image_file=None):
         else:
             crop = []
 
-        if image_file is not None:
-            # find shape without loading the array
-            with open(image_file, 'rb') as f:
-                np.lib.format.read_magic(f)
-                shape, fortran, dtype = np.lib.format.read_array_header_1_0(f)
-            crop = crop + [1] * (len(shape) - len(crop))
-            geometry = instr_obj.get_geometry(shape)
-            process_file(image_file, geometry, rampups, crop)
-            return
-        elif ('separate_scans' in main_conf_map and main_conf_map['separate_scans']) or \
-                ('separate_scan_ranges' in main_conf_map and main_conf_map['separate_scan_ranges']):
+        if 'results_dir' in disp_config_map:
+            results_dir = disp_config_map['results_dir'].replace(os.sep, '/')
+        elif separate:
             results_dir = experiment_dir
         elif rec_id is not None:
             results_dir = experiment_dir + '/results_phasing_' + rec_id
         else:
-            if 'results_dir' in disp_config_map:
-                results_dir = disp_config_map['results_dir'].replace(os.sep, '/')
-            else:
-                results_dir = experiment_dir
+            results_dir = experiment_dir + '/results_phasing'
         # find directories with image.npy file in the root of results_dir
         dirs = []
         for (dirpath, dirnames, filenames) in os.walk(results_dir):
@@ -477,18 +429,27 @@ def handle_visualization(experiment_dir, rec_id=None, image_file=None):
         if len(dirs) == 0:
             print ('no image.npy files found in the directory tree', results_dir)
             return ('no image.npy files found in the directory tree', results_dir)
+
+        last_scan = int(main_conf_map['scan'].split(',')[-1].split('-')[-1])
+        if separate:
+            scans = []
+            # the scan that will be used to derive geometry is determined from the scan directory
+            for dir in dirs:
+                subdir = dir.removeprefix(experiment_dir + '/')
+                if subdir.startswith('scan'):
+                    scan_dir = subdir.split('/')[0]
+                    scans.append(int(scan_dir.removeprefix('scan_').split('-')[-1]))
+                else:
+                    print('directory', subdir, 'does not start with "scan", using configured scan to parse spec')
+                    scans.append(last_scan)
+            dirs = list(zip(dirs, scans))
         else:
-            # find shape without loading the array
-            with open(dirs[0] + '/image.npy', 'rb') as f:
-                np.lib.format.read_magic(f)
-                shape, fortran, dtype = np.lib.format.read_array_header_1_0(f)
-            geometry = instr_obj.get_geometry(shape)
-            crop = crop + [1] * (len(shape) - len(crop))
+            dirs = [[dir, last_scan] for dir in dirs]
 
         if len(dirs) == 1:
-            process_dir(geometry, rampups, crop, make_twin, dirs[0])
-        elif len(dirs) >1:
-            func = partial(process_dir, geometry, rampups, crop, make_twin)
+            process_dir(instrument, config_map, rampups, crop, make_twin, dirs[0])
+        else:
+            func = partial(process_dir, instrument, config_map, rampups, crop, make_twin)
             no_proc = min(cpu_count(), len(dirs))
             with Pool(processes = no_proc) as pool:
                pool.map_async(func, dirs)
@@ -501,15 +462,9 @@ def handle_visualization(experiment_dir, rec_id=None, image_file=None):
 def main(arg):
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_dir", help="experiment directory")
-    parser.add_argument("--image_file", help="a file in .npy format to be processed for visualization")
     parser.add_argument("--rec_id", help="alternate reconstruction id")
     args = parser.parse_args()
-    experiment_dir = args.experiment_dir
-    rec_id = args.rec_id
-    if args.image_file:
-        handle_visualization(experiment_dir, args.rec_id, args.image_file)
-    else:
-        handle_visualization(experiment_dir, args.rec_id)
+    handle_visualization(args.experiment_dir, args.rec_id)
 
 
 if __name__ == "__main__":

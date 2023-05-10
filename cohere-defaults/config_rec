@@ -188,7 +188,7 @@ initial_support_area = [.5,.5,.5]
 // lowpass_filter_trigger = [0, 1, 320]
                              // defines when to apply low resolution using the parameters below.
                              // Comment out, if low resolution feature not used.
-                             // when running GA applied only in first generation
+                             // when running, GA it is applied only in first generation
 // lowpass_filter_range = [.7, 1]
                              // used when applying low-pass data filter while iterating.
                              // The det values are linespaced for low resolution iterations from first value to last. 
