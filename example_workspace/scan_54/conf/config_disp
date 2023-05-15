@@ -1,4 +1,2 @@
-results_dir = "CUR_DIR/example_workspace/scan_54"
-diffractometer = "34idc"
 crop = [0.5, 0.5, 0.5]
 rampups = 1

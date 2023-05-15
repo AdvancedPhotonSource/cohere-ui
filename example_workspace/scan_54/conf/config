@@ -3,4 +3,4 @@ experiment_id = "scan"
 scan = "54"
 specfile = "CUR_DIR/example_data/example.spec
 beamline = "aps_34idc"
-converter_ver = 0
+converter_ver = 1

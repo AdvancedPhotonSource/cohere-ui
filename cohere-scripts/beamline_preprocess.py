@@ -47,7 +47,11 @@ def prep_data(prep_obj, **kwargs):
         preparer = SinglePreparer(prep_obj)
 
     batches = preparer.get_batches()
+    if len(batches) == 0:
+        return 'no scans to process'
     preparer.prepare(batches)
+
+    return ''
 
 
 def handle_prep(experiment_dir, *args, **kwargs):
@@ -69,9 +73,10 @@ def handle_prep(experiment_dir, *args, **kwargs):
     main_conf_file = experiment_dir + '/conf/config'
     main_conf_map = ut.read_config(main_conf_file)
     if main_conf_map is None:
-        return None
+        print ('cannot read configuration file ' + main_conf_file)
+        return 'cannot read configuration file ' + main_conf_file
     # convert configuration files if needed
-    if 'converter_ver' not in main_conf_map or conv.get_version() is None or conv.get_version() < main_conf_map['converter_ver']:
+    if 'converter_ver' not in main_conf_map or conv.get_version() is None or conv.get_version() > main_conf_map['converter_ver']:
         conv.convert(experiment_dir + '/conf')
         #re-parse config
         main_conf_map = ut.read_config(main_conf_file)
@@ -79,20 +84,19 @@ def handle_prep(experiment_dir, *args, **kwargs):
     er_msg = cohere.verify('config', main_conf_map)
     if len(er_msg) > 0:
         # the error message is printed in verifier
-        return
+        return er_msg
 
     if 'beamline' in main_conf_map:
         beamline = main_conf_map['beamline']
         try:
             beam_prep = importlib.import_module('beamlines.' + beamline + '.prep')
-            det = importlib.import_module('beamlines.' + beamline + '.detectors')
         except Exception as e:
             print(e)
             print('cannot import beamlines.' + beamline + '.prep module.')
-            return None
+            return 'cannot import beamlines.' + beamline + '.prep module.'
     else:
         print('Beamline must be configured in configuration file ' + main_conf_file)
-        return None
+        return 'Beamline must be configured in configuration file ' + main_conf_file
 
     prep_conf_file = experiment_dir + '/conf/config_prep'
     prep_conf_map = ut.read_config(prep_conf_file)
@@ -101,35 +105,33 @@ def handle_prep(experiment_dir, *args, **kwargs):
     er_msg = cohere.verify('config_prep', prep_conf_map)
     if len(er_msg) > 0:
         # the error message is printed in verifier
-        return None
+        return er_msg
+
     data_dir = prep_conf_map['data_dir'].replace(os.sep, '/')
     if not os.path.isdir(data_dir):
         print('data directory ' + data_dir + ' is not a valid directory')
-        return None
+        return 'data directory ' + data_dir + ' is not a valid directory'
 
+    instr_config_map = ut.read_config(experiment_dir + '/conf/config_instr')
     # create BeamPrepData object defined for the configured beamline
     conf_map = main_conf_map
     conf_map.update(prep_conf_map)
+    conf_map.update(instr_config_map)
     if 'multipeak' in main_conf_map and main_conf_map['multipeak']:
         conf_map.update(ut.read_config(experiment_dir + '/conf/config_mp'))
-    prep_obj = beam_prep.BeamPrepData(experiment_dir, conf_map, *args)
-    if prep_obj.scan_ranges is None:
-        print('no scan given')
-        return
+    prep_obj = beam_prep.BeamPrepData()
+    msg = prep_obj.initialize(experiment_dir, conf_map)
+    if len(msg) > 0:
+        print(msg)
+        return msg
 
-    det_name = prep_obj.get_detector_name()
-    if det_name is not None:
-        det_obj = det.create_detector(det_name)
-        if det_obj is not None:
-            prep_obj.set_detector(det_obj, prep_conf_map)
-        else:
-            print('detector not created')
-            return None
-
-    prep_data(prep_obj)
+    msg = prep_data(prep_obj)
+    if len(msg) > 0:
+        print(msg)
+        return msg
 
     print('done with preprocessing')
-    return experiment_dir
+    return ''
 
 
 def main(arg):

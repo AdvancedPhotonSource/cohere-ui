@@ -1,34 +1,63 @@
 import sys
 import os
 import argparse
+import shutil
+import util.util as ut
 
 # version must be increased after each modification of configuration file(s)
-version = 0
+version = 1
 
 # Map file of before/after keys to remap
-config_map = {'beamline': 'beamline', 'specfile': 'specfile'}
-config_prep_map = {'darkfile': 'darkfield_filename', 'whitefile': 'whitefield_filename'}
-config_rec_map = {'samples': 'reconstructions', 'beta' : 'hio_beta', 'amp_support_trigger': 'shrink_wrap_trigger',
-                  'support_type': 'shrink_wrap_type', 'support_threshold' : 'shrink_wrap_threshold',
-                  'support_sigma' : 'shrink_wrap_gauss_sigma', 'support_area' : 'initial_support_area',
-                  'pcdi_trigger' : 'pc_interval', 'pc_trigger' : 'pc_interval', 'partial_coherence_type' : 'pc_type',
-                  'partial_coherence_iteration_num' : 'pc_LUCY_iterations', 'partial_coherence_normalize' : 'pc_normalize',
-                  'partial_coherence_roi' : 'pc_LUCY_kernel', 'phase_min' : 'phm_phase_min', 'phase_max' : 'phm_phase_max',
-                  'iter_res_sigma_range' : 'lowpass_filter_sw_sigma_range', 'iter_res_det_range' : 'lowpass_filter_range',
-                  'generations' : 'ga_generations', 'ga_support_thresholds' : 'ga_shrink_wrap_thresholds',
-                  'ga_support_sigmas' : 'ga_shrink_wrap_gauss_sigmas', 'ga_low_resolution_sigmas' : 'ga_lowpass_filter_sigmas',
+config_map = {}
+config_prep_map = {'darkfile': 'darkfield_filename',
+                   'whitefile': 'whitefield_filename'}
+config_rec_map = {'samples': 'reconstructions',
+                  'beta': 'hio_beta',
+                  'amp_support_trigger': 'shrink_wrap_trigger',
+                  'support_type': 'shrink_wrap_type',
+                  'support_threshold': 'shrink_wrap_threshold',
+                  'support_sigma': 'shrink_wrap_gauss_sigma',
+                  'support_area': 'initial_support_area',
+                  'pcdi_trigger': 'pc_interval',
+                  'pc_trigger' : 'pc_interval',
+                  'partial_coherence_type' : 'pc_type',
+                  'partial_coherence_iteration_num' : 'pc_LUCY_iterations',
+                  'partial_coherence_normalize' : 'pc_normalize',
+                  'partial_coherence_roi' : 'pc_LUCY_kernel',
+                  'phase_min' : 'phm_phase_min',
+                  'phase_max' : 'phm_phase_max',
+                  'phase_support_trigger' : 'phm_trigger',
+                  'resolution_trigger' : 'lowpass_filter_trigger',
+                  'iter_res_det_range' : 'lowpass_filter_range',
+                  'generations' : 'ga_generations',
+                  'ga_support_thresholds' : 'ga_sw_thresholds',
+                  'ga_support_sigmas' : 'ga_sw_gauss_sigmas',
+                  'ga_low_resolution_sigmas' : 'ga_lowpass_filter_sigmas',
                   'gen_pcdi_start' : 'ga_gen_pc_start'}
-config_disp_map = {'arm': 'detdist', 'dth': 'scanmot_del'}
-config_data_map = {'aliens': 'aliens', 'amp_threshold' : 'intensity_threshold'}
+config_disp_map = {'arm': 'detdist',
+                   'dth': 'scanmot_del'}
+config_data_map = {'aliens': 'aliens',
+                   'amp_threshold' : 'intensity_threshold'}
+config_instr_map = {}
+config_mp_map = {}
 
-beamlinedefaultvalue = ' "aps_34idc"'
+beamlinedefaultvalue = '"aps_34idc"'
 
 config_maps = {'config': config_map,
                'config_prep': config_prep_map,
                'config_rec': config_rec_map,
                'config_disp': config_disp_map,
-               'config_data': config_data_map}
+               'config_data': config_data_map,
+               'config_instr': config_instr_map,
+               'config_mp': config_mp_map}
 
+# the key is the configuration file parameters are removed from
+# the parameters in list are inserted into the configuration file of subdict key
+move_dict = {'config':{'config_instr':['specfile']},
+             'config_prep':{'config':['separate_scans', 'separate_scan_ranges'],
+                            'config_instr':['specfile']},
+             'config_disp':{'config_instr':['energy', 'delta', 'gamma', 'detdist', 'th', 'chi', 'phi', 'scanmot',
+                                            'scanmot_del', 'detector', 'diffractometer']}}
 
 def get_version():
     """
@@ -51,17 +80,13 @@ def get_version():
     return version
 
 
-def versionfile(file_spec, vtype='copy'):
+def versionfile(file_spec):
     # Prior to any change make a backup of the original file
     import os
     import shutil
 
     file_spec = file_spec.replace(os.sep, '/')
     if os.path.isfile(file_spec):
-        # or, do other error checking:
-        if vtype not in ('copy', 'rename'):
-            vtype = 'copy'
-
         # Determine root filename so the extension doesn't get longer
         n, e = os.path.splitext(file_spec)
         # Is e an integer?
@@ -72,69 +97,6 @@ def versionfile(file_spec, vtype='copy'):
             root = file_spec + "_backup"
             shutil.copy(file_spec, root)
             return 0
-
-
-def returnconfigdictionary(cfile_path, cfile):
-    """
-    This function takes a config file name and creates a dictionary of all the parameters defined in the config
-    file using the = to split key,value pairs.
-    There is a special case where values can be enclosed in () with a line for each value.
-    Parameters
-    ----------
-    cfile : str
-        configuration file name
-    startdir : str
-        a directory with configuration files to be converted
-    Returns
-    -------
-    currentdic : dict
-        a dictionary with the configuration parameters
-    """
-    param = ''
-    value = ''
-    extend = False
-    currentdic = {}
-
-    cfile_path = cfile_path.replace(os.sep, '/')
-    cfile = cfile.replace(os.sep, '/')
-    # Check if file exists, if it does make a backup copy of file with the new name config_backup
-    if os.path.exists(cfile_path):
-        if os.access(os.path.dirname(cfile_path), os.W_OK):
-            backupfile = cfile + "_backup"
-            versionfile(cfile_path)
-    else:
-        return currentdic
-
-    input = open(cfile_path, 'r')
-    str = input.readline()
-    while str:
-        # Ignore comment lines and move along
-        str = str.rstrip()
-        if '//' in str:
-            str = input.readline()
-            continue
-        elif extend == False:
-            # Test if = is in the string otherwise skip this line, if = in line split on = only if this is not an
-            # extended string seperated by the () brackets
-            if "=" not in str:
-#                print("strange string in config=", str)
-                str = input.readline()
-                continue
-            param, value = str.split('=')
-            param = param.rstrip()
-            currentdic[param] = value
-        else:
-            #  in the extended string area capture the string and check if at begining or end
-            value = value + str
-        if value == " (":
-            extend = True
-        elif str == ")":
-            # At the end of extended string push string into dictionary and end loop
-            currentdic[param] = value
-            extend = False
-        str = input.readline()
-    input.close()
-    return currentdic
 
 
 def replace_keys(dic, cfile):
@@ -149,46 +111,15 @@ def replace_keys(dic, cfile):
     return dic
 
 
-def convert_dict(conf_dict, cfile):
-    if cfile == 'config':
-        mappingfile = config_map
-    elif cfile == 'config_prep':
-        mappingfile = config_prep_map
-    elif cfile == 'config_data':
-        mappingfile = config_data_map
-    elif cfile == 'config_rec':
-        mappingfile = config_rec_map
-    elif cfile == 'config_disp':
-        mappingfile = config_disp_map
-    # Check if key is in the dictionary for this config file
-
-    for (k, v) in mappingfile.items():
-        if k in conf_dict.keys():
-            # Key is in the dictionary, replace with new value
-            holdingvalue = conf_dict.pop(k)
-            conf_dict[v] = holdingvalue
-#            print("The value of", k, "has been changed to", v, "and the value is", holdingvalue)
-        else:
-            # Key is not in the dictionary, do nothing
-            continue
-
-    # Some special cases if beamline has no value then it was never defined so set it to the default
-    # if specfile is in config_prep then remove it a add it to config
-    # if the config_data file has the older aliens format of coordinates/file then update to new layout
-    if cfile == 'config':
-        if 'beamline' in conf_dict.keys():
-            beamlinevalue = conf_dict['beamline']
-        else:
-            beamlinevalue = beamlinedefaultvalue
-            conf_dict['beamline'] = beamlinevalue
-            conf_dict['converter_ver'] = get_version()
-    # if specfile is in config_prep move it to config with the same value
-    elif cfile == 'config_prep':
-        if 'specfile' in conf_dict.keys():
-            savedspecfilevalue = conf_dict.pop('specfile')
-            conf_dict['specfile'] = savedspecfilevalue
+def convert_dict(conf_dicts, prev_ver=0):
+    if 'config' in conf_dicts.keys():
+        conf_dict = conf_dicts['config']
+        if not 'beamline' in conf_dict.keys():
+            conf_dict['beamline'] = beamlinedefaultvalue
+        conf_dict['converter_ver'] = get_version()
     # Look to see if aliens is set and if it is a directory or a block of coordinates
-    elif cfile == 'config_data':
+    if 'config_data' in conf_dicts.keys():
+        conf_dict = conf_dicts['config_data']
         # if alien_alg is defined then this is current and no change is needed.
         if 'alien_alg' in conf_dict.keys():
             pass
@@ -200,8 +131,9 @@ def convert_dict(conf_dict, cfile):
             else:
                 conf_dict['alien_alg'] = ' "alien_file"'
                 conf_dict['alien_file'] = savedAlien
-    elif cfile == 'config_rec':
+    if 'config_rec' in conf_dicts.keys():
         import ast
+        conf_dict = conf_dicts['config_rec']
         def add_iter(el, s):
             if len(el) == 2:
                 s = s + str(el[0] * el[1][1]) + '*' + el[1][0]
@@ -232,41 +164,48 @@ def convert_dict(conf_dict, cfile):
             pc_interval = ast.literal_eval(pc_interval)[1]
         conf_dict['pc_interval'] = str(pc_interval)
 
-    return conf_dict
+    return conf_dicts
 
 
-def get_conf_dict(cfile_path, cfile):
-    """
-    This function takes a config file name and creates a dictionary of all the parameters defined in the config
-    file using the = to split key,value pairs.
-    There is a special case where values can be enclosed in () with a line for each value.
-    Parameters
-    ----------
-    cfile : str
-        configuration file name
-    startdir : str
-        a directory with configuration files to be converted
-    Returns
-    -------
-    currentdic : dict
-        a dictionary with the configuration parameters
-    """
-    cfile_path = cfile_path.replace(os.sep, '/')
-    cdict = returnconfigdictionary(cfile_path, cfile)
-    cdict = replace_keys(cdict, cfile)
-    cdict = convert_dict(cdict, cfile)
+# def get_conf_dict(cfile_path, cfile):
+#     """
+#     This function takes a config file name and creates a dictionary of all the parameters defined in the config
+#     file using the = to split key,value pairs.
+#     There is a special case where values can be enclosed in () with a line for each value.
+#     Parameters
+#     ----------
+#     cfile : str
+#         configuration file name
+#     startdir : str
+#         a directory with configuration files to be converted
+#     Returns
+#     -------
+#     currentdic : dict
+#         a dictionary with the configuration parameters
+#     """
+#     cfile_path = cfile_path.replace(os.sep, '/')
+#     cdict = get_config_dict(cfile_path, cfile)
+#     cdict = replace_keys(cdict, cfile)
+#     cdict = convert_dict(cdict, cfile)
+#
+#     return cdict
+#
 
-    return cdict
-
-
-def convert(startdir):
+def convert(conf_dir, save=True):
     """
     This script will convert old config files to the newer format using the following critera
 
+    config_instr
+
+    create if does not exist
+    move specfile from config to config_instr
+    move energy, delta, gamma, detdist, th, chi, phi, scanmot, scanmot_del, detector, diffractometer
+        from config_disp to config_instr
+
     Config file
 
-    Move specfile from config_prep
     Add beamline
+    Move separate_scans, separate_scan_ranges from config_prep to config
     Add/replace converter_ver
 
     config_prep
@@ -283,8 +222,8 @@ def convert(startdir):
 
     config_disp
 
-    changed arm to detdist
-    changed dth to theta
+    change arm to detdist
+    change dth to theta
 
     The path where the config files are located is one of the parameters passed to the script via the -p variable,
     new files and backup files are written back to the same path as supplied.
@@ -303,7 +242,7 @@ def convert(startdir):
 
     There are special cases that needed to be added to this general mapping strategy, If the config file had the
     "beamline" parameter already defined then keep its value if not then I
-    picked a default value of aps_sec34id-c. If the specfile parameter was found in config_prep it was moved over to the
+    picked a default value of aps_34idc. If the specfile parameter was found in config_prep it was moved over to the
     config file.
     All non-relevant data in the files are stripped out including spaces and comments.
     If an aliens parameter is found id the config_data
@@ -311,45 +250,71 @@ def convert(startdir):
 
     Parameters
     ----------
-    startdir : str
+    conf_dir : str
         a directory with configuration files to be converted
     Returns
     -------
     nothing
     """
-    startdir = startdir.replace(os.sep, '/')
+    conf_dir = conf_dir.replace(os.sep, '/')
     # First check to see if directory exists, if not then exit
-    if not os.path.exists(startdir):
+    if not os.path.exists(conf_dir):
         # there is nothing to convert
-        return
+        print('configuration directory', conf_dir, 'does not exist')
+        return None
 
-    conf_files = []
+    # read main config and check the converter version
+    main_conf = ut.read_config(conf_dir + '/config')
+    if main_conf is None:
+        return None
+    if 'converter_ver' in main_conf:
+        conf_version = main_conf['converter_ver']
+    else:
+        conf_version = None
+    if conf_version == get_version():
+        return None
+
+    config_dicts = {}
+    if not os.path.isfile(conf_dir + '/config_instr'):
+        config_dicts['config_instr'] = {}
     for cfile in config_maps.keys():
+        conf_file = conf_dir + '/' + cfile
         # check if file exist
-        if not os.path.isfile(startdir +'/' + cfile):
+        if not os.path.isfile(conf_file):
             continue
-        conf_files.append(cfile)
+        if os.access(os.path.dirname(conf_dir), os.W_OK):
+            shutil.copy(conf_file, conf_file + '_backup')
 
-        # Now go into the content of each config  file and create a dictionary of line items to work with
-        thisdic = returnconfigdictionary(startdir + '/' + cfile, cfile)
+        config_dicts[cfile] = ut.read_config(conf_file)
 
         # Use map file to see what items need to change
         # Use the map file to determine what parameters need to be changed.
-        # if the key is found then do the remapp, if not then skip.
-        converted_dict = replace_keys(thisdic, cfile)
+        # if the key is found then do the remap, if not then skip.
+        config_dicts[cfile] = replace_keys(config_dicts[cfile], cfile)
 
-        # Some special cases if beamline has no value then it was never defined so set it to the default
-        # if specfile is in config_prep then remove it a add it to config
-        # if the config_data file has the older aliens format of coordinates/file then update to new layout
-        converted_dict = convert_dict(converted_dict, cfile)
+    # move parameters between files
+    for k,v in move_dict.items():
+        for nk, sv in v.items():
+            for p in sv:
+                if p in config_dicts[k]:
+                    config_dicts[nk][p] = config_dicts[k][p]
 
-        # Write the data out to the same-named file
-        writepath = startdir + '/' + cfile
-        fileobj = open(writepath, 'w')
-        for subkey in converted_dict.keys():
-            string2write = subkey + " =" + converted_dict[subkey] + '\n'
-            fileobj.write(string2write)
-        fileobj.close()
+    # Some special cases:
+    # Now only applies if the configuration version is None
+    # config: if beamline has no value then it was never defined so set it to the default
+    #         set the converter version to current version
+    # config_data: if it has the older aliens format of coordinates/file then update to new layout
+    # config_rec: algorithm_sequence and pc_interval changed
+    if conf_version is None:
+        config_dicts = convert_dict(config_dicts)
+
+    # Write the data out to the same-named file
+    if save:
+        for k, v in config_dicts.items():
+            file_name = conf_dir + '/' + k
+            ut.write_config(v, file_name)
+
+    return config_dicts
 
 
 def main(arg):

@@ -31,8 +31,11 @@ class Diffractometer_34idc(Diffractometer):
     sampleaxes = ('y+', 'z-', 'y+')  # in xrayutilities notation
     detectoraxes = ('y+', 'x-')
     incidentaxis = (0, 0, 1)
-    sampleaxes_name = ('th', 'chi', 'phi')  # using the spec mnemonics for scan id.
-    detectoraxes_name = ('delta', 'gamma')
+    sampleaxes_name = ('Theta', 'Chi', 'Phi')
+    sampleaxes_mne = ('th', 'chi', 'phi')
+    detectoraxes_name = ('Delta', 'Gamma')
+    detectoraxes_mne = ('delta', 'gamma')
+    detectordist_name = 'camdist'
 
     def __init__(self):
         super(Diffractometer_34idc, self).__init__('34idc')
