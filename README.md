@@ -3,7 +3,7 @@ User files
 
 This repository contains supplementary files to the cohere tools https://github.com/advancedPhotonSource/cohere.
 
-After installing this repository run setup.py and install_pkgs.sh/install_pkgs.bat scripts:
+After installing this repository run setup.py and install_pkgs.sh/install_pkgs.bat script:
 
     python setup.py
     sh install_pkgs.sh  # for mac or Linux
