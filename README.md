@@ -10,10 +10,10 @@ After installing this repository run setup.py and install_pkgs.sh/install_pkgs.b
     install_pkgs.bat    # for Windows
     
 Content:
-1. scripts directory containing user scripts
+1. cohere-scripts directory containing user scripts
    refer to documentation at https://cohere.readthedocs.io/en/latest/how_to_use.html for instruction on how to use the scripts
-2. docs-conf directory containing configuration files listing all parameters
+2. cohere-defaults directory containing configuration files listing all parameters
    refer to documentation at https://cohere.readthedocs.io/en/latest/configuration.html for detail description of all supported parameters
-3. example directory containing raw experiment data, experiment files such as darkfield, whitefiels, and spec file
-4. workspace directory with example experiment space containing configuration files
+3. example_data directory containing raw experiment data, experiment files such as darkfield, whitefiels, and spec file
+4. example_workspace directory with example experiment space containing configuration files
    The example experiment is provided to users to learn the tools by trying on the real data and real environment
