@@ -326,7 +326,7 @@ class cdi_gui(QWidget):
         # convert configuration files if needed
         if 'converter_ver' not in conf_map or conv.get_version() is None or conv.get_version() > conf_map[
             'converter_ver']:
-            return conv.convert(load_dir + '/conf', False), True
+            return conv.convert(load_dir + '/conf'), True
         else:
             conf_dirs = {}
             for cf in os.listdir(load_dir + '/conf'):
