@@ -80,25 +80,6 @@ def get_version():
     return version
 
 
-def versionfile(file_spec):
-    # Prior to any change make a backup of the original file
-    import os
-    import shutil
-
-    file_spec = file_spec.replace(os.sep, '/')
-    if os.path.isfile(file_spec):
-        # Determine root filename so the extension doesn't get longer
-        n, e = os.path.splitext(file_spec)
-        # Is e an integer?
-        try:
-            num = int(e)
-            root = n
-        except ValueError:
-            root = file_spec + "_backup"
-            shutil.copy(file_spec, root)
-            return 0
-
-
 def replace_keys(dic, cfile):
     for (k, v) in config_maps[cfile].items():
         if k in dic.keys():
@@ -167,31 +148,7 @@ def convert_dict(conf_dicts, prev_ver=0):
     return conf_dicts
 
 
-# def get_conf_dict(cfile_path, cfile):
-#     """
-#     This function takes a config file name and creates a dictionary of all the parameters defined in the config
-#     file using the = to split key,value pairs.
-#     There is a special case where values can be enclosed in () with a line for each value.
-#     Parameters
-#     ----------
-#     cfile : str
-#         configuration file name
-#     startdir : str
-#         a directory with configuration files to be converted
-#     Returns
-#     -------
-#     currentdic : dict
-#         a dictionary with the configuration parameters
-#     """
-#     cfile_path = cfile_path.replace(os.sep, '/')
-#     cdict = get_config_dict(cfile_path, cfile)
-#     cdict = replace_keys(cdict, cfile)
-#     cdict = convert_dict(cdict, cfile)
-#
-#     return cdict
-#
-
-def convert(conf_dir, save=True):
+def convert(conf_dir):
     """
     This script will convert old config files to the newer format using the following critera
 
@@ -297,7 +254,7 @@ def convert(conf_dir, save=True):
         for nk, sv in v.items():
             for p in sv:
                 if p in config_dicts[k]:
-                    config_dicts[nk][p] = config_dicts[k][p]
+                    config_dicts[nk][p] = config_dicts[k].pop(p)
 
     # Some special cases:
     # Now only applies if the configuration version is None
@@ -309,7 +266,7 @@ def convert(conf_dir, save=True):
         config_dicts = convert_dict(config_dicts)
 
     # Write the data out to the same-named file
-    if save:
+    if os.access(os.path.dirname(conf_dir), os.W_OK):
         for k, v in config_dicts.items():
             file_name = conf_dir + '/' + k
             ut.write_config(v, file_name)

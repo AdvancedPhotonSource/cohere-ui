@@ -411,9 +411,8 @@ class DispTab(QWidget):
         -------
         nothing
         """
-        if 'results_dir' in conf_map and len(conf_map['results_dir']) > 0:
-            results_dir = conf_map['results_dir'].replace(os.sep, '/')
-            self.update_tab(conf=results_dir)
+        # Do not update results dir, as it may point to a wrong experiment if
+        # it's loaded from another
 
          # if parameters are configured, override the readings from spec file
         if 'make_twin' in conf_map:
@@ -918,6 +917,7 @@ class InstrTab(QWidget):
         """
         self.specfile = select_file(os.getcwd())
         if self.specfile is not None:
+            self.save_conf()
             self.spec_file_button.setStyleSheet("Text-align:left")
             self.spec_file_button.setText(self.specfile)
             if self.add_config:
