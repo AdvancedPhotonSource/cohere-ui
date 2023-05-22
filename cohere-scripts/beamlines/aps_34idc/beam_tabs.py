@@ -917,9 +917,9 @@ class InstrTab(QWidget):
         """
         self.specfile = select_file(os.getcwd())
         if self.specfile is not None:
-            self.save_conf()
             self.spec_file_button.setStyleSheet("Text-align:left")
             self.spec_file_button.setText(self.specfile)
+            self.save_conf()
             if self.add_config:
                 self.extended.parse_spec(self.specfile, self.diffractometer.text())
         else:
