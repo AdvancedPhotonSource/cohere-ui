@@ -455,14 +455,15 @@ class cdi_gui(QWidget):
             self.beamline = None
 
         if self.t is None:
+            try:
+                self.t = Tabs(self, self.beamline_widget.text())
+                self.vbox.addWidget(self.t)
+            except Exception as e:
+                print(e.text())
+                pass
+
+        if not loaded:
             self.save_main()
-            if self.t is None:
-                try:
-                    self.t = Tabs(self, self.beamline_widget.text())
-                    self.vbox.addWidget(self.t)
-                except Exception as e:
-                    print(e.text())
-                    pass
             self.t.save_conf()
 
         self.t.notify(**{'experiment_dir': self.experiment_dir})
