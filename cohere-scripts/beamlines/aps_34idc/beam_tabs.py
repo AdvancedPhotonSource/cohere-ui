@@ -381,6 +381,9 @@ class DispTab(QWidget):
         self.make_twin = QCheckBox('make twin')
         self.make_twin.setChecked(False)
         layout.addWidget(self.make_twin)
+        self.unwrap = QCheckBox('include unwrapped phase')
+        self.unwrap.setChecked(False)
+        layout.addWidget(self.unwrap)
         self.crop = QLineEdit()
         layout.addRow("crop", self.crop)
         self.rampups = QLineEdit()
@@ -414,7 +417,6 @@ class DispTab(QWidget):
         # Do not update results dir, as it may point to a wrong experiment if
         # it's loaded from another
 
-         # if parameters are configured, override the readings from spec file
         if 'make_twin' in conf_map:
             make_twin = conf_map['make_twin']
             if make_twin:
@@ -423,6 +425,15 @@ class DispTab(QWidget):
                 self.make_twin.setChecked(False)
         else:
             self.make_twin.setChecked(False)
+
+        if 'unwrap' in conf_map:
+            unwrap = conf_map['unwrap']
+            if unwrap:
+                self.unwrap.setChecked(True)
+            else:
+                self.unwrap.setChecked(False)
+        else:
+            self.unwrap.setChecked(False)
 
         if 'crop' in conf_map:
             self.crop.setText(str(conf_map['crop']).replace(" ", ""))
@@ -433,6 +444,7 @@ class DispTab(QWidget):
     def clear_conf(self):
         self.result_dir_button.setText('')
         self.make_twin.setChecked(False)
+        self.unwrap.setChecked(False)
         self.crop.setText('')
         self.rampups.setText('')
 
@@ -472,6 +484,8 @@ class DispTab(QWidget):
             conf_map['results_dir'] = str(self.result_dir_button.text()).replace(os.sep, '/')
         if self.make_twin.isChecked():
             conf_map['make_twin'] = True
+        if self.unwrap.isChecked():
+            conf_map['unwrap'] = True
         if len(self.crop.text()) > 0:
             conf_map['crop'] = ast.literal_eval(str(self.crop.text()).replace('\n', ''))
         if len(self.rampups.text()) > 0:

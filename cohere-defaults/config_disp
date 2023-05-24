@@ -10,5 +10,9 @@ crop = [.5, .5, .5]
                            // fractions of the image array dimensions assigned to cropped array dimensions
                            // default [1.0, 1.0, 1.0] meaning the whole array
 
+unwrap = False
+                           // if True the vts file will contain unwrapped phase in addition to
+                           // phase and amplitude
+
 make_twin = False
                            // switch to whether visualize twin image
