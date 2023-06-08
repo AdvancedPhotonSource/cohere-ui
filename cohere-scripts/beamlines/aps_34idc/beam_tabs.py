@@ -619,14 +619,7 @@ class DispTab(QWidget):
             msg_window('please select valid results directory')
 
 
-class SubInstrTab(QWidget):
-    def __init__(self, parent=None):
-        """
-        Constructor, initializes the tabs.
-        """
-        super(SubInstrTab, self).__init__(parent)
-
-
+class SubInstrTab():
     def init(self, instr_tab, main_window):
         """
         Creates and initializes the 'Instrument' tab.
