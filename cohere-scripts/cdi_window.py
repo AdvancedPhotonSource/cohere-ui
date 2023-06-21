@@ -108,7 +108,7 @@ class cdi_gui(QWidget):
         self.exp_id = None
         self.experiment_dir = None
         self.working_dir = None
-        self.specfile = None
+        self.beamline = None
 
         uplayout = QHBoxLayout()
         luplayout = QFormLayout()
@@ -124,14 +124,22 @@ class cdi_gui(QWidget):
         luplayout.addRow("scan(s)", self.scan_widget)
         self.beamline_widget = QLineEdit()
         ruplayout.addRow("beamline", self.beamline_widget)
-        self.spec_file_button = QPushButton()
-        ruplayout.addRow("spec file", self.spec_file_button)
+        scan_layout = QHBoxLayout()
+        self.separate_scans = QCheckBox('separate scans')
+        self.separate_scans.setChecked(False)
+        scan_layout.addWidget(self.separate_scans)
+        self.separate_scan_ranges = QCheckBox('separate scan ranges')
+        self.separate_scan_ranges.setChecked(False)
+        scan_layout.addWidget(self.separate_scan_ranges)
+        self.multipeak = QCheckBox('multi peak')
+        self.multipeak.setChecked(False)
+        scan_layout.addWidget(self.multipeak)
+        luplayout.addRow(scan_layout)
 
         self.vbox = QVBoxLayout()
         self.vbox.addLayout(uplayout)
 
         self.t = None
-        # self.vbox.addWidget(self.t)
 
         downlayout = QHBoxLayout()
         downlayout.setAlignment(Qt.AlignCenter)
@@ -154,39 +162,15 @@ class cdi_gui(QWidget):
 
         self.set_exp_button.clicked.connect(self.load_experiment)
         self.set_work_dir_button.clicked.connect(self.set_working_dir)
-        self.spec_file_button.clicked.connect(self.set_spec_file)
         self.run_button.clicked.connect(self.run_everything)
         self.create_exp_button.clicked.connect(self.set_experiment)
+        self.multipeak.stateChanged.connect(self.toggle_multipeak)
+        self.separate_scans.stateChanged.connect(self.toggle_separate_scans)
+        self.separate_scan_ranges.stateChanged.connect(self.toggle_separate_scan_ranges)
 
 
     def set_args(self, args):
         self.args = args
-
-
-    def set_spec_file(self):
-        """
-        Calls selection dialog. The selected spec file is parsed.
-        The specfile is saved in config.
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        noting
-        """
-        self.specfile = select_file(os.getcwd())
-        if self.specfile is not None:
-            self.spec_file_button.setStyleSheet("Text-align:left")
-            self.spec_file_button.setText(self.specfile)
-        else:
-            self.specfile = None
-            self.spec_file_button.setText('')
-        if self.is_exp_exists() or self.is_exp_set():
-            # this will update configuration when the specfile is updated
-            self.save_main()
-            self.t.notify(**{'specfile':self.specfile})
-        else:
-            msg_window('set experiment first and then update spec file')
 
 
     def run_everything(self):
@@ -211,7 +195,14 @@ class cdi_gui(QWidget):
         self.exp_id = None
         self.experiment_dir = None
         self.working_dir = None
-        self.specfile = None
+        self.set_work_dir_button.setText('')
+        self.Id_widget.setText('')
+        self.scan_widget.setText('')
+        self.beamline_widget.setText('')
+        self.separate_scans.setChecked(False)
+        self.separate_scan_ranges.setChecked(False)
+        self.multipeak.setChecked(False)
+
         if self.t is not None:
             self.t.clear_configs()
 
@@ -291,36 +282,60 @@ class cdi_gui(QWidget):
         -------
         nothing
         """
-        load_dir = select_dir(os.getcwd().replace(os.sep, '/')).replace(os.sep, '/')
+        self.reset_window()
+        load_dir = select_dir(os.getcwd())
         if load_dir is None:
             msg_window('please select valid conf directory')
             return
-        if os.path.isfile(load_dir + '/conf/config'):
-            need_convert = self.load_main(load_dir)
-            # config file could not be parsed
-            if need_convert is None:
-                return
-        else:
+        load_dir = load_dir.replace(os.sep, '/')
+        # self.reset_window()
+
+        if not os.path.isfile(load_dir + '/conf/config'):
             msg_window('missing conf/config file, not experiment directory')
             return
 
-        self.reset_window()
-        self.set_experiment(True)
+        conf_dicts, converted = self.get_conf_dicts(load_dir)
+        if conf_dicts is None:
+            return
+        self.load_main(conf_dicts['config'])
+
         if self.t is None:
             try:
                 self.t = Tabs(self, self.beamline_widget.text())
                 self.vbox.addWidget(self.t)
             except:
                 pass
-        self.t.load_conf(load_dir, need_convert)
+        self.set_experiment(True)
+        self.t.load_conf(conf_dicts)
+
         if not self.is_exp_set():
             return
-        self.save_main()
-        if need_convert:
+
+        if converted:
+            self.save_main()
             self.t.save_conf()
 
 
-    def load_main(self, load_dir):
+    def get_conf_dicts(self, load_dir):
+        load_dir = load_dir.replace(os.sep, '/')
+        conf_file = load_dir + '/conf/config'
+        conf_map = ut.read_config(conf_file)
+        if conf_map is None:
+            msg_window('please check configuration file ' + conf_file + '. Cannot parse, ')
+            return None
+        # convert configuration files if needed
+        if 'converter_ver' not in conf_map or conv.get_version() is None or conv.get_version() > conf_map[
+            'converter_ver']:
+            return conv.convert(load_dir + '/conf'), True
+        else:
+            conf_dirs = {}
+            for cf in os.listdir(load_dir + '/conf'):
+                if os.path.isfile(load_dir + '/conf/' + cf) and cf.startswith('conf'):
+                    conf_dirs[cf] = ut.read_config(load_dir + '/conf/' + cf)
+            return conf_dirs, False
+
+
+    def load_main(self, conf_map):
         """
         It reads 'config' file from the given directory, parses all parameters, verifies, and sets the display in window and class members to parsed values.
         Parameters
@@ -331,56 +346,22 @@ class cdi_gui(QWidget):
         -------
         nothing
         """
-        load_dir = load_dir.replace(os.sep, '/')
-        conf = load_dir + '/conf/config'
-        conf_map = ut.read_config(conf)
-        if conf_map is None:
-            msg_window('please check configuration file ' + conf + '. Cannot parse, ')
-            return None
-
-        self.working_dir = None
-        need_convert = False
-        try:
+        if 'working_dir' in conf_map:
             working_dir = conf_map['working_dir'].replace(os.sep, '/')
             self.set_work_dir_button.setStyleSheet("Text-align:left")
             self.set_work_dir_button.setText(working_dir)
-        except:
-            self.set_work_dir_button.setText('')
-
-        # if the converter version in config file is old or none, get the conf with new version
-        if 'converter_ver' in conf_map:
-            exp_converter_ver = conf_map['converter_ver']
-        else:
-            exp_converter_ver = None
-        if exp_converter_ver is None or exp_converter_ver < conv.get_version():
-            conf_map = conv.get_conf_dict(load_dir + '/conf/config', 'config')
-            need_convert = True
-
-        try:
+        if 'experiment_id' in conf_map:
             self.Id_widget.setText(conf_map['experiment_id'])
-        except:
-            self.Id_widget.setText('')
-        try:
+        if 'scan' in conf_map:
             self.scan_widget.setText(conf_map['scan'].replace(' ',''))
-        except:
-            self.scan_widget.setText('')
-
-        try:
-            specfile = conf_map['specfile']
-            if os.path.isfile(specfile):
-                self.spec_file_button.setStyleSheet("Text-align:left")
-                self.spec_file_button.setText(specfile)
-            else:
-                msg_window('The specfile file ' + specfile + ' in config file does not exist')
-        except:
-            self.spec_file_button.setText('')
-
-        try:
+        if 'beamline' in conf_map:
             self.beamline_widget.setText(conf_map['beamline'])
-        except:
-            self.beamline_widget.setText('')
-
-        return need_convert
+        if 'separate_scans' in conf_map and conf_map['separate_scans']:
+            self.separate_scans.setChecked(True)
+        if 'separate_scan_ranges' in conf_map and conf_map['separate_scan_ranges']:
+            self.separate_scan_ranges.setChecked(True)
+        if 'multipeak' in conf_map and conf_map['multipeak']:
+            self.multipeak.setChecked(True)
 
 
     def assure_experiment_dir(self):
@@ -410,8 +391,12 @@ class cdi_gui(QWidget):
             conf_map['scan'] = str(self.scan_widget.text())
         if self.beamline is not None:
             conf_map['beamline'] = self.beamline
-        if self.specfile is not None:
-            conf_map['specfile'] = str(self.specfile)
+        if self.multipeak.isChecked():
+            conf_map['multipeak'] = True
+        if self.separate_scans.isChecked():
+            conf_map['separate_scans'] = True
+        if self.separate_scan_ranges.isChecked():
+            conf_map['separate_scan_ranges'] = True
         conf_map['converter_ver'] = conv.get_version()
         er_msg = cohere.verify('config', conf_map)
         if len(er_msg) > 0:
@@ -422,7 +407,7 @@ class cdi_gui(QWidget):
 
     def set_experiment(self, loaded=False):
         """
-        Reads the parameters in the window, and sets the experiment to this values, i.e. creates experiment directory,
+        Reads the parameters in the window, and sets the experiment to read values, i.e. creates experiment directory,
         and saves all configuration files with parameters from window.
 
         Parameters
@@ -456,7 +441,7 @@ class cdi_gui(QWidget):
         self.working_dir = working_dir
         self.id = id
         if len(self.scan_widget.text()) > 0:
-            self.exp_id = self.id + '_' + str(self.scan_widget.text())
+            self.exp_id = self.id + '_' + str(self.scan_widget.text()).replace(' ','')
         else:
             self.exp_id = self.id
         self.experiment_dir = self.working_dir + '/' + self.exp_id
@@ -464,27 +449,42 @@ class cdi_gui(QWidget):
 
         if len(self.beamline_widget.text().strip()) > 0:
             self.beamline = str(self.beamline_widget.text()).strip()
+            if not self.t is None:
+                self.t.update_beamline(self.beamline)
         else:
             self.beamline = None
-        if len(self.spec_file_button.text()) > 0:
-            self.specfile = str(self.spec_file_button.text()).strip()
-        else:
-            self.specfile = None
 
-        if not loaded:
+        if self.t is None:
             self.save_main()
             if self.t is None:
                 try:
                     self.t = Tabs(self, self.beamline_widget.text())
                     self.vbox.addWidget(self.t)
-                except:
+                except Exception as e:
+                    print(e.text())
                     pass
             self.t.save_conf()
-        try:
-#            print("notify")
-            self.t.notify(specfile=self.specfile)
-        except:
-            pass
+
+        self.t.notify(**{'experiment_dir': self.experiment_dir})
+
+    def toggle_multipeak(self):
+        if self.is_exp_set():
+            self.save_main()
+        if not self.t is None:
+            self.t.toggle_checked(self.multipeak.isChecked(), True)
+
+    def toggle_separate_scans(self):
+        if self.is_exp_set():
+            self.save_main()
+        if not self.t is None:
+            self.t.toggle_checked(self.separate_scans.isChecked(), False)
+
+    def toggle_separate_scan_ranges(self):
+        if self.is_exp_set():
+            self.save_main()
+        if not self.t is None:
+            self.t.toggle_checked(self.separate_scan_ranges.isChecked(), False)
+
 
 
 class Tabs(QTabWidget):
@@ -502,25 +502,53 @@ class Tabs(QTabWidget):
 
         if beamline is not None and len(beamline) > 0:
             try:
-                beam = importlib.import_module('beamlines.' + beamline + '.beam_tabs')
+                self.beam = importlib.import_module('beamlines.' + beamline + '.beam_tabs')
             except Exception as e:
                 print (e)
-                msg_window('cannot import beamlines.' + beamline + ' module' )
+                msg_window('cannot import beamlines.' + beamline + ' module')
                 raise
-            self.prep_tab = beam.PrepTab()
+            self.instr_tab = self.beam.InstrTab()
+            self.prep_tab = self.beam.PrepTab()
             self.format_tab = DataTab()
             self.rec_tab = RecTab()
-            self.display_tab = beam.DispTab()
-            self.tabs = [self.prep_tab, self.format_tab, self.rec_tab, self.display_tab]
+            self.display_tab = self.beam.DispTab()
+            self.tabs = [self.instr_tab, self.prep_tab, self.format_tab, self.rec_tab, self.display_tab]
         else:
             self.format_tab = DataTab()
             self.rec_tab = RecTab()
             self.tabs = [self.format_tab, self.rec_tab]
+            self.instr_tab = None
+            self.prep_tab = None
+            self.display_tab = None
+        if self.main_win.multipeak.isChecked():
+            self.mp_tab = MpTab()
+            self.tabs = self.tabs + [self.mp_tab]
 
         for tab in self.tabs:
             self.addTab(tab, tab.name)
             tab.init(self, main_win)
 
+
+    def update_beamline(self, beamline):
+        # a case when beamline tab is already set
+        if not self.instr_tab is None:
+            return
+        try:
+            self.beam = importlib.import_module('beamlines.' + beamline + '.beam_tabs')
+        except Exception as e:
+            print (e)
+            msg_window('cannot import beamlines.' + beamline + ' module')
+            raise
+        self.instr_tab = self.beam.InstrTab()
+        self.insertTab(0, self.instr_tab, self.instr_tab.name)
+        self.instr_tab.init(self, self.main_win)
+        self.prep_tab = self.beam.PrepTab()
+        self.insertTab(1, self.prep_tab, self.prep_tab.name)
+        self.prep_tab.init(self, self.main_win)
+        self.display_tab = self.beam.DispTab()
+        self.insertTab(4, self.display_tab, self.display_tab.name)
+        self.display_tab.init(self, self.main_win)
+        self.tabs = self.tabs + [self.instr_tab, self.prep_tab, self.display_tab]
 
     def notify(self, **args):
         try:
@@ -544,22 +572,44 @@ class Tabs(QTabWidget):
 
         # this line is passing all parameters from command line to prep script. 
         # if there are other parameters, one can add some code here
-        prep.handle_prep(self.main_win.experiment_dir, self.main_win.args)
+        msg = prep.handle_prep(self.main_win.experiment_dir, self.main_win.args)
+        if len(msg) > 0:
+            msg_window(msg)
 
     def run_viz(self):
         import beamline_visualization as dp
 
-        dp.handle_visualization(self.main_win.experiment_dir)
+        msg = dp.handle_visualization(self.main_win.experiment_dir)
+        if len(msg) > 0:
+            msg_window(msg)
 
 
-    def load_conf(self, load_dir, need_convert):
+    def load_conf(self, conf_dirs):
         for tab in self.tabs:
-            tab.load_tab(load_dir, need_convert)
+            if tab.conf_name in conf_dirs.keys():
+                tab.load_tab(conf_dirs[tab.conf_name])
 
 
     def save_conf(self):
         for tab in self.tabs:
             tab.save_conf()
+
+
+    def toggle_checked(self, is_checked, is_multipeak):
+        if is_multipeak:
+            if is_checked:
+                self.mp_tab = MpTab()
+                self.addTab(self.mp_tab, self.mp_tab.name)
+                self.mp_tab.init(self, self.main_win)
+                self.tabs = self.tabs + [self.mp_tab]
+            else:
+                self.removeTab(self.count()-1)
+                self.tabs.remove(self.mp_tab)
+                self.mp_tab = None
+
+        # change the Instrument tab if present
+        if not self.instr_tab is None:
+            self.instr_tab.toggle_config()
 
 
 class DataTab(QWidget):
@@ -569,6 +619,7 @@ class DataTab(QWidget):
         """
         super(DataTab, self).__init__(parent)
         self.name = 'Data'
+        self.conf_name = 'config_data'
 
 
     def init(self, tabs, main_window):
@@ -627,32 +678,17 @@ class DataTab(QWidget):
         self.adjust_dimensions.setText('')
 
 
-    def load_tab(self, load_from, need_convert):
+    def load_tab(self, conf_map):
         """
         It verifies given configuration file, reads the parameters, and fills out the window.
         Parameters
         ----------
-        conf : str
-            configuration file (config_data)
+        conf_map : dict
+            configuration (config_data)
         Returns
         -------
         nothing
         """
-        load_from = load_from.replace(os.sep, '/')
-        if os.path.isfile(load_from):
-            conf = load_from
-        else:
-            conf = load_from + '/conf/config_data'
-            if not os.path.isfile(conf):
-                msg_window('info: the load directory does not contain config_data file')
-                return
-        if need_convert:
-            conf_map = conv.get_conf_dict(conf, 'config_data')
-        else:
-            conf_map = ut.read_config(conf)
-            if conf_map is None:
-                msg_window('please check configuration file ' + conf)
-                return
         if 'alien_alg' not in conf_map:
             conf_map['alien_alg'] = 'random'
         if conf_map['alien_alg'] == 'random':
@@ -859,7 +895,8 @@ class DataTab(QWidget):
         """
         data_file = select_file(os.getcwd())
         if data_file is not None:
-            self.load_tab(data_file)
+            conf_map = ut.read_config(data_file.replace(os.sep, '/'))
+            self.load_tab(conf_map)
         else:
             msg_window('please select valid data config file')
 
@@ -871,6 +908,7 @@ class RecTab(QWidget):
         """
         super(RecTab, self).__init__(parent)
         self.name = 'Reconstruction'
+        self.conf_name = 'config_rec'
 
 
     def init(self, tabs, main_window):
@@ -957,38 +995,7 @@ class RecTab(QWidget):
         self.set_rec_conf_from_button.clicked.connect(self.load_rec_conf_dir)
 
 
-    def load_tab(self, load_dir, need_convert):
-        """
-        It verifies given configuration file, reads the parameters, and fills out the window.
-        Parameters
-        ----------
-        conf : str
-            configuration file (config_rec)
-        Returns
-        -------
-        nothing
-        """
-        load_dir = load_dir.replace(os.sep, '/')
-        conf = load_dir + '/conf/config_rec'
-        if not os.path.isfile(conf):
-            msg_window('info: the load directory does not contain config_rec file')
-            return
-        if need_convert:
-            conf_dict = conv.get_conf_dict(conf, 'config_rec')
-            # if experiment set, save the config_rec
-            try:
-                ut.write_config(conf_dict, conf)
-            except:
-                pass
-        else:
-            conf_map = ut.read_config(conf)
-            if conf_map is None:
-                msg_window('please check configuration file ' + conf)
-                return
-        self.load_tab_common(conf_map)
-
-
-    def load_tab_common(self, conf_map, update_rec_choice=True):
+    def load_tab(self, conf_map, update_rec_choice=True):
         if 'init_guess' not in conf_map:
             conf_map['init_guess'] = 'random'
         if conf_map['init_guess'] == 'random':
@@ -1005,6 +1012,7 @@ class RecTab(QWidget):
 
         # this will update the configuration choices by reading configuration files names
         # do not update when doing toggle
+        self.rec_ids = []
         if update_rec_choice:
             self.update_rec_configs_choice()
 
@@ -1029,6 +1037,10 @@ class RecTab(QWidget):
 
     def clear_conf(self):
         self.init_guess.setCurrentIndex(0)
+        nu_to_remove = self.rec_id.count() - 1
+        for _ in range(nu_to_remove):
+            self.rec_id.removeItem(1)
+        self.old_conf_id = ''
         self.device.setText('')
         self.proc.setCurrentIndex(0)
         self.reconstructions.setText('')
@@ -1179,6 +1191,8 @@ class RecTab(QWidget):
         -------
         nothing
         """
+        if self.main_win.experiment_dir is None:
+            return
         # save the configuration file before updating the incoming config
         if self.old_conf_id == '':
             conf_file = 'config_rec'
@@ -1206,7 +1220,7 @@ class RecTab(QWidget):
         if conf_map is None:
             msg_window('please check configuration file ' + conf_file)
             return
-        self.load_tab_common(conf_map, False)
+        self.load_tab(conf_map, False)
         self.notify()
 
 
@@ -1222,12 +1236,12 @@ class RecTab(QWidget):
         """
         rec_file = select_file(os.getcwd())
         if rec_file is not None:
-            conf_map = ut.read_config(rec_file)
+            conf_map = ut.read_config(rec_file.replace(os.sep, '/'))
             if conf_map is None:
                 msg_window('please check configuration file ' + rec_file)
                 return
 
-            self.load_tab_common(conf_map)
+            self.load_tab(conf_map)
         else:
             msg_window('please select valid rec config file')
 
@@ -1318,7 +1332,6 @@ class RecTab(QWidget):
         # fill out the config_id choice bar by reading configuration files names
         if not self.main_win.is_exp_set():
             return
-        self.rec_ids = []
         for file in os.listdir(self.main_win.experiment_dir + '/conf'):
             if file.startswith('config_rec_'):
                 self.rec_ids.append(file[len('config_rec_') : len(file)])
@@ -1518,18 +1531,32 @@ class GA(Feature):
             self.ga_fast.setChecked(False)
         if 'ga_metrics' in conf_map:
             self.metrics.setText(str(conf_map['ga_metrics']).replace(" ", ""))
+        else:
+            self.metrics.setText('')
         if 'ga_breed_modes' in conf_map:
             self.breed_modes.setText(str(conf_map['ga_breed_modes']).replace(" ", ""))
+        else:
+            self.breed_modes.setText('')
         if 'ga_cullings' in conf_map:
             self.removes.setText(str(conf_map['ga_cullings']).replace(" ", ""))
-        if 'ga_shrink_wrap_thresholds' in conf_map:
-            self.ga_shrink_wrap_thresholds.setText(str(conf_map['ga_shrink_wrap_thresholds']).replace(" ", ""))
-        if 'ga_shrink_wrap_gauss_sigmas' in conf_map:
-            self.ga_shrink_wrap_gauss_sigmas.setText(str(conf_map['ga_shrink_wrap_gauss_sigmas']).replace(" ", ""))
-        if 'ga_lowpass_filter_sigmas' in conf_map:
-            self.lr_sigmas.setText(str(conf_map['ga_lowpass_filter_sigmas']).replace(" ", ""))
+        else:
+            self.removes.setText('')
+        if 'ga_sw_thresholds' in conf_map:
+            self.ga_sw_thresholds.setText(str(conf_map['ga_sw_thresholds']).replace(" ", ""))
+        else:
+            self.ga_sw_thresholds.setText('')
+        if 'ga_sw_gauss_sigmas' in conf_map:
+            self.ga_sw_gauss_sigmas.setText(str(conf_map['ga_sw_gauss_sigmas']).replace(" ", ""))
+        else:
+            self.ga_sw_gauss_sigmas.setText('')
+        if 'ga_lpf_sigmas' in conf_map:
+            self.lr_sigmas.setText(str(conf_map['ga_lpf_sigmas']).replace(" ", ""))
+        else:
+            self.lr_sigmas.setText('')
         if 'ga_gen_pc_start' in conf_map:
             self.gen_pc_start.setText(str(conf_map['ga_gen_pc_start']).replace(" ", ""))
+        else:
+            self.gen_pc_start.setText('')
 
 
     def fill_active(self, layout):
@@ -1554,10 +1581,10 @@ class GA(Feature):
         layout.addRow("breed modes", self.breed_modes)
         self.removes = QLineEdit()
         layout.addRow("cullings", self.removes)
-        self.ga_shrink_wrap_thresholds = QLineEdit()
-        layout.addRow("after breed support thresholds", self.ga_shrink_wrap_thresholds)
-        self.ga_shrink_wrap_gauss_sigmas = QLineEdit()
-        layout.addRow("after breed shrink wrap sigmas", self.ga_shrink_wrap_gauss_sigmas)
+        self.ga_sw_thresholds = QLineEdit()
+        layout.addRow("after breed support thresholds", self.ga_sw_thresholds)
+        self.ga_sw_gauss_sigmas = QLineEdit()
+        layout.addRow("after breed shrink wrap sigmas", self.ga_sw_gauss_sigmas)
         self.lr_sigmas = QLineEdit()
         layout.addRow("low resolution sigmas", self.lr_sigmas)
         self.gen_pc_start = QLineEdit()
@@ -1577,8 +1604,8 @@ class GA(Feature):
         self.generations.setText('5')
         self.metrics.setText('["chi"]')
         self.breed_modes.setText('["sqrt_ab"]')
-        self.ga_shrink_wrap_thresholds.setText('[.1]')
-        self.ga_shrink_wrap_gauss_sigmas.setText('[1.0]')
+        self.ga_sw_thresholds.setText('[.1]')
+        self.ga_sw_gauss_sigmas.setText('[1.0]')
         self.gen_pc_start.setText('3')
         self.active.setChecked(True)
 
@@ -1604,12 +1631,12 @@ class GA(Feature):
           conf_map['ga_breed_modes'] = ast.literal_eval(str(self.breed_modes.text()).replace('\n',''))
         if len(self.removes.text()) > 0:
            conf_map['ga_cullings'] = ast.literal_eval(str(self.removes.text()).replace('\n',''))
-        if len(self.ga_shrink_wrap_thresholds.text()) > 0:
-            conf_map['ga_shrink_wrap_thresholds'] = ast.literal_eval(str(self.ga_shrink_wrap_thresholds.text()).replace('\n',''))
-        if len(self.ga_shrink_wrap_gauss_sigmas.text()) > 0:
-            conf_map['ga_shrink_wrap_gauss_sigmas'] = ast.literal_eval(str(self.ga_shrink_wrap_gauss_sigmas.text()).replace('\n',''))
+        if len(self.ga_sw_thresholds.text()) > 0:
+            conf_map['ga_sw_thresholds'] = ast.literal_eval(str(self.ga_sw_thresholds.text()).replace('\n',''))
+        if len(self.ga_sw_gauss_sigmas.text()) > 0:
+            conf_map['ga_sw_gauss_sigmas'] = ast.literal_eval(str(self.ga_sw_gauss_sigmas.text()).replace('\n',''))
         if len(self.lr_sigmas.text()) > 0:
-            conf_map['ga_lowpass_filter_sigmas'] = ast.literal_eval(str(self.lr_sigmas.text()).replace('\n',''))
+            conf_map['ga_lpf_sigmas'] = ast.literal_eval(str(self.lr_sigmas.text()).replace('\n',''))
         if len(self.gen_pc_start.text()) > 0:
             conf_map['ga_gen_pc_start'] = ast.literal_eval(str(self.gen_pc_start.text()))
 
@@ -1634,17 +1661,21 @@ class low_resolution(Feature):
         -------
         nothing
         """
-        if 'resolution_trigger' in conf_map:
-            triggers = conf_map['resolution_trigger']
+        if 'lowpass_filter_trigger' in conf_map:
+            triggers = conf_map['lowpass_filter_trigger']
             self.active.setChecked(True)
-            self.res_triggers.setText(str(triggers).replace(" ", ""))
+            self.lpf_triggers.setText(str(triggers).replace(" ", ""))
         else:
             self.active.setChecked(False)
             return
-        if 'lowpass_filter_sw_sigma_range' in conf_map:
-            self.sigma_range.setText(str(conf_map['lowpass_filter_sw_sigma_range']).replace(" ", ""))
+        if 'lowpass_filter_sw_threshold' in conf_map:
+            self.lpf_sw_threshold.setText(str(conf_map['lowpass_filter_sw_threshold']).replace(" ", ""))
+        else:
+            self.lpf_sw_threshold.setText('')
         if 'lowpass_filter_range' in conf_map:
-            self.det_range.setText(str(conf_map['lowpass_filter_range']).replace(" ", ""))
+            self.lpf_range.setText(str(conf_map['lowpass_filter_range']).replace(" ", ""))
+        else:
+            self.lpf_range.setText('')
 
 
     def fill_active(self, layout):
@@ -1658,13 +1689,13 @@ class low_resolution(Feature):
         -------
         nothing
         """
-        self.res_triggers = QLineEdit()
-        layout.addRow("low resolution triggers", self.res_triggers)
-        self.res_triggers.setToolTip('suggested trigger: [0, 1, <half iteration number>]')
-        self.sigma_range = QLineEdit()
-        layout.addRow("sigma range", self.sigma_range)
-        self.det_range = QLineEdit()
-        layout.addRow("det range", self.det_range)
+        self.lpf_triggers = QLineEdit()
+        layout.addRow("lowpass filter triggers", self.lpf_triggers)
+        self.lpf_triggers.setToolTip('suggested trigger: [0, 1, <half iteration number>]')
+        self.lpf_sw_threshold = QLineEdit()
+        layout.addRow("shrink wrap threshold", self.lpf_sw_threshold)
+        self.lpf_range = QLineEdit()
+        layout.addRow("lowpass filter range", self.lpf_range)
 
 
     def rec_default(self):
@@ -1677,9 +1708,9 @@ class low_resolution(Feature):
         -------
         nothing
         """
-        self.res_triggers.setText('[0, 1, 320]')
-        self.sigma_range.setText('[2.0]')
-        self.det_range.setText('[.7]')
+        self.lpf_triggers.setText('[0, 1, 320]')
+        self.lpf_sw_threshold.setText('.1')
+        self.lpf_range.setText('[.7]')
 
 
     def add_feat_conf(self, conf_map):
@@ -1693,12 +1724,12 @@ class low_resolution(Feature):
         -------
         nothing
         """
-        if len(self.res_triggers.text()) > 0:
-            conf_map['resolution_trigger'] = ast.literal_eval(str(self.res_triggers.text()).replace('\n',''))
-        if len(self.sigma_range.text()) > 0:
-            conf_map['lowpass_filter_sw_sigma_range'] = ast.literal_eval(str(self.sigma_range.text()).replace('\n',''))
-        if len(self.det_range.text()) > 0:
-            conf_map['lowpass_filter_range'] = ast.literal_eval(str(self.det_range.text()).replace('\n',''))
+        if len(self.lpf_triggers.text()) > 0:
+            conf_map['lowpass_filter_trigger'] = ast.literal_eval(str(self.lpf_triggers.text()).replace('\n', ''))
+        if len(self.lpf_sw_threshold.text()) > 0:
+            conf_map['lowpass_filter_sw_threshold'] = ast.literal_eval(str(self.lpf_sw_threshold.text()).replace('\n', ''))
+        if len(self.lpf_range.text()) > 0:
+            conf_map['lowpass_filter_range'] = ast.literal_eval(str(self.lpf_range.text()).replace('\n', ''))
 
 
 class shrink_wrap(Feature):
@@ -1730,10 +1761,16 @@ class shrink_wrap(Feature):
             return
         if 'shrink_wrap_type' in conf_map:
             self.shrink_wrap_type.setText(str(conf_map['shrink_wrap_type']).replace(" ", ""))
+        else:
+            self.shrink_wrap_type.setText('')
         if 'shrink_wrap_threshold' in conf_map:
             self.shrink_wrap_threshold.setText(str(conf_map['shrink_wrap_threshold']).replace(" ", ""))
+        else:
+            self.shrink_wrap_threshold.setText('')
         if 'shrink_wrap_gauss_sigma' in conf_map:
             self.shrink_wrap_gauss_sigma.setText(str(conf_map['shrink_wrap_gauss_sigma']).replace(" ", ""))
+        else:
+            self.shrink_wrap_gauss_sigma.setText('')
 
 
     def fill_active(self, layout):
@@ -1787,7 +1824,16 @@ class shrink_wrap(Feature):
         if len(self.shrink_wrap_triggers.text()) > 0:
             conf_map['shrink_wrap_trigger'] = ast.literal_eval(str(self.shrink_wrap_triggers.text()).replace('\n',''))
         if len(self.shrink_wrap_type.text()) > 0:
-            conf_map['shrink_wrap_type'] = str(self.shrink_wrap_type.text())
+            sw_type = str(self.shrink_wrap_type.text()).replace(' ','')
+            # in case of multiple shrink wraps the shrink_wrap_type is a list of strings
+            if sw_type.startswith('['):
+                if sw_type.startswith('["') or sw_type.startswith(("['")):
+                    conf_map['shrink_wrap_type'] = ast.literal_eval(sw_type)
+                else: # parse as one string
+                    sw_type = sw_type.replace('[', '["').replace(',', '","').replace(']', '"]')
+                    conf_map['shrink_wrap_type'] = ast.literal_eval(sw_type)
+            else:
+                conf_map['shrink_wrap_type'] = sw_type
         if len(self.shrink_wrap_threshold.text()) > 0:
             conf_map['shrink_wrap_threshold'] = ast.literal_eval(str(self.shrink_wrap_threshold.text()))
         if len(self.shrink_wrap_gauss_sigma.text()) > 0:
@@ -1814,8 +1860,8 @@ class phase_support(Feature):
         -------
         nothing
         """
-        if 'phase_support_trigger' in conf_map:
-            triggers = conf_map['phase_support_trigger']
+        if 'phm_trigger' in conf_map:
+            triggers = conf_map['phm_trigger']
             self.active.setChecked(True)
             self.phase_triggers.setText(str(triggers).replace(" ", ""))
         else:
@@ -1823,8 +1869,12 @@ class phase_support(Feature):
             return
         if 'phm_phase_min' in conf_map:
             self.phm_phase_min.setText(str(conf_map['phm_phase_min']).replace(" ", ""))
+        else:
+            self.phm_phase_min.setText('')
         if 'phm_phase_max' in conf_map:
             self.phm_phase_max.setText(str(conf_map['phm_phase_max']).replace(" ", ""))
+        else:
+            self.phm_phase_max.setText('')
 
 
     def fill_active(self, layout):
@@ -1874,7 +1924,7 @@ class phase_support(Feature):
         nothing
         """
         if len(self.phase_triggers.text()) > 0:
-            conf_map['phase_support_trigger'] = ast.literal_eval(str(self.phase_triggers.text()).replace('\n',''))
+            conf_map['phm_trigger'] = ast.literal_eval(str(self.phase_triggers.text()).replace('\n',''))
         if len(self.phm_phase_min.text()) > 0:
             conf_map['phm_phase_min'] = ast.literal_eval(str(self.phm_phase_min.text()))
         if len(self.phm_phase_max.text()) > 0:
@@ -1909,12 +1959,20 @@ class pcdi(Feature):
             return
         if 'pc_type' in conf_map:
             self.pc_type.setText(str(conf_map['pc_type']).replace(" ", ""))
+        else:
+            self.pc_type.setText('')
         if 'pc_LUCY_iterations' in conf_map:
             self.pc_iter.setText(str(conf_map['pc_LUCY_iterations']).replace(" ", ""))
+        else:
+            self.pc_iter.setText('')
         if 'pc_normalize' in conf_map:
             self.pc_normalize.setText(str(conf_map['pc_normalize']).replace(" ", ""))
+        else:
+            self.pc_normalize.setText('')
         if 'pc_LUCY_kernel' in conf_map:
             self.pc_LUCY_kernel.setText(str(conf_map['pc_LUCY_kernel']).replace(" ", ""))
+        else:
+            self.pc_LUCY_kernel.setText('')
 
 
     def fill_active(self, layout):
@@ -2011,6 +2069,8 @@ class twin(Feature):
             return
         if 'twin_halves' in conf_map:
             self.twin_halves.setText(str(conf_map['twin_halves']).replace(" ", ""))
+        else:
+            self.twin_halves.setText('')
 
 
     def fill_active(self, layout):
@@ -2236,6 +2296,177 @@ class Features(QWidget):
 
     def display(self, i):
         self.Stack.setCurrentIndex(i)
+
+
+class MpTab(QWidget):
+    def __init__(self, parent=None):
+        """
+        Constructor, initializes the tabs.
+        """
+        super(MpTab, self).__init__(parent)
+        self.name = 'Multi peak'
+        self.conf_name = 'config_mp'
+
+
+    def init(self, tabs, main_window):
+        """
+        Creates and initializes the 'data' tab.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        self.tabs = tabs
+        self.main_win = main_window
+
+        layout = QFormLayout()
+        self.scan = QLineEdit()
+        layout.addRow("scan(s)", self.scan)
+        self.orientations = QLineEdit()
+        layout.addRow("peak orientations", self.orientations)
+        self.hkl_in = QLineEdit()
+        layout.addRow("hkl in", self.hkl_in)
+        self.hkl_out = QLineEdit()
+        layout.addRow("hkl out", self.hkl_out)
+        self.twin_plane = QLineEdit()
+        layout.addRow("twin plane", self.twin_plane)
+        self.sample_axis = QLineEdit()
+        layout.addRow("sample axis", self.sample_axis)
+        self.final_size = QLineEdit()
+        layout.addRow("final size", self.final_size)
+        self.mp_max_weight = QLineEdit()
+        layout.addRow("mp max weight", self.mp_max_weight)
+        self.mp_taper = QLineEdit()
+        layout.addRow("mp taper", self.mp_taper)
+        self.lattice_size = QLineEdit()
+        layout.addRow("lattice size", self.lattice_size)
+        self.switch_peak_trigger = QLineEdit()
+        layout.addRow("switch peak trigger", self.switch_peak_trigger)
+
+        cmd_layout = QHBoxLayout()
+        self.set_mp_conf_from_button = QPushButton("Load conf from")
+        self.set_mp_conf_from_button.setStyleSheet("background-color:rgb(205,178,102)")
+        cmd_layout.addWidget(self.set_mp_conf_from_button)
+        self.set_params_button = QPushButton("Save parameters")
+        self.set_params_button.setStyleSheet("background-color:rgb(175,208,156)")
+        cmd_layout.addWidget(self.set_params_button)
+        layout.addRow(cmd_layout)
+        self.setLayout(layout)
+
+        self.set_mp_conf_from_button.clicked.connect(self.load_mp_conf)
+        self.set_params_button.clicked.connect(self.save_conf)
+
+
+    def run_tab(self):
+        pass
+
+
+    def clear_conf(self):
+        self.scan.setText('')
+        self.orientations.setText('')
+        self.hkl_in.setText('')
+        self.hkl_out.setText('')
+        self.twin_plane.setText('')
+        self.sample_axis.setText('')
+        self.final_size.setText('')
+        self.mp_max_weight.setText('')
+        self.mp_taper.setText('')
+        self.lattice_size.setText('')
+        self.switch_peak_trigger.setText('')
+
+
+    def load_tab(self, conf_map):
+        """
+        It verifies given configuration file, reads the parameters, and fills out the window.
+        Parameters
+        ----------
+        conf : dict
+            configuration (config_data)
+        Returns
+        -------
+        nothing
+        """
+        if 'scan' in conf_map:
+            self.scan.setText(str(conf_map['scan']).replace(" ", ""))
+        if 'orientations' in conf_map:
+            self.orientations.setText(str(conf_map['orientations']))
+        if 'hkl_in' in conf_map:
+            self.hkl_in.setText(str(conf_map['hkl_in']))
+        if 'hkl_out' in conf_map:
+            self.hkl_out.setText(str(conf_map['hkl_out']))
+        if 'twin_plane' in conf_map:
+            self.twin_plane.setText(str(conf_map['twin_plane']))
+        if 'sample_axis' in conf_map:
+            self.sample_axis.setText(str(conf_map['sample_axis']))
+        if 'final_size' in conf_map:
+            self.final_size.setText(str(conf_map['final_size']))
+        if 'mp_max_weight' in conf_map:
+            self.mp_max_weight.setText(str(conf_map['mp_max_weight']))
+        if 'mp_taper' in conf_map:
+            self.mp_taper.setText(str(conf_map['mp_taper']))
+        if 'lattice_size' in conf_map:
+            self.lattice_size.setText(str(conf_map['lattice_size']))
+        if 'switch_peak_trigger' in conf_map:
+            self.switch_peak_trigger.setText(str(conf_map['switch_peak_trigger']))
+
+
+    def save_conf(self):
+        """
+        It reads parameters related to multi peak from the window and saves in config_mp file.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        conf_map : dict
+            contains parameters read from window
+        """
+        conf_map = {}
+
+        if len(self.scan.text()) > 0:
+            conf_map['scan'] = str(self.scan.text())
+        if len(self.orientations.text()) > 0:
+            conf_map['orientations'] = ast.literal_eval(str(self.orientations.text()))
+        if len(self.hkl_in.text()) > 0:
+            conf_map['hkl_in'] = ast.literal_eval(str(self.hkl_in.text()))
+        if len(self.hkl_out.text()) > 0:
+            conf_map['hkl_out'] = ast.literal_eval(str(self.hkl_out.text()))
+        if len(self.twin_plane.text()) > 0:
+            conf_map['twin_plane'] = ast.literal_eval(str(self.twin_plane.text()))
+        if len(self.sample_axis.text()) > 0:
+            conf_map['sample_axis'] = ast.literal_eval(str(self.sample_axis.text()))
+        if len(self.final_size.text()) > 0:
+            conf_map['final_size'] = ast.literal_eval(str(self.final_size.text()))
+        if len(self.mp_max_weight.text()) > 0:
+            conf_map['mp_max_weight'] = ast.literal_eval(str(self.mp_max_weight.text()))
+        if len(self.mp_taper.text()) > 0:
+            conf_map['mp_taper'] = ast.literal_eval(str(self.mp_taper.text()))
+        if len(self.lattice_size.text()) > 0:
+            conf_map['lattice_size'] = ast.literal_eval(str(self.lattice_size.text()))
+        if len(self.switch_peak_trigger.text()) > 0:
+            conf_map['switch_peak_trigger'] = ast.literal_eval(str(self.switch_peak_trigger.text()))
+
+        ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_mp')
+
+
+    def load_mp_conf(self):
+        """
+        It displays a select dialog for user to select a configuration file. When selected, the parameters from that file will be loaded to the window.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        conf_file = select_file(os.getcwd())
+        if conf_file is not None:
+            conf_map = ut.read_config(conf_file.replace(os.sep, '/'))
+            self.load_tab(conf_map)
+        else:
+            msg_window('please select valid config file')
 
 
 def main(args):

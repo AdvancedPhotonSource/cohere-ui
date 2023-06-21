@@ -30,16 +30,17 @@ from skimage import transform
 import scipy.ndimage as ndi
 from scipy.spatial.transform import Rotation as R
 import util.util as ut
-from beamlines.aps_34idc import beam_stuff as geo, diffractometers as diff, detectors as det
+from beamlines.aps_34idc import instrument as instr, diffractometers as diff, detectors as det
 
 
 def calc_geometry(prep_obj, scans, shape, o_twin):
     """Calculates the rotation matrix and voxel size for a given peak"""
-    main_config = ut.read_config(prep_obj.experiment_dir + '/conf/config')
-    main_config['last_scan'] = scans[-1]
-    p = geo.Params(main_config)
-    p.set_instruments(det.create_detector(p.detector), diff.create_diffractometer(p.diffractometer))
-    B_recip, _ = geo.set_geometry(shape, p, xtal=True)
+    config_map = ut.read_config(prep_obj.experiment_dir + '/conf/config')
+    config_map['multipeak'] = True
+    instr_obj = instr.Instrument()
+    instr_obj.initialize(config_map, scans[-1])
+    shape = data.shape
+    B_recip, _ = instr_obj.get_geometry(shape, xtal=True)
     B_recip = np.stack([B_recip[1, :], B_recip[0, :], B_recip[2, :]])
     rs_voxel_size = np.max([np.linalg.norm(B_recip[:, i]) for i in range(3)])  # Units are inverse nanometers
     B_recip = o_twin @ B_recip
@@ -198,7 +199,7 @@ class MultPeakPreparer(Preparer):
 
     def process_batch(self, dirs, scans, B_recip, voxel_size, save_dir, filename):
         batch_arr = combine_scans(self.prep_obj, dirs, scans)
-        batch_arr = self.prep_obj.detector.clear_seam(batch_arr)
+        batch_arr = self.prep_obj.det_obj.clear_seam(batch_arr)
         data, mask = rotate_peaks(self.prep_obj, batch_arr, B_recip, voxel_size)
         mask = refine_mask(mask, data)
         write_prep_arr(data, save_dir, filename)

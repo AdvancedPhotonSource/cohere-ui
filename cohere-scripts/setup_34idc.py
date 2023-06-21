@@ -26,7 +26,7 @@ import util.util as ut
 
 
 ######################################################################
-def copy_conf(src, dest):
+def copy_conf(src, dest, specfile):
     """
     Copies configuration files from src directory to dest directory.
 
@@ -59,6 +59,16 @@ def copy_conf(src, dest):
     try:
         conf_disp = src + '/config_disp'
         shutil.copy(conf_disp, dest)
+    except:
+        pass
+    try:
+        conf_instr = src + '/config_instr'
+        if specfile is None:
+            shutil.copy(conf_instr, dest)
+        else:
+            instr_config_map = ut.read_config(conf_instr)
+            instr_config_map['specfile'] = specfile
+            ut.write_config(instr_config_map, conf_instr)
     except:
         pass
 
@@ -111,13 +121,15 @@ def setup_rundirs(prefix, scan, conf_dir, **kwargs):
     config_map['working_dir'] = working_dir
     config_map['experiment_id'] = prefix
     config_map['scan'] = scan
-    # here we want the command line to be used if present
-    if 'specfile' in kwargs and kwargs['specfile'] is not None:
-        config_map['specfile'] = kwargs['specfile']
-
     ut.write_config(config_map, experiment_conf_dir + '/config')
 
-    copy_conf(conf_dir, experiment_conf_dir)
+    # here we want the command line to be used if present
+    if 'specfile' in kwargs and kwargs['specfile'] is not None:
+        specfile = kwargs['specfile']
+    else:
+        specfile = None
+
+    copy_conf(conf_dir, experiment_conf_dir, specfile)
 
     if 'copy_prep' in kwargs:
         copy_prep = kwargs['copy_prep']
