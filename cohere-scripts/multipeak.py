@@ -23,10 +23,11 @@ __all__ = ['calc_geometry',
 from pathlib import Path
 import numpy as np
 from tvtk.api import tvtk
-import scipy.ndimage as ndi
 from multiprocessing import Process
 from prep_helper import Preparer, combine_scans, write_prep_arr
-from scipy.interpolate import RegularGridInterpolator as RGI
+from matplotlib import pyplot as plt
+from skimage import transform
+import scipy.ndimage as ndi
 from scipy.spatial.transform import Rotation as R
 import util.util as ut
 from beamlines.aps_34idc import beam_stuff as geo, diffractometers as diff, detectors as det
@@ -40,44 +41,85 @@ def calc_geometry(prep_obj, scans, shape, o_twin):
     p.set_instruments(det.create_detector(p.detector), diff.create_diffractometer(p.diffractometer))
     B_recip, _ = geo.set_geometry(shape, p, xtal=True)
     B_recip = np.stack([B_recip[1, :], B_recip[0, :], B_recip[2, :]])
-    rs_voxel_size = np.abs(np.linalg.det(B_recip))**(1/3)  # Units are inverse nanometers
+    rs_voxel_size = np.max([np.linalg.norm(B_recip[:, i]) for i in range(3)])  # Units are inverse nanometers
     B_recip = o_twin @ B_recip
     return B_recip, rs_voxel_size
+
+
+def rolloff3d(shape, sigma):
+    mask = np.zeros(shape)
+    mask[3*sigma:-3*sigma, 3*sigma:-3*sigma, 3*sigma:-3*sigma] = 1
+    submask = np.zeros((2*sigma+1, 2*sigma+1, 2*sigma+1))
+    a, b, c = np.mgrid[-sigma:sigma+1, -sigma:sigma+1, -sigma:sigma+1]
+    submask[a**2+b**2+c**2 < sigma**2] = 1
+
+    mask = ndi.binary_dilation(mask, submask).astype(float)
+    mask = ndi.gaussian_filter(mask, sigma)
+    return mask
+
+
+def pad_to_cube(arr):
+    padx, pady, padz = (np.max(arr.shape) - np.array(arr.shape)) // 2
+    arr = np.pad(arr, ((padx, padx), (pady, pady), (padz, padz)))
+    if len(np.unique(arr.shape)) != 1:
+        padx, pady, padz = np.max(arr.shape) - np.array(arr.shape)
+        arr = np.pad(arr, ((padx, 0), (pady, 0), (padz, 0)))
+    return arr
 
 
 def rotate_peaks(prep_obj, data, B_recip, voxel_size):
     """Rotates the diffraction pattern of a given peak to the common reference frame"""
     print("rotating diffraction pattern")
-    shape = data.shape
-    x = np.arange(-shape[0] // 2, shape[0] // 2)  # define old grid
-    y = np.arange(-shape[1] // 2, shape[1] // 2)
-    z = np.arange(-shape[2] // 2, shape[2] // 2)
-    xx, yy, zz = np.meshgrid(x, y, z, indexing='ij')
-    old_grid = np.vstack([xx.ravel(), yy.ravel(), zz.ravel()])  # flatten grid into a 3xN array
+    vx_dims = np.array([np.linalg.norm(B_recip[:, i]) for i in range(3)])
+    vx_dims = vx_dims / vx_dims.max()
+    data = transform.rescale(data, 1/vx_dims, order=5)
+    mask = np.ones_like(data)
+    data = pad_to_cube(data)
+    mask = pad_to_cube(mask)
+    print(mask.shape)
 
-    new_points = B_recip @ old_grid
-    min_max = np.array([[np.min(row), np.max(row)] for row in new_points])
-    a = np.arange(min_max[0, 0], min_max[0, 1], voxel_size)  # define new grid from the smallest to largest value
-    b = np.arange(min_max[1, 0], min_max[1, 1], voxel_size)  # ensure that the step size is that of the unit cell
-    c = np.arange(min_max[2, 0], min_max[2, 1], voxel_size)  # edge length
-    aa, bb, cc = np.meshgrid(a, b, c, indexing='ij')
+    for i in range(3):
+        B_recip[:, i] = B_recip[:, i] * vx_dims[i]
 
-    new_grid = np.vstack([aa.ravel(), bb.ravel(), cc.ravel()])  # flatten new grid
-    interp_points = np.linalg.inv(B_recip) @ new_grid  # transform new grid points to old grid
-
-    interp = RGI((x, y, z), data, fill_value=0, bounds_error=False)  # feed interpolator node values from data
-    data = interp(interp_points.T).reshape((a.shape[0], b.shape[0], c.shape[0]))  # interpolate values on new grid
+    matrix = voxel_size*np.linalg.inv(B_recip)
+    center = np.array(data.shape) // 2
+    translation = center - np.dot(matrix, center)
+    data = ndi.affine_transform(data, matrix, order=5, offset=translation)
+    mask = ndi.affine_transform(mask, matrix, order=1, offset=translation)
+    mask[mask < 0.99] = 0
 
     final_size = prep_obj.final_size
     shp = np.array([final_size, final_size, final_size]) // 2
+
+    # Pad the array to the largest dimensions
     shp1 = np.array(data.shape) // 2
     pad = shp - shp1
     pad[pad < 0] = 0
-
     data = np.pad(data, [(pad[0], pad[0]), (pad[1], pad[1]), (pad[2], pad[2])])
+    mask = np.pad(mask, [(pad[0], pad[0]), (pad[1], pad[1]), (pad[2], pad[2])])
+
+    # Crop the array to the final dimensions
     shp1 = np.array(data.shape) // 2
     start, end = shp1 - shp, shp1 + shp
-    return data[start[0]:end[0], start[1]:end[1], start[2]:end[2]]
+    data = data[start[0]:end[0], start[1]:end[1], start[2]:end[2]]
+    mask = mask[start[0]:end[0], start[1]:end[1], start[2]:end[2]]
+
+    return data, mask.astype("?")
+
+
+def refine_mask(init_mask, data):
+    matrix = 0.8 * np.identity(3)
+    center = np.array(data.shape) / 2
+    offset = center - np.dot(matrix, center)
+    mask = ndi.affine_transform(data, matrix, offset=offset, order=3)
+    mask = ndi.gaussian_filter(mask, sigma=5) > 2
+
+    dd = 5
+    struct = np.zeros((dd, dd, dd))
+    x, y, z = np.mgrid[-1:1:1j*dd, -1:1:1j*dd, -1:1:1j*dd]
+    struct[x**2 + y**2 + z**2 < 1] = 1
+    mask = ndi.binary_dilation(mask, structure=struct, iterations=1)
+    return init_mask | np.invert(mask)
 
 
 def twin_matrix(hklin, hklout, twin_plane, sample_axis):
@@ -108,10 +150,9 @@ class MultPeakPreparer(Preparer):
         super().__init__(prep_obj)
         try:
             self.o_twin = twin_matrix(prep_obj.hkl_in, prep_obj.hkl_out, prep_obj.twin_plane,
-                                 prep_obj.sample_axis)
+                                      prep_obj.sample_axis)
         except KeyError:
             self.o_twin = np.identity(3)
-
 
     def get_batches(self):
         batches = super().get_batches()
@@ -129,10 +170,9 @@ class MultPeakPreparer(Preparer):
             batch.append(2*np.pi/(rs_voxel_size*shape[0]))  # direct-space voxel size in nanometers
         return batches
 
-
     def prepare(self, batches):
         processes = []
-        # The maximum voxel size should guarantee the highest resultion
+        # The maximum voxel size in reciprocal space should guarantee the highest resultion in direct space
         rs_voxel_size = max(batch[4] for batch in batches)
         ds_voxel_size = min(batch[5] for batch in batches)
         f = self.prep_obj.experiment_dir + '/conf/config_mp'
@@ -156,12 +196,13 @@ class MultPeakPreparer(Preparer):
         for p in processes:
             p.join()
 
-
     def process_batch(self, dirs, scans, B_recip, voxel_size, save_dir, filename):
         batch_arr = combine_scans(self.prep_obj, dirs, scans)
         batch_arr = self.prep_obj.detector.clear_seam(batch_arr)
-        data = rotate_peaks(self.prep_obj, batch_arr, B_recip, voxel_size)
+        data, mask = rotate_peaks(self.prep_obj, batch_arr, B_recip, voxel_size)
+        mask = refine_mask(mask, data)
         write_prep_arr(data, save_dir, filename)
+        write_prep_arr(mask, save_dir, "mask.tif")
 
 
 def center_mp(image, support):
@@ -180,19 +221,15 @@ def center_mp(image, support):
     shape = density.shape
     max_coordinates = list(np.unravel_index(np.argmax(density), shape))
     for i in range(len(max_coordinates)):
-        image[0] = np.roll(image[0], int(shape[i] / 2) - max_coordinates[i], i)
-        image[1] = np.roll(image[1], int(shape[i] / 2) - max_coordinates[i], i)
-        image[2] = np.roll(image[2], int(shape[i] / 2) - max_coordinates[i], i)
-        image[3] = np.roll(image[3], int(shape[i] / 2) - max_coordinates[i], i)
+        for j in range(10):
+            image[j] = np.roll(image[j], int(shape[i] / 2) - max_coordinates[i], i)
         support = np.roll(support, int(shape[i] / 2) - max_coordinates[i], i)
 
     com = ndi.center_of_mass(density * support)
     # place center of mass in the center
     for i in range(len(shape)):
-        image[0] = np.roll(image[0], int(shape[i] / 2 - com[i]), axis=i)
-        image[1] = np.roll(image[1], int(shape[i] / 2 - com[i]), axis=i)
-        image[2] = np.roll(image[2], int(shape[i] / 2 - com[i]), axis=i)
-        image[3] = np.roll(image[3], int(shape[i] / 2 - com[i]), axis=i)
+        for j in range(10):
+            image[j] = np.roll(image[j], int(shape[i] / 2 - com[i]), axis=i)
         support = np.roll(support, int(shape[i] / 2 - com[i]), axis=i)
 
     # set center displacement to zero, use as a reference
@@ -212,7 +249,8 @@ def write_vti(data, px, savedir, is_twin=False):
     print("Preparing VTK data")
     grid = tvtk.ImageData(dimensions=data[0].shape, spacing=(px, px, px))
     # Set the data to the image/support/distortion
-    for img, name in zip(data, ["density", "u_x", "u_y", "u_z", "support"]):
+    names = ["density", "u_x", "u_y", "u_z", "s_xx", "s_yy", "s_zz", "s_xy", "s_yz", "s_zx", "support"]
+    for img, name in zip(data, names):
         arr = tvtk.DoubleArray()
         arr.from_array(img.ravel())
         arr.name = name
@@ -250,7 +288,7 @@ def process_dir(exp_dir, rampups=1, make_twin=True):
     for f in save_dir.iterdir():
         f.unlink()
 
-    image = np.load(f"{res_dir}/image.npy")
+    image = np.load(f"{res_dir}/reconstruction.npy")
     image = np.moveaxis(image, 3, 0)
     image[0] = image[0] / np.max(image[0])
     support = np.load(f"{res_dir}/support.npy")
@@ -261,7 +299,7 @@ def process_dir(exp_dir, rampups=1, make_twin=True):
 
     px = ut.read_config(f"{exp_dir}/conf/config_mp")["ds_voxel_size"]
 
-    write_vti(np.concatenate((image, support[None])), px, save_dir)
+    write_vti(image, px, save_dir)
 
     if make_twin:
         image = np.flip(image, axis=(1, 2, 3))
@@ -271,4 +309,4 @@ def process_dir(exp_dir, rampups=1, make_twin=True):
             image, support = center_mp(image, support)
         if rampups > 1:
             image = ut.remove_ramp(image, ups=rampups)
-        write_vti(np.concatenate((image, support[None])), px, save_dir, is_twin=True)
+        write_vti(image, px, save_dir, is_twin=True)

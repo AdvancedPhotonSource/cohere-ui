@@ -75,8 +75,8 @@ def format_data(experiment_dir):
         return None
 
     print('formating data')
-    prep_file = experiment_dir + '/preprocessed_data/prep_data.tif'
-    if os.path.isfile(prep_file):
+    prep_dir = experiment_dir + '/preprocessed_data'
+    if os.path.isfile(prep_dir + "/prep_data.tif"):
         if 'data_dir' in config_map:
             data_dir = config_map['data_dir']
         else:
@@ -84,19 +84,19 @@ def format_data(experiment_dir):
             config_map['data_dir'] = data_dir
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
-        cohere.prep(prep_file, **config_map)
+        cohere.prep(prep_dir, **config_map)
 
     dirs = os.listdir(experiment_dir)
     for dir in dirs:
         if dir.startswith('scan') or dir.startswith('mp'):
             scan_dir = experiment_dir + '/' + dir
-            prep_file = scan_dir + '/preprocessed_data/prep_data.tif'
+            prep_dir = scan_dir + '/preprocessed_data'
             # ignore configured 'data_dir' as it can't be reused by multiple scans
             data_dir = scan_dir + '/phasing_data'
             config_map['data_dir'] = data_dir
             if not os.path.exists(data_dir):
                 os.makedirs(data_dir)
-            cohere.prep(prep_file, **config_map)
+            cohere.prep(prep_dir, **config_map)
 
 
 def main(arg):
