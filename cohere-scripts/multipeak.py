@@ -35,11 +35,10 @@ from beamlines.aps_34idc import instrument as instr, diffractometers as diff, de
 
 def calc_geometry(prep_obj, scans, shape, o_twin):
     """Calculates the rotation matrix and voxel size for a given peak"""
-    config_map = ut.read_config(prep_obj.experiment_dir + '/conf/config')
+    config_map = ut.read_config(prep_obj.experiment_dir + '/conf/config_instr')
     config_map['multipeak'] = True
     instr_obj = instr.Instrument()
     instr_obj.initialize(config_map, scans[-1])
-    shape = data.shape
     B_recip, _ = instr_obj.get_geometry(shape, xtal=True)
     B_recip = np.stack([B_recip[1, :], B_recip[0, :], B_recip[2, :]])
     rs_voxel_size = np.max([np.linalg.norm(B_recip[:, i]) for i in range(3)])  # Units are inverse nanometers
