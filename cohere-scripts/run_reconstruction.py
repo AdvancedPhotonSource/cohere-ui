@@ -214,6 +214,7 @@ def manage_reconstruction(experiment_dir, rec_id=None):
         config_map = ut.read_config(experiment_dir + "/conf/config_mp")
         config_map.update(main_config_map)
         config_map.update(rec_config_map)
+        config_map.update({"save_dir": f"{experiment_dir}/results_phasing"})
         if 'device' in config_map:
             dev = config_map['device']
         else:
