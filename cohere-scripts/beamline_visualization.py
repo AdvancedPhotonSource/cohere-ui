@@ -65,7 +65,7 @@ class CXDViz:
         self.recipspace_uptodate = 0
 
 
-    def visualize(self, image, support, coh, save_dir, is_twin=False):
+    def visualize(self, image, support, coh, save_dir, unwrap=False, is_twin=False):
         """
         Manages visualization process. Saves the results in a given directory in files: image.vts, support.vts, and coherence.vts. If is_twin then the saved files have twin prefix.
         Parameters
@@ -83,6 +83,12 @@ class CXDViz:
         """
         save_dir = save_dir.replace(os.sep, '/')
         arrays = {"imAmp": abs(image), "imPh": np.angle(image)}
+
+          # unwrap phase here
+        if unwrap:
+            from skimage import restoration
+            arrays['imUwPh'] = restoration.unwrap_phase(arrays['imPh'])
+
         self.add_ds_arrays(arrays)
         if is_twin:
             self.write_directspace(save_dir + '/twin_image')
@@ -252,7 +258,7 @@ class CXDViz:
         print('saved file', filename)
 
 
-def process_dir(instrument, config_map, rampups, crop, make_twin, res_dir_scan):
+def process_dir(instrument, config_map, rampups, crop, unwrap, make_twin, res_dir_scan):
     """
     Loads arrays from files in results directory. If reciprocal array exists, it will save reciprocal info in tif format. It calls the save_CX function with the relevant parameters.
     Parameters
@@ -309,7 +315,7 @@ def process_dir(instrument, config_map, rampups, crop, make_twin, res_dir_scan):
 
     crop = crop + [1.0] * (len(image.shape) - len(crop))
     viz = CXDViz(crop, geometry)
-    viz.visualize(image, support, coh, save_dir)
+    viz.visualize(image, support, coh, save_dir, unwrap)
 
     if make_twin:
         image = np.conjugate(np.flip(image))
@@ -318,7 +324,7 @@ def process_dir(instrument, config_map, rampups, crop, make_twin, res_dir_scan):
             image, support = ut.center(image, support)
         if rampups > 1:
             image = ut.remove_ramp(image, ups=rampups)
-        viz.visualize(image, support, coh, save_dir, True)
+        viz.visualize(image, support, coh, save_dir, unwrap, True)
 
 
 def handle_visualization(experiment_dir, rec_id=None):
@@ -412,6 +418,11 @@ def handle_visualization(experiment_dir, rec_id=None):
         else:
             crop = []
 
+        if 'unwrap' in disp_config_map:
+            unwrap = disp_config_map['unwrap']
+        else:
+            unwrap = False
+
         if 'results_dir' in disp_config_map:
             results_dir = disp_config_map['results_dir'].replace(os.sep, '/')
         elif separate:
@@ -447,9 +458,9 @@ def handle_visualization(experiment_dir, rec_id=None):
             dirs = [[dir, last_scan] for dir in dirs]
 
         if len(dirs) == 1:
-            process_dir(instrument, config_map, rampups, crop, make_twin, dirs[0])
+            process_dir(instrument, config_map, rampups, crop, unwrap, make_twin, dirs[0])
         else:
-            func = partial(process_dir, instrument, config_map, rampups, crop, make_twin)
+            func = partial(process_dir, instrument, config_map, rampups, crop, unwrap, make_twin)
             no_proc = min(cpu_count(), len(dirs))
             with Pool(processes = no_proc) as pool:
                pool.map_async(func, dirs)

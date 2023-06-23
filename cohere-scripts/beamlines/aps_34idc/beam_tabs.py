@@ -337,6 +337,10 @@ class PrepTab(QWidget):
 
 
     def save_conf(self):
+        if not self.main_win.is_exp_exists():
+            msg_window('the experiment does not exist, cannot save the config_prep file')
+            return
+
         conf_map = self.get_prep_config()
         if len(conf_map) > 0:
             er_msg = cohere.verify('config_prep', conf_map)
@@ -381,6 +385,9 @@ class DispTab(QWidget):
         self.make_twin = QCheckBox('make twin')
         self.make_twin.setChecked(False)
         layout.addWidget(self.make_twin)
+        self.unwrap = QCheckBox('include unwrapped phase')
+        self.unwrap.setChecked(False)
+        layout.addWidget(self.unwrap)
         self.crop = QLineEdit()
         layout.addRow("crop", self.crop)
         self.rampups = QLineEdit()
@@ -414,7 +421,6 @@ class DispTab(QWidget):
         # Do not update results dir, as it may point to a wrong experiment if
         # it's loaded from another
 
-         # if parameters are configured, override the readings from spec file
         if 'make_twin' in conf_map:
             make_twin = conf_map['make_twin']
             if make_twin:
@@ -423,6 +429,15 @@ class DispTab(QWidget):
                 self.make_twin.setChecked(False)
         else:
             self.make_twin.setChecked(False)
+
+        if 'unwrap' in conf_map:
+            unwrap = conf_map['unwrap']
+            if unwrap:
+                self.unwrap.setChecked(True)
+            else:
+                self.unwrap.setChecked(False)
+        else:
+            self.unwrap.setChecked(False)
 
         if 'crop' in conf_map:
             self.crop.setText(str(conf_map['crop']).replace(" ", ""))
@@ -433,6 +448,7 @@ class DispTab(QWidget):
     def clear_conf(self):
         self.result_dir_button.setText('')
         self.make_twin.setChecked(False)
+        self.unwrap.setChecked(False)
         self.crop.setText('')
         self.rampups.setText('')
 
@@ -472,6 +488,8 @@ class DispTab(QWidget):
             conf_map['results_dir'] = str(self.result_dir_button.text()).replace(os.sep, '/')
         if self.make_twin.isChecked():
             conf_map['make_twin'] = True
+        if self.unwrap.isChecked():
+            conf_map['unwrap'] = True
         if len(self.crop.text()) > 0:
             conf_map['crop'] = ast.literal_eval(str(self.crop.text()).replace('\n', ''))
         if len(self.rampups.text()) > 0:
@@ -523,6 +541,10 @@ class DispTab(QWidget):
 
 
     def save_conf(self):
+        if not self.main_win.is_exp_exists():
+            msg_window('the experiment does not exist, cannot save the config_disp file')
+            return
+
         conf_map = self.get_disp_config()
         if len(conf_map) > 0:
             er_msg = cohere.verify('config_disp', conf_map)
@@ -597,15 +619,8 @@ class DispTab(QWidget):
             msg_window('please select valid results directory')
 
 
-class SubInstrTab(QWidget):
-    def __init__(self, parent=None):
-        """
-        Constructor, initializes the tabs.
-        """
-        super(SubInstrTab, self).__init__(parent)
-
-
-    def init(self, tabs, main_window):
+class SubInstrTab():
+    def init(self, instr_tab, main_window):
         """
         Creates and initializes the 'Instrument' tab.
         Parameters
@@ -616,6 +631,7 @@ class SubInstrTab(QWidget):
         nothing
         """
         self.main_window = main_window
+        self.instr_tab = instr_tab
 
         self.spec_widget = QWidget()
         spec_layout = QFormLayout()
@@ -653,7 +669,7 @@ class SubInstrTab(QWidget):
         self.detector.textChanged.connect(lambda: set_overriden(self.detector))
 
 
-    def load_tab(self, conf_map, specfile, diff):
+    def load_tab(self, conf_map):
         """
         It verifies given configuration file, reads the parameters, and fills out the window.
         Parameters
@@ -664,7 +680,7 @@ class SubInstrTab(QWidget):
         -------
         nothing
         """
-        self.parse_spec(specfile, diff)
+        self.parse_spec()
 
         # if parameters are configured, override the readings from spec file
         if 'energy' in conf_map:
@@ -748,7 +764,7 @@ class SubInstrTab(QWidget):
         return conf_map
 
 
-    def parse_spec(self, specfile, diffractometer):
+    def parse_spec(self):
         """
         Calls utility function to parse spec file. Displas the parsed parameters in the window with blue text.
         Parameters
@@ -760,6 +776,17 @@ class SubInstrTab(QWidget):
         """
         scan = str(self.main_window.scan_widget.text())
         if len(scan) == 0:
+            msg_window ('cannot parse spec, scan not defined')
+            return
+
+        diffractometer = self.instr_tab.diffractometer.text()
+        if len(diffractometer) == 0:
+            msg_window ('cannot parse spec, diffractometer not defined')
+            return
+
+        specfile = self.instr_tab.spec_file_button.text()
+        if len(specfile) == 0:
+            msg_window ('cannot parse spec, specfile not defined')
             return
 
         import beamlines.aps_34idc.diffractometers as diff
@@ -773,6 +800,8 @@ class SubInstrTab(QWidget):
 
         last_scan = int(scan.split('-')[-1].split(',')[-1])
         spec_dict = instr.parse_spec(specfile, last_scan, diff_obj)
+        if spec_dict is None:
+            return
         if 'energy' in spec_dict:
             self.energy.setText(str(spec_dict['energy']))
             self.energy.setStyleSheet('color: blue')
@@ -824,9 +853,9 @@ class InstrTab(QWidget):
         else:
             self.add_config = True
             self.extended.spec_widget.show()
-            self.extended.parse_spec(self.spec_file_button.text(), self.diffractometer.text())
-        if self.main_win.is_exp_exists():
-            self.save_conf()
+            self.extended.parse_spec()
+
+        self.save_conf()
 
 
     def init(self, tabs, main_window):
@@ -847,7 +876,7 @@ class InstrTab(QWidget):
         else:
             self.add_config = True
         self.extended = SubInstrTab()
-        self.extended.init(tabs, main_window)
+        self.extended.init(self, main_window)
 
         tab_layout = QVBoxLayout()
         gen_layout = QFormLayout()
@@ -898,10 +927,11 @@ class InstrTab(QWidget):
             if os.path.isfile(specfile):
                 self.spec_file_button.setStyleSheet("Text-align:left")
                 self.spec_file_button.setText(specfile)
-                if self.add_config:
-                    self.extended.load_tab(conf_map, specfile, diff)
             else:
                 msg_window('The specfile file ' + specfile + ' in config file does not exist')
+
+        if self.add_config:
+            self.extended.load_tab(conf_map)
 
 
     def set_spec_file(self):
@@ -915,16 +945,16 @@ class InstrTab(QWidget):
         -------
         noting
         """
-        self.specfile = select_file(os.getcwd())
-        if self.specfile is not None:
+        specfile = select_file(os.getcwd())
+        if specfile is not None:
             self.spec_file_button.setStyleSheet("Text-align:left")
-            self.spec_file_button.setText(self.specfile)
-            self.save_conf()
+            self.spec_file_button.setText(specfile)
             if self.add_config:
-                self.extended.parse_spec(self.specfile, self.diffractometer.text())
+                self.extended.parse_spec()
         else:
-            self.specfile = None
             self.spec_file_button.setText('')
+
+        self.save_conf()
 
 
     def clear_conf(self):
@@ -986,6 +1016,10 @@ class InstrTab(QWidget):
         -------
         nothing
         """
+        if not self.main_win.is_exp_exists():
+            msg_window('the experiment does not exist, cannot save the config_instr file')
+            return
+
         conf_map = self.get_instr_config()
         # verify that disp configuration is ok
         er_msg = cohere.verify('config_instr', conf_map)
