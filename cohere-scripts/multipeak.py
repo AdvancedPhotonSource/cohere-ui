@@ -30,7 +30,7 @@ from skimage import transform
 import scipy.ndimage as ndi
 from scipy.spatial.transform import Rotation as R
 import util.util as ut
-from beamlines.aps_34idc import instrument as instr, diffractometers as diff, detectors as det
+from beamlines.aps_34idc import instrument as instr
 
 
 def calc_geometry(prep_obj, scans, shape, o_twin):
@@ -73,9 +73,8 @@ def rotate_peaks(prep_obj, data, B_recip, voxel_size):
     vx_dims = np.array([np.linalg.norm(B_recip[:, i]) for i in range(3)])
     vx_dims = vx_dims / vx_dims.max()
     data = transform.rescale(data, 1/vx_dims, order=5)
-    mask = np.ones_like(data)
     data = pad_to_cube(data)
-    mask = pad_to_cube(mask)
+    mask = np.ones_like(data)
     print(mask.shape)
 
     for i in range(3):
@@ -186,23 +185,25 @@ class MultPeakPreparer(Preparer):
             order = batch[2]
             B_recip = batch[3]
             conf_scans = f"{self.prep_obj.scan_ranges[order][0]}-{self.prep_obj.scan_ranges[order][1]}"
-            orientation = self.prep_obj.orientations[order]
-            orientation = "".join(f"{o}" for o in orientation)
-            save_dir = f"{self.prep_obj.experiment_dir}/mp_{conf_scans}_{orientation}/preprocessed_data"
+            geometry = {
+                "peak_hkl": self.prep_obj.orientations[order],
+                "rmatrix": B_recip,
+                "lattice": mp_config["lattice_size"]
+            }
+            orientation = "".join(f"{o}" for o in geometry["peak_hkl"])
+            save_dir = f"{self.prep_obj.experiment_dir}/mp_{conf_scans}_{orientation}"
+            ut.write_config(geometry, f"{save_dir}/geometry")
             p = Process(target=self.process_batch,
-                        args=(dirs, scans, B_recip, rs_voxel_size, save_dir, 'prep_data.tif'))
+                        args=(dirs, scans, f"{save_dir}/preprocessed_data", 'prep_data.tif'))
             p.start()
             processes.append(p)
         for p in processes:
             p.join()
 
-    def process_batch(self, dirs, scans, B_recip, voxel_size, save_dir, filename):
+    def process_batch(self, dirs, scans, save_dir, filename):
         batch_arr = combine_scans(self.prep_obj, dirs, scans)
         batch_arr = self.prep_obj.det_obj.clear_seam(batch_arr)
-        data, mask = rotate_peaks(self.prep_obj, batch_arr, B_recip, voxel_size)
-        mask = refine_mask(mask, data)
-        write_prep_arr(data, save_dir, filename)
-        write_prep_arr(mask, save_dir, "mask.tif")
+        write_prep_arr(batch_arr, save_dir, filename)
 
 
 def center_mp(image, support):
