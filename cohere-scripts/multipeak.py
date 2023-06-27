@@ -188,7 +188,9 @@ class MultPeakPreparer(Preparer):
             geometry = {
                 "peak_hkl": self.prep_obj.orientations[order],
                 "rmatrix": B_recip,
-                "lattice": mp_config["lattice_size"]
+                "lattice": mp_config["lattice_size"],
+                "rs_voxel_size": rs_voxel_size,
+                "ds_voxel_size": ds_voxel_size
             }
             orientation = "".join(f"{o}" for o in geometry["peak_hkl"])
             save_dir = f"{self.prep_obj.experiment_dir}/mp_{conf_scans}_{orientation}"
