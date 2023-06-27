@@ -171,7 +171,6 @@ class MultPeakPreparer(Preparer):
 
     def prepare(self, batches):
         processes = []
-        # The maximum voxel size in reciprocal space should guarantee the highest resultion in direct space
         rs_voxel_size = max(batch[4] for batch in batches)
         ds_voxel_size = min(batch[5] for batch in batches)
         f = self.prep_obj.experiment_dir + '/conf/config_mp'
@@ -187,10 +186,11 @@ class MultPeakPreparer(Preparer):
             conf_scans = f"{self.prep_obj.scan_ranges[order][0]}-{self.prep_obj.scan_ranges[order][1]}"
             geometry = {
                 "peak_hkl": self.prep_obj.orientations[order],
-                "rmatrix": B_recip,
+                "rmatrix": B_recip.tolist(),
                 "lattice": mp_config["lattice_size"],
                 "rs_voxel_size": rs_voxel_size,
-                "ds_voxel_size": ds_voxel_size
+                "ds_voxel_size": ds_voxel_size,
+                "final_size": self.prep_obj.final_size
             }
             orientation = "".join(f"{o}" for o in geometry["peak_hkl"])
             save_dir = f"{self.prep_obj.experiment_dir}/mp_{conf_scans}_{orientation}"
