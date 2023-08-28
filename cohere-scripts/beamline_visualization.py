@@ -113,7 +113,7 @@ class CXDViz:
             self.clear_direct_arrays()
 
 
-    def update_dirspace(self, shape):
+    def update_dirspace(self, shape, orig_shape):
         """
         Updates direct space grid.
         Parameters
@@ -125,9 +125,9 @@ class CXDViz:
         nothing
         """
         dims = list(shape)
-        self.dxdir = 1.0 / shape[0]
-        self.dydir = 1.0 / shape[1]
-        self.dzdir = 1.0 / shape[2]
+        self.dxdir = 1.0 / orig_shape[0]
+        self.dydir = 1.0 / orig_shape[1]
+        self.dzdir = 1.0 / orig_shape[2]
 
         r = np.mgrid[
             0:dims[0] * self.dxdir:self.dxdir, \
@@ -179,7 +179,7 @@ class CXDViz:
         for name in named_arrays.keys():
             self.dir_arrs[name] = named_arrays[name][x1:x2, y1:y2, z1:z2]
         if (not self.dirspace_uptodate):
-            self.update_dirspace((x2 - x1, y2 - y1, z2 - z1))
+            self.update_dirspace((x2 - x1, y2 - y1, z2 - z1), shape)
 
 
     def are_same_shapes(self, arrays, shape):
