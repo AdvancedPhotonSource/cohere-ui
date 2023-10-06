@@ -48,6 +48,7 @@ def format_data(experiment_dir):
     else:
         print("info: missing " + main_conf + " configuration file")
         return None
+    auto_data = 'auto_data' in config_map and config_map['auto_data']
 
     if 'converter_ver' not in config_map or conv.get_version() is None or conv.get_version() < config_map['converter_ver']:
         conv.convert(experiment_dir + '/conf')
@@ -84,7 +85,7 @@ def format_data(experiment_dir):
             config_map['data_dir'] = data_dir
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
-        cohere.prep(prep_file, **config_map)
+        conf_data_map = cohere.prep(prep_file, auto_data, **config_map)
 
     dirs = os.listdir(experiment_dir)
     for dir in dirs:
@@ -96,7 +97,10 @@ def format_data(experiment_dir):
             config_map['data_dir'] = data_dir
             if not os.path.exists(data_dir):
                 os.makedirs(data_dir)
-            cohere.prep(prep_file, **config_map)
+            conf_data_map = cohere.prep(prep_file, auto_data, **config_map)
+            
+    if auto_data:
+        ut.write_config(conf_data_map, data_conf)
 
 
 def main(arg):

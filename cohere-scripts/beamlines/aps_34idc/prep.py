@@ -66,12 +66,14 @@ class BeamPrepData():
         # set defaults
         self.detector = None
         self.roi = None
+        self.auto_data = False
         self.separate_scans = False
         self.separate_scan_ranges = False
         self.multipeak = False
         self.Imult = None
         self.min_files = 0
         self.exclude_scans = []
+        self.outliers_scans = []
         self.experiment_dir = experiment_dir
         self.scan_ranges = []
 

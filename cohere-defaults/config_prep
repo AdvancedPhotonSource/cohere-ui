@@ -19,6 +19,11 @@ whitefield_filename = "WHITEFIELD"
 //exclude_scans = [78,81]
                                             // a list containing scan indexes that will be excluded from preparation
 
+//ouliers_scans = [78,81]
+                                            // a list containing scan indexes that will be excluded from preparation
+                                            // This list is determined when running auto-data preprocessing and if
+                                            // set by user it will be overriden
+
 //Imult = 10000
                                             // Optional, defaults to the average of the whitefield
                                             // A multiplication factor used to renormalize the whitefield correction.
