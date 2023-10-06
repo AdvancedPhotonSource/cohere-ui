@@ -13,7 +13,6 @@ def write_prep_arr(arr, save_dir, filename):
     This function saves the prepared data in given directory. Creates the directory if
     it does not exist.
     """
-    print('data array dimensions', arr.shape)
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     ut.save_tif(arr, save_dir + '/' + filename)
@@ -112,9 +111,13 @@ class Preparer():
                 last_digits = re.search(r'\d+$', scan_dir)
                 if last_digits is not None:
                     scan = int(last_digits.group())
-                    if not scan in self.prep_obj.exclude_scans:
-                        self.add_scan(scan, subdir)
+                    if scan in self.prep_obj.exclude_scans:
+                        continue
+                    if self.prep_obj.auto_data and not self.prep_obj.separate_scans and scan in self.prep_obj.outliers_scans:
+                        continue
+                self.add_scan(scan, subdir)
         return list(self.unit_dirs_scan_indexes.values())
+
 
     def process_batch(self, dirs, scans, save_dir, filename):
         batch_arr = combine_scans(self.prep_obj, dirs, scans)

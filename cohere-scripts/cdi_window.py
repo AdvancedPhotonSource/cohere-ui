@@ -125,6 +125,9 @@ class cdi_gui(QWidget):
         self.beamline_widget = QLineEdit()
         ruplayout.addRow("beamline", self.beamline_widget)
         scan_layout = QHBoxLayout()
+        self.auto_data = QCheckBox('auto data')
+        self.auto_data.setChecked(False)
+        scan_layout.addWidget(self.auto_data)
         self.separate_scans = QCheckBox('separate scans')
         self.separate_scans.setChecked(False)
         scan_layout.addWidget(self.separate_scans)
@@ -165,6 +168,7 @@ class cdi_gui(QWidget):
         self.run_button.clicked.connect(self.run_everything)
         self.create_exp_button.clicked.connect(self.set_experiment)
         self.multipeak.stateChanged.connect(self.toggle_multipeak)
+        self.auto_data.stateChanged.connect(self.toggle_auto_data)
         self.separate_scans.stateChanged.connect(self.toggle_separate_scans)
         self.separate_scan_ranges.stateChanged.connect(self.toggle_separate_scan_ranges)
 
@@ -199,6 +203,7 @@ class cdi_gui(QWidget):
         self.Id_widget.setText('')
         self.scan_widget.setText('')
         self.beamline_widget.setText('')
+        self.auto_data.setChecked(False)
         self.separate_scans.setChecked(False)
         self.separate_scan_ranges.setChecked(False)
         self.multipeak.setChecked(False)
@@ -356,6 +361,8 @@ class cdi_gui(QWidget):
             self.scan_widget.setText(conf_map['scan'].replace(' ',''))
         if 'beamline' in conf_map:
             self.beamline_widget.setText(conf_map['beamline'])
+        if 'auto_data' in conf_map and conf_map['auto_data']:
+            self.auto_data.setChecked(True)
         if 'separate_scans' in conf_map and conf_map['separate_scans']:
             self.separate_scans.setChecked(True)
         if 'separate_scan_ranges' in conf_map and conf_map['separate_scan_ranges']:
@@ -393,6 +400,8 @@ class cdi_gui(QWidget):
             conf_map['beamline'] = self.beamline
         if self.multipeak.isChecked():
             conf_map['multipeak'] = True
+        if self.auto_data.isChecked():
+            conf_map['auto_data'] = True
         if self.separate_scans.isChecked():
             conf_map['separate_scans'] = True
         if self.separate_scan_ranges.isChecked():
@@ -473,6 +482,10 @@ class cdi_gui(QWidget):
             self.save_main()
         if not self.t is None:
             self.t.toggle_checked(self.multipeak.isChecked(), True)
+
+    def toggle_auto_data(self):
+        if self.is_exp_set():
+            self.save_main()
 
     def toggle_separate_scans(self):
         if self.is_exp_set():
@@ -871,6 +884,12 @@ class DataTab(QWidget):
                 run_dt.format_data(self.main_win.experiment_dir)
             else:
                 msg_window('Please, run data preparation in previous tab to activate this function')
+
+        # reload the window if auto_data as the intensity_threshold and binning could change
+        main_conf_map = ut.read_config(self.main_win.experiment_dir + '/conf/config')
+        if 'auto_data' in main_conf_map and main_conf_map['auto_data']:
+            data_map = ut.read_config(self.main_win.experiment_dir + '/conf/config_data')
+            self.load_tab(data_map)
 
 
     def save_conf(self):

@@ -448,5 +448,3 @@ def estimate_no_proc(arr_size, factor):
 
 def normalize(vec):
     return vec / np.linalg.norm(vec)
-
-

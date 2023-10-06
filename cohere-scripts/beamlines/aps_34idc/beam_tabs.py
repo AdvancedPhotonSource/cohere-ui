@@ -118,6 +118,8 @@ class PrepTab(QWidget):
         layout.addRow("min files in scan", self.min_files)
         self.exclude_scans = QLineEdit()
         layout.addRow("exclude scans", self.exclude_scans)
+        self.outliers_scans = QLineEdit()
+        layout.addRow("outliers scans", self.outliers_scans)
 
         cmd_layout = QHBoxLayout()
         self.set_prep_conf_from_button = QPushButton("Load prep conf from")
@@ -179,6 +181,8 @@ class PrepTab(QWidget):
             self.min_files.setText(str(conf_map['min_files']).replace(" ", ""))
         if 'exclude_scans' in conf_map:
             self.exclude_scans.setText(str(conf_map['exclude_scans']).replace(" ", ""))
+        if 'outliers_scans' in conf_map:
+            self.outliers_scans.setText(str(conf_map['outliers_scans']).replace(" ", ""))
         if 'roi' in conf_map:
             self.roi.setText(str(conf_map['roi']).replace(" ", ""))
             self.roi.setStyleSheet('color: black')
@@ -191,6 +195,7 @@ class PrepTab(QWidget):
         self.Imult.setText('')
         self.min_files.setText('')
         self.exclude_scans.setText('')
+        self.outliers_scans.setText('')
         self.roi.setText('')
 
 
@@ -240,6 +245,8 @@ class PrepTab(QWidget):
             conf_map['exclude_scans'] = ast.literal_eval(str(self.exclude_scans.text()).replace('\n',''))
         if len(self.roi.text()) > 0:
             conf_map['roi'] = ast.literal_eval(str(self.roi.text()).replace('\n',''))
+        # if len(self.outliers_scans.text()) > 0:
+        #     conf_map['outliers_scans'] = ast.literal_eval(str(self.outliers_scans.text()).replace('\n',''))
 
         return conf_map
 
@@ -273,11 +280,23 @@ class PrepTab(QWidget):
         if len(self.data_dir_button.text().strip()) == 0:
             msg_window('cannot prepare data for 34idc, need data directory')
             return
-  #      scan = str(self.main_win.scan_widget.text())
 
+        main_config_map = ut.read_config(self.main_win.experiment_dir + '/conf/config')
+        auto_data = 'auto_data' in main_config_map and main_config_map['auto_data']
+
+        if auto_data:
+            # exclude outliers_scans from saving
+            current_prep_map = ut.read_config(self.main_win.experiment_dir + '/conf/config_prep')
+            if current_prep_map is not None and 'outliers_scans' in current_prep_map:
+                conf_map['outliers_scans'] = current_prep_map['outliers_scans']
         ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_prep')
 
         self.tabs.run_prep()
+
+        # reload the window if auto_data as the outliers_scans could change
+        if auto_data:
+            prep_map = ut.read_config(self.main_win.experiment_dir + '/conf/config_prep')
+            self.load_tab(prep_map)
 
 
     def set_dark_file(self):
