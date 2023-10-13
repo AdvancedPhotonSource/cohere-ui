@@ -275,7 +275,8 @@ class PrepTab(QWidget):
         er_msg = cohere.verify('config_prep', conf_map)
         if len(er_msg) > 0:
             msg_window(er_msg)
-            return
+            if not self.main_win.debug:
+              return
         # for 34idc prep data directory is needed
         if len(self.data_dir_button.text().strip()) == 0:
             msg_window('cannot prepare data for 34idc, need data directory')
@@ -365,6 +366,8 @@ class PrepTab(QWidget):
             er_msg = cohere.verify('config_prep', conf_map)
             if len(er_msg) > 0:
                 msg_window(er_msg)
+                if self.main_win.debug:
+                    ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_prep')
             else:
                 ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_prep')
 
@@ -553,7 +556,8 @@ class DispTab(QWidget):
         er_msg = cohere.verify('config_disp', conf_map)
         if len(er_msg) > 0:
             msg_window(er_msg)
-            return
+            if not self.main_win.debug:
+                return
 
         ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_disp')
         self.tabs.run_viz()
@@ -569,6 +573,8 @@ class DispTab(QWidget):
             er_msg = cohere.verify('config_disp', conf_map)
             if len(er_msg) > 0:
                 msg_window(er_msg)
+                if self.main_win.debug:
+                    ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_disp')
             else:
                 ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_disp')
 
@@ -1044,7 +1050,8 @@ class InstrTab(QWidget):
         er_msg = cohere.verify('config_instr', conf_map)
         if len(er_msg) > 0:
             msg_window(er_msg)
-            return
+            if not self.main_win.debug:
+                return
 
         ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_instr')
 

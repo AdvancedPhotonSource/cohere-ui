@@ -24,7 +24,7 @@ __all__ = ['format_data',
            'main']
 
 
-def format_data(experiment_dir):
+def format_data(experiment_dir, **kwargs):
     """
     For each prepared data in an experiment directory structure formats the data according to configured parameters and saves in the experiment space.
 
@@ -58,7 +58,9 @@ def format_data(experiment_dir):
     er_msg = cohere.verify('config', config_map)
     if len(er_msg) > 0:
         # the error message is printed in verifier
-        return None
+        debug = 'debug' in kwargs and kwargs['debug']
+        if not debug:
+            return None
 
     # read the config_data
     data_conf = experiment_dir + "/conf/config_data"
@@ -70,10 +72,15 @@ def format_data(experiment_dir):
     else:
         print("info: missing " + data_conf + " configuration file")
         return None
+    debug = 'debug' in kwargs and kwargs['debug']
     er_msg = cohere.verify('config_data', config_map)
     if len(er_msg) > 0:
         # the error message is printed in verifier
-        return None
+        if not debug:
+            return None
+
+    if debug:
+        config_map['debug'] = True
 
     print('formating data')
     prep_file = experiment_dir + '/preprocessed_data/prep_data.tif'
@@ -106,8 +113,10 @@ def format_data(experiment_dir):
 def main(arg):
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_dir", help="experiment directory")
+    parser.add_argument("--debug", action="store_true",
+                        help="if True the vrifier has no effect on processing")
     args = parser.parse_args()
-    format_data(args.experiment_dir)
+    format_data(args.experiment_dir, debug=args.debug)
 
 
 if __name__ == "__main__":

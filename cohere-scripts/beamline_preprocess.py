@@ -136,7 +136,7 @@ def find_outlier_scans(experiment_dir, main_conf_map):
             shutil.rmtree(experiment_dir + '/' + scan_dir)
 
 
-def handle_prep(experiment_dir, *args, **kwargs):
+def handle_prep(experiment_dir, **kwargs):
     print('preparing data')
     experiment_dir = experiment_dir.replace(os.sep, '/')
     # check configuration
@@ -152,18 +152,18 @@ def handle_prep(experiment_dir, *args, **kwargs):
         # re-parse config
         main_conf_map = ut.read_config(main_conf_file)
 
-   # main_conf_map = get_config_map(experiment_dir)
-
     er_msg = cohere.verify('config', main_conf_map)
     if len(er_msg) > 0:
         # the error message is printed in verifier
-        return er_msg
+        debug = 'debug' in kwargs and kwargs['debug']
+        if not debug:
+            return er_msg
 
     auto_data = 'auto_data' in main_conf_map and main_conf_map['auto_data'] == True
     # check main config if doing auto
     # if not auto run handle_prep_case
     if not auto_data:
-        return handle_prep_case(experiment_dir, main_conf_file, args, kwargs)
+        return handle_prep_case(experiment_dir, main_conf_file, **kwargs)
 
     from multiprocessing import Process
 
@@ -180,10 +180,10 @@ def handle_prep(experiment_dir, *args, **kwargs):
     p.join()
 
     # run handle_prep_case again
-    return handle_prep_case(experiment_dir, main_conf_file, args, kwargs)
+    return handle_prep_case(experiment_dir, main_conf_file, **kwargs)
 
 
-def handle_prep_case(experiment_dir, main_conf_file, *args, **kwargs):
+def handle_prep_case(experiment_dir, main_conf_file, **kwargs):
     """
     Reads the configuration files and accrdingly creates prep_data.tif file in <experiment_dir>/prep directory or multiple
     prep_data.tif in <experiment_dir>/<scan_<scan_no>>/prep directories.
@@ -216,7 +216,9 @@ def handle_prep_case(experiment_dir, main_conf_file, *args, **kwargs):
     er_msg = cohere.verify('config_prep', prep_conf_map)
     if len(er_msg) > 0:
         # the error message is printed in verifier
-        return er_msg
+        debug = 'debug' in kwargs and kwargs['debug']
+        if not debug:
+            return er_msg
 
     data_dir = prep_conf_map['data_dir'].replace(os.sep, '/')
     if not os.path.isdir(data_dir):
@@ -247,10 +249,12 @@ def handle_prep_case(experiment_dir, main_conf_file, *args, **kwargs):
 
 def main(arg):
     parser = argparse.ArgumentParser()
-    parser.add_argument("experiment_dir", help="directory where the configuration files are located")
+    parser.add_argument("experiment_dir",
+                        help="directory where the configuration files are located")
+    parser.add_argument("--debug", action="store_true",
+                        help="if True the vrifier has no effect on processing")
     args = parser.parse_args()
-    experiment_dir = args.experiment_dir
-    handle_prep(experiment_dir)
+    handle_prep(args.experiment_dir, debug=args.debug)
 
 
 if __name__ == "__main__":

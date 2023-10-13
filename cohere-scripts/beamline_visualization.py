@@ -327,7 +327,7 @@ def process_dir(instrument, config_map, rampups, crop, unwrap, make_twin, res_di
         viz.visualize(image, support, coh, save_dir, unwrap, True)
 
 
-def handle_visualization(experiment_dir, rec_id=None):
+def handle_visualization(experiment_dir, rec_id=None, **kwargs):
     """
     If the image_file parameter is defined, the file is processed and vts file saved. Otherwise this function determines root directory with results that should be processed for visualization. Multiple images will be processed concurrently.
     Parameters
@@ -363,7 +363,9 @@ def handle_visualization(experiment_dir, rec_id=None):
     msg = cohere.verify('config', main_conf_map)
     if len(msg) > 0:
         # the error message is printed in verifier
-        return msg
+        debug = 'debug' in kwargs and kwargs['debug']
+        if not debug:
+            return msg
 
     if not os.path.isfile(experiment_dir + '/conf/config_instr'):
         print('configuration file', experiment_dir + '/conf/config_instr', 'does not exist')
@@ -374,7 +376,9 @@ def handle_visualization(experiment_dir, rec_id=None):
     msg = cohere.verify('config_instr', instr_conf_map)
     if len(msg) > 0:
         # the error message is printed in verifier
-        return msg
+        debug = 'debug' in kwargs and kwargs['debug']
+        if not debug:
+            return msg
 
     if 'multipeak' in main_conf_map and main_conf_map['multipeak']:
         mp.process_dir(experiment_dir + '/results_phasing')
@@ -474,8 +478,10 @@ def main(arg):
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_dir", help="experiment directory")
     parser.add_argument("--rec_id", help="alternate reconstruction id")
+    parser.add_argument("--debug", action="store_true",
+                        help="if True the vrifier has no effect on processing")
     args = parser.parse_args()
-    handle_visualization(args.experiment_dir, args.rec_id)
+    handle_visualization(args.experiment_dir, args.rec_id, debug=args.debug)
 
 
 if __name__ == "__main__":

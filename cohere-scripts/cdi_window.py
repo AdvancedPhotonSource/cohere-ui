@@ -18,6 +18,7 @@ __all__ = ['select_file',
 
 import sys
 import os
+import argparse
 import shutil
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
@@ -173,8 +174,9 @@ class cdi_gui(QWidget):
         self.separate_scan_ranges.stateChanged.connect(self.toggle_separate_scan_ranges)
 
 
-    def set_args(self, args):
+    def set_args(self, args, **kwargs):
         self.args = args
+        self.debug =  'debug' in kwargs and kwargs['debug']
 
 
     def run_everything(self):
@@ -410,6 +412,8 @@ class cdi_gui(QWidget):
         er_msg = cohere.verify('config', conf_map)
         if len(er_msg) > 0:
             msg_window(er_msg)
+            if self.debug:
+                ut.write_config(conf_map, self.experiment_dir + '/conf/config')
         else:
             ut.write_config(conf_map, self.experiment_dir + '/conf/config')
 
@@ -586,14 +590,14 @@ class Tabs(QTabWidget):
 
         # this line is passing all parameters from command line to prep script. 
         # if there are other parameters, one can add some code here
-        msg = prep.handle_prep(self.main_win.experiment_dir, self.main_win.args)
+        msg = prep.handle_prep(self.main_win.experiment_dir, debug=self.main_win.debug)
         if len(msg) > 0:
             msg_window(msg)
 
     def run_viz(self):
         import beamline_visualization as dp
 
-        msg = dp.handle_visualization(self.main_win.experiment_dir)
+        msg = dp.handle_visualization(self.main_win.experiment_dir, debug=self.main_win.debug)
         if len(msg) > 0:
             msg_window(msg)
 
@@ -879,9 +883,10 @@ class DataTab(QWidget):
                 er_msg = cohere.verify('config_data', conf_map)
                 if len(er_msg) > 0:
                     msg_window(er_msg)
-                    return
+                    if not self.main_win.debug:
+                        return
                 ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_data')
-                run_dt.format_data(self.main_win.experiment_dir)
+                run_dt.format_data(self.main_win.experiment_dir, debug=self.main_win.debug)
             else:
                 msg_window('Please, run data preparation in previous tab to activate this function')
 
@@ -899,7 +904,8 @@ class DataTab(QWidget):
             er_msg = cohere.verify('config_data', conf_map)
             if len(er_msg) > 0:
                 msg_window(er_msg)
-                return
+                if not self.main_win.debug:
+                    return
             ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_data')
 
 
@@ -1132,7 +1138,8 @@ class RecTab(QWidget):
         er_msg = cohere.verify('config_rec', conf_map)
         if len(er_msg) > 0:
             msg_window(er_msg)
-            return
+            if not self.main_win.debug:
+             return
         if len(conf_map) > 0:
             ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_rec')
 
@@ -1308,9 +1315,10 @@ class RecTab(QWidget):
                 er_msg = cohere.verify('config_rec', conf_map)
                 if len(er_msg) > 0:
                     msg_window(er_msg)
-                    return
+                    if not self.main_win.debug:
+                        return
                 ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/' + conf_file)
-                run_rc.manage_reconstruction(self.main_win.experiment_dir, conf_id)
+                run_rc.manage_reconstruction(self.main_win.experiment_dir, config_id=conf_id, debug=self.main_win.debug)
                 self.notify()
             else:
                 msg_window('Please, run format data in previous tab to activate this function')
@@ -2493,9 +2501,13 @@ def main(args):
     """
     Starts GUI application.
     """
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--debug", action="store_true",
+                        help="if True the vrifier has no effect on processing")
+    kwargs = parser.parse_args()
     app = QApplication(args)
     ex = cdi_gui()
-    ex.set_args(args)
+    ex.set_args(args, debug=kwargs.debug)
     ex.show()
     sys.exit(app.exec_())
 
