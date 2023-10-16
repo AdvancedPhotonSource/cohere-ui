@@ -124,7 +124,7 @@ def get_gpu_use(devices, no_dir, no_rec, data_shape, pc_in_use, ga_method):
     return gpu_use
 
 
-def manage_reconstruction(experiment_dir, rec_id=None):
+def manage_reconstruction(experiment_dir, **kwargs):
     """
     This function starts the interruption discovery process and continues the recontruction processing.
     It reads configuration file defined as <experiment_dir>/conf/config_rec.
@@ -141,6 +141,11 @@ def manage_reconstruction(experiment_dir, rec_id=None):
     nothing
     """
     print('starting reconstruction')
+    if 'rec_id' in kwargs:
+        rec_id = kwargs['rec_id']
+    else:
+        rec_id = None
+
     experiment_dir = experiment_dir.replace(os.sep, '/')
     # the rec_id is a postfix added to config_rec configuration file. If defined, use this configuration.
     conf_dir = experiment_dir + '/conf'
@@ -161,7 +166,9 @@ def manage_reconstruction(experiment_dir, rec_id=None):
     er_msg = cohere.verify('config', main_config_map)
     if len(er_msg) > 0:
         # the error message is printed in verifier
-        return None
+        debug = 'debug' in kwargs and kwargs['debug']
+        if not debug:
+            return None
 
     if rec_id is None:
         conf_file = conf_dir + '/config_rec'
@@ -176,7 +183,9 @@ def manage_reconstruction(experiment_dir, rec_id=None):
     er_msg = cohere.verify('config_rec', rec_config_map)
     if len(er_msg) > 0:
         # the error message is printed in verifier
-        return None
+        debug = 'debug' in kwargs and kwargs['debug']
+        if not debug:
+            return None
 
     # find which library to run it on, default is numpy ('np')
     if 'processing' in rec_config_map:
@@ -350,13 +359,10 @@ def main(arg):
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_dir", help="experiment directory.")
     parser.add_argument("--rec_id", help="reconstruction id, a postfix to 'results_phasing_' directory")
+    parser.add_argument("--debug", action="store_true",
+                        help="if True the vrifier has no effect on processing")
     args = parser.parse_args()
-    experiment_dir = args.experiment_dir
-
-    if args.rec_id:
-        manage_reconstruction(experiment_dir, args.rec_id)
-    else:
-        manage_reconstruction(experiment_dir)
+    manage_reconstruction(args.experiment_dir, rec_id=args.rec_id, debug=args.debug)
 
 
 if __name__ == "__main__":
