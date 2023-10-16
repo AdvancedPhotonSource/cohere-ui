@@ -26,7 +26,7 @@ from multiprocessing import Pool, cpu_count
 import importlib
 import convertconfig as conv
 import cohere_core as cohere
-import util.util as ut
+import cohere_core.utilities as ut
 from tvtk.api import tvtk
 import multipeak as mp
 
@@ -106,7 +106,7 @@ class CXDViz:
 
         if coh is not None:
             coh = np.fft.fftshift(np.fft.fftn(np.fft.fftshift(coh)))
-            coh = ut.get_zero_padded_centered(coh, image.shape)
+            coh = ut.pad_center(coh, image.shape)
             arrays = {"cohAmp": np.abs(coh), "cohPh": np.angle(coh)}
             self.add_ds_arrays(arrays)
             self.write_directspace(save_dir + '/coherence')
@@ -309,7 +309,7 @@ def process_dir(instrument, config_map, rampups, crop, unwrap, make_twin, res_di
             print('cannot load file', cohfile)
 
     if support is not None:
-        image, support = ut.center(image, support)
+        image, support = ut.center_com_sync(image, support)
     if rampups > 1:
         image = ut.remove_ramp(image, ups=rampups)
 
@@ -321,7 +321,7 @@ def process_dir(instrument, config_map, rampups, crop, unwrap, make_twin, res_di
         image = np.conjugate(np.flip(image))
         if support is not None:
             support = np.flip(support)
-            image, support = ut.center(image, support)
+            image, support = ut.center_com_sync(image, support)
         if rampups > 1:
             image = ut.remove_ramp(image, ups=rampups)
         viz.visualize(image, support, coh, save_dir, unwrap, True)

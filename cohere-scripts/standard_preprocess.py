@@ -14,7 +14,7 @@ import argparse
 import os
 import convertconfig as conv
 import cohere_core as cohere
-import util.util as ut
+import cohere_core.utilities as ut
 
 
 __author__ = "Barbara Frosik"

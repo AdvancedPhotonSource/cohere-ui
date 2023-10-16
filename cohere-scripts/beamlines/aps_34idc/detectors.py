@@ -1,7 +1,8 @@
 import numpy as np
 import os
 import cohere_core as cohere
-import util.util as ut
+import cohere_core.utilities as ut
+
 
 class Detector(object):
     """

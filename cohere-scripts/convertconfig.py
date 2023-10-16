@@ -2,7 +2,8 @@ import sys
 import os
 import argparse
 import shutil
-import util.util as ut
+import cohere_core.utilities as ut
+
 
 # version must be increased after each modification of configuration file(s)
 version = 1

@@ -23,9 +23,12 @@ import os
 import re
 import sys
 import importlib
+import time
+
 import convertconfig as conv
 import cohere_core as cohere
 import cohere_core.utilities as ut
+import cohere_core.utilities.dvc_utils as dvut
 import numpy as np
 import cupy as cp
 import shutil
@@ -58,7 +61,7 @@ def prep_data(prep_obj, **kwargs):
     return ''
 
 
-def get_correlation_err(data_dir, refarr):
+def get_correlation_err(data_dir, refarr, refar_dir):
     """
     author: Paul Frosik
     It is assumed that the reference array and the array in data_dir are scans of the same experiment
@@ -70,19 +73,24 @@ def get_correlation_err(data_dir, refarr):
     :param refarr: ndarray
     :return: float
     """
+    # initialize the library to cupy if available, otherwise to numpy
+    try:
+        import cupy
+        devlib = importlib.import_module('cohere_core.lib.cplib').cplib
+    except:
+        devlib = importlib.import_module('cohere_core.lib.nplib').nplib
+    dvut.set_lib(devlib)
+
     i = 0
     err = 0
-    fft_refarr = cp.fft.fftn(refarr, norm='forward')
+    refarr = devlib.from_numpy(refarr)
     for scan_dir in os.listdir(data_dir):
-        if scan_dir.startswith('scan'):
+        if scan_dir.startswith('scan') and scan_dir != refar_dir:
             subdir = data_dir + '/' + scan_dir
             datafile = subdir + '/preprocessed_data/prep_data.tif'
-            arr = ut.read_tif(datafile)
-            # load on GPU
-            arr = cp.array(arr)
-            # align
-            aligned = cp.abs(ut.shift_to_ref_array_cp(fft_refarr, arr))
-            err = err + ut.pixel_shift_err(refarr, aligned)
+            arr = devlib.from_numpy(ut.read_tif(datafile))
+            aligned = devlib.absolute(dvut.align_arrays_pixel(refarr, arr))
+            err = err + dvut.correlation_err(refarr, aligned)
             i = i + 1
     return err / i
 
@@ -108,17 +116,17 @@ def find_outlier_scans(experiment_dir, main_conf_map):
             subdir = experiment_dir + '/' + scan_dir
             datafile = subdir + '/preprocessed_data/prep_data.tif'
             refarr = ut.read_tif(datafile)
-            # load on GPU
-            refarr = cp.array(refarr)
-            err_dir.append((get_correlation_err(experiment_dir, refarr), scan_dir))
+            err_dir.append((get_correlation_err(experiment_dir, refarr, scan_dir), scan_dir))
     err = [el[0].item() for el in err_dir]
+#    print('err', err)
     mean = np.average(err)
     stdev = np.std(err)
+#    print('mean, std', mean, stdev)
     for (err_value, dir) in err_dir:
         if err_value > (mean + stdev):
             scan_nr = re.findall(r'\d+', dir)
             outlier_scans.append(int(scan_nr[0]))
-    print('outliers scans', outlier_scans)
+#    print('outliers scans', outlier_scans)
 
     # read config_prep and add parameter outliers_scans with outliers
     # then change main config to set the separate scans to false
@@ -152,8 +160,6 @@ def handle_prep(experiment_dir, *args, **kwargs):
         # re-parse config
         main_conf_map = ut.read_config(main_conf_file)
 
-   # main_conf_map = get_config_map(experiment_dir)
-
     er_msg = cohere.verify('config', main_conf_map)
     if len(er_msg) > 0:
         # the error message is printed in verifier
@@ -162,9 +168,11 @@ def handle_prep(experiment_dir, *args, **kwargs):
     auto_data = 'auto_data' in main_conf_map and main_conf_map['auto_data'] == True
     # check main config if doing auto
     # if not auto run handle_prep_case
+    print ('auto data', auto_data)
     if not auto_data:
         return handle_prep_case(experiment_dir, main_conf_file, args, kwargs)
 
+    print('will run auto prep')
     from multiprocessing import Process
 
     # if auto, choose option to set separate scans in main config and use ut.write_config to save
@@ -196,6 +204,7 @@ def handle_prep_case(experiment_dir, main_conf_file, *args, **kwargs):
     experimnent_dir : str
         directory with experiment files
     """
+    sttm = time.time()
     main_conf_map = ut.read_config(main_conf_file)
     if 'beamline' in main_conf_map:
         beamline = main_conf_map['beamline']
@@ -240,7 +249,8 @@ def handle_prep_case(experiment_dir, main_conf_file, *args, **kwargs):
     if len(msg) > 0:
         print(msg)
         return msg
-
+    sptm = time.time()
+    print('preprocess time', sptm-sttm)
     print('finished beamline preprocessing')
     return ''
 

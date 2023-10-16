@@ -27,7 +27,7 @@ from multiprocessing import Process
 from prep_helper import Preparer, combine_scans, write_prep_arr
 from scipy.interpolate import RegularGridInterpolator as RGI
 from scipy.spatial.transform import Rotation as R
-import util.util as ut
+import cohere_core.utilities as ut
 from beamlines.aps_34idc import instrument as instr, diffractometers as diff, detectors as det
 
 

@@ -3,7 +3,8 @@ from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 import ast
 import cohere_core as cohere
-import util.util as ut
+import cohere_core.utilities as ut
+
 
 
 def msg_window(text):

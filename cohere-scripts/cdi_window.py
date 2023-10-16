@@ -26,7 +26,8 @@ import importlib
 import convertconfig as conv
 import ast
 import cohere_core as cohere
-import util.util as ut
+import cohere_core.utilities as ut
+
 
 
 def select_file(start_dir):

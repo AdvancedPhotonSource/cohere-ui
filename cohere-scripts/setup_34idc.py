@@ -22,7 +22,8 @@ import sys
 import os
 import shutil
 import glob
-import util.util as ut
+import cohere_core.utilities as ut
+
 
 
 ######################################################################

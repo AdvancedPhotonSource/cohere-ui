@@ -4,8 +4,10 @@ import re
 import glob
 import numpy as np
 from multiprocessing import Pool, Process
-import util.util as ut
+import cohere_core.utilities as ut
 from functools import partial
+import cohere_core.utilities.dvc_utils as dvut
+import importlib
 
 
 def write_prep_arr(arr, save_dir, filename):
@@ -32,9 +34,9 @@ def read_align(prep_obj, refarr, dir):
     """
     # read
     arr = prep_obj.read_scan(dir)
-    fft_refarr = np.fft.fftn(refarr)
     # align
-    return np.abs(ut.shift_to_ref_array(fft_refarr, arr))
+    aligned = dvut.align_arrays_pixel(refarr, arr)
+    return np.absolute(aligned)
 
 
 def combine_scans(prep_obj, dirs, inds):
@@ -45,6 +47,13 @@ def combine_scans(prep_obj, dirs, inds):
     refarr = prep_obj.read_scan(ref_dir)
     if refarr is None:
         return None
+
+    # It is faster to run concurrently on cpu than on gpu which needs uploading
+    # array on gpu memory. Setting library here before starting multiple processes
+    # so it's executed only once
+    devlib = importlib.import_module('cohere_core.lib.nplib').nplib
+    dvut.set_lib(devlib)
+
     arr_size = sys.getsizeof(refarr)
     nproc = min(len(dirs), ut.estimate_no_proc(arr_size, 15))
 
