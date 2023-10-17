@@ -308,8 +308,8 @@ def process_dir(instrument, config_map, rampups, crop, unwrap, make_twin, res_di
         except:
             print('cannot load file', cohfile)
 
-    if support is not None:
-        image, support = ut.center_com_sync(image, support)
+    # if support is not None:
+    #     image, support = ut.center_com_sync(image, support)
     if rampups > 1:
         image = ut.remove_ramp(image, ups=rampups)
 
