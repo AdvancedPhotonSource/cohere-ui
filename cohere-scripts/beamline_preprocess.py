@@ -108,7 +108,7 @@ def find_outlier_scans(experiment_dir, main_conf_map):
     :param main_conf_map: dict
     :return:
     """
-    print('finding outlier scans now')
+#    print('finding outlier scans now')
     err_dir = []
     outlier_scans = []
     for scan_dir in os.listdir(experiment_dir):
@@ -145,7 +145,6 @@ def find_outlier_scans(experiment_dir, main_conf_map):
 
 
 def handle_prep(experiment_dir, **kwargs):
-    print('preparing data')
     experiment_dir = experiment_dir.replace(os.sep, '/')
     # check configuration
     main_conf_file = experiment_dir + '/conf/config'
@@ -170,18 +169,16 @@ def handle_prep(experiment_dir, **kwargs):
     auto_data = 'auto_data' in main_conf_map and main_conf_map['auto_data'] == True
     # check main config if doing auto
     # if not auto run handle_prep_case
-    print ('auto data', auto_data)
     if not auto_data:
         return handle_prep_case(experiment_dir, main_conf_file, **kwargs)
 
-    print('will run auto prep')
     from multiprocessing import Process
 
     # if auto, choose option to set separate scans in main config and use ut.write_config to save
     # run handle_prep to create scans subdirectories
     main_conf_map['separate_scans'] = True
     ut.write_config(main_conf_map, main_conf_file)
-    handle_prep_case(experiment_dir, main_conf_file, args, kwargs)
+    handle_prep_case(experiment_dir, main_conf_file, **kwargs)
 
     # find outliers scans by finding correlation error between each two scans after aligning them
     # and finding scans with biggest summed error
@@ -206,7 +203,7 @@ def handle_prep_case(experiment_dir, main_conf_file, **kwargs):
     experimnent_dir : str
         directory with experiment files
     """
-    sttm = time.time()
+    print('preparing data')
     main_conf_map = ut.read_config(main_conf_file)
     if 'beamline' in main_conf_map:
         beamline = main_conf_map['beamline']
@@ -253,8 +250,6 @@ def handle_prep_case(experiment_dir, main_conf_file, **kwargs):
     if len(msg) > 0:
         print(msg)
         return msg
-    sptm = time.time()
-    print('preprocess time', sptm-sttm)
     print('finished beamline preprocessing')
     return ''
 
