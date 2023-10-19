@@ -285,12 +285,6 @@ def process_dir(instrument, config_map, rampups, crop, unwrap, make_twin, res_di
         print('cannot load file', imagefile)
         return
 
-    # get geometry
-    instrument.initialize(config_map, scan)
-    geometry = instrument.get_geometry(image.shape)
-    support = None
-    coh = None
-
     supportfile = res_dir + '/support.npy'
     if os.path.isfile(supportfile):
         try:
@@ -301,6 +295,12 @@ def process_dir(instrument, config_map, rampups, crop, unwrap, make_twin, res_di
     else:
         print('support file is missing in ' + res_dir + ' directory')
 
+    # get geometry
+    instrument.initialize(config_map, scan)
+    geometry = instrument.get_geometry(image.shape)
+    support = None
+    coh = None
+
     cohfile = res_dir + '/coherence.npy'
     if os.path.isfile(cohfile):
         try:
@@ -308,10 +308,13 @@ def process_dir(instrument, config_map, rampups, crop, unwrap, make_twin, res_di
         except:
             print('cannot load file', cohfile)
 
-    # if support is not None:
-    #     image, support = ut.center_com_sync(image, support)
     if rampups > 1:
-        image = ut.remove_ramp(image, ups=rampups)
+        import importlib
+        import cohere_core.utilities.dvc_utils as dvut
+
+        devlib = importlib.import_module('cohere_core.lib.nplib').nplib
+        dvut.set_lib(devlib)
+        image = dvut.remove_ramp(image, ups=rampups)
 
     crop = crop + [1.0] * (len(image.shape) - len(crop))
     viz = CXDViz(crop, geometry)
@@ -321,9 +324,6 @@ def process_dir(instrument, config_map, rampups, crop, unwrap, make_twin, res_di
         image = np.conjugate(np.flip(image))
         if support is not None:
             support = np.flip(support)
-            image, support = ut.center_com_sync(image, support)
-        if rampups > 1:
-            image = ut.remove_ramp(image, ups=rampups)
         viz.visualize(image, support, coh, save_dir, unwrap, True)
 
 
