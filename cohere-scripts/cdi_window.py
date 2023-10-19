@@ -18,6 +18,7 @@ __all__ = ['select_file',
 
 import sys
 import os
+import argparse
 import shutil
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
@@ -26,7 +27,8 @@ import importlib
 import convertconfig as conv
 import ast
 import cohere_core as cohere
-import util.util as ut
+import cohere_core.utilities as ut
+
 
 
 def select_file(start_dir):
@@ -125,6 +127,9 @@ class cdi_gui(QWidget):
         self.beamline_widget = QLineEdit()
         ruplayout.addRow("beamline", self.beamline_widget)
         scan_layout = QHBoxLayout()
+        self.auto_data = QCheckBox('auto data')
+        self.auto_data.setChecked(False)
+        scan_layout.addWidget(self.auto_data)
         self.separate_scans = QCheckBox('separate scans')
         self.separate_scans.setChecked(False)
         scan_layout.addWidget(self.separate_scans)
@@ -165,12 +170,14 @@ class cdi_gui(QWidget):
         self.run_button.clicked.connect(self.run_everything)
         self.create_exp_button.clicked.connect(self.set_experiment)
         self.multipeak.stateChanged.connect(self.toggle_multipeak)
+        self.auto_data.stateChanged.connect(self.toggle_auto_data)
         self.separate_scans.stateChanged.connect(self.toggle_separate_scans)
         self.separate_scan_ranges.stateChanged.connect(self.toggle_separate_scan_ranges)
 
 
-    def set_args(self, args):
+    def set_args(self, args, **kwargs):
         self.args = args
+        self.debug =  'debug' in kwargs and kwargs['debug']
 
 
     def run_everything(self):
@@ -199,6 +206,7 @@ class cdi_gui(QWidget):
         self.Id_widget.setText('')
         self.scan_widget.setText('')
         self.beamline_widget.setText('')
+        self.auto_data.setChecked(False)
         self.separate_scans.setChecked(False)
         self.separate_scan_ranges.setChecked(False)
         self.multipeak.setChecked(False)
@@ -356,6 +364,8 @@ class cdi_gui(QWidget):
             self.scan_widget.setText(conf_map['scan'].replace(' ',''))
         if 'beamline' in conf_map:
             self.beamline_widget.setText(conf_map['beamline'])
+        if 'auto_data' in conf_map and conf_map['auto_data']:
+            self.auto_data.setChecked(True)
         if 'separate_scans' in conf_map and conf_map['separate_scans']:
             self.separate_scans.setChecked(True)
         if 'separate_scan_ranges' in conf_map and conf_map['separate_scan_ranges']:
@@ -393,6 +403,8 @@ class cdi_gui(QWidget):
             conf_map['beamline'] = self.beamline
         if self.multipeak.isChecked():
             conf_map['multipeak'] = True
+        if self.auto_data.isChecked():
+            conf_map['auto_data'] = True
         if self.separate_scans.isChecked():
             conf_map['separate_scans'] = True
         if self.separate_scan_ranges.isChecked():
@@ -401,6 +413,8 @@ class cdi_gui(QWidget):
         er_msg = cohere.verify('config', conf_map)
         if len(er_msg) > 0:
             msg_window(er_msg)
+            if self.debug:
+                ut.write_config(conf_map, self.experiment_dir + '/conf/config')
         else:
             ut.write_config(conf_map, self.experiment_dir + '/conf/config')
 
@@ -473,6 +487,10 @@ class cdi_gui(QWidget):
             self.save_main()
         if not self.t is None:
             self.t.toggle_checked(self.multipeak.isChecked(), True)
+
+    def toggle_auto_data(self):
+        if self.is_exp_set():
+            self.save_main()
 
     def toggle_separate_scans(self):
         if self.is_exp_set():
@@ -573,14 +591,14 @@ class Tabs(QTabWidget):
 
         # this line is passing all parameters from command line to prep script. 
         # if there are other parameters, one can add some code here
-        msg = prep.handle_prep(self.main_win.experiment_dir, self.main_win.args)
+        msg = prep.handle_prep(self.main_win.experiment_dir, debug=self.main_win.debug)
         if len(msg) > 0:
             msg_window(msg)
 
     def run_viz(self):
         import beamline_visualization as dp
 
-        msg = dp.handle_visualization(self.main_win.experiment_dir)
+        msg = dp.handle_visualization(self.main_win.experiment_dir, debug=self.main_win.debug)
         if len(msg) > 0:
             msg_window(msg)
 
@@ -866,11 +884,18 @@ class DataTab(QWidget):
                 er_msg = cohere.verify('config_data', conf_map)
                 if len(er_msg) > 0:
                     msg_window(er_msg)
-                    return
+                    if not self.main_win.debug:
+                        return
                 ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_data')
-                run_dt.format_data(self.main_win.experiment_dir)
+                run_dt.format_data(self.main_win.experiment_dir, debug=self.main_win.debug)
             else:
                 msg_window('Please, run data preparation in previous tab to activate this function')
+
+        # reload the window if auto_data as the intensity_threshold and binning could change
+        main_conf_map = ut.read_config(self.main_win.experiment_dir + '/conf/config')
+        if 'auto_data' in main_conf_map and main_conf_map['auto_data']:
+            data_map = ut.read_config(self.main_win.experiment_dir + '/conf/config_data')
+            self.load_tab(data_map)
 
 
     def save_conf(self):
@@ -880,7 +905,8 @@ class DataTab(QWidget):
             er_msg = cohere.verify('config_data', conf_map)
             if len(er_msg) > 0:
                 msg_window(er_msg)
-                return
+                if not self.main_win.debug:
+                    return
             ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_data')
 
 
@@ -1113,7 +1139,8 @@ class RecTab(QWidget):
         er_msg = cohere.verify('config_rec', conf_map)
         if len(er_msg) > 0:
             msg_window(er_msg)
-            return
+            if not self.main_win.debug:
+             return
         if len(conf_map) > 0:
             ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_rec')
 
@@ -1289,9 +1316,10 @@ class RecTab(QWidget):
                 er_msg = cohere.verify('config_rec', conf_map)
                 if len(er_msg) > 0:
                     msg_window(er_msg)
-                    return
+                    if not self.main_win.debug:
+                        return
                 ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/' + conf_file)
-                run_rc.manage_reconstruction(self.main_win.experiment_dir, conf_id)
+                run_rc.manage_reconstruction(self.main_win.experiment_dir, config_id=conf_id, debug=self.main_win.debug)
                 self.notify()
             else:
                 msg_window('Please, run format data in previous tab to activate this function')
@@ -2474,9 +2502,13 @@ def main(args):
     """
     Starts GUI application.
     """
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--debug", action="store_true",
+                        help="if True the vrifier has no effect on processing")
+    kwargs = parser.parse_args()
     app = QApplication(args)
     ex = cdi_gui()
-    ex.set_args(args)
+    ex.set_args(args, debug=kwargs.debug)
     ex.show()
     sys.exit(app.exec_())
 

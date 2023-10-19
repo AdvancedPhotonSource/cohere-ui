@@ -26,7 +26,7 @@ from multiprocessing import Pool, cpu_count
 import importlib
 import convertconfig as conv
 import cohere_core as cohere
-import util.util as ut
+import cohere_core.utilities as ut
 from tvtk.api import tvtk
 import multipeak as mp
 
@@ -106,14 +106,14 @@ class CXDViz:
 
         if coh is not None:
             coh = np.fft.fftshift(np.fft.fftn(np.fft.fftshift(coh)))
-            coh = ut.get_zero_padded_centered(coh, image.shape)
+            coh = ut.pad_center(coh, image.shape)
             arrays = {"cohAmp": np.abs(coh), "cohPh": np.angle(coh)}
             self.add_ds_arrays(arrays)
             self.write_directspace(save_dir + '/coherence')
             self.clear_direct_arrays()
 
 
-    def update_dirspace(self, shape):
+    def update_dirspace(self, shape, orig_shape):
         """
         Updates direct space grid.
         Parameters
@@ -125,9 +125,9 @@ class CXDViz:
         nothing
         """
         dims = list(shape)
-        self.dxdir = 1.0 / shape[0]
-        self.dydir = 1.0 / shape[1]
-        self.dzdir = 1.0 / shape[2]
+        self.dxdir = 1.0 / orig_shape[0]
+        self.dydir = 1.0 / orig_shape[1]
+        self.dzdir = 1.0 / orig_shape[2]
 
         r = np.mgrid[
             0:dims[0] * self.dxdir:self.dxdir, \
@@ -179,7 +179,7 @@ class CXDViz:
         for name in named_arrays.keys():
             self.dir_arrs[name] = named_arrays[name][x1:x2, y1:y2, z1:z2]
         if (not self.dirspace_uptodate):
-            self.update_dirspace((x2 - x1, y2 - y1, z2 - z1))
+            self.update_dirspace((x2 - x1, y2 - y1, z2 - z1), shape)
 
 
     def are_same_shapes(self, arrays, shape):
@@ -285,12 +285,6 @@ def process_dir(instrument, config_map, rampups, crop, unwrap, make_twin, res_di
         print('cannot load file', imagefile)
         return
 
-    # get geometry
-    instrument.initialize(config_map, scan)
-    geometry = instrument.get_geometry(image.shape)
-    support = None
-    coh = None
-
     supportfile = res_dir + '/support.npy'
     if os.path.isfile(supportfile):
         try:
@@ -301,6 +295,12 @@ def process_dir(instrument, config_map, rampups, crop, unwrap, make_twin, res_di
     else:
         print('support file is missing in ' + res_dir + ' directory')
 
+    # get geometry
+    instrument.initialize(config_map, scan)
+    geometry = instrument.get_geometry(image.shape)
+    support = None
+    coh = None
+
     cohfile = res_dir + '/coherence.npy'
     if os.path.isfile(cohfile):
         try:
@@ -308,10 +308,13 @@ def process_dir(instrument, config_map, rampups, crop, unwrap, make_twin, res_di
         except:
             print('cannot load file', cohfile)
 
-    if support is not None:
-        image, support = ut.center(image, support)
     if rampups > 1:
-        image = ut.remove_ramp(image, ups=rampups)
+        import importlib
+        import cohere_core.utilities.dvc_utils as dvut
+
+        devlib = importlib.import_module('cohere_core.lib.nplib').nplib
+        dvut.set_lib(devlib)
+        image = dvut.remove_ramp(image, ups=rampups)
 
     crop = crop + [1.0] * (len(image.shape) - len(crop))
     viz = CXDViz(crop, geometry)
@@ -321,13 +324,10 @@ def process_dir(instrument, config_map, rampups, crop, unwrap, make_twin, res_di
         image = np.conjugate(np.flip(image))
         if support is not None:
             support = np.flip(support)
-            image, support = ut.center(image, support)
-        if rampups > 1:
-            image = ut.remove_ramp(image, ups=rampups)
         viz.visualize(image, support, coh, save_dir, unwrap, True)
 
 
-def handle_visualization(experiment_dir, rec_id=None):
+def handle_visualization(experiment_dir, rec_id=None, **kwargs):
     """
     If the image_file parameter is defined, the file is processed and vts file saved. Otherwise this function determines root directory with results that should be processed for visualization. Multiple images will be processed concurrently.
     Parameters
@@ -363,7 +363,9 @@ def handle_visualization(experiment_dir, rec_id=None):
     msg = cohere.verify('config', main_conf_map)
     if len(msg) > 0:
         # the error message is printed in verifier
-        return msg
+        debug = 'debug' in kwargs and kwargs['debug']
+        if not debug:
+            return msg
 
     if not os.path.isfile(experiment_dir + '/conf/config_instr'):
         print('configuration file', experiment_dir + '/conf/config_instr', 'does not exist')
@@ -374,7 +376,9 @@ def handle_visualization(experiment_dir, rec_id=None):
     msg = cohere.verify('config_instr', instr_conf_map)
     if len(msg) > 0:
         # the error message is printed in verifier
-        return msg
+        debug = 'debug' in kwargs and kwargs['debug']
+        if not debug:
+            return msg
 
     if 'multipeak' in main_conf_map and main_conf_map['multipeak']:
         mp.process_dir(experiment_dir, make_twin=True)
@@ -474,8 +478,10 @@ def main(arg):
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_dir", help="experiment directory")
     parser.add_argument("--rec_id", help="alternate reconstruction id")
+    parser.add_argument("--debug", action="store_true",
+                        help="if True the vrifier has no effect on processing")
     args = parser.parse_args()
-    handle_visualization(args.experiment_dir, args.rec_id)
+    handle_visualization(args.experiment_dir, args.rec_id, debug=args.debug)
 
 
 if __name__ == "__main__":

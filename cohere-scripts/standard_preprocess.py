@@ -14,7 +14,7 @@ import argparse
 import os
 import convertconfig as conv
 import cohere_core as cohere
-import util.util as ut
+import cohere_core.utilities as ut
 
 
 __author__ = "Barbara Frosik"
@@ -24,7 +24,7 @@ __all__ = ['format_data',
            'main']
 
 
-def format_data(experiment_dir):
+def format_data(experiment_dir, **kwargs):
     """
     For each prepared data in an experiment directory structure formats the data according to configured parameters and saves in the experiment space.
 
@@ -48,6 +48,7 @@ def format_data(experiment_dir):
     else:
         print("info: missing " + main_conf + " configuration file")
         return None
+    auto_data = 'auto_data' in config_map and config_map['auto_data']
 
     if 'converter_ver' not in config_map or conv.get_version() is None or conv.get_version() < config_map['converter_ver']:
         conv.convert(experiment_dir + '/conf')
@@ -57,7 +58,9 @@ def format_data(experiment_dir):
     er_msg = cohere.verify('config', config_map)
     if len(er_msg) > 0:
         # the error message is printed in verifier
-        return None
+        debug = 'debug' in kwargs and kwargs['debug']
+        if not debug:
+            return None
 
     # read the config_data
     data_conf = experiment_dir + "/conf/config_data"
@@ -69,10 +72,15 @@ def format_data(experiment_dir):
     else:
         print("info: missing " + data_conf + " configuration file")
         return None
+    debug = 'debug' in kwargs and kwargs['debug']
     er_msg = cohere.verify('config_data', config_map)
     if len(er_msg) > 0:
         # the error message is printed in verifier
-        return None
+        if not debug:
+            return None
+
+    if debug:
+        config_map['debug'] = True
 
     print('formating data')
     prep_dir = experiment_dir + '/preprocessed_data'
@@ -84,7 +92,8 @@ def format_data(experiment_dir):
             config_map['data_dir'] = data_dir
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
-        cohere.prep(prep_dir, **config_map)
+
+        conf_data_map = cohere.prep(prep_file, auto_data, **config_map)
 
     dirs = os.listdir(experiment_dir)
     for dir in dirs:
@@ -96,14 +105,20 @@ def format_data(experiment_dir):
             config_map['data_dir'] = data_dir
             if not os.path.exists(data_dir):
                 os.makedirs(data_dir)
-            cohere.prep(prep_dir, **config_map)
+
+            conf_data_map = cohere.prep(prep_file, auto_data, **config_map)
+            
+    if auto_data:
+        ut.write_config(conf_data_map, data_conf)
 
 
 def main(arg):
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_dir", help="experiment directory")
+    parser.add_argument("--debug", action="store_true",
+                        help="if True the vrifier has no effect on processing")
     args = parser.parse_args()
-    format_data(args.experiment_dir)
+    format_data(args.experiment_dir, debug=args.debug)
 
 
 if __name__ == "__main__":

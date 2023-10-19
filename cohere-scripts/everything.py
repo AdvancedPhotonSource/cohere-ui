@@ -42,23 +42,21 @@ def run_all(experiment_dir, **kwargs):
     nothing
     """
     experiment_dir = experiment_dir.replace(os.sep, '/')
-    prep.handle_prep(experiment_dir)
-    dt.format_data(experiment_dir)
-    if 'rec_id' in kwargs:
-        rec.manage_reconstruction(experiment_dir, kwargs['rec_id'])
-        dsp.handle_visualization(experiment_dir, kwargs['rec_id'])
-    else:
-        rec.manage_reconstruction(experiment_dir)
-        dsp.handle_visualization(experiment_dir)
+    prep.handle_prep(experiment_dir, **kwargs)
+    dt.format_data(experiment_dir, **kwargs)
+    rec.manage_reconstruction(experiment_dir, **kwargs)
+    dsp.handle_visualization(experiment_dir, **kwargs)
+
 
 def main(arg):
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_dir", help="experiment directory")
     parser.add_argument("--rec_id", help="reconstruction id, a prefix to '_results' directory")
+    parser.add_argument("--debug", action="store_true",
+                        help="if True the vrifier has no effect on processing")
 
     args = parser.parse_args()
-    experiment_dir = args.experiment_dir
-    run_all(experiment_dir, rec_id=args.rec_id)
+    run_all(args.experiment_dir, rec_id=args.rec_id, debug=args.debug)
 
 
 if __name__ == "__main__":

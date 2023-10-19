@@ -37,6 +37,10 @@ multipeak = False
                                             // True if running multipeak experiment.
                                             // This requires config_mp file in conf directory
 
+auto_data = False
+                                            // for removal of outlier scans in large data sets,
+                                            // and determining threshold value
+
 converter_ver = 1
                                             // optional, coverter version, if current, the configuration files won't be
                                             // converted
