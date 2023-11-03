@@ -86,7 +86,7 @@ def get_correlation_err(experiment_dir, scans, scan):
     refarr = ut.read_tif(experiment_dir + '/scan_' + str(scan) + '/preprocessed_data/prep_data.tif')
     err = 0
     refarr = devlib.from_numpy(refarr)
-    print('ref arr shape', refarr.shape)
+
     for s in scans:
        if s != scan:
             datafile = experiment_dir + '/scan_' + str(s) + '/preprocessed_data/prep_data.tif'
@@ -135,15 +135,15 @@ def find_outliers_in_batch(experiment_dir, scans, q, no_processes):
             err_scan.append(get_correlation_err(experiment_dir, scans, scan))
 
     err = [el[0].item() for el in err_scan]
-    print('err', err)
+    # print('err', err)
     err_mean = mean(err)
     stdev = pstdev(err)
-    print('mean, std', mean, stdev)
+    # print('mean, std', mean, stdev)
     for (err_value, scan) in err_scan:
-        print(err_value, scan)
+       # print(err_value, scan)
         if err_value > (err_mean + stdev):
             outlier_scans.append(scan)
-    print('outliers scans', outlier_scans)
+    # print('outliers scans', outlier_scans)
     q.put(outlier_scans)
 
 
@@ -202,7 +202,6 @@ def find_outlier_scans(experiment_dir, prep_obj):
             p = Process(target=find_outliers_in_batch, args=(experiment_dir, batch[1], q, no_concurrent))
             processes.append(p)
             p.start()
-        print('no processes', len(processes))
         i = len(processes)
         while i > 0:
             outliers.extend(q.get())
@@ -349,7 +348,7 @@ def handle_prep(experiment_dir, **kwargs):
         srt = time.time()
         outliers_scans = find_outlier_scans(experiment_dir, prep_obj)
         spt = time.time()
-        print('time to find outliers', spt-srt)
+       # print('time to find outliers', spt-srt)
         if len(outliers_scans) > 0:
             prep_obj.outliers_scans = outliers_scans
             # save configuration with the auto found outliers

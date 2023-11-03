@@ -51,6 +51,8 @@ def read_scan_save(prep_obj, read_dir_write_dir):
 
 
 def process_separate_scans(prep_obj, dirs, scans, dir):
+    if len(scans) == 0:
+        return
     nproc = min(len(dirs), os.cpu_count() * 2)
     poollist = [(dirs[i], dir + '/scan_' + str(scans[i]) + '/preprocessed_data/') for i in range(len(dirs))]
     func = partial(read_scan_save, prep_obj)
