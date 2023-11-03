@@ -285,6 +285,10 @@ def process_dir(instrument, config_map, rampups, crop, unwrap, make_twin, res_di
         print('cannot load file', imagefile)
         return
 
+    # init support and coh, will be overridden if not None
+    support = None
+    coh = None
+
     supportfile = res_dir + '/support.npy'
     if os.path.isfile(supportfile):
         try:
@@ -298,8 +302,6 @@ def process_dir(instrument, config_map, rampups, crop, unwrap, make_twin, res_di
     # get geometry
     instrument.initialize(config_map, scan)
     geometry = instrument.get_geometry(image.shape)
-    support = None
-    coh = None
 
     cohfile = res_dir + '/coherence.npy'
     if os.path.isfile(cohfile):

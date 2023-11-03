@@ -1,6 +1,7 @@
 import os
 import re
 import numpy as np
+import glob
 import beamlines.aps_34idc.detectors as det
 from xrayutilities.io import spec as spec
 
@@ -163,3 +164,47 @@ class BeamPrepData():
             slice = self.det_obj.get_frame(file, self.roi, self.Imult)
             arr[:, :, n] = slice
         return arr
+
+
+    def add_scan(self, scan_no, subdir, unit_dirs_scan_indexes):
+        i = 0
+        while scan_no > self.scan_ranges[i][1]:
+            i += 1
+            if i == len(self.scan_ranges):
+                return
+
+        if scan_no >= self.scan_ranges[i][0]:
+            # add the scan
+            if i not in unit_dirs_scan_indexes.keys():
+                unit_dirs_scan_indexes[i] = [[], []]
+            unit_dirs_scan_indexes[i][0].append(subdir)
+            unit_dirs_scan_indexes[i][1].append(scan_no)
+
+
+    def get_batches(self):
+        data_dir = self.data_dir
+        unit_dirs_scan_indexes = {}
+        for scan_dir in os.listdir(data_dir):
+            subdir = data_dir + '/' + scan_dir
+            if os.path.isdir(subdir):
+                # exclude directories with fewer tif files than min_files
+                if len(glob.glob1(subdir, "*.tif")) < self.min_files and len(
+                        glob.glob1(subdir, "*.tiff")) < self.min_files:
+                    continue
+                last_digits = re.search(r'\d+$', scan_dir)
+                if last_digits is not None:
+                    scan = int(last_digits.group())
+                    # skip scans outside ranges
+                    if scan < self.scan_ranges[0][0]:
+                        continue
+                    if scan > self.scan_ranges[-1][-1]:
+                        continue
+                    if scan in self.exclude_scans:
+                        continue
+                    if self.auto_data and not self.separate_scans and scan in self.outliers_scans:
+                        continue
+
+                    self.add_scan(scan, subdir, unit_dirs_scan_indexes)
+
+        return list(unit_dirs_scan_indexes.values())
+

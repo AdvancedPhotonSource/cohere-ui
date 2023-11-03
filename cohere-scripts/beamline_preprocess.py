@@ -20,20 +20,29 @@ __all__ = ['handle_prep',
 
 import argparse
 import os
-import re
 import sys
 import importlib
 import time
-
 import convertconfig as conv
 import cohere_core as cohere
 import cohere_core.utilities as ut
 import cohere_core.utilities.dvc_utils as dvut
-import numpy as np
-import cupy as cp
 import shutil
+import numpy as np
+from multiprocessing import Queue, Process, Pool
+from functools import partial
 from multipeak import MultPeakPreparer
-from prep_helper import SepPreparer, SinglePreparer
+from prep_helper import SepPreparer, SinglePreparer, process_separate_scans
+
+
+def set_lib(lib):
+    # initialize the library to cupy if available, otherwise to numpy
+    global devlib
+    if lib == 'cp':
+        devlib = importlib.import_module('cohere_core.lib.cplib').cplib
+    else:
+        devlib = importlib.import_module('cohere_core.lib.nplib').nplib
+    dvut.set_lib(devlib)
 
 
 def prep_data(prep_obj, **kwargs):
@@ -46,7 +55,7 @@ def prep_data(prep_obj, **kwargs):
     -------
     nothingcreated mp
     """
-    if hasattr(prep_obj, 'multipeak') and prep_obj.multipeak:
+    if prep_obj.multipeak:
         preparer = MultPeakPreparer(prep_obj)
     elif prep_obj.separate_scan_ranges or prep_obj.separate_scans:
         preparer = SepPreparer(prep_obj)
@@ -61,7 +70,7 @@ def prep_data(prep_obj, **kwargs):
     return ''
 
 
-def get_correlation_err(data_dir, refarr, refar_dir):
+def get_correlation_err(experiment_dir, scans, scan):
     """
     author: Paul Frosik
     It is assumed that the reference array and the array in data_dir are scans of the same experiment
@@ -69,82 +78,205 @@ def get_correlation_err(data_dir, refarr, refar_dir):
     The error finding method is based on "Invariant error metrics for image reconstruction"
     by J. R. Fienup.
 
-    :param data_dir: str
-    :param refarr: ndarray
+    :param experiment_dir: str
+    :param scans: list
+    :param scan: int
     :return: float
     """
-    # initialize the library to cupy if available, otherwise to numpy
-    try:
-        import cupy
-        devlib = importlib.import_module('cohere_core.lib.cplib').cplib
-    except:
-        devlib = importlib.import_module('cohere_core.lib.nplib').nplib
-    dvut.set_lib(devlib)
-
-    i = 0
+    refarr = ut.read_tif(experiment_dir + '/scan_' + str(scan) + '/preprocessed_data/prep_data.tif')
     err = 0
     refarr = devlib.from_numpy(refarr)
-    for scan_dir in os.listdir(data_dir):
-        if scan_dir.startswith('scan') and scan_dir != refar_dir:
-            subdir = data_dir + '/' + scan_dir
-            datafile = subdir + '/preprocessed_data/prep_data.tif'
+    print('ref arr shape', refarr.shape)
+    for s in scans:
+       if s != scan:
+            datafile = experiment_dir + '/scan_' + str(s) + '/preprocessed_data/prep_data.tif'
             arr = devlib.from_numpy(ut.read_tif(datafile))
-            aligned = devlib.absolute(dvut.align_arrays_pixel(refarr, arr))
-            err = err + dvut.correlation_err(refarr, aligned)
-            i = i + 1
-    return err / i
+            #aligned = devlib.absolute(dvut.align_arrays_pixel(refarr, arr))
+            # correlation error for the array and aligned array with refarr is the same
+            # so no need to align
+            e = dvut.correlation_err(refarr, arr)
+            err += e
+    return (err / (len(scans) - 1), scan)
 
 
-def find_outlier_scans(experiment_dir, main_conf_map):
+def find_outliers_in_batch(experiment_dir, scans, q, no_processes):
     """
     Author: Paul Frosik
     Added for auto-data. This function is called after experiment data has been read for
-    separate_scans. Each scan is aligned with other scans and correlation error is calculated
-    for each pair. The errors are summed for each scan. Summed errors are averaged, and standard
-    deviation is found. The scans that summed error exceeds standard deviation are considered
-    outliers, and they are not counted in the data set.
+    each scan that is part of batch, i.e. scans that are being added. Each scan is aligned with other
+    scans and correlation error is calculated for each pair. The errors are summed for each scan.
+    Summed errors are averaged, and standard deviation is found. The scans that summed error exceeds
+    standard deviation are considered outliers that are returned in a list. The outliers scans are not
+    included in the data set.
 
     :param experiment_dir: str
-    :param main_conf_map: dict
+    :param scans: list
+    :param q: Queue
+    :param no_processes: int
     :return:
     """
-#    print('finding outlier scans now')
-    err_dir = []
+    from statistics import mean, pstdev
+
+    err_scan = []
     outlier_scans = []
-    for scan_dir in os.listdir(experiment_dir):
-        if scan_dir.startswith('scan'):
-            subdir = experiment_dir + '/' + scan_dir
-            datafile = subdir + '/preprocessed_data/prep_data.tif'
-            refarr = ut.read_tif(datafile)
-            err_dir.append((get_correlation_err(experiment_dir, refarr, scan_dir), scan_dir))
-    err = [el[0].item() for el in err_dir]
-#    print('err', err)
-    mean = np.average(err)
-    stdev = np.std(err)
-#    print('mean, std', mean, stdev)
-    for (err_value, dir) in err_dir:
-        if err_value > (mean + stdev):
-            scan_nr = re.findall(r'\d+', dir)
-            outlier_scans.append(int(scan_nr[0]))
-#    print('outliers scans', outlier_scans)
 
-    # read config_prep and add parameter outliers_scans with outliers
-    # then change main config to set the separate scans to false
-    prep_conf_file = experiment_dir + '/conf/config_prep'
-    prep_conf_map = ut.read_config(prep_conf_file)
-    prep_conf_map['outliers_scans'] = outlier_scans
-    ut.write_config(prep_conf_map, prep_conf_file)
+    # if multiple processes can run concurrently use this code
+    if no_processes > 1:
+        func = partial(get_correlation_err, experiment_dir, scans)
+        with Pool(processes=no_processes) as pool:
+            res = pool.map_async(func, scans)
+            pool.close()
+            pool.join()
+        for r in res.get():
+            err_scan.append(r)
+    else:
+        # otherwise run it sequentially
+        for scan in scans:
+            err_scan.append(get_correlation_err(experiment_dir, scans, scan))
 
-    main_conf_map['separate_scans'] = False
-    ut.write_config(main_conf_map, experiment_dir + '/conf/config')
+    err = [el[0].item() for el in err_scan]
+    print('err', err)
+    err_mean = mean(err)
+    stdev = pstdev(err)
+    print('mean, std', mean, stdev)
+    for (err_value, scan) in err_scan:
+        print(err_value, scan)
+        if err_value > (err_mean + stdev):
+            outlier_scans.append(scan)
+    print('outliers scans', outlier_scans)
+    q.put(outlier_scans)
+
+
+def find_outlier_scans(experiment_dir, prep_obj):
+    print('finding outliers')
+    auto_batches = []
+    dirs = []
+    scans = []
+    batches = prep_obj.get_batches()
+    for batch in batches:
+        if len(batch[0]) > 3:
+            dirs += batch[0]
+            scans += batch[1]
+            if prep_obj.separate_scan_ranges:
+                auto_batches.append(batch)
+    if not prep_obj.separate_scan_ranges:
+        auto_batches.append([dirs, scans])
+
+    # save scans that are in auto_batches
+    process_separate_scans(prep_obj, dirs, scans, experiment_dir)
+
+    # this code determines which library to use and how many scans can be processed concurrently
+    try:
+        import cupy
+        lib = 'cp'
+        arr = ut.read_tif(experiment_dir + '/scan_' + str(scans[0]) + '/preprocessed_data/prep_data.tif')
+        data_size = arr.nbytes / 1000000.
+        mem_size = data_size * 67 + 84 # empirically found constants
+        # for now use the first GPU
+        # it will be revised after cluster availability is merged
+        avail_devs_dict = ut.get_avail_gpu_runs(mem_size, [0])
+        avail_devs = []
+        for k,v in avail_devs_dict.items():
+            avail_devs.extend([k] * v)
+        available_processes = len(avail_devs)
+    except:
+        lib = 'np'
+        available_processes = os.cpu_count() * 2
+    set_lib(lib)
+
+    # the available processes will be distributed among processes for each batch, i.e. scan range
+    no_concurrent = available_processes // len(auto_batches)
+        # in case when number of batches is greater than available processes
+        # the chunking will handle all batches
+
+    # find outliers in each batch
+    q = Queue()
+
+    outliers = []
+    chunk_size = available_processes
+    while auto_batches:
+        chunk, auto_batches = auto_batches[:chunk_size], auto_batches[chunk_size:]
+
+        processes = []
+        for batch in chunk:
+            p = Process(target=find_outliers_in_batch, args=(experiment_dir, batch[1], q, no_concurrent))
+            processes.append(p)
+            p.start()
+        print('no processes', len(processes))
+        i = len(processes)
+        while i > 0:
+            outliers.extend(q.get())
+            i -= 1
+
+        for p in processes:
+            p.join()
 
     # remove individual scan directories
     for scan_dir in os.listdir(experiment_dir):
         if scan_dir.startswith('scan'):
             shutil.rmtree(experiment_dir + '/' + scan_dir)
+    outliers.sort()
+    return outliers
+
+
+def auto_separate_scans(experiment_dir, prep_obj, no_auto_batches):
+    # this code determines which library to use and how many scans can be processed concurrently
+    try:
+        import cupy
+        lib = 'cp'
+        no_concurrent = 1
+    except:
+        lib = 'np'
+        # the available processes will be distributed among processes for each batch, i.e. scan range
+        no_concurrent = os.cpu_count() * 2 // no_auto_batches
+    set_lib(lib)
+
+    print('finding outliers')
+    dirs = []
+    scans = []
+    arrs = []
+    batches = prep_obj.get_batches()
+    for batch in batches:
+        dirs.extend(batch[0])
+        scans.extend(batch[1])
+    # for dir in dirs:
+    #     arr = devlib.from_numpy(prep_obj.read_scan(dir))
+    #     arrs.append(arr)
+    arr = devlib.from_numpy(prep_obj.read_scan(dirs[0]))
+    arrs.append((arr))
+    arr1 = devlib.from_numpy(prep_obj.read_scan(dirs[1]))
+    arrs.append((arr1))
+    # # save scans
+    # process_separate_scans(prep_obj, dirs, scans, experiment_dir)
+    print(scans)
+    errs = []
+    refarr = prep_obj.read_scan(dirs[0])
+    for dir in dirs[1:]:
+        arr = prep_obj.read_scan(dir)
+        errs.append(dvut.correlation_err(devlib.from_numpy(refarr), devlib.from_numpy(arr)))
+        refarr = arr
+    errs = [e.item() for e in errs]
+    for i in range(0,len(errs)):
+        print(scans[i+1], errs[i])
+    refarr = prep_obj.read_scan(dirs[3])
+    arr = prep_obj.read_scan(dirs[7])
+    print(errs)
 
 
 def handle_prep(experiment_dir, **kwargs):
+    """
+    Reads the configuration files and accrdingly creates prep_data.tif file in <experiment_dir>/prep directory or multiple
+    prep_data.tif in <experiment_dir>/<scan_<scan_no>>/prep directories.
+    Parameters
+    ----------
+    experimnent_dir : str
+        directory with experiment files
+    Returns
+    -------
+    experimnent_dir : str
+        directory with experiment files
+    """
+    print('preparing data')
     experiment_dir = experiment_dir.replace(os.sep, '/')
     # check configuration
     main_conf_file = experiment_dir + '/conf/config'
@@ -166,44 +298,6 @@ def handle_prep(experiment_dir, **kwargs):
         if not debug:
             return er_msg
 
-    auto_data = 'auto_data' in main_conf_map and main_conf_map['auto_data'] == True
-    # check main config if doing auto
-    # if not auto run handle_prep_case
-    if not auto_data:
-        return handle_prep_case(experiment_dir, main_conf_file, **kwargs)
-
-    from multiprocessing import Process
-
-    # if auto, choose option to set separate scans in main config and use ut.write_config to save
-    # run handle_prep to create scans subdirectories
-    main_conf_map['separate_scans'] = True
-    ut.write_config(main_conf_map, main_conf_file)
-    handle_prep_case(experiment_dir, main_conf_file, **kwargs)
-
-    # find outliers scans by finding correlation error between each two scans after aligning them
-    # and finding scans with biggest summed error
-    p = Process(target=find_outlier_scans, args=(experiment_dir, main_conf_map))
-    p.start()
-    p.join()
-
-    # run handle_prep_case again
-    return handle_prep_case(experiment_dir, main_conf_file, **kwargs)
-
-
-def handle_prep_case(experiment_dir, main_conf_file, **kwargs):
-    """
-    Reads the configuration files and accrdingly creates prep_data.tif file in <experiment_dir>/prep directory or multiple
-    prep_data.tif in <experiment_dir>/<scan_<scan_no>>/prep directories.
-    Parameters
-    ----------
-    experimnent_dir : str
-        directory with experiment files
-    Returns
-    -------
-    experimnent_dir : str
-        directory with experiment files
-    """
-    print('preparing data')
     main_conf_map = ut.read_config(main_conf_file)
     if 'beamline' in main_conf_map:
         beamline = main_conf_map['beamline']
@@ -246,7 +340,23 @@ def handle_prep_case(experiment_dir, main_conf_file, **kwargs):
         print(msg)
         return msg
 
-    msg = prep_data(prep_obj)
+    auto_data = 'auto_data' in conf_map and conf_map['auto_data']
+    if auto_data:
+        # auto_separate_scans(experiment_dir, prep_obj)
+        # # clear any outliers that might be set in config_prep
+        prep_obj.outliers_scans = []
+        # set the auto found outliers in object
+        srt = time.time()
+        outliers_scans = find_outlier_scans(experiment_dir, prep_obj)
+        spt = time.time()
+        print('time to find outliers', spt-srt)
+        if len(outliers_scans) > 0:
+            prep_obj.outliers_scans = outliers_scans
+            # save configuration with the auto found outliers
+            prep_conf_map['outliers_scans'] = outliers_scans
+        ut.write_config(prep_conf_map, prep_conf_file)
+
+    msg = prep_data(prep_obj, experiment_dir=experiment_dir)
     if len(msg) > 0:
         print(msg)
         return msg

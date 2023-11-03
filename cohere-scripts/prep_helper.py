@@ -1,5 +1,4 @@
 import os
-import sys
 import re
 import glob
 import numpy as np
@@ -9,6 +8,8 @@ from functools import partial
 import cohere_core.utilities.dvc_utils as dvut
 import importlib
 
+
+PREP_DATA_FILENAME = 'prep_data.tif'
 
 def write_prep_arr(arr, save_dir, filename):
     """
@@ -39,12 +40,36 @@ def read_align(prep_obj, refarr, dir):
     return np.absolute(aligned)
 
 
+def read_scan_save(prep_obj, read_dir_write_dir):
+    (read_dir, write_dir) = read_dir_write_dir
+    # read scan
+    arr = prep_obj.read_scan(read_dir)
+    # clear seam
+    arr = prep_obj.det_obj.clear_seam(arr)
+    # write
+    write_prep_arr(arr, write_dir, PREP_DATA_FILENAME)
+
+
+def process_separate_scans(prep_obj, dirs, scans, dir):
+    nproc = min(len(dirs), os.cpu_count() * 2)
+    poollist = [(dirs[i], dir + '/scan_' + str(scans[i]) + '/preprocessed_data/') for i in range(len(dirs))]
+    func = partial(read_scan_save, prep_obj)
+    with Pool(processes=nproc) as pool:
+        pool.map_async(func, poollist)
+        pool.close()
+        pool.join()
+
+
 def combine_scans(prep_obj, dirs, inds):
     if len(dirs) == 1:
         return prep_obj.read_scan(dirs[0])
     scans_order = np.argsort(inds).tolist()
-    ref_dir = dirs.pop(scans_order[0])
-    refarr = prep_obj.read_scan(ref_dir)
+    refarr = None
+    dir_no = len(dirs)
+    while refarr is None and dir_no > 0:
+        ref_dir = dirs.pop(scans_order[0])
+        refarr = prep_obj.read_scan(ref_dir)
+        dir_no -= 1
     if refarr is None:
         return None
 
@@ -54,8 +79,7 @@ def combine_scans(prep_obj, dirs, inds):
     devlib = importlib.import_module('cohere_core.lib.nplib').nplib
     dvut.set_lib(devlib)
 
-    arr_size = sys.getsizeof(refarr)
-    nproc = min(len(dirs), ut.estimate_no_proc(arr_size, 15))
+    nproc = min(len(dirs), os.cpu_count() * 2)
 
     sumarr = np.zeros_like(refarr)
     sumarr = sumarr + refarr
@@ -95,6 +119,7 @@ class Preparer():
         self.no_scan_ranges = len(self.prep_obj.scan_ranges)
         self.unit_dirs_scan_indexes = {}
 
+
     def add_scan(self, scan_no, subdir):
         i = 0
         while scan_no > self.prep_obj.scan_ranges[i][1]:
@@ -107,6 +132,7 @@ class Preparer():
                 self.unit_dirs_scan_indexes[i] = [[], []]
             self.unit_dirs_scan_indexes[i][0].append(subdir)
             self.unit_dirs_scan_indexes[i][1].append(scan_no)
+
 
     def get_batches(self):
         data_dir = self.prep_obj.data_dir
@@ -129,9 +155,12 @@ class Preparer():
 
 
     def process_batch(self, dirs, scans, save_dir, filename):
-        batch_arr = combine_scans(self.prep_obj, dirs, scans)
-        batch_arr = self.prep_obj.det_obj.clear_seam(batch_arr)
-        write_prep_arr(batch_arr, save_dir, filename)
+        if len(dirs) == 1:
+            arr = self.prep_obj.read_scan(dirs[0])
+        else:
+            arr = combine_scans(self.prep_obj, dirs, scans)
+            arr = self.prep_obj.det_obj.clear_seam(arr)
+        write_prep_arr(arr, save_dir, filename)
 
 
 class SinglePreparer(Preparer):
@@ -154,7 +183,7 @@ class SinglePreparer(Preparer):
         for batch in batches:
             all_dirs.extend(batch[0])
             all_scans.extend(batch[1])
-        self.process_batch(all_dirs, all_scans, self.prep_obj.experiment_dir + '/preprocessed_data', 'prep_data.tif')
+        self.process_batch(all_dirs, all_scans, self.prep_obj.experiment_dir + '/preprocessed_data', PREP_DATA_FILENAME)
 
 
 class SepPreparer(Preparer):
@@ -179,9 +208,8 @@ class SepPreparer(Preparer):
             for batch in batches:
                 dirs.extend(batch[0])
                 scans.extend(batch[1])
-            for i in range(len(dirs)):
-                save_dir = self.prep_obj.experiment_dir + '/scan_' + str(scans[i]) + '/preprocessed_data'
-                self.process_batch([dirs[i]], None, save_dir, 'prep_data.tif')
+            save_dir = self.prep_obj.experiment_dir
+            process_separate_scans(self.prep_obj, dirs, scans, save_dir)
         else:
             for batch in batches:
                 dirs = batch[0]
@@ -191,7 +219,7 @@ class SepPreparer(Preparer):
                     indx = indx + '-' + str(scans[-1])
                 save_dir = self.prep_obj.experiment_dir + '/scan_' + indx + '/preprocessed_data'
                 p = Process(target=self.process_batch,
-                            args=(dirs, scans, save_dir, 'prep_data.tif'))
+                            args=(dirs, scans, save_dir, PREP_DATA_FILENAME))
                 p.start()
                 processes.append(p)
             for p in processes:
