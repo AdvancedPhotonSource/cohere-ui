@@ -107,9 +107,10 @@ def handle_prep(experiment_dir, **kwargs):
         prep_obj.outliers_scans = outliers_scans
         # save configuration with the auto found outliers
         prep_conf_map['outliers_scans'] = outliers_scans
+
     # write configuration files
-    prep_file_name = experiment_dir + '/conf/config_prep'
-    ut.write_config(prep_conf_map, prep_file_name)
+    prep_conf_file_name = experiment_dir + '/conf/config_prep'
+    ut.write_config(prep_conf_map, prep_conf_file_name)
     ut.write_config(instr_conf_map, experiment_dir + '/conf/config_instr')
 
     msg = bp.prep_data(prep_obj, experiment_dir=experiment_dir)
@@ -118,9 +119,11 @@ def handle_prep(experiment_dir, **kwargs):
         return msg
     print('finished beamline preprocessing, starting standard preprocessing')
 
+    # the beamline prepared data is generated in experiment directory
+    data_file_name = experiment_dir + '/preprocessed_data/prep_data.tif'
     data_conf_map = {}
     data_conf_map['data_dir'] = beam_dm.DM_params.get_dm_data_dir(experiment_dir)
-    cohere.prep(prep_file_name, True, **data_conf_map)
+    cohere.prep(data_file_name, True, **data_conf_map)
     ut.write_config(data_conf_map, experiment_dir + '/conf/config_data')
 
     # define the config_disp here
