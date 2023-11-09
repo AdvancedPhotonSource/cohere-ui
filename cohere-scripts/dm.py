@@ -24,6 +24,7 @@ __all__ = ['handle_prep',
 
 import argparse
 import sys
+import os
 import importlib
 import convertconfig as conv
 import cohere_core as cohere
@@ -122,7 +123,11 @@ def handle_prep(experiment_dir, **kwargs):
     # the beamline prepared data is generated in experiment directory
     data_file_name = experiment_dir + '/preprocessed_data/prep_data.tif'
     data_conf_map = {}
-    data_conf_map['data_dir'] = beam_dm.DM_params.get_dm_data_dir(experiment_dir)
+    data_dir = beam_dm.DM_params.get_dm_data_dir(experiment_dir)
+    # create directory if doeas not exist
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir)
+    data_conf_map['data_dir'] = data_dir
     cohere.prep(data_file_name, True, **data_conf_map)
     ut.write_config(data_conf_map, experiment_dir + '/conf/config_data')
 
