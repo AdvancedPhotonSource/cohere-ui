@@ -20,8 +20,8 @@ class DM_params():
         :param kwargs:
         :return:
         """
-        return (working_dir + '/cohere-scripts/beamlines/aps_34idc/detector_corrections/34icdTIM2/current_darkfield.tif',
-        working_dir + '/cohere-scripts/beamlines/aps_34idc/detector_corrections/34icdTIM2/current_whitefield.tif')
+        return (working_dir + '/cohere-scripts/beamlines/aps_34idc/detector_corrections/34idcTIM2/current_dark.tif',
+        working_dir + '/cohere-scripts/beamlines/aps_34idc/detector_corrections/34idcTIM2/current_white.tif')
 
     @staticmethod
     def get_data_dir_spec(working_dir, **kwargs):
