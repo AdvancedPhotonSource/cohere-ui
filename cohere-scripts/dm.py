@@ -86,7 +86,7 @@ def handle_prep(experiment_dir, **kwargs):
     instr_conf_map['diffractometer'] = '34idc'
     (prep_conf_map['data_dir'], instr_conf_map['specfile']) = \
         beam_dm.DM_params.get_data_dir_spec(main_conf_map['working_dir'])
-    (prep_conf_map['darkfield_filename'], prep_conf_map['darkfield_filename']) = \
+    (prep_conf_map['darkfield_filename'], prep_conf_map['whitefield_filename']) = \
         beam_dm.DM_params.get_corrections(main_conf_map['working_dir'])
 
     # create BeamPrepData object defined for the configured beamline
