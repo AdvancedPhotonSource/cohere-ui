@@ -120,7 +120,7 @@ def handle_prep(experiment_dir, **kwargs):
 
     data_conf_map = {}
     data_conf_map['data_dir'] = beam_dm.DM_params.get_dm_data_dir(experiment_dir)
-    cohere.prep(prep_file_name, True, data_conf_map)
+    cohere.prep(prep_file_name, True, **data_conf_map)
     ut.write_config(data_conf_map, experiment_dir + '/conf/config_data')
 
     # define the config_disp here
