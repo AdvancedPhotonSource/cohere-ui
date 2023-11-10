@@ -272,7 +272,10 @@ def process_dir(instrument, config_map, rampups, crop, unwrap, make_twin, res_di
     nothing
     """
     [res_dir, scan] = res_dir_scan
-    save_dir = res_dir.replace('_phasing', '_viz')
+    if 'save_dir' in config_map:
+        save_dir = config_map['save_dir']
+    else:
+        save_dir = res_dir.replace('_phasing', '_viz')
     # create dir if it does not exist
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
@@ -409,6 +412,9 @@ def handle_visualization(experiment_dir, rec_id=None, **kwargs):
 
         # get the visualization config
         disp_config_map = ut.read_config(experiment_dir + '/conf/config_disp')
+        # if save_dir is configured, add it to config_map
+        if 'save_dir' in disp_config_map:
+            config_map['save_dir'] = disp_config_map['save_dir']
         if 'rampups' in disp_config_map:
             rampups = disp_config_map['rampups']
         else:
