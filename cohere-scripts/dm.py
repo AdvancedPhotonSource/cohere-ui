@@ -134,6 +134,8 @@ def handle_prep(experiment_dir, **kwargs):
     # define the config_disp here
     disp_conf_map = {}
     disp_conf_map['results_dir'] = beam_dm.DM_params.get_dm_results_dir(experiment_dir)
+    disp_conf_map['save_dir'] = experiment_dir + '/results_viz'
+    disp_conf_map['crop'] = [.5,.5,.5]
     ut.write_config(disp_conf_map, experiment_dir + '/conf/config_disp')
 
     return ''
