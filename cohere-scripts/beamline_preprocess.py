@@ -159,11 +159,12 @@ def find_outlier_scans(experiment_dir, prep_obj):
             scans += batch[1]
             if prep_obj.separate_scan_ranges:
                 auto_batches.append(batch)
-    if not prep_obj.separate_scan_ranges:
-        auto_batches.append([dirs, scans])
-        
+
     if len(auto_batches) == 0:
         return []
+
+    if not prep_obj.separate_scan_ranges:
+        auto_batches.append([dirs, scans])
 
     # save scans that are in auto_batches
     process_separate_scans(prep_obj, dirs, scans, experiment_dir)
