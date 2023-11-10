@@ -124,7 +124,7 @@ def handle_prep(experiment_dir, **kwargs):
     data_file_name = experiment_dir + '/preprocessed_data/prep_data.tif'
     data_conf_map = {}
     data_dir = beam_dm.DM_params.get_dm_data_dir(experiment_dir)
-    # create directory if doeas not exist
+    # create directory if does not exist
     if not os.path.exists(data_dir):
         os.makedirs(data_dir)
     data_conf_map['data_dir'] = data_dir
