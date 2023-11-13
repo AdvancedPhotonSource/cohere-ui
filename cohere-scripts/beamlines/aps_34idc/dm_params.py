@@ -31,7 +31,7 @@ class DM_params():
         :param kwargs:
         :return:
         """
-        exp_data_dir = working_dir.replace('34idc-work', '34idc-data').split('/Analysis')[0].strip('/')
+        exp_data_dir = working_dir.replace('34idc-work', '34idc-data').split('/Analysis')[0].rstrip('/')
         exp_name = exp_data_dir.split('/')[-1]
 
         return (exp_data_dir + '/AD34idcTIM2_' + exp_name + 'a', exp_data_dir + '/' + exp_name + 'a.spec')
@@ -45,7 +45,7 @@ class DM_params():
         :param experiment_dir:
         :return: directory to save preprocessed data for this experiment
         """
-        dirs = experiment_dir.strip('/').split('/')
+        dirs = experiment_dir.rstrip('/').split('/')
         # this is specific for 34idc
         # dirs[-3] contains beamline experiment name and dirs[-1] contains cohere-ui experiment name
         return '/home/beams/CXDUSER/34idc-work/hpc_data/' + dirs[-3] + '/' + dirs[-1]
@@ -60,7 +60,7 @@ class DM_params():
         :param experiment_dir:
         :return: directory to save preprocessed data for this experiment
         """
-        dirs = experiment_dir.strip('/').split('/')
+        dirs = experiment_dir.rstrip('/').split('/')
         # this is specific for 34idc
         # dirs[-3] contains beamline experiment name and dirs[-1] contains cohere-ui experiment name
         return '/home/beams/CXDUSER/34idc-work/hpc_results/' + dirs[-3] + '/' + dirs[-1]
