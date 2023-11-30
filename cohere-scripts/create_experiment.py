@@ -19,7 +19,25 @@ __all__ = ['create_exp',
 import argparse
 import sys
 import os
-import cohere_core.utilities as ut
+
+
+
+def write_config(param_dict, config):
+    """
+    Writes configuration to a file.
+    Parameters
+    ----------
+    param_dict : dict
+        dictionary containing configuration parameters
+    config : str
+        configuration name theparameters will be written into
+    """
+    with open(config.replace(os.sep, '/'), 'w+') as f:
+        f.truncate(0)
+        for key, value in param_dict.items():
+            if type(value) == str:
+                value = '"' + value + '"'
+            f.write(key + ' = ' + str(value) + os.linesep)
 
 
 def create_conf_main(conf_dir, working_dir, id, scan, beamline):
@@ -31,14 +49,14 @@ def create_conf_main(conf_dir, working_dir, id, scan, beamline):
     conf_map['converter_ver'] = 1
     conf_map['auto_data'] = True
     # TODO in the future it will support separate scans, separate scan ranges, multipeak experiments as well
-    ut.write_config(conf_map, conf_dir + '/config')
+    write_config(conf_map, conf_dir + '/config')
 
 
 def create_conf_instr(conf_dir, specfile, diffractometer):
     conf_map = {}
     conf_map['specfile'] = specfile
     conf_map['diffractometer'] = diffractometer
-    ut.write_config(conf_map, conf_dir + '/config_instr')
+    write_config(conf_map, conf_dir + '/config_instr')
 
 
 def create_conf_prep(conf_dir, data_dir, darkfield_filename, whitefield_filename):
@@ -46,13 +64,13 @@ def create_conf_prep(conf_dir, data_dir, darkfield_filename, whitefield_filename
     conf_map['data_dir'] = data_dir
     conf_map['darkfield_filename'] = darkfield_filename
     conf_map['whitefield_filename'] = whitefield_filename
-    ut.write_config(conf_map, conf_dir + '/config_prep')
+    write_config(conf_map, conf_dir + '/config_prep')
 
 
 def create_conf_data(conf_dir):
     conf_map = {}
     conf_map['intensity_threshold'] = 2.0
-    ut.write_config(conf_map, conf_dir + '/config_data')
+    write_config(conf_map, conf_dir + '/config_data')
 
 
 def create_conf_rec(conf_dir):
@@ -65,7 +83,7 @@ def create_conf_rec(conf_dir):
     conf_map['twin_trigger'] = [2]
     conf_map['ga_generations'] = 5
     conf_map['ga_fast'] = True
-    ut.write_config(conf_map, conf_dir + '/config_rec')
+    write_config(conf_map, conf_dir + '/config_rec')
 
    
 def create_conf_disp(conf_dir):
@@ -83,7 +101,7 @@ def create_conf_disp(conf_dir):
     """
     conf_map = {}
     conf_map['crop'] = [.5, .5, .5]
-    ut.write_config(conf_map, conf_dir + '/config_disp')
+    write_config(conf_map, conf_dir + '/config_disp')
 
 
 def create_exp(working_dir, id, scan, beamline, data_dir, darkfield_filename, whitefield_filename, 
