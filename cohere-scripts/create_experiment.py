@@ -21,7 +21,6 @@ import sys
 import os
 
 
-
 def write_config(param_dict, config):
     """
     Writes configuration to a file.
@@ -155,17 +154,17 @@ def create_exp(working_dir, id, scan, beamline, data_dir, darkfield_filename, wh
     return experiment_dir
         
 
-def main(arg):
+def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("working_dir", help="directory where the created experiment will be located")
-    parser.add_argument("id", help="prefix to name of the experiment/data reconstruction")
-    parser.add_argument("scan", help="a range of scans to prepare data from")
-    parser.add_argument("beamline", help="beamline")
-    parser.add_argument("data_dir", help="raw data directory")
-    parser.add_argument("darkfield_filename", help="dark field file name")
-    parser.add_argument("whitefield_filename", help="white field file name")
-    parser.add_argument("specfile", help="full name, including path of specfile")
-    parser.add_argument("diffractometer", help="diffractometer")
+    parser.add_argument("--working_dir", required=True, help="directory where the created experiment will be located")
+    parser.add_argument("--id", required=True, help="prefix to name of the experiment/data reconstruction")
+    parser.add_argument("--scan", required=True, help="a range of scans to prepare data from")
+    parser.add_argument("--beamline", required=True, help="beamline")
+    parser.add_argument("--data_dir", required=True, help="raw data directory")
+    parser.add_argument("--darkfield_filename", required=True, help="dark field file name")
+    parser.add_argument("--whitefield_filename", required=True, help="white field file name")
+    parser.add_argument("--specfile", required=True, help="full name, including path of specfile")
+    parser.add_argument("--diffractometer", required=True, help="diffractometer")
 
     args = parser.parse_args()
 
@@ -174,5 +173,7 @@ def main(arg):
 
 
 if __name__ == "__main__":
-    exit(main(sys.argv[1:]))
+    exit(main())
+
+# python create_experiment.py --working_dir example_workspace --id s2 --scan 54 --beamline aps_34idc --data_dir example_data/AD34idcTIM2_example --darkfield_filename example_data/dark.tif --whitefield_filename example_data/whitefield.tif --specfile example_data/example.spec --diffractometer 34idc
 
