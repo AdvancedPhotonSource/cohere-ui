@@ -29,7 +29,6 @@ import common.routines as com
 
 
 def get_job_size(size, method, pc_in_use=False):
-    print('method', method)
     if method is None:
         factor = 170
         const = 0
@@ -88,7 +87,6 @@ def split_resources(hostfile, devs, no_scans):
     with open(hostfile) as f:
         hosts_no_devs = [line.strip().split(':') for line in f]
         hosts_no_devs = [[s[0], int(s[1])] for s in hosts_no_devs]
-        print('hosts_no_devs', hosts_no_devs)
 
     # each scan will have own hostfile
     hostfiles = [hostfile + str(i) for i in range(no_scans)]
@@ -259,7 +257,6 @@ def manage_reconstruction(experiment_dir, rec_id, debug):
 
     if hostfile is not None:
         picked_devs = sum(picked_devs, [])
-    print('picked_devs, avail_jobs', picked_devs, avail_jobs , hostfile)
 
     if no_scan_ranges == 1:
             datafile, dir = exp_dirs_data[0]
