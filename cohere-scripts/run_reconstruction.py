@@ -26,12 +26,13 @@ import cohere_core as cohere
 import cohere_core.utilities as ut
 import convertconfig as conv
 import common.routines as com
+from time import time
 
 
 def get_job_size(size, method, pc_in_use=False):
     if method is None:
         factor = 170
-        const = 0
+        const = 100
     elif method == 'ga_fast':
         factor = 184
         const = 428
@@ -45,41 +46,6 @@ def get_job_size(size, method, pc_in_use=False):
         job_size = job_size * 2
 
     return job_size
-
-
-def rec_process(proc, conf_file, datafile, dir, gpus, r, q=None):
-    """
-    Calls the reconstruction function in a module identified by parameter. After the reconstruction is finished, it enqueues th eprocess id wit associated list of gpus.
-    Parameters
-    ----------
-    proc : str
-        processing library, chices are cpu, cuda, opencl
-    conf_file : str
-        configuration file with reconstruction parameters
-    datafile : str
-        name of file containing data
-    dir : str
-        parent directory to the <prefix>/results, or results directory
-    gpus : list
-       a list of gpus that will be used for reconstruction
-    r : str
-       a string indentifying the module to use for reconstruction
-    q : Queue
-       a queue that returns tuple of procees id and associated gpu list after the reconstruction process is done
-    Returns
-    -------
-    nothing
-    """
-    if r == 'g':
-        cohere.reconstruction_GA.reconstruction(proc, conf_file, datafile, dir, gpus)
-    elif r == 'm':
-        cohere.reconstruction_multi.reconstruction(proc, conf_file, datafile, dir, gpus)
-    elif r == 's': # run it as process
-        dev = cohere.get_one_dev(gpus)
-        cohere.reconstruction_single.reconstruction(proc, conf_file, datafile, dir, [dev])
-        print('finished reconstruction')
-    if q is not None:
-        q.put((os.getpid(), gpus))
 
 
 def split_resources(hostfile, devs, no_scans):
@@ -107,6 +73,9 @@ def split_resources(hostfile, devs, no_scans):
                 hosts_no_devs[current_host_idx][1] -= host_assigned_no
                 if hosts_no_devs[current_host_idx][1] == 0:
                     current_host_idx += 1
+
+    # delete hostfile
+    os.remove(hostfile)
 
     return hostfiles
 
@@ -144,7 +113,7 @@ def process_scan_range(ga_method, lib, conf_file, datafile, dir, picked_devs, ho
         cohere.reconstruction_populous_GA.reconstruction(lib, conf_file, datafile, dir, picked_devs)
 
     if q is not None:
-        q.put((os.getpid(), gpus))
+        q.put((os.getpid(), picked_devs, hostfile))
 
 
 def manage_reconstruction(experiment_dir, rec_id, debug):
@@ -163,7 +132,8 @@ def manage_reconstruction(experiment_dir, rec_id, debug):
     -------
     nothing
     """
-    print('starting reconstruction')
+    print('started reconstruction')
+    sr_time = time()
 
     err_msg, [main_config_map, rec_config_map] = com.get_config_maps(experiment_dir, ['config_rec'], rec_id, debug)
     if len(err_msg) > 0:
@@ -262,41 +232,57 @@ def manage_reconstruction(experiment_dir, rec_id, debug):
             datafile, dir = exp_dirs_data[0]
             process_scan_range(ga_method, lib, conf_file, datafile, dir, picked_devs, hostfile)
     else: # multiple scans or scan ranges
+        q = None
         if avail_jobs >= want_dev_no:
             # there is enough resources to run all reconstructions simultanuesly
             # assign the resources to scans
             no_concurrent_scans = no_scan_ranges
         else:
             # not enough resources to run all reconstructions simultaneously, recycle devices
-            no_concurrent_scans = avail_jobs // reconstructions
-            picked_devs = picked_devs[: no_concurrent_scans * reconstructions] 
+            no_concurrent_scans = int(avail_jobs // reconstructions)
+            picked_devs = picked_devs[: no_concurrent_scans * reconstructions]
+            # create queue to reuse devices/hostfiles
+            q = Queue()
 
-        last_chank_scans = no_scan_ranges % no_concurrent_scans
         scan_picked_devs = [picked_devs[x:x+reconstructions] for x in range(0, len(picked_devs), reconstructions)]
         if hostfile is None:
             hostfiles = [None] * no_scan_ranges
         else:
             hostfiles = split_resources(hostfile, reconstructions, no_concurrent_scans)
 
-        batch = 0
-        while batch * no_concurrent_scans + last_chank_scans < no_scan_ranges:
-            if batch == no_scan_ranges // no_concurrent_scans and last_chank_scans > 0:
-                # adjust the no_concurrent_scans
-                no_concurrent_scans = last_chank_scans
-            for i in range(no_concurrent_scans):
-                datafile, dir = exp_dirs_data[no_concurrent_scans * batch + i]
-                # run concurrently
-                pr = []
-                p = Process(target=process_scan_range, args=(ga_method, lib, conf_file, datafile, dir, scan_picked_devs[i], hostfiles[i]))
-                p.start()
-                pr.append(p)
-            
-            batch += 1
+        pr = {}
+        for i in range(no_concurrent_scans):
+            datafile, dir = exp_dirs_data[i]
+            # run concurrently
+            p = Process(target=process_scan_range, args=(ga_method, lib, conf_file, datafile, dir, scan_picked_devs[i], hostfiles[i], q))
+            p.start()
+            pr[p.pid] = p
 
-            for p in pr:
-                p.join()
+        i += 1
+        while i < no_scan_ranges:
+            datafile, dir = exp_dirs_data[i]
+            i += 1
+            pid, devs, hostfile = q.get()
+            if pid in pr.keys():
+               del pr[pid]
+            p = Process(target=process_scan_range, args=(ga_method, lib, conf_file, datafile, dir, devs, hostfile, q))
+            p.start()
+            pr[p.pid] = p
 
-    print('finished reconstruction')
+        for p in pr.values():
+            p.join()
+
+        if q is not None:
+            while not q.empty():
+                q.get()
+               
+        # delete host files
+        for hf in hostfiles:
+            if hf is not None:
+                os.remove(hf)
+
+    sp_time = time()
+    print('finished reconstruction in', sp_time - sr_time, 'seconds')
 
 
 def main():

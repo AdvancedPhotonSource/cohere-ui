@@ -44,8 +44,11 @@ processing = "auto"
                              // processing on GPUs, and the "cpu" option on cpu. Default is auto.
 
 device = [0,1]
-                             // IDs of the target devices for each thread (reconstruction).
-                             // If not defined, it will default to -1 for the OS to select device
+device = 'all'
+device = {'host1':'all', 'host2':[0,1,2,3,4]}
+                             // GPU IDs of the target devices for reconstruction(s) or 'all' if all available GPUs should be used.
+                             // If not defined, it will default to -1 and the numpy library will be used
+                             // For cluster configuration it is defined as dict with hosts names as keys.
 
 algorithm_sequence = "3* (20*ER + 180*HIO) + 20*ER"
                             // mandatory, defines algorithm applied in each iteration during modulus projection and
