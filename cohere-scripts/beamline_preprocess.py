@@ -23,15 +23,14 @@ import os
 import sys
 import importlib
 import time
-import convertconfig as conv
-import cohere_core as cohere
 import cohere_core.utilities as ut
 import cohere_core.utilities.dvc_utils as dvut
 import shutil
-import numpy as np
 from multiprocessing import Queue, Process, Pool
 from functools import partial
 from multipeak import MultPeakPreparer
+import common as com
+
 from prep_helper import SepPreparer, SinglePreparer, process_separate_scans
 
 
@@ -279,29 +278,15 @@ def handle_prep(experiment_dir, **kwargs):
     experimnent_dir : str
         directory with experiment files
     """
-    print('preparing data')
-    experiment_dir = experiment_dir.replace(os.sep, '/')
-    # check configuration
-    main_conf_file = experiment_dir + '/conf/config'
-    main_conf_map = ut.read_config(main_conf_file)
-    if main_conf_map is None:
-        print('cannot read configuration file ' + main_conf_file)
-        return 'cannot read configuration file ' + main_conf_file
-    # convert configuration files if needed
-    if 'converter_ver' not in main_conf_map or conv.get_version() is None or conv.get_version() > main_conf_map[
-        'converter_ver']:
-        conv.convert(experiment_dir + '/conf')
-        # re-parse config
-        main_conf_map = ut.read_config(main_conf_file)
+    print('pre-processing data')
 
-    er_msg = cohere.verify('config', main_conf_map)
-    if len(er_msg) > 0:
-        # the error message is printed in verifier
-        debug = 'debug' in kwargs and kwargs['debug']
-        if not debug:
-            return er_msg
+    debug = 'debug' in kwargs and kwargs['debug']
+    conf_list = ['config_prep', 'config_instr', 'config_mp']
+    err_msg, conf_maps = com.get_config_maps(experiment_dir, conf_list, debug)
+    if len(err_msg) > 0:
+        return err_msg
 
-    main_conf_map = ut.read_config(main_conf_file)
+    main_conf_map = conf_maps['config']
     if 'beamline' in main_conf_map:
         beamline = main_conf_map['beamline']
         try:
@@ -311,32 +296,24 @@ def handle_prep(experiment_dir, **kwargs):
             print('cannot import beamlines.' + beamline + '.prep module.')
             return 'cannot import beamlines.' + beamline + '.prep module.'
     else:
-        print('Beamline must be configured in configuration file ' + main_conf_file)
-        return 'Beamline must be configured in configuration file ' + main_conf_file
+        print('Beamline must be configured in main configuration file')
+        return 'Beamline must be configured in main configuration file'
 
-    prep_conf_file = experiment_dir + '/conf/config_prep'
-    prep_conf_map = ut.read_config(prep_conf_file)
-    if prep_conf_map is None:
-        return None
-    er_msg = cohere.verify('config_prep', prep_conf_map)
-    if len(er_msg) > 0:
-        # the error message is printed in verifier
-        debug = 'debug' in kwargs and kwargs['debug']
-        if not debug:
-            return er_msg
-
+    prep_conf_map = conf_maps['config_prep']
     data_dir = prep_conf_map['data_dir'].replace(os.sep, '/')
     if not os.path.isdir(data_dir):
         print('data directory ' + data_dir + ' is not a valid directory')
         return 'data directory ' + data_dir + ' is not a valid directory'
 
-    instr_config_map = ut.read_config(experiment_dir + '/conf/config_instr')
     # create BeamPrepData object defined for the configured beamline
+    instr_conf_map = conf_maps['config_instr']
     conf_map = main_conf_map
     conf_map.update(prep_conf_map)
-    conf_map.update(instr_config_map)
-    if 'multipeak' in main_conf_map and main_conf_map['multipeak']:
-        conf_map.update(ut.read_config(experiment_dir + '/conf/config_mp'))
+    conf_map.update(instr_conf_map)
+
+    if 'config_mp' in conf_maps:
+        conf_map.update(conf_maps['config_mp'])
+
     prep_obj = beam_prep.BeamPrepData()
     msg = prep_obj.initialize(experiment_dir, conf_map)
     if len(msg) > 0:
@@ -357,7 +334,7 @@ def handle_prep(experiment_dir, **kwargs):
             prep_obj.outliers_scans = outliers_scans
             # save configuration with the auto found outliers
             prep_conf_map['outliers_scans'] = outliers_scans
-        ut.write_config(prep_conf_map, prep_conf_file)
+        ut.write_config(prep_conf_map, experiment_dir + '/conf/config_prep')
 
     msg = prep_data(prep_obj, experiment_dir=experiment_dir)
     if len(msg) > 0:

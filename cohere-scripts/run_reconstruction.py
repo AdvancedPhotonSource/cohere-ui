@@ -12,20 +12,18 @@ Depending on configuration it starts either single reconstruction, GA, or multip
 __author__ = "Barbara Frosik"
 __copyright__ = "Copyright (c), UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['rec_process',
-           'get_gpu_use',
+__all__ = ['get_job_size',
+           'split_resources',
+           'process_scan_range',
            'manage_reconstruction',
            'main']
 
-import sys
-import signal
 import os
 import argparse
 from multiprocessing import Process, Queue
 import cohere_core as cohere
 import cohere_core.utilities as ut
-import convertconfig as conv
-import common.routines as com
+import common as com
 from time import time
 
 
@@ -135,10 +133,13 @@ def manage_reconstruction(experiment_dir, rec_id, debug):
     print('started reconstruction')
     sr_time = time()
 
-    err_msg, [main_config_map, rec_config_map] = com.get_config_maps(experiment_dir, ['config_rec'], rec_id, debug)
+    conf_list = ['config_rec', 'config_mp']
+    err_msg, conf_maps = com.get_config_maps(experiment_dir, conf_list, debug)
     if len(err_msg) > 0:
-        return err_msg   
+        return err_msg
 
+    main_config_map = conf_maps['config']
+    rec_config_map = conf_maps['config_rec']
     # find which library to run it on, default is numpy ('np')
     if 'processing' in rec_config_map:
         proc = rec_config_map['processing']
@@ -149,8 +150,8 @@ def manage_reconstruction(experiment_dir, rec_id, debug):
         return err_msg
 
     # for multipeak reconstruction divert here
-    if 'multipeak' in main_config_map and main_config_map['multipeak']:
-        config_map = ut.read_config(os.path.join(experiment_dir, 'conf', 'config_mp').replace(os.sep, '/'))
+    if 'config_mp' in conf_maps:
+        config_map = conf_maps['config_mp']
         config_map.update(main_config_map)
         config_map.update(rec_config_map)
         if 'device' in config_map:
@@ -160,7 +161,7 @@ def manage_reconstruction(experiment_dir, rec_id, debug):
         peak_dirs = []
         for dir in os.listdir(experiment_dir):
             if dir.startswith('mp'):
-                peak_dirs.append(experiment_dir + '/' + dir)
+                peak_dirs.append(com.join(experiment_dir, dir))
         return cohere.reconstruction_coupled.reconstruction(lib, config_map, peak_dirs, dev)
 
     # exp_dirs_data list hold pairs of data and directory, where the directory is the root of phasing_data/data.tif file, and
@@ -169,9 +170,9 @@ def manage_reconstruction(experiment_dir, rec_id, debug):
     # experiment may be multi-scan(s) in which case reconstruction will run for each scan, or scan range
     for dir in os.listdir(experiment_dir):
         if dir.startswith('scan'):
-            datafile = os.path.join(experiment_dir,dir,'phasing_data', 'data.tif').replace(os.sep, '/')
+            datafile = com.join(experiment_dir,dir,'phasing_data', 'data.tif')
             if os.path.isfile(datafile):
-                exp_dirs_data.append((datafile, os.path.join(experiment_dir, dir).replace(os.sep, '/')))
+                exp_dirs_data.append((datafile, com.join(experiment_dir, dir)))
      # if there are no scan directories, assume it is combined scans experiment
     if len(exp_dirs_data) == 0:
         # in typical scenario data_dir is not configured, and it is defaulted to <experiment_dir>/data
@@ -179,8 +180,8 @@ def manage_reconstruction(experiment_dir, rec_id, debug):
         if 'data_dir' in rec_config_map:
             data_dir = rec_config_map['data_dir']
         else:
-            data_dir = os.path.join(experiment_dir, 'phasing_data')
-        datafile = os.path.join(data_dir, 'data.tif').replace(os.sep, '/')
+            data_dir = com.join(experiment_dir, 'phasing_data')
+        datafile = com.join(data_dir, 'data.tif')
         if os.path.isfile(datafile):
             exp_dirs_data.append((datafile, experiment_dir))
 
@@ -190,9 +191,9 @@ def manage_reconstruction(experiment_dir, rec_id, debug):
         return 'did not find data.tif file(s). '
 
     if rec_id is None:
-        conf_file = os.path.join(experiment_dir, 'conf', 'config_rec').replace(os.sep, '/')
+        conf_file = com.join(experiment_dir, 'conf', 'config_rec')
     else:
-        conf_file = os.path.join(experiment_dir, 'conf', 'config_rec_' + rec_id ).replace(os.sep, '/')
+        conf_file = com.join(experiment_dir, 'conf', 'config_rec_' + rec_id )
 
     ga_method = None
     if 'ga_generations' in rec_config_map and rec_config_map['ga_generations'] > 1:

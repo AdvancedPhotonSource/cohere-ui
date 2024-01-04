@@ -13,7 +13,6 @@ __author__ = "Ross Harder"
 __copyright__ = "Copyright (c), UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['process_dir',
-           'get_conf_dicts',
            'handle_visualization',
            'main']
 
@@ -24,10 +23,9 @@ import numpy as np
 from functools import partial
 from multiprocessing import Pool, cpu_count
 import importlib
-import convertconfig as conv
-import cohere_core as cohere
 import cohere_core.utilities as ut
 from tvtk.api import tvtk
+import common as com
 import multipeak as mp
 
 
@@ -283,7 +281,7 @@ def process_dir(instrument, config_map, rampups, crop, unwrap, make_twin, res_di
     imagefile = res_dir + '/image.npy'
     try:
         image = np.load(imagefile)
-        ut.save_tif(image, save_dir + '/image.tif')
+        ut.save_tif(image, com.join(save_dir, 'support.tif'))
     except:
         print('cannot load file', imagefile)
         return
@@ -292,11 +290,11 @@ def process_dir(instrument, config_map, rampups, crop, unwrap, make_twin, res_di
     support = None
     coh = None
 
-    supportfile = res_dir + '/support.npy'
+    supportfile = com.join(res_dir, 'support.npy')
     if os.path.isfile(supportfile):
         try:
             support = np.load(supportfile)
-            ut.save_tif(support, save_dir + '/support.tif')
+            ut.save_tif(support, com.join(save_dir, 'support.tif'))
         except:
             print('cannot load file', supportfile)
     else:
@@ -306,7 +304,7 @@ def process_dir(instrument, config_map, rampups, crop, unwrap, make_twin, res_di
     instrument.initialize(config_map, scan)
     geometry = instrument.get_geometry(image.shape)
 
-    cohfile = res_dir + '/coherence.npy'
+    cohfile = com.join(res_dir, 'coherence.npy')
     if os.path.isfile(cohfile):
         try:
             coh = np.load(cohfile)
@@ -343,50 +341,18 @@ def handle_visualization(experiment_dir, rec_id=None, **kwargs):
     -------
     nothing
     """
-    experiment_dir = experiment_dir.replace(os.sep, '/')
-    if not os.path.isdir(experiment_dir):
-        print("Please provide a valid experiment directory")
-        return("Please provide a valid experiment directory")
-
     print ('starting visualization process')
 
-    main_conf_file = experiment_dir + '/conf/config'
-    if not os.path.isfile(main_conf_file):
-        print('main configuration file', main_conf_file, 'does not exist')
-        return ('main configuration file', main_conf_file, 'does not exist')
-    main_conf_map = ut.read_config(main_conf_file)
-    if main_conf_map is None:
-        print('Cannont parse main configuration file', main_conf_file)
-        return ('Cannot parse main configuration file', main_conf_file)
+    debug = 'debug' in kwargs and kwargs['debug']
+    conf_list = ['config_disp', 'config_instr', 'config_data']
+    err_msg, conf_maps = com.get_config_maps(experiment_dir, conf_list, debug)
+    if len(err_msg) > 0:
+        return err_msg
 
-    # convert configuration files if needed
-    if 'converter_ver' not in main_conf_map or conv.get_version() is None or conv.get_version() > main_conf_map[
-        'converter_ver']:
-        conf_maps = conv.convert(experiment_dir + '/conf')
-        main_conf_map = conf_maps['config']
-
-    msg = cohere.verify('config', main_conf_map)
-    if len(msg) > 0:
-        # the error message is printed in verifier
-        debug = 'debug' in kwargs and kwargs['debug']
-        if not debug:
-            return msg
-
-    if not os.path.isfile(experiment_dir + '/conf/config_instr'):
-        print('configuration file', experiment_dir + '/conf/config_instr', 'does not exist')
-        return ('configuration file', experiment_dir + '/conf/config_instr', 'does not exist')
-
-    instr_conf_map = ut.read_config(experiment_dir + '/conf/config_instr')
-
-    msg = cohere.verify('config_instr', instr_conf_map)
-    if len(msg) > 0:
-        # the error message is printed in verifier
-        debug = 'debug' in kwargs and kwargs['debug']
-        if not debug:
-            return msg
+    main_conf_map = conf_maps['config']
 
     if 'multipeak' in main_conf_map and main_conf_map['multipeak']:
-        mp.process_dir(experiment_dir + '/results_phasing')
+        mp.process_dir(com.join(experiment_dir, 'results_phasing'))
     else:
         try:
             instr = importlib.import_module('beamlines.' + main_conf_map['beamline'] + '.instrument')
@@ -395,6 +361,9 @@ def handle_visualization(experiment_dir, rec_id=None, **kwargs):
             print('cannot import beamlines.' + main_conf_map['beamline'] + '.instrument module.')
             return ('cannot import beamlines.' + main_conf_map['beamline'] + '.instrument module.')
 
+        instr_conf_map = conf_maps['config_instr']
+        data_conf_map = conf_maps['config_data']
+        disp_conf_map = conf_maps['config_disp']
         config_map = {}
         if ('separate_scans' in main_conf_map and main_conf_map['separate_scans']) or \
                 ('separate_scan_ranges' in main_conf_map and main_conf_map['separate_scan_ranges']):
@@ -405,44 +374,40 @@ def handle_visualization(experiment_dir, rec_id=None, **kwargs):
             config_map = instr_conf_map
             separate = False
 
-        if os.path.isfile(experiment_dir + '/conf/config_data'):
-            data_config_map = ut.read_config(experiment_dir + '/conf/config_data')
-            if 'binning' in data_config_map:
-                config_map['binning'] = data_config_map['binning']
+        if 'binning' in data_conf_map:
+            config_map['binning'] = data_conf_map['binning']
 
-        # get the visualization config
-        disp_config_map = ut.read_config(experiment_dir + '/conf/config_disp')
         # if save_dir is configured, add it to config_map
-        if 'save_dir' in disp_config_map:
-            config_map['save_dir'] = disp_config_map['save_dir']
-        if 'rampups' in disp_config_map:
-            rampups = disp_config_map['rampups']
+        if 'save_dir' in disp_conf_map:
+            config_map['save_dir'] = disp_conf_map['save_dir']
+        if 'rampups' in disp_conf_map:
+            rampups = disp_conf_map['rampups']
         else:
             rampups = 1
 
-        if 'make_twin' in disp_config_map:
-            make_twin = disp_config_map['make_twin']
+        if 'make_twin' in disp_conf_map:
+            make_twin = disp_conf_map['make_twin']
         else:
             make_twin = False
 
-        if 'crop' in disp_config_map:
-            crop = disp_config_map['crop']
+        if 'crop' in disp_conf_map:
+            crop = disp_conf_map['crop']
         else:
             crop = []
 
-        if 'unwrap' in disp_config_map:
-            unwrap = disp_config_map['unwrap']
+        if 'unwrap' in disp_conf_map:
+            unwrap = disp_conf_map['unwrap']
         else:
             unwrap = False
 
-        if 'results_dir' in disp_config_map:
-            results_dir = disp_config_map['results_dir'].replace(os.sep, '/')
+        if 'results_dir' in disp_conf_map:
+            results_dir = disp_conf_map['results_dir'].replace(os.sep, '/')
         elif separate:
             results_dir = experiment_dir
         elif rec_id is not None:
-            results_dir = experiment_dir + '/results_phasing_' + rec_id
+            results_dir = com.join(experiment_dir, 'results_phasing_' + rec_id)
         else:
-            results_dir = experiment_dir + '/results_phasing'
+            results_dir = com.join(experiment_dir, 'results_phasing')
         # find directories with image.npy file in the root of results_dir
         dirs = []
         for (dirpath, dirnames, filenames) in os.walk(results_dir):
