@@ -114,7 +114,7 @@ def process_scan_range(ga_method, lib, conf_file, datafile, dir, picked_devs, ho
         q.put((os.getpid(), picked_devs, hostfile))
 
 
-def manage_reconstruction(experiment_dir, rec_id, debug):
+def manage_reconstruction(experiment_dir, config_id, debug):
     """
     This function starts the interruption discovery process and continues the recontruction processing.
     It reads configuration file defined as <experiment_dir>/conf/config_rec.
@@ -124,7 +124,7 @@ def manage_reconstruction(experiment_dir, rec_id, debug):
     ----------
     experiment_dir : str
         directory where the experiment files are loacted
-    rec_id : str
+    config_id : str
         optional, if given, alternate configuration file will be used for reconstruction, (i.e. <rec_id>_config_rec)
     Returns
     -------
@@ -190,10 +190,10 @@ def manage_reconstruction(experiment_dir, rec_id, debug):
         print('did not find data.tif file(s). ')
         return 'did not find data.tif file(s). '
 
-    if rec_id is None:
+    if config_id is None:
         conf_file = com.join(experiment_dir, 'conf', 'config_rec')
     else:
-        conf_file = com.join(experiment_dir, 'conf', 'config_rec_' + rec_id )
+        conf_file = com.join(experiment_dir, 'conf', 'config_rec_' + config_id)
 
     ga_method = None
     if 'ga_generations' in rec_config_map and rec_config_map['ga_generations'] > 1:
@@ -293,7 +293,7 @@ def main():
     parser.add_argument("--debug", action="store_false",
                         help="if True the vrifier has no effect on processing")
     args = parser.parse_args()
-    manage_reconstruction(args.experiment_dir, rec_id=args.rec_id, debug=args.debug)
+    manage_reconstruction(args.experiment_dir, config_id=args.rec_id, debug=args.debug)
 
 
 if __name__ == "__main__":

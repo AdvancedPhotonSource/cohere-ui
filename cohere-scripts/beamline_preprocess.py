@@ -344,7 +344,7 @@ def handle_prep(experiment_dir, **kwargs):
     return ''
 
 
-def main(arg):
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_dir",
                         help="directory where the configuration files are located")
@@ -355,4 +355,4 @@ def main(arg):
 
 
 if __name__ == "__main__":
-    exit(main(sys.argv[1:]))
+    exit(main())

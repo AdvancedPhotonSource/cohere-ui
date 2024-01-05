@@ -7,6 +7,7 @@ import cohere_core.utilities as ut
 from functools import partial
 import cohere_core.utilities.dvc_utils as dvut
 import importlib
+import common as com
 
 
 PREP_DATA_FILENAME = 'prep_data.tif'
@@ -18,7 +19,7 @@ def write_prep_arr(arr, save_dir, filename):
     """
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
-    ut.save_tif(arr, save_dir + '/' + filename)
+    ut.save_tif(arr, com.join(save_dir, filename))
 
 
 def read_align(prep_obj, refarr, dir):
@@ -54,7 +55,7 @@ def process_separate_scans(prep_obj, dirs, scans, dir):
     if len(scans) == 0:
         return
     nproc = min(len(dirs), os.cpu_count() * 2)
-    poollist = [(dirs[i], dir + '/scan_' + str(scans[i]) + '/preprocessed_data/') for i in range(len(dirs))]
+    poollist = [(dirs[i], com.join(dir, 'scan_' + str(scans[i]), 'preprocessed_data')) for i in range(len(dirs))]
     func = partial(read_scan_save, prep_obj)
     with Pool(processes=nproc) as pool:
         pool.map_async(func, poollist)
@@ -139,7 +140,7 @@ class Preparer():
     def get_batches(self):
         data_dir = self.prep_obj.data_dir
         for scan_dir in os.listdir(data_dir):
-            subdir = data_dir + '/' + scan_dir
+            subdir = com.join(data_dir, scan_dir)
             if os.path.isdir(subdir):
                 # exclude directories with fewer tif files than min_files
                 if len(glob.glob1(subdir, "*.tif")) < self.prep_obj.min_files and len(
@@ -219,7 +220,7 @@ class SepPreparer(Preparer):
                 indx = str(scans[0])
                 if len(scans) > 1:
                     indx = indx + '-' + str(scans[-1])
-                save_dir = self.prep_obj.experiment_dir + '/scan_' + indx + '/preprocessed_data'
+                save_dir = com.join(self.prep_obj.experiment_dir, 'scan_' + indx, 'preprocessed_data')
                 p = Process(target=self.process_batch,
                             args=(dirs, scans, save_dir, PREP_DATA_FILENAME))
                 p.start()

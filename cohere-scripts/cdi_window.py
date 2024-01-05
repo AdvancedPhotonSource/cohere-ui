@@ -28,6 +28,7 @@ import convertconfig as conv
 import ast
 import cohere_core as cohere
 import cohere_core.utilities as ut
+import common as com
 
 
 
@@ -177,7 +178,7 @@ class cdi_gui(QWidget):
 
     def set_args(self, args, **kwargs):
         self.args = args
-        self.debug =  'debug' in kwargs and kwargs['debug']
+        self.debug = 'debug' in kwargs and kwargs['debug']
 
 
     def run_everything(self):
@@ -255,7 +256,7 @@ class cdi_gui(QWidget):
         scan = str(self.scan_widget.text()).replace(' ','')
         if scan != '':
             exp_id = exp_id + '_' + scan
-        if not os.path.exists(self.working_dir + '/' + exp_id):
+        if not os.path.exists(com.join(self.working_dir, exp_id)):
             return False
         return True
 
@@ -298,7 +299,7 @@ class cdi_gui(QWidget):
         load_dir = load_dir.replace(os.sep, '/')
         # self.reset_window()
 
-        if not os.path.isfile(load_dir + '/conf/config'):
+        if not os.path.isfile(com.join(load_dir, 'conf', 'config')):
             msg_window('missing conf/config file, not experiment directory')
             return
 
@@ -326,7 +327,7 @@ class cdi_gui(QWidget):
 
     def get_conf_dicts(self, load_dir):
         load_dir = load_dir.replace(os.sep, '/')
-        conf_file = load_dir + '/conf/config'
+        conf_file = com.join(load_dir, 'conf', 'config')
         conf_map = ut.read_config(conf_file)
         if conf_map is None:
             msg_window('please check configuration file ' + conf_file + '. Cannot parse, ')
@@ -334,12 +335,12 @@ class cdi_gui(QWidget):
         # convert configuration files if needed
         if 'converter_ver' not in conf_map or conv.get_version() is None or conv.get_version() > conf_map[
             'converter_ver']:
-            return conv.convert(load_dir + '/conf'), True
+            return conv.convert(com.join(load_dir, 'conf')), True
         else:
             conf_dirs = {}
-            for cf in os.listdir(load_dir + '/conf'):
-                if os.path.isfile(load_dir + '/conf/' + cf) and cf.startswith('conf'):
-                    conf_dirs[cf] = ut.read_config(load_dir + '/conf/' + cf)
+            for cf in os.listdir(com.join(load_dir, 'conf')):
+                if os.path.isfile(com.join(load_dir, 'conf', cf)) and cf.startswith('conf'):
+                    conf_dirs[cf] = ut.read_config(com.join(load_dir, 'conf', cf))
             return conf_dirs, False
 
 
@@ -386,7 +387,7 @@ class cdi_gui(QWidget):
         """
         if not os.path.exists(self.experiment_dir):
             os.makedirs(self.experiment_dir)
-        experiment_conf_dir = self.experiment_dir + '/conf'
+        experiment_conf_dir = com.join(self.experiment_dir, 'conf')
         if not os.path.exists(experiment_conf_dir):
             os.makedirs(experiment_conf_dir)
 
@@ -414,9 +415,9 @@ class cdi_gui(QWidget):
         if len(er_msg) > 0:
             msg_window(er_msg)
             if self.debug:
-                ut.write_config(conf_map, self.experiment_dir + '/conf/config')
+                ut.write_config(conf_map, com.join(self.experiment_dir, 'conf', 'config'))
         else:
-            ut.write_config(conf_map, self.experiment_dir + '/conf/config')
+            ut.write_config(conf_map, com.join(self.experiment_dir, 'conf', 'config'))
 
 
     def set_experiment(self, loaded=False):
@@ -458,7 +459,7 @@ class cdi_gui(QWidget):
             self.exp_id = self.id + '_' + str(self.scan_widget.text()).replace(' ','')
         else:
             self.exp_id = self.id
-        self.experiment_dir = self.working_dir + '/' + self.exp_id
+        self.experiment_dir = com.join(self.working_dir, self.exp_id)
         self.assure_experiment_dir()
 
         if len(self.beamline_widget.text().strip()) > 0:
@@ -886,15 +887,15 @@ class DataTab(QWidget):
                     msg_window(er_msg)
                     if not self.main_win.debug:
                         return
-                ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_data')
+                ut.write_config(conf_map, com.join(self.main_win.experiment_dir, 'conf', 'config_data'))
                 run_dt.format_data(self.main_win.experiment_dir, debug=self.main_win.debug)
             else:
                 msg_window('Please, run data preparation in previous tab to activate this function')
 
         # reload the window if auto_data as the intensity_threshold and binning could change
-        main_conf_map = ut.read_config(self.main_win.experiment_dir + '/conf/config')
+        main_conf_map = ut.read_config(com.join(self.main_win.experiment_dir, 'conf', 'config'))
         if 'auto_data' in main_conf_map and main_conf_map['auto_data']:
-            data_map = ut.read_config(self.main_win.experiment_dir + '/conf/config_data')
+            data_map = ut.read_config(com.join(self.main_win.experiment_dir, 'conf', 'config_data'))
             self.load_tab(data_map)
 
 
@@ -907,7 +908,7 @@ class DataTab(QWidget):
                 msg_window(er_msg)
                 if not self.main_win.debug:
                     return
-            ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_data')
+            ut.write_config(conf_map, com.join(self.main_win.experiment_dir, 'conf', 'config_data'))
 
 
     def load_data_conf(self):
@@ -1142,7 +1143,7 @@ class RecTab(QWidget):
             if not self.main_win.debug:
              return
         if len(conf_map) > 0:
-            ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_rec')
+            ut.write_config(conf_map, com.join(self.main_win.experiment_dir, 'conf', 'config_rec'))
 
 
     def set_init_guess_layout(self, layout):
@@ -1200,8 +1201,9 @@ class RecTab(QWidget):
             return
 
         # copy the config_rec into <id>_config_rec
-        conf_file = self.main_win.experiment_dir + '/conf/config_rec'
-        new_conf_file = self.main_win.experiment_dir + '/conf/config_rec_' + id
+
+        conf_file = com.join(self.main_win.experiment_dir, 'conf', 'config_rec')
+        new_conf_file = com.join(self.main_win.experiment_dir, 'conf', 'config_rec_' + id)
         shutil.copyfile(conf_file, new_conf_file)
         self.rec_id.setCurrentIndex(self.rec_id.count() - 1)
 
@@ -1230,9 +1232,9 @@ class RecTab(QWidget):
         conf_map = self.get_rec_config()
         if len(conf_map) == 0:
             return
-        conf_dir = self.main_win.experiment_dir + '/conf'
+        conf_dir = com.join(self.main_win.experiment_dir, 'conf')
 
-        ut.write_config(conf_map, conf_dir + '/' + conf_file)
+        ut.write_config(conf_map, com.join(conf_dir, conf_file))
         if str(self.rec_id.currentText()) == 'main':
             self.old_conf_id = ''
         else:
@@ -1240,9 +1242,9 @@ class RecTab(QWidget):
         # if a config file corresponding to the rec id exists, load it
         # otherwise read from base configuration and load
         if self.old_conf_id == '':
-            conf_file = conf_dir + '/config_rec'
+            conf_file = com.join(conf_dir, 'config_rec')
         else:
-            conf_file = conf_dir +  '/config_rec_' + self.old_conf_id
+            conf_file = com.join(conf_dir,  'config_rec_' + self.old_conf_id)
 
         conf_map = ut.read_config(conf_file)
         if conf_map is None:
@@ -1318,7 +1320,7 @@ class RecTab(QWidget):
                     msg_window(er_msg)
                     if not self.main_win.debug:
                         return
-                ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/' + conf_file)
+                ut.write_config(conf_map, com.join(self.main_win.experiment_dir, 'conf', conf_file))
                 run_rc.manage_reconstruction(self.main_win.experiment_dir, config_id=conf_id, debug=self.main_win.debug)
                 self.notify()
             else:
@@ -1361,7 +1363,7 @@ class RecTab(QWidget):
         # fill out the config_id choice bar by reading configuration files names
         if not self.main_win.is_exp_set():
             return
-        for file in os.listdir(self.main_win.experiment_dir + '/conf'):
+        for file in os.listdir(com.join(self.main_win.experiment_dir, 'conf')):
             if file.startswith('config_rec_'):
                 self.rec_ids.append(file[len('config_rec_') : len(file)])
         if len(self.rec_ids) > 0:
@@ -2498,20 +2500,20 @@ class MpTab(QWidget):
             msg_window('please select valid config file')
 
 
-def main(args):
+def main():
     """
     Starts GUI application.
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("--debug", action="store_true",
                         help="if True the vrifier has no effect on processing")
-    kwargs = parser.parse_args()
-    app = QApplication(args)
+    args = parser.parse_args()
+    app = QApplication(sys.argv)
     ex = cdi_gui()
-    ex.set_args(args, debug=kwargs.debug)
+    ex.set_args(sys.argv[1:], debug=args.debug)
     ex.show()
     sys.exit(app.exec_())
 
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
+    main()

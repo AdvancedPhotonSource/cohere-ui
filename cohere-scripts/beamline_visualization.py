@@ -447,7 +447,7 @@ def handle_visualization(experiment_dir, rec_id=None, **kwargs):
     return ''
 
 
-def main(arg):
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_dir", help="experiment directory")
     parser.add_argument("--rec_id", help="alternate reconstruction id")
@@ -458,6 +458,6 @@ def main(arg):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    main()
 
 # python run_disp.py experiment_dir

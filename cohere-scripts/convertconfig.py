@@ -3,6 +3,7 @@ import os
 import argparse
 import shutil
 import cohere_core.utilities as ut
+import common as com
 
 
 # version must be increased after each modification of configuration file(s)
@@ -222,7 +223,7 @@ def convert(conf_dir):
         return None
 
     # read main config and check the converter version
-    main_conf = ut.read_config(conf_dir + '/config')
+    main_conf = ut.read_config(com.join(conf_dir, 'config'))
     if main_conf is None:
         return None
     if 'converter_ver' in main_conf:
@@ -233,10 +234,10 @@ def convert(conf_dir):
         return None
 
     config_dicts = {}
-    if not os.path.isfile(conf_dir + '/config_instr'):
+    if not os.path.isfile(com.join(conf_dir, 'config_instr')):
         config_dicts['config_instr'] = {}
     for cfile in config_maps.keys():
-        conf_file = conf_dir + '/' + cfile
+        conf_file = com.join(conf_dir, cfile)
         # check if file exist
         if not os.path.isfile(conf_file):
             continue
@@ -269,13 +270,13 @@ def convert(conf_dir):
     # Write the data out to the same-named file
     if os.access(os.path.dirname(conf_dir), os.W_OK):
         for k, v in config_dicts.items():
-            file_name = conf_dir + '/' + k
+            file_name = com.join(conf_dir, k)
             ut.write_config(v, file_name)
 
     return config_dicts
 
 
-def main(arg):
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("conv_dir", help="path to directory with configuration files that will be converted")
     args = parser.parse_args()
@@ -283,4 +284,4 @@ def main(arg):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    main()

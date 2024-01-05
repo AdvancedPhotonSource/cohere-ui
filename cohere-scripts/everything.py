@@ -48,7 +48,7 @@ def run_all(experiment_dir, **kwargs):
     dsp.handle_visualization(experiment_dir, **kwargs)
 
 
-def main(arg):
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_dir", help="experiment directory")
     parser.add_argument("--rec_id", help="reconstruction id, a prefix to '_results' directory")
@@ -60,5 +60,5 @@ def main(arg):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    main()
 

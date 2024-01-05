@@ -81,7 +81,7 @@ def format_data(experiment_dir, **kwargs):
         ut.write_config(data_conf_map, com.join(experiment_dir,'conf', 'config_data'))
 
 
-def main(arg):
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_dir", help="experiment directory")
     parser.add_argument("--debug", action="store_true",
@@ -91,4 +91,4 @@ def main(arg):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    main()

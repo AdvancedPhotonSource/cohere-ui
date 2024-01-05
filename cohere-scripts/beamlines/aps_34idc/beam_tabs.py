@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import *
 import ast
 import cohere_core as cohere
 import cohere_core.utilities as ut
-
+import common as com
 
 
 def msg_window(text):
@@ -246,8 +246,6 @@ class PrepTab(QWidget):
             conf_map['exclude_scans'] = ast.literal_eval(str(self.exclude_scans.text()).replace('\n',''))
         if len(self.roi.text()) > 0:
             conf_map['roi'] = ast.literal_eval(str(self.roi.text()).replace('\n',''))
-        # if len(self.outliers_scans.text()) > 0:
-        #     conf_map['outliers_scans'] = ast.literal_eval(str(self.outliers_scans.text()).replace('\n',''))
 
         return conf_map
 
@@ -283,21 +281,21 @@ class PrepTab(QWidget):
             msg_window('cannot prepare data for 34idc, need data directory')
             return
 
-        main_config_map = ut.read_config(self.main_win.experiment_dir + '/conf/config')
+        main_config_map = ut.read_config(com.join(self.main_win.experiment_dir, 'conf', 'config'))
         auto_data = 'auto_data' in main_config_map and main_config_map['auto_data']
 
         if auto_data:
             # exclude outliers_scans from saving
-            current_prep_map = ut.read_config(self.main_win.experiment_dir + '/conf/config_prep')
+            current_prep_map = ut.read_config(com.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
             if current_prep_map is not None and 'outliers_scans' in current_prep_map:
                 conf_map['outliers_scans'] = current_prep_map['outliers_scans']
-        ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_prep')
+        ut.write_config(conf_map, com.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
 
         self.tabs.run_prep()
 
         # reload the window if auto_data as the outliers_scans could change
         if auto_data:
-            prep_map = ut.read_config(self.main_win.experiment_dir + '/conf/config_prep')
+            prep_map = ut.read_config(com.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
             self.load_tab(prep_map)
 
 
@@ -368,9 +366,9 @@ class PrepTab(QWidget):
             if len(er_msg) > 0:
                 msg_window(er_msg)
                 if self.main_win.debug:
-                    ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_prep')
+                    ut.write_config(conf_map, com.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
             else:
-                ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_prep')
+                ut.write_config(conf_map, com.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
 
 
     def notify(self):
@@ -560,7 +558,7 @@ class DispTab(QWidget):
             if not self.main_win.debug:
                 return
 
-        ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_disp')
+        ut.write_config(conf_map, com.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
         self.tabs.run_viz()
 
 
@@ -575,9 +573,9 @@ class DispTab(QWidget):
             if len(er_msg) > 0:
                 msg_window(er_msg)
                 if self.main_win.debug:
-                    ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_disp')
+                    ut.write_config(conf_map, com.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
             else:
-                ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_disp')
+                ut.write_config(conf_map, com.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
 
 
     def update_tab(self, **args):
@@ -599,7 +597,7 @@ class DispTab(QWidget):
                     self.main_win.separate_scan_ranges.isChecked():
                 results_dir = self.main_win.experiment_dir
             else:
-                results_dir = self.main_win.experiment_dir + '/results_phasing'
+                results_dir = com.join(self.main_win.experiment_dir, 'results_phasing')
 
         if 'conf' in args:
             results_dir = args['conf']
@@ -607,9 +605,9 @@ class DispTab(QWidget):
         if 'rec_id' in args:
             rec_id = args['rec_id']
             if len(rec_id) > 0:
-                results_dir = self.main_win.experiment_dir + '/results_phasing_' + rec_id
+                results_dir = com.join(self.main_win.experiment_dir, 'results_phasing_' + rec_id)
             else:
-                results_dir = self.main_win.experiment_dir + '/results_phasing'
+                results_dir = com.join(self.main_win.experiment_dir, 'results_phasing')
 
         if 'generations' in args:
             generations = args['generations']
@@ -618,7 +616,7 @@ class DispTab(QWidget):
             else:
                 rec_no = 1
             if generations > 0 and rec_no > 1:
-                results_dir = results_dir + '/g_' + str(generations - 1) + '/0'
+                results_dir = com.join(results_dir, 'g_' + str(generations - 1), '0')
 
 
         self.result_dir_button.setText(results_dir)
@@ -1054,5 +1052,5 @@ class InstrTab(QWidget):
             if not self.main_win.debug:
                 return
 
-        ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_instr')
+        ut.write_config(conf_map, com.join(self.main_win.experiment_dir, 'conf', 'config_instr'))
 
