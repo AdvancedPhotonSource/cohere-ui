@@ -57,6 +57,7 @@ def split_resources(hostfile, devs, no_scans):
 
     # distribute the hosts/devices between scans
     current_host_idx = 0
+    linesep = os.linesep
     for i in range(no_scans):
         with open(hostfiles[i], mode='w+') as f:
             need_assign = devs
@@ -66,7 +67,7 @@ def split_resources(hostfile, devs, no_scans):
                     host_assigned_no = need_assign
                 else:
                     host_assigned_no = no_devs
-                f.write(host + ':' + str(host_assigned_no) + '\n')
+                f.write(f'{host}:{str(host_assigned_no)}{linesep}')
                 need_assign -= host_assigned_no
                 hosts_no_devs[current_host_idx][1] -= host_assigned_no
                 if hosts_no_devs[current_host_idx][1] == 0:
@@ -134,7 +135,7 @@ def manage_reconstruction(experiment_dir, config_id, debug):
     sr_time = time()
 
     conf_list = ['config_rec', 'config_mp']
-    err_msg, conf_maps = com.get_config_maps(experiment_dir, conf_list, debug)
+    err_msg, conf_maps = com.get_config_maps(experiment_dir, conf_list, debug, config_id)
     if len(err_msg) > 0:
         return err_msg
 
@@ -161,7 +162,7 @@ def manage_reconstruction(experiment_dir, config_id, debug):
         peak_dirs = []
         for dir in os.listdir(experiment_dir):
             if dir.startswith('mp'):
-                peak_dirs.append(com.join(experiment_dir, dir))
+                peak_dirs.append(ut.join(experiment_dir, dir))
         return cohere.reconstruction_coupled.reconstruction(lib, config_map, peak_dirs, dev)
 
     # exp_dirs_data list hold pairs of data and directory, where the directory is the root of phasing_data/data.tif file, and
@@ -170,9 +171,9 @@ def manage_reconstruction(experiment_dir, config_id, debug):
     # experiment may be multi-scan(s) in which case reconstruction will run for each scan, or scan range
     for dir in os.listdir(experiment_dir):
         if dir.startswith('scan'):
-            datafile = com.join(experiment_dir,dir,'phasing_data', 'data.tif')
+            datafile = ut.join(experiment_dir,dir,'phasing_data', 'data.tif')
             if os.path.isfile(datafile):
-                exp_dirs_data.append((datafile, com.join(experiment_dir, dir)))
+                exp_dirs_data.append((datafile, ut.join(experiment_dir, dir)))
      # if there are no scan directories, assume it is combined scans experiment
     if len(exp_dirs_data) == 0:
         # in typical scenario data_dir is not configured, and it is defaulted to <experiment_dir>/data
@@ -180,8 +181,8 @@ def manage_reconstruction(experiment_dir, config_id, debug):
         if 'data_dir' in rec_config_map:
             data_dir = rec_config_map['data_dir']
         else:
-            data_dir = com.join(experiment_dir, 'phasing_data')
-        datafile = com.join(data_dir, 'data.tif')
+            data_dir = ut.join(experiment_dir, 'phasing_data')
+        datafile = ut.join(data_dir, 'data.tif')
         if os.path.isfile(datafile):
             exp_dirs_data.append((datafile, experiment_dir))
 
@@ -191,9 +192,9 @@ def manage_reconstruction(experiment_dir, config_id, debug):
         return 'did not find data.tif file(s). '
 
     if config_id is None:
-        conf_file = com.join(experiment_dir, 'conf', 'config_rec')
+        conf_file = ut.join(experiment_dir, 'conf', 'config_rec')
     else:
-        conf_file = com.join(experiment_dir, 'conf', 'config_rec_' + config_id)
+        conf_file = ut.join(experiment_dir, 'conf', f'config_rec_{config_id}')
 
     ga_method = None
     if 'ga_generations' in rec_config_map and rec_config_map['ga_generations'] > 1:

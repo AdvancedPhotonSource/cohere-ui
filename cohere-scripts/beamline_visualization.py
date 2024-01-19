@@ -17,7 +17,6 @@ __all__ = ['process_dir',
            'main']
 
 import argparse
-import sys
 import os
 import numpy as np
 from functools import partial
@@ -25,8 +24,8 @@ from multiprocessing import Pool, cpu_count
 import importlib
 import cohere_core.utilities as ut
 from tvtk.api import tvtk
-import common as com
 import multipeak as mp
+import common as com
 
 
 class CXDViz:
@@ -89,17 +88,17 @@ class CXDViz:
 
         self.add_ds_arrays(arrays)
         if is_twin:
-            self.write_directspace(save_dir + '/twin_image')
+            self.write_directspace(ut.join(save_dir, 'twin_image'))
         else:
-            self.write_directspace(save_dir + '/image')
+            self.write_directspace(ut.join(save_dir, 'image'))
         self.clear_direct_arrays()
         if support is not None:
             arrays = {"support": support}
             self.add_ds_arrays(arrays)
             if is_twin:
-                self.write_directspace(save_dir + '/twin_support')
+                self.write_directspace(ut.join(save_dir, 'twin_support'))
             else:
-                self.write_directspace(save_dir + '/support')
+                self.write_directspace(ut.join(save_dir, 'support'))
             self.clear_direct_arrays()
 
         if coh is not None:
@@ -107,7 +106,7 @@ class CXDViz:
             coh = ut.pad_center(coh, image.shape)
             arrays = {"cohAmp": np.abs(coh), "cohPh": np.angle(coh)}
             self.add_ds_arrays(arrays)
-            self.write_directspace(save_dir + '/coherence')
+            self.write_directspace(ut.join(save_dir, 'coherence'))
             self.clear_direct_arrays()
 
 
@@ -241,7 +240,7 @@ class CXDViz:
             sgwriter.file_name = filename + '.vts'
         sgwriter.set_input_data(self.get_ds_structured_grid())
         sgwriter.write()
-        print('saved file', filename)
+        print(f'saved file {filename}')
 
 
     def write_recipspace(self, filename, **args):
@@ -250,10 +249,10 @@ class CXDViz:
         if filename.endswith(".vtk"):
             sgwriter.file_name = filename
         else:
-            sgwriter.file_name = filename + '.vts'
+            sgwriter.file_name = f'{filename}.vts'
         sgwriter.set_input_data(self.get_rs_structured_grid())
         sgwriter.write()
-        print('saved file', filename)
+        print(f'saved file {filename}')
 
 
 def process_dir(instrument, config_map, rampups, crop, unwrap, make_twin, res_dir_scan):
@@ -278,38 +277,38 @@ def process_dir(instrument, config_map, rampups, crop, unwrap, make_twin, res_di
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     # image file was checked in calling function
-    imagefile = res_dir + '/image.npy'
+    imagefile = ut.join(res_dir, 'image.npy')
     try:
         image = np.load(imagefile)
-        ut.save_tif(image, com.join(save_dir, 'support.tif'))
+        ut.save_tif(image, ut.join(save_dir, 'support.tif'))
     except:
-        print('cannot load file', imagefile)
+        print(f'cannot load file {imagefile}')
         return
 
     # init support and coh, will be overridden if not None
     support = None
     coh = None
 
-    supportfile = com.join(res_dir, 'support.npy')
+    supportfile = ut.join(res_dir, 'support.npy')
     if os.path.isfile(supportfile):
         try:
             support = np.load(supportfile)
-            ut.save_tif(support, com.join(save_dir, 'support.tif'))
+            ut.save_tif(support, ut.join(save_dir, 'support.tif'))
         except:
-            print('cannot load file', supportfile)
+            print(f'cannot load file {supportfile}')
     else:
-        print('support file is missing in ' + res_dir + ' directory')
+        print(f'support file is missing in {res_dir} directory')
 
     # get geometry
     instrument.initialize(config_map, scan)
     geometry = instrument.get_geometry(image.shape)
 
-    cohfile = com.join(res_dir, 'coherence.npy')
+    cohfile = ut.join(res_dir, 'coherence.npy')
     if os.path.isfile(cohfile):
         try:
             coh = np.load(cohfile)
         except:
-            print('cannot load file', cohfile)
+            print(f'cannot load file {cohfile}')
 
     if rampups > 1:
         import importlib
@@ -352,18 +351,19 @@ def handle_visualization(experiment_dir, rec_id=None, **kwargs):
     main_conf_map = conf_maps['config']
 
     if 'multipeak' in main_conf_map and main_conf_map['multipeak']:
-        mp.process_dir(com.join(experiment_dir, 'results_phasing'))
+        mp.process_dir(ut.join(experiment_dir, 'results_phasing'))
     else:
         try:
-            instr = importlib.import_module('beamlines.' + main_conf_map['beamline'] + '.instrument')
+            instr = importlib.import_module(f'beamlines.{main_conf_map["beamline"]}.instrument')
             instrument = instr.Instrument()
         except:
-            print('cannot import beamlines.' + main_conf_map['beamline'] + '.instrument module.')
-            return ('cannot import beamlines.' + main_conf_map['beamline'] + '.instrument module.')
+            print(f'cannot import beamlines.{main_conf_map["beamline"]}.instrument module.')
+            return (f'cannot import beamlines.{main_conf_map["beamline"]}.instrument module.')
 
         instr_conf_map = conf_maps['config_instr']
         data_conf_map = conf_maps['config_data']
         disp_conf_map = conf_maps['config_disp']
+
         config_map = {}
         if ('separate_scans' in main_conf_map and main_conf_map['separate_scans']) or \
                 ('separate_scan_ranges' in main_conf_map and main_conf_map['separate_scan_ranges']):
@@ -402,12 +402,15 @@ def handle_visualization(experiment_dir, rec_id=None, **kwargs):
 
         if 'results_dir' in disp_conf_map:
             results_dir = disp_conf_map['results_dir'].replace(os.sep, '/')
+            if not os.path.isdir(results_dir):
+                print(f'the configured results_dir: {results_dir} does not exist')
+                return(f'the configured results_dir: {results_dir} does not exist')
         elif separate:
             results_dir = experiment_dir
         elif rec_id is not None:
-            results_dir = com.join(experiment_dir, 'results_phasing_' + rec_id)
+            results_dir = ut.join(experiment_dir, f'results_phasing_{rec_id}')
         else:
-            results_dir = com.join(experiment_dir, 'results_phasing')
+            results_dir = ut.join(experiment_dir, 'results_phasing')
         # find directories with image.npy file in the root of results_dir
         dirs = []
         for (dirpath, dirnames, filenames) in os.walk(results_dir):
@@ -415,21 +418,20 @@ def handle_visualization(experiment_dir, rec_id=None, **kwargs):
                 if file.endswith('image.npy'):
                     dirs.append((dirpath).replace(os.sep, '/'))
         if len(dirs) == 0:
-            print ('no image.npy files found in the directory tree', results_dir)
-            return ('no image.npy files found in the directory tree', results_dir)
+            print (f'no image.npy files found in the directory tree {results_dir}')
+            return (f'no image.npy files found in the directory tree {results_dir}')
 
         last_scan = int(main_conf_map['scan'].split(',')[-1].split('-')[-1])
         if separate:
             scans = []
             # the scan that will be used to derive geometry is determined from the scan directory
             for dir in dirs:
-                subdir = dir.removeprefix(experiment_dir + '/')
+                subdir = dir.removeprefix(f'{experiment_dir}/')
                 if subdir.startswith('scan'):
                     scan_dir = subdir.split('/')[0]
                     scans.append(int(scan_dir.removeprefix('scan_').split('-')[-1]))
                 else:
-                    print('directory', subdir, 'does not start with "scan", using configured scan to parse spec')
-                    scans.append(last_scan)
+                    print(f'directory {dir} does not start with "scan", not visualizing')
             dirs = list(zip(dirs, scans))
         else:
             dirs = [[dir, last_scan] for dir in dirs]

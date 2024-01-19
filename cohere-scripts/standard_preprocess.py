@@ -9,12 +9,11 @@
 This script formats data for reconstruction according to configuration.
 """
 
-import sys
 import argparse
 import os
-import common as com
 import cohere_core as cohere
 import cohere_core.utilities as ut
+import common as com
 
 
 __author__ = "Barbara Frosik"
@@ -22,14 +21,6 @@ __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['format_data',
            'main']
-
-
-def format_dir(exp_dir, data_dir, auto_data, data_conf_map):
-    prep_file = com.join(exp_dir, 'preprocessed_data', 'prep_data.tif')
-    data_conf_map['data_dir'] = data_dir
-    if not os.path.exists(data_dir):
-        os.makedirs(data_dir)
-    return cohere.prep(prep_file, auto_data, **data_conf_map)
 
 
 def format_data(experiment_dir, **kwargs):
@@ -60,25 +51,33 @@ def format_data(experiment_dir, **kwargs):
     if debug:
         data_conf_map['debug'] = True
 
-    if 'data_dir' in data_conf_map:
-        data_dir = data_conf_map['data_dir']
-    else:
-        data_dir = com.join(experiment_dir, 'phasing_data')
-    data_conf_map = format_dir(experiment_dir, data_dir, auto_data, data_conf_map)
-
     dirs = os.listdir(experiment_dir)
     for dir in dirs:
         if dir.startswith('scan') or dir.startswith('mp'):
-            scan_dir = com.join(experiment_dir, dir)
-            data_dir = com.join(scan_dir, 'phasing_data')
-            data_conf_map = format_dir(scan_dir, data_dir, auto_data, data_conf_map)
+            scan_dir = ut.join(experiment_dir, dir)
+            data_dir = ut.join(scan_dir, 'phasing_data')
+            proc_dir = scan_dir
+        elif dir == 'preprocessed_data':
+            if 'data_dir' in data_conf_map:
+                data_dir = data_conf_map['data_dir']
+            else:
+                data_dir = ut.join(experiment_dir, 'phasing_data')
+            proc_dir = experiment_dir
+        else:
+            continue
+
+        if not os.path.exists(data_dir):
+            os.makedirs(data_dir)
+        data_conf_map['data_dir'] = data_dir
+        # call the preprocessing in cohere_core, it will return updated configuration if auto_data
+        data_conf_map = cohere.prep(ut.join(proc_dir, 'preprocessed_data', 'prep_data.tif'), auto_data, **data_conf_map)
 
     # This will work for a single reconstruction.
     # For separate scan the last auto-calculated values will be saved
     # TODO:
     # make the parameters like threshold a list for the separate scans scenario
     if auto_data:
-        ut.write_config(data_conf_map, com.join(experiment_dir,'conf', 'config_data'))
+        ut.write_config(data_conf_map, ut.join(experiment_dir,'conf', 'config_data'))
 
 
 def main():

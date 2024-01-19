@@ -78,6 +78,7 @@ class BeamPrepData():
         self.experiment_dir = experiment_dir
         self.scan_ranges = []
 
+        last_scan = None
         if 'scan' in conf_map:
             scan_units = [u for u in conf_map['scan'].replace(' ','').split(',')]
             for u in scan_units:
@@ -108,7 +109,7 @@ class BeamPrepData():
 
         self.det_obj = det.create_detector(self.detector)
         if self.det_obj is None:
-            return 'cannot create detector ' + self.detector
+            return f'cannot create detector {self.detector}'
         self.det_obj.set_detector(conf_map)
         self.data_dir = self.data_dir.replace(os.sep, '/')
 

@@ -13,7 +13,6 @@ cohere_core.reconstruction_GA
 This module controls a reconstructions using genetic algorithm (GA).
 Refer to cohere_core-ui suite for use cases. The reconstruction can be started from GUI x or using command line scripts x.
 """
-import sys
 import argparse
 import numpy as np
 import os
@@ -125,8 +124,9 @@ def reconstruction(conf_file, datafile):
     def save_metric(metric, file_name):
         with open(file_name.replace(os.sep, '/'), 'w+') as f:
             f.truncate(0)
+            linesep = os.linesep
             for key, value in metric.items():
-                f.write(key + ' = ' + str(value) + os.linesep)
+                f.write(f'{key} = {str(value)}{linesep}')
 
     comm = MPI.COMM_WORLD
     size = comm.Get_size()
@@ -136,7 +136,7 @@ def reconstruction(conf_file, datafile):
     filename = conf_file.split('/')[-1]
     conf_dir = conf_file[:-len(filename)]
     save_dir = conf_dir.replace('conf', 'results_phasing')
-    alpha_dir = save_dir + '/alpha'
+    alpha_dir = ut.join(save_dir, 'alpha')
 
     if rank == 0:
         # create alpha dir and placeholder for the alpha's metrics
@@ -174,7 +174,7 @@ def reconstruction(conf_file, datafile):
     active = True
     for g in range(pars['ga_generations']):
         was_active = active
-        print ('starting generation, rank', g, rank)
+        print (f'starting generation, rank {g} {rank}')
         if g == 0:
             ret = worker.init_dev(-1)
             if ret < 0:
@@ -199,27 +199,18 @@ def reconstruction(conf_file, datafile):
                     active = False
 
             if active:
-            #    time1 = time.time()
                 ret = worker.breed()
                 worker.clean_breeder()
                 worker.breeder = None
-            #    time2 = time.time()
-            #    t = time2 - time1
-            #    write_log(rank, 'breed time ' + str(t))
                 if ret < 0:
                     active = False
             comm.Barrier()
 
         if active:
-        #    time3 = time.time()
             ret = worker.iterate()
-        #    time4 = time.time()
-        #    t = time4 - time3
-        #    write_log(rank, 'itr time ' + str(t))
             if ret < 0:
                 active = False
 
-        # write_log(rank, 'iter done, active ' + str(active))
         if active:
             metric_type = pars['ga_metrics'][g]
             metric = worker.get_metric(metric_type)
@@ -252,7 +243,6 @@ def reconstruction(conf_file, datafile):
 
         if rank == 0:
             # order processes by metric
-            # write_log(rank, 'generation ' + str(g))
             proc_ranks, best_metrics = order_ranks(tracing, metrics, metric_type)
             proc_ranks = [p[0] for p in proc_ranks]
             # cull
@@ -265,7 +255,6 @@ def reconstruction(conf_file, datafile):
             to_remove = proc_ranks[len(culled_proc_ranks) : len(proc_ranks)]
             for r in to_remove:
                 if r in active_ranks:
-                    # write_log(rank, 'not in active ranks, active ' + str(active))
                     active_ranks.remove(r)
         elif active:
             culled_proc_ranks = comm.recv(source=0)
@@ -277,7 +266,7 @@ def reconstruction(conf_file, datafile):
             # compare current alpha and previous. If previous is better, set it as alpha.
             if g == 0:
                 worker.save_res(alpha_dir, True)
-                save_metric(metric, alpha_dir + '/alpha_metric')
+                save_metric(metric, ut.join(alpha_dir, 'alpha_metric'))
             else:
                 def is_best(this_metric, alpha_metric, type):
                     if type == 'chi' or type == 'sharpness':
@@ -286,17 +275,17 @@ def reconstruction(conf_file, datafile):
                         return this_metric[type] > alpha_metric[type]
 
                 # read the previous alpha metric
-                alpha_metric = ut.read_config(alpha_dir + '/alpha_metric')
+                alpha_metric = ut.read_config(ut.join(alpha_dir, 'alpha_metric'))
 
                 if is_best(metric, alpha_metric, metric_type):
                     worker.save_res(alpha_dir, True)
-                    save_metric(metric, alpha_dir + '/alpha_metric')
+                    save_metric(metric, ut.join(alpha_dir, 'alpha_metric'))
 
         # save results, we may modify it later to save only some
-        gen_save_dir = save_dir + '/g_' + str(g)
+        gen_save_dir = ut.join(save_dir, f'g_{str(g)}')
         if g == pars['ga_generations'] -1:
             if active:
-                worker.save_res(gen_save_dir + '/' + str(culled_proc_ranks.index(rank)))
+                worker.save_res(ut.join(gen_save_dir, str(culled_proc_ranks.index(rank))))
 
         if not active:
             worker = None
@@ -310,16 +299,14 @@ def reconstruction(conf_file, datafile):
     print('done gen')
 
 
-def main(arg):
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("conf_file", help="conf_file")
     parser.add_argument("datafile", help="datafile")
     args = parser.parse_args()
 
-    #dir = os.path.dirname(os.path.dirname(datafile))
     reconstruction(args.conf_file, args.datafile)
 
 
 if __name__ == "__main__":
-    print('args', sys.argv)
-    exit(main(sys.argv[1:]))
+    exit(main())

@@ -2,19 +2,16 @@ import sys
 import os
 import cohere_core as cohere
 import convertconfig as conv
+import cohere_core.utilities as ut
 
 
-def join(*args):
-    return os.path.join(*args).replace(os.sep, '/')
-
-
-def get_config_maps(experiment_dir, configs, debug=False, rec_id=None):
+def get_config_maps(experiment_dir, configs, debug=False, config_id=None):
     maps = {}
     # always get main config
-    conf_dir = join(experiment_dir, 'conf')
-    main_conf = join(conf_dir, 'config')
+    conf_dir = ut.join(experiment_dir, 'conf')
+    main_conf = ut.join(conf_dir, 'config')
     if not os.path.isfile(main_conf):
-        err_msg = "info: missing " + main_conf + " configuration file"
+        err_msg = f'info: missing {main_conf} configuration file'
         return err_msg, maps
 
     main_config_map = cohere.read_config(main_conf)
@@ -33,20 +30,18 @@ def get_config_maps(experiment_dir, configs, debug=False, rec_id=None):
 
     for conf in configs:
         # special case for rec_id
-        if rec_id is not None and (conf == 'config_rec' or conf == 'config_disp'):
-            conf_file = join(experiment_dir, 'conf', conf + '_' + rec_id)
+        if config_id is not None and (conf == 'config_rec' or conf == 'config_disp'):
+            conf_file = ut.join(experiment_dir, 'conf', f'{conf}_{config_id}')
         else:
-            conf_file = join(experiment_dir, 'conf', conf)
+            conf_file = ut.join(experiment_dir, 'conf', conf)
 
         # special case for multipeak
         if conf == 'config_mp':
-            if 'multipeak' in main_config_map and main_config_map['multipeak']:
-                pass
-            else:
+            if not ('multipeak' in main_config_map and main_config_map['multipeak']):
                 continue
 
         if not os.path.isfile(conf_file):
-            err_msg = "info: missing " + conf_file + " configuration file"
+            err_msg = f'info: missing {conf_file} configuration file'
             return err_msg, maps
 
         config_map = cohere.read_config(conf_file)
@@ -86,7 +81,7 @@ def get_lib(proc):
             import cupy
             lib = 'cp'
         except:
-            masg = 'cupy is not installed, select different library (proc)'
+            err_msg = 'cupy is not installed, select different library (proc)'
     elif proc == 'torch':
         try:
             import torch
@@ -96,6 +91,6 @@ def get_lib(proc):
     elif proc == 'np':
         pass  # lib set to 'np'
     else:
-        err_msg = 'invalid "proc" value ' + proc + ' is not supported'
+        err_msg = f'invalid "proc" value, {proc} is not supported'
 
     return err_msg, lib

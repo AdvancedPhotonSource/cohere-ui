@@ -28,13 +28,12 @@ from prep_helper import Preparer, combine_scans, write_prep_arr
 from scipy.interpolate import RegularGridInterpolator as RGI
 from scipy.spatial.transform import Rotation as R
 import cohere_core.utilities as ut
-import common as com
 from beamlines.aps_34idc import instrument as instr, diffractometers as diff, detectors as det
 
 
 def rotate_peaks(prep_obj, data, scans, o_twin):
     print("rotating diffraction pattern")
-    config_map = ut.read_config(com.join(prep_obj.experiment_dir, 'conf', 'config_instr'))
+    config_map = ut.read_config(ut.join(prep_obj.experiment_dir, 'conf', 'config_instr'))
     config_map['multipeak'] = True
     instr_obj = instr.Instrument()
     instr_obj.initialize(config_map, scans[-1])
@@ -129,10 +128,10 @@ class MultPeakPreparer(Preparer):
             dirs = batches[i][0]
             scans = batches[i][1]
             order = batches[i][2]
-            conf_scans = str(self.prep_obj.scan_ranges[order][0]) + '-' + str(self.prep_obj.scan_ranges[order][1])
+            conf_scans = f'{str(self.prep_obj.scan_ranges[order][0])}-{str(self.prep_obj.scan_ranges[order][1])}'
             orientation = self.prep_obj.orientations[order]
             orientation = str(orientation[0]) + str(orientation[1]) + str(orientation[2])
-            save_dir = com.join(self.prep_obj.experiment_dir, 'mp_' + conf_scans + '_' + orientation, 'preprocessed_data')
+            save_dir = ut.join(self.prep_obj.experiment_dir, f'mp_{conf_scans}_{orientation}', 'preprocessed_data')
             p = Process(target=self.process_batch,
                         args=(dirs, scans, save_dir, 'prep_data.tif'))
             p.start()

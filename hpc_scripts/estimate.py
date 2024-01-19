@@ -1,5 +1,4 @@
 import sys
-import os
 import tifffile as tf
 from functools import reduce
 

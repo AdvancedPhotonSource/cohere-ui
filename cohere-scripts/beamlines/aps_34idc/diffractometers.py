@@ -45,7 +45,7 @@ def create_diffractometer(diff_name):
     if diff_name == '34idc':
         return Diffractometer_34idc()
     else:
-        print ('diffractometer ' + diff_name + ' not defined.')
+        print (f'diffractometer {diff_name} not defined.')
 
 
 def verify_diffractometer(diff_name):

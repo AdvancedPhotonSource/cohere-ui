@@ -271,7 +271,7 @@ class Detector_34idcTIM2(Detector):
         try:
             self.raw_frame = cohere.read_tif(filename)
         except:
-            print("problem reading raw file ", filename)
+            print(f'problem reading raw file {filename}')
             raise
 
 
@@ -426,7 +426,7 @@ def create_detector(det_name):
     elif det_name == '34idcTIM2':
         return Detector_34idcTIM2()
     else:
-        print ('detector ' + det_name + ' not defined.')
+        print (f'detector {det_name} not defined.')
         return None
 
 

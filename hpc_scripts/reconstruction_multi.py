@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import os
-import sys
 import argparse
 import importlib
 import cohere_core.utilities.utils as ut
@@ -12,7 +11,8 @@ from mpi4py import MPI
 __author__ = "Barbara Frosik"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['reconstruction']
+__all__ = ['set_lib',
+           'reconstruction']
 
 
 def set_lib(pkg):
@@ -68,8 +68,8 @@ def reconstruction(conf_file, datafile):
         if os.path.isdir(continue_dir):
             prev_dirs = os.listdir(continue_dir)
             if len(prev_dirs) > rank:
-                prev_dir = continue_dir + '/' + prev_dirs[rank]
-                if not os.path.isfile(prev_dir + '/image.npy'):
+                prev_dir = ut.join(continue_dir, prev_dirs[rank])
+                if not os.path.isfile(ut.join(prev_dir, 'image.npy')):
                     prev_dir = None
 
     set_lib('cp')
@@ -87,7 +87,7 @@ def reconstruction(conf_file, datafile):
     if ret < 0:
         return
 
-    save_sub = save_dir + '/' + str(rank)
+    save_sub = ut.join(save_dir, str(rank))
     if not os.path.isdir(save_sub):
         os.mkdir(save_sub)
     worker.save_res(save_sub)
@@ -95,16 +95,15 @@ def reconstruction(conf_file, datafile):
     print('done multi-reconstruction')
 
 
-def main(arg):
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("conf_file", help="conf_file")
     parser.add_argument("datafile", help="datafile")
     args = parser.parse_args()
 
-    #dir = os.path.dirname(os.path.dirname(datafile))
     reconstruction(args.conf_file, args.datafile)
 
 
 if __name__ == "__main__":
-    exit(main(sys.argv[1:]))
+    exit(main())
 
