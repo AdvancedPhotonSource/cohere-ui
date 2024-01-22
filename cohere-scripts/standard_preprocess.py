@@ -50,6 +50,8 @@ def format_data(experiment_dir, **kwargs):
     data_conf_map = conf_maps['config_data']
     if debug:
         data_conf_map['debug'] = True
+    if auto_data:
+        data_conf_map['do_auto_binning'] = not('multipeak' in main_conf_map and main_conf_map['multipeak'])
 
     dirs = os.listdir(experiment_dir)
     for dir in dirs:

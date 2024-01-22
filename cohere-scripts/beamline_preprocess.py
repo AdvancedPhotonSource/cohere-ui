@@ -117,7 +117,6 @@ def find_outliers_in_batch(experiment_dir, scans, q, no_processes):
 
     err_scan = []
     outlier_scans = []
-
     # if multiple processes can run concurrently use this code
     if no_processes > 1:
         func = partial(get_correlation_err, experiment_dir, scans)
@@ -133,7 +132,6 @@ def find_outliers_in_batch(experiment_dir, scans, q, no_processes):
             err_scan.append(get_correlation_err(experiment_dir, scans, scan))
 
     err = [el[0].item() for el in err_scan]
-    # print('err', err)
     err_mean = mean(err)
     stdev = pstdev(err)
     # print('mean, std', mean, stdev)
@@ -141,7 +139,6 @@ def find_outliers_in_batch(experiment_dir, scans, q, no_processes):
        # print(err_value, scan)
         if err_value > (err_mean + stdev):
             outlier_scans.append(scan)
-    # print('outliers scans', outlier_scans)
     q.put(outlier_scans)
 
 
@@ -167,7 +164,7 @@ def find_outlier_scans(experiment_dir, prep_obj):
         if len(batch[0]) > 3:
             dirs += batch[0]
             scans += batch[1]
-            if prep_obj.separate_scan_ranges:
+            if prep_obj.separate_scan_ranges or prep_obj.multipeak:
                 auto_batches.append(batch)
 
     if len(auto_batches) == 0:
@@ -175,7 +172,6 @@ def find_outlier_scans(experiment_dir, prep_obj):
 
     if not prep_obj.separate_scan_ranges:
         auto_batches.append([dirs, scans])
-
     # save scans that are in auto_batches
     process_separate_scans(prep_obj, dirs, scans, experiment_dir)
 

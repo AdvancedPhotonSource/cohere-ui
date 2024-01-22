@@ -2368,6 +2368,8 @@ class MpTab(QWidget):
         layout.addRow("mp taper", self.mp_taper)
         self.lattice_size = QLineEdit()
         layout.addRow("lattice size", self.lattice_size)
+        self.ds_voxel_size = QLineEdit()
+        layout.addRow("ds voxel size", self.ds_voxel_size)
         self.switch_peak_trigger = QLineEdit()
         layout.addRow("switch peak trigger", self.switch_peak_trigger)
 
@@ -2400,6 +2402,7 @@ class MpTab(QWidget):
         self.mp_max_weight.setText('')
         self.mp_taper.setText('')
         self.lattice_size.setText('')
+        self.ds_voxel_size.setText('')
         self.switch_peak_trigger.setText('')
 
 
@@ -2434,6 +2437,8 @@ class MpTab(QWidget):
             self.mp_taper.setText(str(conf_map['mp_taper']))
         if 'lattice_size' in conf_map:
             self.lattice_size.setText(str(conf_map['lattice_size']))
+        if 'ds_voxel_size' in conf_map:
+            self.ds_voxel_size.setText(str(conf_map['ds_voxel_size']))
         if 'switch_peak_trigger' in conf_map:
             self.switch_peak_trigger.setText(str(conf_map['switch_peak_trigger']))
 
@@ -2471,6 +2476,8 @@ class MpTab(QWidget):
             conf_map['mp_taper'] = ast.literal_eval(str(self.mp_taper.text()))
         if len(self.lattice_size.text()) > 0:
             conf_map['lattice_size'] = ast.literal_eval(str(self.lattice_size.text()))
+        if len(self.ds_voxel_size.text()) > 0:
+            conf_map['ds_voxel_size'] = ast.literal_eval(str(self.ds_voxel_size.text()))
         if len(self.switch_peak_trigger.text()) > 0:
             conf_map['switch_peak_trigger'] = ast.literal_eval(str(self.switch_peak_trigger.text()))
 
