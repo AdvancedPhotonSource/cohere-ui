@@ -194,6 +194,8 @@ class MultPeakPreparer(Preparer):
             }
             orientation = "".join(f"{o}" for o in geometry["peak_hkl"])
             save_dir = f"{self.prep_obj.experiment_dir}/mp_{conf_scans}_{orientation}"
+            if not Path(save_dir).exists():
+                Path(save_dir).mkdir()
             ut.write_config(geometry, f"{save_dir}/geometry")
             p = Process(target=self.process_batch,
                         args=(dirs, scans, f"{save_dir}/preprocessed_data", 'prep_data.tif'))
@@ -299,6 +301,7 @@ def process_dir(exp_dir, rampups=1, make_twin=True):
     image, support = center_mp(image, support)
     if rampups > 1:
         image = ut.remove_ramp(image, ups=rampups)
+    np.save(f"{res_dir}/reconstruction.npy", np.moveaxis(image, 0, -1))
 
     px = ut.read_config(f"{exp_dir}/conf/config_mp")["ds_voxel_size"]
 

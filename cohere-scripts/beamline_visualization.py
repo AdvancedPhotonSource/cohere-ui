@@ -377,7 +377,7 @@ def handle_visualization(experiment_dir, rec_id=None):
         return msg
 
     if 'multipeak' in main_conf_map and main_conf_map['multipeak']:
-        mp.process_dir(experiment_dir, make_twin=True)
+        mp.process_dir(experiment_dir, make_twin=False)
     else:
         try:
             instr = importlib.import_module('beamlines.' + main_conf_map['beamline'] + '.instrument')
