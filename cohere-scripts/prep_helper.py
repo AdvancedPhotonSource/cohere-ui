@@ -4,8 +4,10 @@ import re
 import glob
 import numpy as np
 from multiprocessing import Pool, Process
-import util.util as ut
+import cohere_core.utilities as ut
 from functools import partial
+import cohere_core.utilities.dvc_utils as dvut
+import importlib
 
 
 def write_prep_arr(arr, save_dir, filename):
@@ -13,7 +15,6 @@ def write_prep_arr(arr, save_dir, filename):
     This function saves the prepared data in given directory. Creates the directory if
     it does not exist.
     """
-    print('data array dimensions', arr.shape)
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     ut.save_tif(arr, save_dir + '/' + filename)
@@ -33,9 +34,9 @@ def read_align(prep_obj, refarr, dir):
     """
     # read
     arr = prep_obj.read_scan(dir)
-    fft_refarr = np.fft.fftn(refarr)
     # align
-    return np.abs(ut.shift_to_ref_array(fft_refarr, arr))
+    aligned = dvut.align_arrays_pixel(refarr, arr)
+    return np.absolute(aligned)
 
 
 def combine_scans(prep_obj, dirs, inds):
@@ -46,6 +47,13 @@ def combine_scans(prep_obj, dirs, inds):
     refarr = prep_obj.read_scan(ref_dir)
     if refarr is None:
         return None
+
+    # It is faster to run concurrently on cpu than on gpu which needs uploading
+    # array on gpu memory. Setting library here before starting multiple processes
+    # so it's executed only once
+    devlib = importlib.import_module('cohere_core.lib.nplib').nplib
+    dvut.set_lib(devlib)
+
     arr_size = sys.getsizeof(refarr)
     nproc = min(len(dirs), ut.estimate_no_proc(arr_size, 15))
 
@@ -112,9 +120,13 @@ class Preparer():
                 last_digits = re.search(r'\d+$', scan_dir)
                 if last_digits is not None:
                     scan = int(last_digits.group())
-                    if not scan in self.prep_obj.exclude_scans:
-                        self.add_scan(scan, subdir)
+                    if scan in self.prep_obj.exclude_scans:
+                        continue
+                    if self.prep_obj.auto_data and not self.prep_obj.separate_scans and scan in self.prep_obj.outliers_scans:
+                        continue
+                self.add_scan(scan, subdir)
         return list(self.unit_dirs_scan_indexes.values())
+
 
     def process_batch(self, dirs, scans, save_dir, filename):
         batch_arr = combine_scans(self.prep_obj, dirs, scans)

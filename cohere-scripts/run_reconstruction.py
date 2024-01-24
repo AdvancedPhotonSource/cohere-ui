@@ -23,11 +23,12 @@ import os
 import argparse
 from multiprocessing import Process, Queue
 import cohere_core as cohere
-import util.util as ut
+import cohere_core.utilities as ut
 import convertconfig as conv
 
 MEM_FACTOR = 170
 GA_MEM_FACTOR = 250
+GA_FAST_MEM_FACTOR = 184
 ADJUST = 0.0
 
 
@@ -63,7 +64,7 @@ def rec_process(proc, conf_file, datafile, dir, gpus, r, q):
     q.put((os.getpid(), gpus))
 
 
-def get_gpu_use(devices, no_dir, no_rec, data_shape, pc_in_use, ga_in_use):
+def get_gpu_use(devices, no_dir, no_rec, data_shape, pc_in_use, ga_method):
     """
     Determines the use case, available GPUs that match configured devices, and selects the optimal distribution of reconstructions on available devices.
     Parameters
@@ -92,9 +93,14 @@ def get_gpu_use(devices, no_dir, no_rec, data_shape, pc_in_use, ga_in_use):
         # find size of data array
         data_size = reduce((lambda x, y: x * y), data_shape) / 1000000.
         mem_factor = MEM_FACTOR
-        if ga_in_use:
-            mem_factor = GA_MEM_FACTOR
-        rec_mem_size = data_size * mem_factor
+        c = 0
+        if ga_method is not None:
+            if ga_method == 'fast':
+                mem_factor = GA_FAST_MEM_FACTOR
+                c = 428
+            else:
+                mem_factor = GA_MEM_FACTOR
+        rec_mem_size = data_size * mem_factor + c
         if pc_in_use:
             rec_mem_size = rec_mem_size * 2
         gpu_load = ut.get_gpu_load(rec_mem_size, devices)
@@ -118,7 +124,7 @@ def get_gpu_use(devices, no_dir, no_rec, data_shape, pc_in_use, ga_in_use):
     return gpu_use
 
 
-def manage_reconstruction(experiment_dir, rec_id=None):
+def manage_reconstruction(experiment_dir, **kwargs):
     """
     This function starts the interruption discovery process and continues the recontruction processing.
     It reads configuration file defined as <experiment_dir>/conf/config_rec.
@@ -135,6 +141,11 @@ def manage_reconstruction(experiment_dir, rec_id=None):
     nothing
     """
     print('starting reconstruction')
+    if 'rec_id' in kwargs:
+        rec_id = kwargs['rec_id']
+    else:
+        rec_id = None
+
     experiment_dir = experiment_dir.replace(os.sep, '/')
     # the rec_id is a postfix added to config_rec configuration file. If defined, use this configuration.
     conf_dir = experiment_dir + '/conf'
@@ -155,7 +166,9 @@ def manage_reconstruction(experiment_dir, rec_id=None):
     er_msg = cohere.verify('config', main_config_map)
     if len(er_msg) > 0:
         # the error message is printed in verifier
-        return None
+        debug = 'debug' in kwargs and kwargs['debug']
+        if not debug:
+            return None
 
     if rec_id is None:
         conf_file = conf_dir + '/config_rec'
@@ -170,7 +183,9 @@ def manage_reconstruction(experiment_dir, rec_id=None):
     er_msg = cohere.verify('config_rec', rec_config_map)
     if len(er_msg) > 0:
         # the error message is printed in verifier
-        return None
+        debug = 'debug' in kwargs and kwargs['debug']
+        if not debug:
+            return None
 
     # find which library to run it on, default is numpy ('np')
     if 'processing' in rec_config_map:
@@ -273,7 +288,14 @@ def manage_reconstruction(experiment_dir, rec_id=None):
 
             if no_runs * reconstructions > 1:
                 data_shape = cohere.read_tif(exp_dirs_data[0][0]).shape
-                device_use = get_gpu_use(devices, no_runs, reconstructions, data_shape, 'pc' in rec_config_map['algorithm_sequence'], generations > 1)
+                if generations > 1:
+                    if 'ga_fast' in rec_config_map and rec_config_map['ga_fast']:
+                        ga_method = 'fast'
+                    else:
+                        ga_method = 'populous'
+                else:
+                    ga_method = None
+                device_use = get_gpu_use(devices, no_runs, reconstructions, data_shape, 'pc' in rec_config_map['algorithm_sequence'], ga_method)
             else:
                 device_use = devices
 
@@ -284,9 +306,12 @@ def manage_reconstruction(experiment_dir, rec_id=None):
             datafile = dir_data[0]
             dir = dir_data[1]
             if generations > 1:
-                cohere.reconstruction_GA.reconstruction(lib, conf_file, datafile, dir, device_use)
+                if 'ga_fast' in rec_config_map and rec_config_map['ga_fast']:
+                    cohere.mpi_cmd.run_with_mpi(lib, conf_file, datafile, dir, device_use)
+                else:
+                    cohere.reconstruction_populous_GA.reconstruction(lib, conf_file, datafile, dir, device_use)
             elif reconstructions > 1:
-                cohere.reconstruction_multi.reconstruction(lib, conf_file, datafile, dir, device_use)
+                cohere.mpi_cmd.run_with_mpi(lib, conf_file, datafile, dir, device_use)
             else:
                 cohere.reconstruction_single.reconstruction(lib, conf_file, datafile, dir, device_use)
         else:
@@ -335,13 +360,10 @@ def main(arg):
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_dir", help="experiment directory.")
     parser.add_argument("--rec_id", help="reconstruction id, a postfix to 'results_phasing_' directory")
+    parser.add_argument("--debug", action="store_true",
+                        help="if True the vrifier has no effect on processing")
     args = parser.parse_args()
-    experiment_dir = args.experiment_dir
-
-    if args.rec_id:
-        manage_reconstruction(experiment_dir, args.rec_id)
-    else:
-        manage_reconstruction(experiment_dir)
+    manage_reconstruction(args.experiment_dir, rec_id=args.rec_id, debug=args.debug)
 
 
 if __name__ == "__main__":

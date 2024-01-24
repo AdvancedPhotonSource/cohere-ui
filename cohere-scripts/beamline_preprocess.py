@@ -20,11 +20,18 @@ __all__ = ['handle_prep',
 
 import argparse
 import os
+import re
 import sys
 import importlib
+import time
+
 import convertconfig as conv
 import cohere_core as cohere
-import util.util as ut
+import cohere_core.utilities as ut
+import cohere_core.utilities.dvc_utils as dvut
+import numpy as np
+import cupy as cp
+import shutil
 from multipeak import MultPeakPreparer
 from prep_helper import SepPreparer, SinglePreparer
 
@@ -54,7 +61,136 @@ def prep_data(prep_obj, **kwargs):
     return ''
 
 
-def handle_prep(experiment_dir, *args, **kwargs):
+def get_correlation_err(data_dir, refarr, refar_dir):
+    """
+    author: Paul Frosik
+    It is assumed that the reference array and the array in data_dir are scans of the same experiment
+    sample. This function aligns the two arrays and finds a correlation error between them.
+    The error finding method is based on "Invariant error metrics for image reconstruction"
+    by J. R. Fienup.
+
+    :param data_dir: str
+    :param refarr: ndarray
+    :return: float
+    """
+    # initialize the library to cupy if available, otherwise to numpy
+    try:
+        import cupy
+        devlib = importlib.import_module('cohere_core.lib.cplib').cplib
+    except:
+        devlib = importlib.import_module('cohere_core.lib.nplib').nplib
+    dvut.set_lib(devlib)
+
+    i = 0
+    err = 0
+    refarr = devlib.from_numpy(refarr)
+    for scan_dir in os.listdir(data_dir):
+        if scan_dir.startswith('scan') and scan_dir != refar_dir:
+            subdir = data_dir + '/' + scan_dir
+            datafile = subdir + '/preprocessed_data/prep_data.tif'
+            arr = devlib.from_numpy(ut.read_tif(datafile))
+            aligned = devlib.absolute(dvut.align_arrays_pixel(refarr, arr))
+            err = err + dvut.correlation_err(refarr, aligned)
+            i = i + 1
+    return err / i
+
+
+def find_outlier_scans(experiment_dir, main_conf_map):
+    """
+    Author: Paul Frosik
+    Added for auto-data. This function is called after experiment data has been read for
+    separate_scans. Each scan is aligned with other scans and correlation error is calculated
+    for each pair. The errors are summed for each scan. Summed errors are averaged, and standard
+    deviation is found. The scans that summed error exceeds standard deviation are considered
+    outliers, and they are not counted in the data set.
+
+    :param experiment_dir: str
+    :param main_conf_map: dict
+    :return:
+    """
+#    print('finding outlier scans now')
+    err_dir = []
+    outlier_scans = []
+    for scan_dir in os.listdir(experiment_dir):
+        if scan_dir.startswith('scan'):
+            subdir = experiment_dir + '/' + scan_dir
+            datafile = subdir + '/preprocessed_data/prep_data.tif'
+            refarr = ut.read_tif(datafile)
+            err_dir.append((get_correlation_err(experiment_dir, refarr, scan_dir), scan_dir))
+    err = [el[0].item() for el in err_dir]
+#    print('err', err)
+    mean = np.average(err)
+    stdev = np.std(err)
+#    print('mean, std', mean, stdev)
+    for (err_value, dir) in err_dir:
+        if err_value > (mean + stdev):
+            scan_nr = re.findall(r'\d+', dir)
+            outlier_scans.append(int(scan_nr[0]))
+#    print('outliers scans', outlier_scans)
+
+    # read config_prep and add parameter outliers_scans with outliers
+    # then change main config to set the separate scans to false
+    prep_conf_file = experiment_dir + '/conf/config_prep'
+    prep_conf_map = ut.read_config(prep_conf_file)
+    prep_conf_map['outliers_scans'] = outlier_scans
+    ut.write_config(prep_conf_map, prep_conf_file)
+
+    main_conf_map['separate_scans'] = False
+    ut.write_config(main_conf_map, experiment_dir + '/conf/config')
+
+    # remove individual scan directories
+    for scan_dir in os.listdir(experiment_dir):
+        if scan_dir.startswith('scan'):
+            shutil.rmtree(experiment_dir + '/' + scan_dir)
+
+
+def handle_prep(experiment_dir, **kwargs):
+    experiment_dir = experiment_dir.replace(os.sep, '/')
+    # check configuration
+    main_conf_file = experiment_dir + '/conf/config'
+    main_conf_map = ut.read_config(main_conf_file)
+    if main_conf_map is None:
+        print('cannot read configuration file ' + main_conf_file)
+        return 'cannot read configuration file ' + main_conf_file
+    # convert configuration files if needed
+    if 'converter_ver' not in main_conf_map or conv.get_version() is None or conv.get_version() > main_conf_map[
+        'converter_ver']:
+        conv.convert(experiment_dir + '/conf')
+        # re-parse config
+        main_conf_map = ut.read_config(main_conf_file)
+
+    er_msg = cohere.verify('config', main_conf_map)
+    if len(er_msg) > 0:
+        # the error message is printed in verifier
+        debug = 'debug' in kwargs and kwargs['debug']
+        if not debug:
+            return er_msg
+
+    auto_data = 'auto_data' in main_conf_map and main_conf_map['auto_data'] == True
+    # check main config if doing auto
+    # if not auto run handle_prep_case
+    if not auto_data:
+        return handle_prep_case(experiment_dir, main_conf_file, **kwargs)
+
+    from multiprocessing import Process
+
+    # if auto, choose option to set separate scans in main config and use ut.write_config to save
+    # run handle_prep to create scans subdirectories
+    main_conf_map['separate_scans'] = True
+    ut.write_config(main_conf_map, main_conf_file)
+    handle_prep_case(experiment_dir, main_conf_file, **kwargs)
+
+    # find outliers scans by finding correlation error between each two scans after aligning them
+    # and finding scans with biggest summed error
+    p = Process(target=find_outlier_scans, args=(experiment_dir, main_conf_map))
+    p.start()
+    p.join()
+
+    # run handle_prep_case again
+    return handle_prep_case(experiment_dir, main_conf_file, **kwargs)
+
+
+def handle_prep_case(experiment_dir, main_conf_file, **kwargs):
     """
     Reads the configuration files and accrdingly creates prep_data.tif file in <experiment_dir>/prep directory or multiple
     prep_data.tif in <experiment_dir>/<scan_<scan_no>>/prep directories.
@@ -67,25 +203,8 @@ def handle_prep(experiment_dir, *args, **kwargs):
     experimnent_dir : str
         directory with experiment files
     """
-    experiment_dir = experiment_dir.replace(os.sep, '/')
-    # check cofiguration
-    print ('preaparing data')
-    main_conf_file = experiment_dir + '/conf/config'
+    print('preparing data')
     main_conf_map = ut.read_config(main_conf_file)
-    if main_conf_map is None:
-        print ('cannot read configuration file ' + main_conf_file)
-        return 'cannot read configuration file ' + main_conf_file
-    # convert configuration files if needed
-    if 'converter_ver' not in main_conf_map or conv.get_version() is None or conv.get_version() > main_conf_map['converter_ver']:
-        conv.convert(experiment_dir + '/conf')
-        #re-parse config
-        main_conf_map = ut.read_config(main_conf_file)
-
-    er_msg = cohere.verify('config', main_conf_map)
-    if len(er_msg) > 0:
-        # the error message is printed in verifier
-        return er_msg
-
     if 'beamline' in main_conf_map:
         beamline = main_conf_map['beamline']
         try:
@@ -105,7 +224,9 @@ def handle_prep(experiment_dir, *args, **kwargs):
     er_msg = cohere.verify('config_prep', prep_conf_map)
     if len(er_msg) > 0:
         # the error message is printed in verifier
-        return er_msg
+        debug = 'debug' in kwargs and kwargs['debug']
+        if not debug:
+            return er_msg
 
     data_dir = prep_conf_map['data_dir'].replace(os.sep, '/')
     if not os.path.isdir(data_dir):
@@ -129,17 +250,18 @@ def handle_prep(experiment_dir, *args, **kwargs):
     if len(msg) > 0:
         print(msg)
         return msg
-
-    print('done with preprocessing')
+    print('finished beamline preprocessing')
     return ''
 
 
 def main(arg):
     parser = argparse.ArgumentParser()
-    parser.add_argument("experiment_dir", help="directory where the configuration files are located")
+    parser.add_argument("experiment_dir",
+                        help="directory where the configuration files are located")
+    parser.add_argument("--debug", action="store_true",
+                        help="if True the vrifier has no effect on processing")
     args = parser.parse_args()
-    experiment_dir = args.experiment_dir
-    handle_prep(experiment_dir)
+    handle_prep(args.experiment_dir, debug=args.debug)
 
 
 if __name__ == "__main__":
