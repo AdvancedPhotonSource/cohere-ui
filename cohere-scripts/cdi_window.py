@@ -1096,9 +1096,13 @@ class RecTab(QWidget):
             conf_map['processing'] = str(self.proc.currentText())
         if len(self.device.text()) > 0:
             try:
-                conf_map['device'] = ast.literal_eval(str(self.device.text()).replace(os.linesep,''))
+                d = str(self.device.text()).replace(os.linesep,'')
+                if d == 'all':
+                    conf_map['device'] = d
+                else:
+                    conf_map['device'] = ast.literal_eval(d)
             except:
-                msg_window('device parameter should be a list of int')
+                msg_window('device parameter should be "all" or a list of int or dict')
                 return {}
         if len(self.alg_seq.text()) > 0:
             conf_map['algorithm_sequence'] = str(self.alg_seq.text()).strip()
