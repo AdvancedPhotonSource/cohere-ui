@@ -1,8 +1,10 @@
 import os
 import re
 import glob
+import time
+
 import numpy as np
-from multiprocessing import Pool, Process
+from multiprocessing import Pool, Process, Queue
 import cohere_core.utilities as ut
 from functools import partial
 import cohere_core.utilities.dvc_utils as dvut
@@ -23,11 +25,17 @@ def write_prep_arr(arr, save_dir, filename):
 
 def read_align(prep_obj, refarr, dir):
     """
-    Aligns scan with reference array.  Referrence array is field of this class.
+    Aligns scan with reference array and enqueues the correlation error.
     Parameters
     ----------
+    prep_obj : Object
+        contains attributes for data preprocess
+    refarr : ndarray
+        reference array
     dir : str
         directory to the raw data
+    q : Queue
+        queue for passing the correlation error to the reporting process
     Returns
     -------
     aligned_array : array
@@ -35,9 +43,12 @@ def read_align(prep_obj, refarr, dir):
     """
     # read
     arr = prep_obj.read_scan(dir)
+    # assuming here the scan number is the last literal group in dir
+    scan = int(next(re.finditer(r'\d+$', dir)).group(0))
     # align
-    aligned = dvut.align_arrays_pixel(refarr, arr)
-    return np.absolute(aligned)
+    aligned_err = dvut.align_arrays_pixel(refarr, arr)
+    [aligned, err] = aligned_err
+    return [np.absolute(aligned), err, scan]
 
 
 def read_scan_save(prep_obj, read_dir_write_dir):
@@ -62,12 +73,42 @@ def process_separate_scans(prep_obj, dirs, scans, dir):
         pool.join()
 
 
+def report_corr_err(q, ref_scan, dir_no, save_dir):
+    col_gap = 2
+    scan_col_width = 10
+    linesep = os.linesep
+    report_table = f'correlation errors related to scan {ref_scan}{linesep}{linesep}'
+    table_title = 'scan'
+    table_title += table_title[0].ljust(scan_col_width + col_gap)
+    table_title += f'correlation error{linesep}'
+    report_table += table_title
+
+    no = dir_no
+    while no > 0:
+        (scan, err) = q.get()
+        row = str(scan)
+        row += row[0].ljust(scan_col_width + col_gap)
+        row += f'{err}{linesep}'
+        report_table += row
+        no -= 1
+
+    with open(ut.join(save_dir, f'corr_err_{ref_scan}.txt'), 'w+') as f:
+        f.write(report_table)
+        f.flush()
+
+
 def combine_scans(prep_obj, dirs, inds):
+    results = []
+
+    def collect_result(result):
+        results.append(result)
+
     if len(dirs) == 1:
         return prep_obj.read_scan(dirs[0])
     scans_order = np.argsort(inds).tolist()
     refarr = None
     dir_no = len(dirs)
+    ref_dir = ''
     while refarr is None and dir_no > 0:
         ref_dir = dirs.pop(scans_order[0])
         refarr = prep_obj.read_scan(ref_dir)
@@ -75,9 +116,17 @@ def combine_scans(prep_obj, dirs, inds):
     if refarr is None:
         return None
 
+    # assumming here the scan number is the last literal group in dir
+    ref_array_scan = int(next(re.finditer(r'\d+$', ref_dir)).group(0))
+
+    # start reporting process. It will get correlation error for each scan with reference
+    # to the refarray. It will receive the errors via queue.
+    q = Queue()
+    p = Process(target=report_corr_err, args=(q, ref_array_scan, dir_no, prep_obj.experiment_dir))
+    p.start()
+
     # It is faster to run concurrently on cpu than on gpu which needs uploading
     # array on gpu memory. Setting library here before starting multiple processes
-    # so it's executed only once
     devlib = importlib.import_module('cohere_core.lib.nplib').nplib
     dvut.set_lib(devlib)
 
@@ -96,11 +145,19 @@ def combine_scans(prep_obj, dirs, inds):
         poollist = [dirs.pop(0) for i in range(len(chunklist))]
         func = partial(read_align, prep_obj, refarr)
         with Pool(processes=nproc) as pool:
-            res = pool.map_async(func, poollist)
+            pool.map_async(func, poollist, callback=collect_result)
             pool.close()
             pool.join()
-        for arr in res.get():
-            sumarr = sumarr + arr
+            pool.terminate()
+
+        if len(results) > 0:
+            for res in results[0]:
+                [ar, er, scan] = res
+                sumarr = sumarr + ar
+                q.put((scan, er))
+        else:
+            print(f'did not find any scans to align with {ref_array_scan}')
+
     sumarr = prep_obj.det_obj.clear_seam(sumarr)
     return sumarr
 

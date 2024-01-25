@@ -222,7 +222,7 @@ def find_outlier_scans(experiment_dir, prep_obj):
     # remove individual scan directories
     for scan_dir in os.listdir(experiment_dir):
         if scan_dir.startswith('scan'):
-            shutil.rmtree(experiment_dir + '/' + scan_dir)
+            shutil.rmtree(ut.join(experiment_dir, scan_dir))
     outliers.sort()
     return outliers
 
@@ -316,6 +316,7 @@ def handle_prep(experiment_dir, **kwargs):
     conf_map = main_conf_map
     conf_map.update(prep_conf_map)
     conf_map.update(instr_conf_map)
+    conf_map['experiment_dir'] = experiment_dir
 
     if 'config_mp' in conf_maps:
         conf_map.update(conf_maps['config_mp'])
