@@ -135,28 +135,20 @@ def combine_scans(prep_obj, dirs, inds):
     sumarr = np.zeros_like(refarr)
     sumarr = sumarr + refarr
 
-    # https://www.edureka.co/community/1245/splitting-a-list-into-chunks-in-python
-    # Need to further chunck becauase the result queue needs to hold N arrays.
-    # if there are a lot of them and they are big, it runs out of ram.
-    # since process takes 10-12 arrays, divide nscans/15 (to be safe) and make that many
-    # chunks to pool.  Also ask between pools how much ram is avaiable and modify nproc.
-    while (len(dirs) > 0):
-        chunklist = dirs[0:nproc]
-        poollist = [dirs.pop(0) for i in range(len(chunklist))]
-        func = partial(read_align, prep_obj, refarr)
-        with Pool(processes=nproc) as pool:
-            pool.map_async(func, poollist, callback=collect_result)
-            pool.close()
-            pool.join()
-            pool.terminate()
+    func = partial(read_align, prep_obj, refarr)
+    with Pool(processes=nproc) as pool:
+        pool.map_async(func, dirs, callback=collect_result)
+        pool.close()
+        pool.join()
+        pool.terminate()
 
-        if len(results) > 0:
-            for res in results[0]:
-                [ar, er, scan] = res
-                sumarr = sumarr + ar
-                q.put((scan, er))
-        else:
-            print(f'did not find any scans to align with {ref_array_scan}')
+    if len(results) > 0:
+        for res in results[0]:
+            [ar, er, scan] = res
+            sumarr = sumarr + ar
+            q.put((scan, er))
+    else:
+        print(f'did not find any scans to align with {ref_array_scan}')
 
     sumarr = prep_obj.det_obj.clear_seam(sumarr)
     return sumarr
