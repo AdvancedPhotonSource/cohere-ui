@@ -28,6 +28,7 @@ import convertconfig as conv
 import ast
 import cohere_core as cohere
 import cohere_core.utilities as ut
+import common as com
 
 
 def select_file(start_dir):
@@ -299,9 +300,12 @@ class cdi_gui(QWidget):
             msg_window('missing conf/config file, not experiment directory')
             return
 
-        conf_dicts, converted = self.get_conf_dicts(load_dir)
-        if conf_dicts is None:
-            return
+        debug = self.debug
+        conf_list = ['config_prep', 'config_data', 'config_rec', 'config_disp', 'config_instr', 'config_mp']
+        err_msg, conf_dicts, converted = com.get_config_maps(load_dir, conf_list, debug)
+        if len(err_msg) > 0:
+            return err_msg
+
         self.load_main(conf_dicts['config'])
 
         if self.t is None:
@@ -319,24 +323,6 @@ class cdi_gui(QWidget):
         if converted:
             self.save_main()
             self.t.save_conf()
-
-
-    def get_conf_dicts(self, load_dir):
-        conf_file = ut.join(load_dir, 'conf', 'config')
-        conf_map = ut.read_config(conf_file)
-        if conf_map is None:
-            msg_window(f'please check configuration file {conf_file}. Cannot parse.')
-            return None
-        # convert configuration files if needed
-        if 'converter_ver' not in conf_map or conv.get_version() is None or conv.get_version() > conf_map[
-            'converter_ver']:
-            return conv.convert(ut.join(load_dir, 'conf')), True
-        else:
-            conf_dirs = {}
-            for cf in os.listdir(ut.join(load_dir, 'conf')):
-                if os.path.isfile(ut.join(load_dir, 'conf', cf)) and cf.startswith('conf'):
-                    conf_dirs[cf] = ut.read_config(ut.join(load_dir, 'conf', cf))
-            return conf_dirs, False
 
 
     def load_main(self, conf_map):
@@ -2512,7 +2498,7 @@ def main():
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("--debug", action="store_true",
-                        help="if True the vrifier has no effect on processing")
+                        help="if True the verifier has no effect on processing")
     args = parser.parse_args()
     app = QApplication(sys.argv)
     ex = cdi_gui()

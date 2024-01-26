@@ -135,7 +135,7 @@ def manage_reconstruction(experiment_dir, config_id, debug):
     sr_time = time()
 
     conf_list = ['config_rec', 'config_mp']
-    err_msg, conf_maps = com.get_config_maps(experiment_dir, conf_list, debug, config_id)
+    err_msg, conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, debug, config_id)
     if len(err_msg) > 0:
         return err_msg
 
@@ -291,7 +291,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_dir", help="experiment directory.")
     parser.add_argument("--rec_id", action="store", help="reconstruction id, a postfix to 'results_phasing_' directory")
-    parser.add_argument("--debug", action="store_false",
+    parser.add_argument("--debug", action="store_true",
                         help="if True the vrifier has no effect on processing")
     args = parser.parse_args()
     manage_reconstruction(args.experiment_dir, config_id=args.rec_id, debug=args.debug)

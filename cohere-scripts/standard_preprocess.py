@@ -40,7 +40,7 @@ def format_data(experiment_dir, **kwargs):
 
     debug = 'debug' in kwargs and kwargs['debug']
     conf_list = ['config_data']
-    err_msg, conf_maps = com.get_config_maps(experiment_dir, conf_list, debug)
+    err_msg, conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, debug)
     if len(err_msg) > 0:
         return err_msg
     main_conf_map = conf_maps['config']

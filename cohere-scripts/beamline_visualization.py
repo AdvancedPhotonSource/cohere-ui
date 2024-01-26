@@ -344,7 +344,7 @@ def handle_visualization(experiment_dir, rec_id=None, **kwargs):
 
     debug = 'debug' in kwargs and kwargs['debug']
     conf_list = ['config_disp', 'config_instr', 'config_data']
-    err_msg, conf_maps = com.get_config_maps(experiment_dir, conf_list, debug)
+    err_msg, conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, debug)
     if len(err_msg) > 0:
         return err_msg
 

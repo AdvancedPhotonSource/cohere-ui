@@ -217,19 +217,21 @@ def convert(conf_dir):
     # First check to see if directory exists, if not then exit
     if not os.path.exists(conf_dir):
         # there is nothing to convert
-        print('configuration directory', conf_dir, 'does not exist')
-        return None
+        print(f'configuration directory {conf_dir} does not exist')
+        return
 
     # read main config and check the converter version
     main_conf = ut.read_config(ut.join(conf_dir, 'config'))
     if main_conf is None:
-        return None
+        print(f'main configuration file {main_conf} does not exist')
+        return
     if 'converter_ver' in main_conf:
         conf_version = main_conf['converter_ver']
+        if conf_version == get_version():
+            # nothing to convert
+            return
     else:
         conf_version = None
-    if conf_version == get_version():
-        return None
 
     config_dicts = {}
     if not os.path.isfile(ut.join(conf_dir, 'config_instr')):
@@ -240,7 +242,7 @@ def convert(conf_dir):
         if not os.path.isfile(conf_file):
             continue
         if os.access(os.path.dirname(conf_dir), os.W_OK):
-            shutil.copy(conf_file, conf_file + '_backup')
+            shutil.copy(conf_file, f'{conf_file}_backup')
 
         config_dicts[cfile] = ut.read_config(conf_file)
 
@@ -265,13 +267,15 @@ def convert(conf_dir):
     if conf_version is None:
         config_dicts = convert_dict(config_dicts)
 
+    # set the converter version in config to the current
+    config_dicts['config']['converter_ver'] = get_version()
+
     # Write the data out to the same-named file
     if os.access(os.path.dirname(conf_dir), os.W_OK):
         for k, v in config_dicts.items():
             file_name = ut.join(conf_dir, k)
             ut.write_config(v, file_name)
 
-    return config_dicts
 
 
 def main():
