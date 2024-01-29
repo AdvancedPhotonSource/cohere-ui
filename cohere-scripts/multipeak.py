@@ -231,10 +231,11 @@ def center_mp(image, support):
         support = np.roll(support, int(shape[i] / 2) - max_coordinates[i], i)
 
     com = ndi.center_of_mass(density * support)
+
     # place center of mass in the center
     for i in range(len(shape)):
-        for j in range(10):
-            image[j] = np.roll(image[j], int(shape[i] / 2 - com[i]), axis=i)
+        for j, subimage in enumerate(image):
+            image[j] = np.roll(subimage, int(shape[i] / 2 - com[i]), axis=i)
         support = np.roll(support, int(shape[i] / 2 - com[i]), axis=i)
 
     # set center displacement to zero, use as a reference

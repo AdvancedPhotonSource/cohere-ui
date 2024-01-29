@@ -93,7 +93,7 @@ def format_data(experiment_dir, **kwargs):
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
 
-        conf_data_map = cohere.prep(prep_file, auto_data, **config_map)
+        conf_data_map = cohere.prep(prep_dir+'/prep_data.tif', auto_data, **config_map)
 
     dirs = os.listdir(experiment_dir)
     for dir in dirs:
@@ -106,7 +106,7 @@ def format_data(experiment_dir, **kwargs):
             if not os.path.exists(data_dir):
                 os.makedirs(data_dir)
 
-            conf_data_map = cohere.prep(prep_file, auto_data, **config_map)
+            conf_data_map = cohere.prep(prep_dir+'/prep_data.tif', auto_data, **config_map)
             
     if auto_data:
         ut.write_config(conf_data_map, data_conf)

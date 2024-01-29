@@ -17,6 +17,7 @@ def write_prep_arr(arr, save_dir, filename):
     """
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
+    print(f"Saving array (max={int(arr.max())}) as {save_dir + '/' + filename}")
     ut.save_tif(arr, save_dir + '/' + filename)
 
 
