@@ -8,4 +8,5 @@ final_size = 180
 mp_max_weight = 1.0
 mp_taper = 0.6
 lattice_size = 0.4078
+ds_voxel_size = 10.844536106163474
 switch_peak_trigger = [0, 50]

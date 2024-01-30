@@ -13,129 +13,77 @@ After the script is executed the experiment directory will contain "conf" subdir
 __author__ = "Barbara Frosik"
 __copyright__ = "Copyright (c), UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['create_conf_prep',
-           'create_conf_data',
-           'create_conf_rec',
-           'create_conf_disp',
-           'create_exp',
+__all__ = ['create_exp',
            'main']
 
 import argparse
-import sys
 import os
-import util.util as ut
-import convertconfig as conv
+import cohere_core.utilities as ut
 
 
-def create_conf_prep(conf_dir):
+def write_config(param_dict, config):
     """
-    Creates a "config_prep" file with some parameters commented out.
-
+    Writes configuration to a file.
     Parameters
     ----------
-    conf_dir : str
-        directory where the file will be saved
-
-    Returns
-    -------
-    nothing
+    param_dict : dict
+        dictionary containing configuration parameters
+    config : str
+        configuration name theparameters will be written into
     """
-    conf_dir = conf_dir.replace(os.sep, '/')
-    conf_file_name = conf_dir + '/config_prep'
-    f = open(conf_file_name, "w+")
+    with open(config.replace(os.sep, '/'), 'w+') as f:
+        f.truncate(0)
+        linesep = os.linesep
+        for key, value in param_dict.items():
+            if type(value) == str:
+                value = f'"{value}"'
+            f.write(f'{key} = {str(value)}{linesep}')
 
-    f.write('data_dir = "/path/to/raw/data"\n')
-    f.write('darkfield_filename = "/path/to/darkfield_file/dark.tif"\n')
-    f.write('whitefield_filename = "/path/to/whitefield_file/dark.tif"\n')
-    f.write('// roi = [0,256,0,256]\n')
-    f.write('// min_files = 80\n')
-    f.write('// exclude_scans = [78,81]\n')
-    f.write('// Imult = 10000\n')
-    f.close()
+
+def create_conf_main(conf_dir, working_dir, id, scan, beamline):
+    conf_map = {}
+    conf_map['working_dir'] = working_dir
+    conf_map['experiment_id'] = id
+    conf_map['scan'] = scan
+    conf_map['beamline'] = beamline
+    conf_map['converter_ver'] = 1
+    conf_map['auto_data'] = True
+    # TODO in the future it will support separate scans, separate scan ranges, multipeak experiments as well
+    write_config(conf_map, conf_dir + '/config')
+
+
+def create_conf_instr(conf_dir, specfile, diffractometer):
+    conf_map = {}
+    conf_map['specfile'] = specfile
+    conf_map['diffractometer'] = diffractometer
+    write_config(conf_map, ut.join(conf_dir, 'config_instr'))
+
+
+def create_conf_prep(conf_dir, data_dir, darkfield_filename, whitefield_filename):
+    conf_map = {}
+    conf_map['data_dir'] = data_dir
+    conf_map['darkfield_filename'] = darkfield_filename
+    conf_map['whitefield_filename'] = whitefield_filename
+    write_config(conf_map, ut.join(conf_dir, 'config_prep'))
 
 
 def create_conf_data(conf_dir):
-    """
-    Creates a "config_data" file with some parameters commented out.
-
-    Parameters
-    ----------
-    conf_dir : str
-        directory where the file will be saved
-
-    Returns
-    -------
-    nothing
-    """
-    conf_dir = conf_dir.replace(os.sep, '/')
-    conf_file_name = conf_dir + '/config_data'
-    f = open(conf_file_name, "w+")
-    
-    f.write('// data_dir = "/path/to/dir/formatted_data/is/saved"\n')
-    f.write('alien_alg = "none"\n')
-    f.write('// aliens = [[170,220,112,195,245,123], [50,96,10,60,110,20]]\n')
-    f.write('// aliens = "/path/to/maskfile/maskfile"\n')
-    f.write('intensity_threshold = 20.0\n')
-    f.write('// adjust_dimensions = [-13, -13, -65, -65, -65, -65]\n')
-    f.write('// center_shift = [0,0,0]\n')
-    f.write('// binning = [1,1,1]\n')
-    f.close()
+    conf_map = {}
+    conf_map['intensity_threshold'] = 2.0
+    write_config(conf_map, ut.join(conf_dir, 'config_data'))
 
 
 def create_conf_rec(conf_dir):
-    """
-    Creates a "config_rec" file with some parameters commented out.
-
-    Parameters
-    ----------
-    conf_dir : str
-        directory where the file will be saved
-
-    Returns
-    -------
-    nothing
-    """
-    conf_dir = conf_dir.replace(os.sep, '/')
-    conf_file_name = conf_dir + '/config_rec'
-    f = open(conf_file_name, "w+")
-
-    f.write('// data_dir = "/path/to/dir/with/formatted_data"\n')
-    f.write('// save_dir = "/path/to/dir/to/save/results"\n')
-    f.write('// init_guess = "random"\n')
-    f.write('// processing = "auto"\n')
-    f.write('reconstructions = 1\n')
-    f.write('device = [0,1]\n')
-    f.write('algorithm_sequence = "3* (20*ER + 180*HIO) + 20*ER"\n')
-    f.write('hio_beta = .9\n')
-    f.write('// ga_generations = 1\n')
-    f.write('// ga_metrics = ["chi", "sharpness"]\n')
-    f.write('// ga_breed_modes = ["sqrt_ab"]\n')
-    f.write('// ga_cullings = [2,1]\n')
-    f.write('// ga_sw_thresholds = [.15, .1]\n')
-    f.write('// ga_sw_gauss_sigmas = [1.1, 1.0]\n')
-    f.write('// ga_lpf_sigmas = [2.0, 1.5]\n')
-    f.write('// ga_gen_pc_start = 3\n')
-    f.write('twin_trigger = [2]\n')
-    f.write('// twin_halves = [0, 0]\n')
-    f.write('shrink_wrap_trigger = [10, 1]\n')
-    f.write('shrink_wrap_type = "GAUSS"\n')
-    f.write('shrink_wrap_threshold = 0.1\n')
-    f.write('shrink_wrap_gauss_sigma = 1.0\n')
-    f.write('initial_support_area = [.5,.5,.5]\n\n')
-    f.write('// phm_trigger = [0, 1, 320]\n')
-    f.write('// phm_phase_min = -1.57\n')
-    f.write('// phm_phase_max = 1.57\n')
-    f.write('// pc_interval = 50\n')
-    f.write('// pc_type = "LUCY"\n')
-    f.write('// pc_LUCY_iterations = 20\n')
-    f.write('// pc_normalize = True\n')
-    f.write('// pc_LUCY_kernel = [16,16,16]\n')
-    f.write('// lowpass_filter_trigger = [0, 1, 320]\n')
-    f.write('// lowpass_filter_sw_threshold = .1\n')
-    f.write('// lowpass_filter_range = [.7]\n')
-    f.write('// average_trigger = [-60, 1]\n')
-    f.write('progress_trigger = [0, 20]')
-    f.close()
+    conf_map = {}
+    conf_map['reconstructions'] = 10
+    conf_map['device'] = [0,1,2,3,4,5,6]
+    conf_map['algorithm_sequence'] = "1*(20*ER+80*HIO)+20*ER"
+    conf_map['initial_support_area'] = [0.5, 0.5, 0.5]
+    conf_map['shrink_wrap_trigger'] = [1, 1]
+    conf_map['twin_trigger'] = [2]
+    conf_map['ga_generations'] = 5
+    conf_map['ga_fast'] = True
+    write_config(conf_map, ut.join(conf_dir, 'config_rec'))
 
    
 def create_conf_disp(conf_dir):
@@ -151,95 +99,55 @@ def create_conf_disp(conf_dir):
     -------
     nothing
     """
-    conf_dir = conf_dir.replace(os.sep, '/')
-    conf_file_name = conf_dir + '/config_disp'
-    f = open(conf_file_name, "w+")
-    
-    f.write('// results_dir = "/path/to/dir/with/reconstructed/image(s)"\n')
-    f.write('// rampups = 1\n')
-    f.write('crop = [.5, .5, .5]\n')
-    f.close()
+    conf_map = {}
+    conf_map['crop'] = [.5, .5, .5]
+    write_config(conf_map, ut.join(conf_dir, 'config_disp'))
 
 
-def create_conf_disp(conf_dir):
-    """
-    Creates a "config_disp" file with some parameters commented out.
-
-    Parameters
-    ----------
-    conf_dir : str
-        directory where the file will be saved
-
-    Returns
-    -------
-    nothing
-    """
-    conf_dir = conf_dir.replace(os.sep, '/')
-    conf_file_name = conf_dir + '/config_instr'
-    f = open(conf_file_name, "w+")
-
-    f.write('diffractometer = "34idc"\n')
-    f.write('// scanfile = "path/to/scanfile/scanfile"\n')
-    f.close()
-
-
-def create_exp(prefix, scan, working_dir, **args):
+def create_exp(working_dir, id, scan, beamline, data_dir, darkfield_filename, whitefield_filename, 
+        specfile, diffractometer):
     """
     Concludes experiment name, creates directory, and "conf" subdirectory with initial configuration files.
 
     Parameters
     ----------
-    prefix : str
-        a literal ID of the experiment
-    scan : str
-        string indicating scan number, or scan range
-        ex1: 5
-        ex2: 67 - 89
     working_dir : str
         directory where the file will be saved
+    id : str
+        arbitrary name of cohere experiment
+    scan : str
+        string indicating scan number, or scan range(s)
+    beamline : str
+        name of the beamline recognized by cohere (for example: aps_34idc)
+    darkfield_filename : str
+        name of dark field file that applies to this experiment
+    whitefield_filename : str
+        name of white field file that applies to this experiment
+    data_dir : str
+        directory where raw data is collected
     specfile : str
-        optional, name of specfile that was saved during the experiment
+        name of specfile that was saved during the experiment
+    diffractometer : str
+        name of diffractometer used in the experiment recognized by cohere (for example: 34idc)
 
     Returns
     -------
-    experiment_dir : str
-        directory where the new experiment is located
+    nothing
     """
-    id = prefix + '_' + scan
-    working_dir = working_dir.replace(os.sep, '/')
-    if not os.path.isdir(working_dir):
-        print('working directory ' + working_dir + ' does not exist')
-        return
-
-    experiment_dir = working_dir + '/' + id
+    experiment_dir = ut.join(working_dir, f'{id}_{scan}')
     if not os.path.exists(experiment_dir):
        os.makedirs(experiment_dir)
     else:
         print('experiment with this id already exists')
-        return experiment_dir
+        return
  
     experiment_conf_dir = experiment_dir + '/conf'
-    if not os.path.exists(experiment_conf_dir):
-        os.makedirs(experiment_conf_dir)
-
-    # Based on params passed to this function create a temp config file and then copy it to the experiment dir.
-    experiment_main_config = experiment_conf_dir + '/config'
-    conf_map = {}
-    conf_map['working_dir'] = working_dir
-    conf_map['experiment_id'] = prefix
-    conf_map['scan'] = scan
-    if 'beamline' in args:
-        conf_map['beamline'] = args['beamline']
-
-    # get converter version
-    conf_map['converter_ver'] = conv.get_version()
-    conf_map['separate_scans'] = False
-    conf_map['separate_scan_ranges'] = False
-
-    ut.write_config(conf_map, experiment_main_config)
+    os.makedirs(experiment_conf_dir) 
 
     # create simple configuration for each phase
-    create_conf_prep(experiment_conf_dir)
+    create_conf_main(experiment_conf_dir, working_dir, id, scan, beamline)
+    create_conf_instr(experiment_conf_dir, specfile, diffractometer)
+    create_conf_prep(experiment_conf_dir, data_dir, darkfield_filename, whitefield_filename)
     create_conf_data(experiment_conf_dir)
     create_conf_rec(experiment_conf_dir)
     create_conf_disp(experiment_conf_dir)
@@ -247,28 +155,26 @@ def create_exp(prefix, scan, working_dir, **args):
     return experiment_dir
         
 
-def main(arg):
+def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("id", help="prefix to name of the experiment/data reconstruction")
-    parser.add_argument("scan", help="a range of scans to prepare data from")
-    parser.add_argument("working_dir", help="directory where the created experiment will be located")
-    parser.add_argument('--beamline', action='store')
-    parser.add_argument('--specfile', action='store')
+    parser.add_argument("--working_dir", required=True, help="directory where the created experiment will be located")
+    parser.add_argument("--id", required=True, help="prefix to name of the experiment/data reconstruction")
+    parser.add_argument("--scan", required=True, help="a range of scans to prepare data from")
+    parser.add_argument("--beamline", required=True, help="beamline")
+    parser.add_argument("--data_dir", required=True, help="raw data directory")
+    parser.add_argument("--darkfield_filename", required=True, help="dark field file name")
+    parser.add_argument("--whitefield_filename", required=True, help="white field file name")
+    parser.add_argument("--specfile", required=True, help="full name, including path of specfile")
+    parser.add_argument("--diffractometer", required=True, help="diffractometer")
 
     args = parser.parse_args()
-    scan = args.scan
-    id = args.id
-    working_dir = args.working_dir
 
-    varpar = {}
-    if args.specfile and os.path.isfile(args.specfile):
-        varpar['specfile'] = args.specfile
-    
-    if args.beamline:
-        varpar['beamline'] = args.beamline
-
-    return create_exp(id, scan, working_dir, **varpar)
+    return create_exp(args.working_dir, args.id, args.scan, args.beamline, args.data_dir, args.darkfield_filename,
+        args.whitefield_filename, args.specfile, args.diffractometer)
 
 
 if __name__ == "__main__":
-    exit(main(sys.argv[1:]))
+    exit(main())
+
+# python create_experiment.py --working_dir example_workspace --id s2 --scan 54 --beamline aps_34idc --data_dir example_data/AD34idcTIM2_example --darkfield_filename example_data/dark.tif --whitefield_filename example_data/whitefield.tif --specfile example_data/example.spec --diffractometer 34idc
+

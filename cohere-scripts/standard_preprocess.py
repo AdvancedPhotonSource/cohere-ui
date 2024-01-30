@@ -9,12 +9,11 @@
 This script formats data for reconstruction according to configuration.
 """
 
-import sys
 import argparse
 import os
-import convertconfig as conv
 import cohere_core as cohere
 import cohere_core.utilities as ut
+import common as com
 
 
 __author__ = "Barbara Frosik"
@@ -37,82 +36,53 @@ def format_data(experiment_dir, **kwargs):
     -------
     nothing
     """
-    experiment_dir = experiment_dir.replace(os.sep, '/')
-    # convert configuration files if needed
-    main_conf = experiment_dir + "/conf/config"
-    if os.path.isfile(main_conf):
-        config_map = ut.read_config(main_conf)
-        if config_map is None:
-            print ("info: can't read " + main_conf + " configuration file")
-            return None
-    else:
-        print("info: missing " + main_conf + " configuration file")
-        return None
-    auto_data = 'auto_data' in config_map and config_map['auto_data']
+    print('formatting data')
 
-    if 'converter_ver' not in config_map or conv.get_version() is None or conv.get_version() < config_map['converter_ver']:
-        conv.convert(experiment_dir + '/conf')
-        # re-parse config
-        config_map = ut.read_config(main_conf)
-
-    er_msg = cohere.verify('config', config_map)
-    if len(er_msg) > 0:
-        # the error message is printed in verifier
-        debug = 'debug' in kwargs and kwargs['debug']
-        if not debug:
-            return None
-
-    # read the config_data
-    data_conf = experiment_dir + "/conf/config_data"
-    if os.path.isfile(data_conf):
-        config_map = ut.read_config(data_conf)
-        if config_map is None:
-            print ("info: can't read " + data_conf + " configuration file")
-            return None
-    else:
-        print("info: missing " + data_conf + " configuration file")
-        return None
     debug = 'debug' in kwargs and kwargs['debug']
-    er_msg = cohere.verify('config_data', config_map)
-    if len(er_msg) > 0:
-        # the error message is printed in verifier
-        if not debug:
-            return None
+    conf_list = ['config_data']
+    err_msg, conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, debug)
+    if len(err_msg) > 0:
+        return err_msg
+    main_conf_map = conf_maps['config']
 
+    auto_data = 'auto_data' in main_conf_map and main_conf_map['auto_data']
+
+    data_conf_map = conf_maps['config_data']
     if debug:
-        config_map['debug'] = True
-
-    print('formating data')
-    prep_dir = experiment_dir + '/preprocessed_data'
-    if os.path.isfile(prep_dir + "/prep_data.tif"):
-        if 'data_dir' in config_map:
-            data_dir = config_map['data_dir']
-        else:
-            data_dir = experiment_dir + '/phasing_data'
-            config_map['data_dir'] = data_dir
-        if not os.path.exists(data_dir):
-            os.makedirs(data_dir)
-
-        conf_data_map = cohere.prep(prep_dir+'/prep_data.tif', auto_data, **config_map)
+        data_conf_map['debug'] = True
+    if auto_data:
+        data_conf_map['do_auto_binning'] = not('multipeak' in main_conf_map and main_conf_map['multipeak'])
 
     dirs = os.listdir(experiment_dir)
     for dir in dirs:
         if dir.startswith('scan') or dir.startswith('mp'):
-            scan_dir = experiment_dir + '/' + dir
-            prep_dir = scan_dir + '/preprocessed_data'
-            # ignore configured 'data_dir' as it can't be reused by multiple scans
-            data_dir = scan_dir + '/phasing_data'
-            config_map['data_dir'] = data_dir
-            if not os.path.exists(data_dir):
-                os.makedirs(data_dir)
+            scan_dir = ut.join(experiment_dir, dir)
+            data_dir = ut.join(scan_dir, 'phasing_data')
+            proc_dir = scan_dir
+        elif dir == 'preprocessed_data':
+            if 'data_dir' in data_conf_map:
+                data_dir = data_conf_map['data_dir']
+            else:
+                data_dir = ut.join(experiment_dir, 'phasing_data')
+            proc_dir = experiment_dir
+        else:
+            continue
 
-            conf_data_map = cohere.prep(prep_dir+'/prep_data.tif', auto_data, **config_map)
-            
+        if not os.path.exists(data_dir):
+            os.makedirs(data_dir)
+        data_conf_map['data_dir'] = data_dir
+        # call the preprocessing in cohere_core, it will return updated configuration if auto_data
+        data_conf_map = cohere.prep(ut.join(proc_dir, 'preprocessed_data', 'prep_data.tif'), auto_data, **data_conf_map)
+
+    # This will work for a single reconstruction.
+    # For separate scan the last auto-calculated values will be saved
+    # TODO:
+    # make the parameters like threshold a list for the separate scans scenario
     if auto_data:
-        ut.write_config(conf_data_map, data_conf)
+        ut.write_config(data_conf_map, ut.join(experiment_dir,'conf', 'config_data'))
 
 
-def main(arg):
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_dir", help="experiment directory")
     parser.add_argument("--debug", action="store_true",
@@ -122,4 +92,4 @@ def main(arg):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    main()

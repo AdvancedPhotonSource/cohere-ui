@@ -6,7 +6,6 @@ import cohere_core as cohere
 import cohere_core.utilities as ut
 
 
-
 def msg_window(text):
     """
     Shows message with requested information (text)).
@@ -155,7 +154,7 @@ class PrepTab(QWidget):
                 self.data_dir_button.setStyleSheet("Text-align:left")
                 self.data_dir_button.setText(conf_map['data_dir'])
             else:
-                msg_window('The data_dir directory in config_prep file  ' + conf_map['data_dir'] + ' does not exist')
+                msg_window(f'The data_dir directory in config_prep file {conf_map["data_dir"]} does not exist')
         else:
             self.data_dir_button.setText('')
         if 'darkfield_filename' in conf_map:
@@ -163,7 +162,7 @@ class PrepTab(QWidget):
                 self.dark_file_button.setStyleSheet("Text-align:left")
                 self.dark_file_button.setText(conf_map['darkfield_filename'])
             else:
-                msg_window('The darkfield file ' + conf_map['darkfield_filename'] + ' in config_prep file does not exist')
+                msg_window(f'The darkfield file {conf_map["darkfield_filename"]} in config_prep file does not exist')
                 self.dark_file_button.setText('')
         else:
             self.dark_file_button.setText('')
@@ -173,7 +172,7 @@ class PrepTab(QWidget):
                 self.white_file_button.setText(conf_map['whitefield_filename'])
             else:
                 self.white_file_button.setText('')
-                msg_window('The whitefield file ' + conf_map['whitefield_filename'] + ' in config_prep file does not exist')
+                msg_window(f'The whitefield file {conf_map["whitefield_filename"]} in config_prep file does not exist')
         else:
             self.white_file_button.setText('')
         if 'Imult' in conf_map:
@@ -238,16 +237,14 @@ class PrepTab(QWidget):
         if len(self.white_file_button.text().strip()) > 0:
             conf_map['whitefield_filename'] = str(self.white_file_button.text().strip())
         if len(self.Imult.text()) > 0:
-            conf_map['Imult'] = ast.literal_eval(str(self.Imult.text()).replace('\n',''))
+            conf_map['Imult'] = ast.literal_eval(str(self.Imult.text()).replace(os.linesep,''))
         if len(self.min_files.text()) > 0:
             min_files = ast.literal_eval(str(self.min_files.text()))
             conf_map['min_files'] = min_files
         if len(self.exclude_scans.text()) > 0:
-            conf_map['exclude_scans'] = ast.literal_eval(str(self.exclude_scans.text()).replace('\n',''))
+            conf_map['exclude_scans'] = ast.literal_eval(str(self.exclude_scans.text()).replace(os.linesep,''))
         if len(self.roi.text()) > 0:
-            conf_map['roi'] = ast.literal_eval(str(self.roi.text()).replace('\n',''))
-        # if len(self.outliers_scans.text()) > 0:
-        #     conf_map['outliers_scans'] = ast.literal_eval(str(self.outliers_scans.text()).replace('\n',''))
+            conf_map['roi'] = ast.literal_eval(str(self.roi.text()).replace(os.linesep,''))
 
         return conf_map
 
@@ -283,21 +280,21 @@ class PrepTab(QWidget):
             msg_window('cannot prepare data for 34idc, need data directory')
             return
 
-        main_config_map = ut.read_config(self.main_win.experiment_dir + '/conf/config')
+        main_config_map = ut.read_config(ut.join(self.main_win.experiment_dir, 'conf', 'config'))
         auto_data = 'auto_data' in main_config_map and main_config_map['auto_data']
 
         if auto_data:
             # exclude outliers_scans from saving
-            current_prep_map = ut.read_config(self.main_win.experiment_dir + '/conf/config_prep')
+            current_prep_map = ut.read_config(ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
             if current_prep_map is not None and 'outliers_scans' in current_prep_map:
                 conf_map['outliers_scans'] = current_prep_map['outliers_scans']
-        ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_prep')
+        ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
 
         self.tabs.run_prep()
 
         # reload the window if auto_data as the outliers_scans could change
         if auto_data:
-            prep_map = ut.read_config(self.main_win.experiment_dir + '/conf/config_prep')
+            prep_map = ut.read_config(ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
             self.load_tab(prep_map)
 
 
@@ -368,9 +365,9 @@ class PrepTab(QWidget):
             if len(er_msg) > 0:
                 msg_window(er_msg)
                 if self.main_win.debug:
-                    ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_prep')
+                    ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
             else:
-                ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_prep')
+                ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
 
 
     def notify(self):
@@ -514,9 +511,9 @@ class DispTab(QWidget):
         if self.unwrap.isChecked():
             conf_map['unwrap'] = True
         if len(self.crop.text()) > 0:
-            conf_map['crop'] = ast.literal_eval(str(self.crop.text()).replace('\n', ''))
+            conf_map['crop'] = ast.literal_eval(str(self.crop.text()).replace(os.linesep, ''))
         if len(self.rampups.text()) > 0:
-            conf_map['rampups'] = ast.literal_eval(str(self.rampups.text()).replace('\n', ''))
+            conf_map['rampups'] = ast.literal_eval(str(self.rampups.text()).replace(os.linesep, ''))
 
         return conf_map
 
@@ -543,14 +540,14 @@ class DispTab(QWidget):
 
         results_dir = str(self.result_dir_button.text()).replace(os.sep, '/')
 
-        found_file = False
-        for p, d, f in os.walk(results_dir):
-            if 'image.npy' in f:
-                found_file = True
-                break
-        if not found_file:
-            msg_window('No image files found in the results directory tree. Please, run reconstruction in previous tab to activate this function')
-            return
+        # found_file = False
+        # for p, d, f in os.walk(results_dir):
+        #     if 'image.npy' in f:
+        #         found_file = True
+        #         break
+        # if not found_file:
+        #     msg_window('No image files found in the results directory tree. Please, run reconstruction in previous tab to activate this function')
+        #     return
 
         conf_map = self.get_disp_config()
         # verify that disp configuration is ok
@@ -560,7 +557,7 @@ class DispTab(QWidget):
             if not self.main_win.debug:
                 return
 
-        ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_disp')
+        ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
         self.tabs.run_viz()
 
 
@@ -575,9 +572,9 @@ class DispTab(QWidget):
             if len(er_msg) > 0:
                 msg_window(er_msg)
                 if self.main_win.debug:
-                    ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_disp')
+                    ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
             else:
-                ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_disp')
+                ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
 
 
     def update_tab(self, **args):
@@ -594,32 +591,26 @@ class DispTab(QWidget):
         -------
         nothing
         """
-        if 'experiment_dir' in args:
-            if self.main_win.separate_scans.isChecked() or \
-                    self.main_win.separate_scan_ranges.isChecked():
-                results_dir = self.main_win.experiment_dir
-            else:
-                results_dir = self.main_win.experiment_dir + '/results_phasing'
+        # if separate scans, all scans will be processed
+        if self.main_win.separate_scans.isChecked() or \
+                self.main_win.separate_scan_ranges.isChecked():
+            results_dir = self.main_win.experiment_dir
+        else:
+            if 'rec_id' in args:
+                rec_id = args['rec_id']
+                if len(rec_id) > 0:
+                    results_dir = ut.join(self.main_win.experiment_dir, f'results_phasing_{rec_id}')
+                else:
+                    results_dir = ut.join(self.main_win.experiment_dir, 'results_phasing')
 
-        if 'conf' in args:
-            results_dir = args['conf']
-
-        if 'rec_id' in args:
-            rec_id = args['rec_id']
-            if len(rec_id) > 0:
-                results_dir = self.main_win.experiment_dir + '/results_phasing_' + rec_id
-            else:
-                results_dir = self.main_win.experiment_dir + '/results_phasing'
-
-        if 'generations' in args:
-            generations = args['generations']
-            if 'rec_no' in args:
-                rec_no = args['rec_no']
-            else:
-                rec_no = 1
-            if generations > 0 and rec_no > 1:
-                results_dir = results_dir + '/g_' + str(generations - 1) + '/0'
-
+            if 'generations' in args:
+                generations = args['generations']
+                if 'rec_no' in args:
+                    rec_no = args['rec_no']
+                else:
+                    rec_no = 1
+                if generations > 0 and rec_no > 1:
+                    results_dir = ut.join(results_dir, f'g_{str(generations - 1)}', '0')
 
         self.result_dir_button.setText(results_dir)
         self.result_dir_button.setStyleSheet("Text-align:left")
@@ -954,7 +945,7 @@ class InstrTab(QWidget):
                 self.spec_file_button.setStyleSheet("Text-align:left")
                 self.spec_file_button.setText(specfile)
             else:
-                msg_window('The specfile file ' + specfile + ' in config file does not exist')
+                msg_window(f'The specfile file {specfile} in config file does not exist')
 
         if self.add_config:
             self.extended.load_tab(conf_map)
@@ -1054,5 +1045,5 @@ class InstrTab(QWidget):
             if not self.main_win.debug:
                 return
 
-        ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_instr')
+        ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_instr'))
 
