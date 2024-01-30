@@ -351,7 +351,7 @@ def handle_visualization(experiment_dir, rec_id=None, **kwargs):
     main_conf_map = conf_maps['config']
 
     if 'multipeak' in main_conf_map and main_conf_map['multipeak']:
-        mp.process_dir(ut.join(experiment_dir, 'results_phasing'), make_twin=False)
+        mp.process_dir(experiment_dir, make_twin=False)
     else:
         try:
             instr = importlib.import_module(f'beamlines.{main_conf_map["beamline"]}.instrument')
