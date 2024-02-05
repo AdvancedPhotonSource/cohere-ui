@@ -41,7 +41,7 @@ def calc_geometry(prep_obj, scans, shape, o_twin):
     instr_obj.initialize(config_map, scans[-1])
     B_recip, _ = instr_obj.get_geometry(shape, xtal=True)
     B_recip = np.stack([B_recip[1, :], B_recip[0, :], B_recip[2, :]])
-    rs_voxel_size = np.max([np.linalg.norm(B_recip[:, i]) for i in range(3)])  # Units are inverse nanometers
+    rs_voxel_size = np.mean([np.linalg.norm(B_recip[:, i]) for i in range(3)])  # Units are inverse nanometers
     B_recip = o_twin @ B_recip
     return B_recip, rs_voxel_size
 
@@ -166,7 +166,7 @@ class MultPeakPreparer(Preparer):
             B_recip, rs_voxel_size = calc_geometry(self.prep_obj, batch[1], shape, self.o_twin)
             batch.append(B_recip)
             batch.append(rs_voxel_size)  # reciprocal-space voxel size in inverse nanometers
-            batch.append(2*np.pi/(rs_voxel_size*shape[0]))  # direct-space voxel size in nanometers
+            batch.append(2*np.pi/(rs_voxel_size*self.prep_obj.final_size))  # direct-space voxel size in nanometers
         return batches
 
     def prepare(self, batches):
