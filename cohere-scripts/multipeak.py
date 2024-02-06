@@ -295,7 +295,6 @@ def process_dir(exp_dir, rampups=1, make_twin=True):
         f.unlink()
 
     image = np.load(f"{res_dir}/reconstruction.npy")
-    image = np.moveaxis(image, 3, 0)
     image[0] = image[0] / np.max(image[0])
     support = np.load(f"{res_dir}/support.npy")
 
