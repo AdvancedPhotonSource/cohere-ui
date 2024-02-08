@@ -1617,7 +1617,7 @@ class GA(Feature):
         -------
         nothing
         """
-        self.generations.setText('5')
+        self.generations.setText('3')
         self.metrics.setText('["chi"]')
         self.breed_modes.setText('["sqrt_ab"]')
         self.ga_sw_thresholds.setText('[.1]')
@@ -1923,7 +1923,7 @@ class phase_support(Feature):
         -------
         nothing
         """
-        self.phase_triggers.setText('[0,1,320]')
+        self.phase_triggers.setText('[1,5,320]')
         self.phm_phase_min.setText('-1.57')
         self.phm_phase_max.setText('1.57')
 
