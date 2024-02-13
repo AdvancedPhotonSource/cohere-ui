@@ -290,6 +290,7 @@ class cdi_gui(QWidget):
         -------
         nothing
         """
+        self.loaded = False
         self.reset_window()
         load_dir = select_dir(os.getcwd())
         if load_dir is None:
@@ -315,6 +316,7 @@ class cdi_gui(QWidget):
             except:
                 pass
         self.set_experiment(True)
+        self.loaded = True
         self.t.load_conf(conf_dicts)
 
         if not self.is_exp_set():
@@ -470,10 +472,6 @@ class cdi_gui(QWidget):
         if not self.t is None:
             self.t.toggle_checked(self.multipeak.isChecked(), True)
 
-    def toggle_auto_data(self):
-        if self.is_exp_set():
-            self.save_main()
-
     def toggle_separate_scans(self):
         if self.is_exp_set():
             self.save_main()
@@ -486,6 +484,10 @@ class cdi_gui(QWidget):
         if not self.t is None:
             self.t.toggle_checked(self.separate_scan_ranges.isChecked(), False)
 
+
+    def toggle_auto_data(self):
+        if self.is_exp_set():
+            self.save_main()
 
 
 class Tabs(QTabWidget):

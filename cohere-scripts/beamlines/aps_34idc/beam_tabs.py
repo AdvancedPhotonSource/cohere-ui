@@ -791,6 +791,8 @@ class SubInstrTab():
         -------
         nothing
         """
+        if not self.main_window.loaded:
+            return
         scan = str(self.main_window.scan_widget.text())
         if len(scan) == 0:
             msg_window ('cannot parse spec, scan not defined')
@@ -871,8 +873,8 @@ class InstrTab(QWidget):
             self.add_config = True
             self.extended.spec_widget.show()
             self.extended.parse_spec()
-
-        self.save_conf()
+        if self.main_win.loaded:
+            self.save_conf()
 
 
     def init(self, tabs, main_window):
@@ -971,7 +973,8 @@ class InstrTab(QWidget):
         else:
             self.spec_file_button.setText('')
 
-        self.save_conf()
+        if self.main_win.is_exp_exists():
+            self.save_conf()
 
 
     def clear_conf(self):
