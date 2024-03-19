@@ -24,7 +24,6 @@ from multiprocessing import Process, Queue
 import cohere_core as cohere
 import cohere_core.utilities as ut
 import common as com
-from time import time
 
 
 def get_job_size(size, method, pc_in_use=False):
@@ -132,7 +131,6 @@ def manage_reconstruction(experiment_dir, config_id, debug):
     nothing
     """
     print('started reconstruction')
-    sr_time = time()
 
     conf_list = ['config_rec', 'config_mp']
     err_msg, conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, debug, config_id)
@@ -283,9 +281,6 @@ def manage_reconstruction(experiment_dir, config_id, debug):
         for hf in hostfiles:
             if hf is not None:
                 os.remove(hf)
-
-    sp_time = time()
-    print('finished reconstruction in', sp_time - sr_time, 'seconds')
 
 
 def main():
