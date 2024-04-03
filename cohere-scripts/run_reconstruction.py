@@ -72,9 +72,6 @@ def split_resources(hostfile, devs, no_scans):
                 if hosts_no_devs[current_host_idx][1] == 0:
                     current_host_idx += 1
 
-    # delete hostfile
-    os.remove(hostfile)
-
     return hostfiles
 
 
@@ -215,6 +212,7 @@ def manage_reconstruction(experiment_dir, config_id, debug):
     else:
         devices = rec_config_map['device']
 
+    hostfile = None
     # if device is [-1] it will be run on cpu
     if devices == [-1]:
         # for now run locally on cpu, will be enhanced to support cluster conf
@@ -224,7 +222,8 @@ def manage_reconstruction(experiment_dir, config_id, debug):
         # this code below assigns jobs for GPUs
         data_size = cohere.read_tif(exp_dirs_data[0][0]).size
         job_size = get_job_size(data_size, ga_method, 'pc' in rec_config_map['algorithm_sequence'])
-        picked_devs, avail_jobs, hostfile = ut.get_gpu_use(devices, want_dev_no, job_size)
+        hostfile = f'hostfile_{os.getpid()}'
+        picked_devs, avail_jobs = ut.get_gpu_use(devices, want_dev_no, job_size, hostfile)
 
     if hostfile is not None:
         picked_devs = sum(picked_devs, [])
@@ -281,6 +280,8 @@ def manage_reconstruction(experiment_dir, config_id, debug):
         for hf in hostfiles:
             if hf is not None:
                 os.remove(hf)
+    if hostfile is not None:
+        os.remove(hostfile)
 
 
 def main():
