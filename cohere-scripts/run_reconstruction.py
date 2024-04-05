@@ -222,8 +222,7 @@ def manage_reconstruction(experiment_dir, config_id, debug):
         # this code below assigns jobs for GPUs
         data_size = cohere.read_tif(exp_dirs_data[0][0]).size
         job_size = get_job_size(data_size, ga_method, 'pc' in rec_config_map['algorithm_sequence'])
-        hostfile = f'hostfile_{os.getpid()}'
-        picked_devs, avail_jobs = ut.get_gpu_use(devices, want_dev_no, job_size, hostfile)
+        picked_devs, avail_jobs, hostfile = ut.get_gpu_use(devices, want_dev_no, job_size)
 
     if hostfile is not None:
         picked_devs = sum(picked_devs, [])
