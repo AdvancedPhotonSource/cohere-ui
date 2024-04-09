@@ -1858,18 +1858,18 @@ class shrink_wrap(Feature):
             conf_map['shrink_wrap_gauss_sigma'] = ast.literal_eval(str(self.shrink_wrap_gauss_sigma.text()))
 
 
-class phase_support(Feature):
+class phase_constrain(Feature):
     """
-    This class encapsulates phase support feature.
+    This class encapsulates phase constrain feature.
     """
     def __init__(self):
-        super(phase_support, self).__init__()
-        self.id = 'phase support'
+        super(phase_constrain, self).__init__()
+        self.id = 'phase constrain'
 
 
     def init_config(self, conf_map):
         """
-        This function sets phase support feature's parameters to parameters in dictionary and displays in the window.
+        This function sets phase constrain feature's parameters to parameters in dictionary and displays in the window.
         Parameters
         ----------
         conf_map : dict
@@ -1878,21 +1878,21 @@ class phase_support(Feature):
         -------
         nothing
         """
-        if 'phm_trigger' in conf_map:
-            triggers = conf_map['phm_trigger']
+        if 'phc_trigger' in conf_map:
+            triggers = conf_map['phc_trigger']
             self.active.setChecked(True)
             self.phase_triggers.setText(str(triggers).replace(" ", ""))
         else:
             self.active.setChecked(False)
             return
-        if 'phm_phase_min' in conf_map:
-            self.phm_phase_min.setText(str(conf_map['phm_phase_min']).replace(" ", ""))
+        if 'phc_phase_min' in conf_map:
+            self.phc_phase_min.setText(str(conf_map['phc_phase_min']).replace(" ", ""))
         else:
-            self.phm_phase_min.setText('')
-        if 'phm_phase_max' in conf_map:
-            self.phm_phase_max.setText(str(conf_map['phm_phase_max']).replace(" ", ""))
+            self.phc_phase_min.setText('')
+        if 'phc_phase_max' in conf_map:
+            self.phc_phase_max.setText(str(conf_map['phc_phase_max']).replace(" ", ""))
         else:
-            self.phm_phase_max.setText('')
+            self.phc_phase_max.setText('')
 
 
     def fill_active(self, layout):
@@ -1907,17 +1907,17 @@ class phase_support(Feature):
         nothing
         """
         self.phase_triggers = QLineEdit()
-        layout.addRow("phase support triggers", self.phase_triggers)
+        layout.addRow("phase constrain triggers", self.phase_triggers)
         self.phase_triggers.setToolTip('suggested trigger: [0, 1, <half iteration number>]')
-        self.phm_phase_min = QLineEdit()
-        layout.addRow("phase minimum", self.phm_phase_min)
-        self.phm_phase_max = QLineEdit()
-        layout.addRow("phase maximum", self.phm_phase_max)
+        self.phc_phase_min = QLineEdit()
+        layout.addRow("phase minimum", self.phc_phase_min)
+        self.phc_phase_max = QLineEdit()
+        layout.addRow("phase maximum", self.phc_phase_max)
 
 
     def rec_default(self):
         """
-        This function sets phase support feature's parameters to hardcoded default values.
+        This function sets phase constrain feature's parameters to hardcoded default values.
         Parameters
         ----------
         none
@@ -1926,13 +1926,13 @@ class phase_support(Feature):
         nothing
         """
         self.phase_triggers.setText('[1,5,320]')
-        self.phm_phase_min.setText('-1.57')
-        self.phm_phase_max.setText('1.57')
+        self.phc_phase_min.setText('-1.57')
+        self.phc_phase_max.setText('1.57')
 
 
     def add_feat_conf(self, conf_map):
         """
-        This function adds phase support feature's parameters to dictionary.
+        This function adds phase constrain feature's parameters to dictionary.
         Parameters
         ----------
         conf_map : dict
@@ -1942,11 +1942,11 @@ class phase_support(Feature):
         nothing
         """
         if len(self.phase_triggers.text()) > 0:
-            conf_map['phm_trigger'] = ast.literal_eval(str(self.phase_triggers.text()).replace(os.linesep,''))
-        if len(self.phm_phase_min.text()) > 0:
-            conf_map['phm_phase_min'] = ast.literal_eval(str(self.phm_phase_min.text()))
-        if len(self.phm_phase_max.text()) > 0:
-            conf_map['phm_phase_max'] = ast.literal_eval(str(self.phm_phase_max.text()))
+            conf_map['phc_trigger'] = ast.literal_eval(str(self.phase_triggers.text()).replace(os.linesep,''))
+        if len(self.phc_phase_min.text()) > 0:
+            conf_map['phc_phase_min'] = ast.literal_eval(str(self.phc_phase_min.text()))
+        if len(self.phc_phase_max.text()) > 0:
+            conf_map['phc_phase_max'] = ast.literal_eval(str(self.phc_phase_max.text()))
 
 
 class pcdi(Feature):
@@ -2288,12 +2288,12 @@ class Features(QWidget):
         Constructor, creates all concrete feature objects, and displays in window.
         """
         super(Features, self).__init__()
-        feature_ids = ['GA', 'low resolution', 'shrink wrap', 'phase support', 'pcdi', 'twin', 'average', 'progress']
+        feature_ids = ['GA', 'low resolution', 'shrink wrap', 'phase constrain', 'pcdi', 'twin', 'average', 'progress']
         self.leftlist = QListWidget()
         self.feature_dir = {'GA' : GA(),
                             'low resolution' : low_resolution(),
                             'shrink wrap' : shrink_wrap(),
-                            'phase support' : phase_support(),
+                            'phase constrain' : phase_constrain(),
                             'pcdi' : pcdi(),
                             'twin' : twin(),
                             'average' : average(),
