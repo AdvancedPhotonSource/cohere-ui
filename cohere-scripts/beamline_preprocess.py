@@ -155,7 +155,6 @@ def find_outlier_scans(experiment_dir, prep_obj):
     :return: list of int
         list of outliers scans
     """
-    print('finding outliers')
     auto_batches = []
     dirs = []
     scans = []
@@ -170,6 +169,7 @@ def find_outlier_scans(experiment_dir, prep_obj):
     if len(auto_batches) == 0:
         return []
 
+    print('finding outliers')
     if not prep_obj.separate_scan_ranges:
         auto_batches.append([dirs, scans])
     # save scans that are in auto_batches
