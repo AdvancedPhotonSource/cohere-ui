@@ -13,22 +13,19 @@ __author__ = "Ross Harder"
 __copyright__ = "Copyright (c), UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['process_dir',
-           'get_conf_dicts',
            'handle_visualization',
            'main']
 
 import argparse
-import sys
 import os
 import numpy as np
 from functools import partial
 from multiprocessing import Pool, cpu_count
 import importlib
-import convertconfig as conv
-import cohere_core as cohere
-import util.util as ut
+import cohere_core.utilities as ut
 from tvtk.api import tvtk
 import multipeak as mp
+import common as com
 
 
 class CXDViz:
@@ -91,25 +88,25 @@ class CXDViz:
 
         self.add_ds_arrays(arrays)
         if is_twin:
-            self.write_directspace(save_dir + '/twin_image')
+            self.write_directspace(ut.join(save_dir, 'twin_image'))
         else:
-            self.write_directspace(save_dir + '/image')
+            self.write_directspace(ut.join(save_dir, 'image'))
         self.clear_direct_arrays()
         if support is not None:
             arrays = {"support": support}
             self.add_ds_arrays(arrays)
             if is_twin:
-                self.write_directspace(save_dir + '/twin_support')
+                self.write_directspace(ut.join(save_dir, 'twin_support'))
             else:
-                self.write_directspace(save_dir + '/support')
+                self.write_directspace(ut.join(save_dir, 'support'))
             self.clear_direct_arrays()
 
         if coh is not None:
             coh = np.fft.fftshift(np.fft.fftn(np.fft.fftshift(coh)))
-            coh = ut.get_zero_padded_centered(coh, image.shape)
+            coh = ut.pad_center(coh, image.shape)
             arrays = {"cohAmp": np.abs(coh), "cohPh": np.angle(coh)}
             self.add_ds_arrays(arrays)
-            self.write_directspace(save_dir + '/coherence')
+            self.write_directspace(ut.join(save_dir, 'coherence'))
             self.clear_direct_arrays()
 
 
@@ -243,7 +240,7 @@ class CXDViz:
             sgwriter.file_name = filename + '.vts'
         sgwriter.set_input_data(self.get_ds_structured_grid())
         sgwriter.write()
-        print('saved file', filename)
+        print(f'saved file {filename}')
 
 
     def write_recipspace(self, filename, **args):
@@ -252,10 +249,10 @@ class CXDViz:
         if filename.endswith(".vtk"):
             sgwriter.file_name = filename
         else:
-            sgwriter.file_name = filename + '.vts'
+            sgwriter.file_name = f'{filename}.vts'
         sgwriter.set_input_data(self.get_rs_structured_grid())
         sgwriter.write()
-        print('saved file', filename)
+        print(f'saved file {filename}')
 
 
 def process_dir(instrument, config_map, rampups, crop, unwrap, make_twin, res_dir_scan):
@@ -272,46 +269,54 @@ def process_dir(instrument, config_map, rampups, crop, unwrap, make_twin, res_di
     nothing
     """
     [res_dir, scan] = res_dir_scan
-    save_dir = res_dir.replace('_phasing', '_viz')
+    if 'save_dir' in config_map:
+        save_dir = config_map['save_dir']
+    else:
+        save_dir = res_dir.replace('_phasing', '_viz')
     # create dir if it does not exist
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     # image file was checked in calling function
-    imagefile = res_dir + '/image.npy'
+    imagefile = ut.join(res_dir, 'image.npy')
     try:
         image = np.load(imagefile)
-        ut.save_tif(image, save_dir + '/image.tif')
+        ut.save_tif(image, ut.join(save_dir, 'support.tif'))
     except:
-        print('cannot load file', imagefile)
+        print(f'cannot load file {imagefile}')
         return
+
+    # init support and coh, will be overridden if not None
+    support = None
+    coh = None
+
+    supportfile = ut.join(res_dir, 'support.npy')
+    if os.path.isfile(supportfile):
+        try:
+            support = np.load(supportfile)
+            ut.save_tif(support, ut.join(save_dir, 'support.tif'))
+        except:
+            print(f'cannot load file {supportfile}')
+    else:
+        print(f'support file is missing in {res_dir} directory')
 
     # get geometry
     instrument.initialize(config_map, scan)
     geometry = instrument.get_geometry(image.shape)
-    support = None
-    coh = None
 
-    supportfile = res_dir + '/support.npy'
-    if os.path.isfile(supportfile):
-        try:
-            support = np.load(supportfile)
-            ut.save_tif(support, save_dir + '/support.tif')
-        except:
-            print('cannot load file', supportfile)
-    else:
-        print('support file is missing in ' + res_dir + ' directory')
-
-    cohfile = res_dir + '/coherence.npy'
+    cohfile = ut.join(res_dir, 'coherence.npy')
     if os.path.isfile(cohfile):
         try:
             coh = np.load(cohfile)
         except:
-            print('cannot load file', cohfile)
+            print(f'cannot load file {cohfile}')
 
-    if support is not None:
-        image, support = ut.center(image, support)
     if rampups > 1:
-        image = ut.remove_ramp(image, ups=rampups)
+        import importlib
+        import cohere_core.utilities.dvc_utils as dvut
+
+        devlib = importlib.import_module('cohere_core.lib.nplib').nplib
+        dvut.set_lib(devlib)
+        image = dvut.remove_ramp(image, ups=rampups)
 
     crop = crop + [1.0] * (len(image.shape) - len(crop))
     viz = CXDViz(crop, geometry)
@@ -321,13 +326,10 @@ def process_dir(instrument, config_map, rampups, crop, unwrap, make_twin, res_di
         image = np.conjugate(np.flip(image))
         if support is not None:
             support = np.flip(support)
-            image, support = ut.center(image, support)
-        if rampups > 1:
-            image = ut.remove_ramp(image, ups=rampups)
         viz.visualize(image, support, coh, save_dir, unwrap, True)
 
 
-def handle_visualization(experiment_dir, rec_id=None):
+def handle_visualization(experiment_dir, rec_id=None, **kwargs):
     """
     If the image_file parameter is defined, the file is processed and vts file saved. Otherwise this function determines root directory with results that should be processed for visualization. Multiple images will be processed concurrently.
     Parameters
@@ -338,53 +340,29 @@ def handle_visualization(experiment_dir, rec_id=None):
     -------
     nothing
     """
-    experiment_dir = experiment_dir.replace(os.sep, '/')
-    if not os.path.isdir(experiment_dir):
-        print("Please provide a valid experiment directory")
-        return("Please provide a valid experiment directory")
-
     print ('starting visualization process')
 
-    main_conf_file = experiment_dir + '/conf/config'
-    if not os.path.isfile(main_conf_file):
-        print('main configuration file', main_conf_file, 'does not exist')
-        return ('main configuration file', main_conf_file, 'does not exist')
-    main_conf_map = ut.read_config(main_conf_file)
-    if main_conf_map is None:
-        print('Cannont parse main configuration file', main_conf_file)
-        return ('Cannot parse main configuration file', main_conf_file)
+    debug = 'debug' in kwargs and kwargs['debug']
+    conf_list = ['config_disp', 'config_instr', 'config_data']
+    err_msg, conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, debug)
+    if len(err_msg) > 0:
+        return err_msg
 
-    # convert configuration files if needed
-    if 'converter_ver' not in main_conf_map or conv.get_version() is None or conv.get_version() > main_conf_map[
-        'converter_ver']:
-        conf_maps = conv.convert(experiment_dir + '/conf')
-        main_conf_map = conf_maps['config']
-
-    msg = cohere.verify('config', main_conf_map)
-    if len(msg) > 0:
-        # the error message is printed in verifier
-        return msg
-
-    if not os.path.isfile(experiment_dir + '/conf/config_instr'):
-        print('configuration file', experiment_dir + '/conf/config_instr', 'does not exist')
-        return ('configuration file', experiment_dir + '/conf/config_instr', 'does not exist')
-
-    instr_conf_map = ut.read_config(experiment_dir + '/conf/config_instr')
-
-    msg = cohere.verify('config_instr', instr_conf_map)
-    if len(msg) > 0:
-        # the error message is printed in verifier
-        return msg
+    main_conf_map = conf_maps['config']
 
     if 'multipeak' in main_conf_map and main_conf_map['multipeak']:
-        mp.process_dir(experiment_dir + '/results_phasing')
+        mp.process_dir(experiment_dir, make_twin=False)
     else:
         try:
-            instr = importlib.import_module('beamlines.' + main_conf_map['beamline'] + '.instrument')
+            instr = importlib.import_module(f'beamlines.{main_conf_map["beamline"]}.instrument')
             instrument = instr.Instrument()
         except:
-            print('cannot import beamlines.' + main_conf_map['beamline'] + '.instrument module.')
-            return ('cannot import beamlines.' + main_conf_map['beamline'] + '.instrument module.')
+            print(f'cannot import beamlines.{main_conf_map["beamline"]}.instrument module.')
+            return (f'cannot import beamlines.{main_conf_map["beamline"]}.instrument module.')
+
+        instr_conf_map = conf_maps['config_instr']
+        data_conf_map = conf_maps['config_data']
+        disp_conf_map = conf_maps['config_disp']
 
         config_map = {}
         if ('separate_scans' in main_conf_map and main_conf_map['separate_scans']) or \
@@ -396,41 +374,43 @@ def handle_visualization(experiment_dir, rec_id=None):
             config_map = instr_conf_map
             separate = False
 
-        if os.path.isfile(experiment_dir + '/conf/config_data'):
-            data_config_map = ut.read_config(experiment_dir + '/conf/config_data')
-            if 'binning' in data_config_map:
-                config_map['binning'] = data_config_map['binning']
+        if 'binning' in data_conf_map:
+            config_map['binning'] = data_conf_map['binning']
 
-        # get the visualization config
-        disp_config_map = ut.read_config(experiment_dir + '/conf/config_disp')
-        if 'rampups' in disp_config_map:
-            rampups = disp_config_map['rampups']
+        # if save_dir is configured, add it to config_map
+        if 'save_dir' in disp_conf_map:
+            config_map['save_dir'] = disp_conf_map['save_dir']
+        if 'rampups' in disp_conf_map:
+            rampups = disp_conf_map['rampups']
         else:
             rampups = 1
 
-        if 'make_twin' in disp_config_map:
-            make_twin = disp_config_map['make_twin']
+        if 'make_twin' in disp_conf_map:
+            make_twin = disp_conf_map['make_twin']
         else:
             make_twin = False
 
-        if 'crop' in disp_config_map:
-            crop = disp_config_map['crop']
+        if 'crop' in disp_conf_map:
+            crop = disp_conf_map['crop']
         else:
             crop = []
 
-        if 'unwrap' in disp_config_map:
-            unwrap = disp_config_map['unwrap']
+        if 'unwrap' in disp_conf_map:
+            unwrap = disp_conf_map['unwrap']
         else:
             unwrap = False
 
-        if 'results_dir' in disp_config_map:
-            results_dir = disp_config_map['results_dir'].replace(os.sep, '/')
+        if 'results_dir' in disp_conf_map:
+            results_dir = disp_conf_map['results_dir'].replace(os.sep, '/')
+            if not os.path.isdir(results_dir):
+                print(f'the configured results_dir: {results_dir} does not exist')
+                return(f'the configured results_dir: {results_dir} does not exist')
         elif separate:
             results_dir = experiment_dir
         elif rec_id is not None:
-            results_dir = experiment_dir + '/results_phasing_' + rec_id
+            results_dir = ut.join(experiment_dir, f'results_phasing_{rec_id}')
         else:
-            results_dir = experiment_dir + '/results_phasing'
+            results_dir = ut.join(experiment_dir, 'results_phasing')
         # find directories with image.npy file in the root of results_dir
         dirs = []
         for (dirpath, dirnames, filenames) in os.walk(results_dir):
@@ -438,21 +418,20 @@ def handle_visualization(experiment_dir, rec_id=None):
                 if file.endswith('image.npy'):
                     dirs.append((dirpath).replace(os.sep, '/'))
         if len(dirs) == 0:
-            print ('no image.npy files found in the directory tree', results_dir)
-            return ('no image.npy files found in the directory tree', results_dir)
+            print (f'no image.npy files found in the directory tree {results_dir}')
+            return (f'no image.npy files found in the directory tree {results_dir}')
 
         last_scan = int(main_conf_map['scan'].split(',')[-1].split('-')[-1])
         if separate:
             scans = []
             # the scan that will be used to derive geometry is determined from the scan directory
             for dir in dirs:
-                subdir = dir.removeprefix(experiment_dir + '/')
+                subdir = dir.removeprefix(f'{experiment_dir}/')
                 if subdir.startswith('scan'):
                     scan_dir = subdir.split('/')[0]
                     scans.append(int(scan_dir.removeprefix('scan_').split('-')[-1]))
                 else:
-                    print('directory', subdir, 'does not start with "scan", using configured scan to parse spec')
-                    scans.append(last_scan)
+                    print(f'directory {dir} does not start with "scan", not visualizing')
             dirs = list(zip(dirs, scans))
         else:
             dirs = [[dir, last_scan] for dir in dirs]
@@ -470,15 +449,17 @@ def handle_visualization(experiment_dir, rec_id=None):
     return ''
 
 
-def main(arg):
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_dir", help="experiment directory")
     parser.add_argument("--rec_id", help="alternate reconstruction id")
+    parser.add_argument("--debug", action="store_true",
+                        help="if True the vrifier has no effect on processing")
     args = parser.parse_args()
-    handle_visualization(args.experiment_dir, args.rec_id)
+    handle_visualization(args.experiment_dir, args.rec_id, debug=args.debug)
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    main()
 
 # python run_disp.py experiment_dir

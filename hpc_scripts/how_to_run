@@ -1,0 +1,8 @@
+Assuming scan_54 example is in cohere-ui/example_workspace ans the phasing data is there, run the command below:
+sh polaris_request.sh ../cohere/cohere-ui/example_workspace/scan_54/conf/config_rec ../cohere/cohere-ui/example_workspace/tst_54/phasing_data/data.tif 6 0
+
+The arguments into polaris_request.sh script are:
+- configuration file
+- data file
+- number of reconstructions
+- 0 or 1, 0 if running multiple reconstructions, 1 if running GA

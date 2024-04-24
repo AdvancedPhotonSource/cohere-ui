@@ -1,9 +1,10 @@
 // This file contains all configurable parameters that are applied during reconstruction.
-// There are general parameters that apply to the main thread of reconstruction and features parameters.
-// Reconstruction will use the global definitions and may use any of the supported features:
-// twin, amp_support, phase_support, pcdi, resolution, average.
-// The iterations during which the feature is active is defined by a trigger. In addition each feature may have other
-// configurable parameters.
+// There are general parameters that apply to the main thread of reconstruction and additional parameters applicable
+// to triggered operations that can be selected by user.
+// Reconstruction will use the global definitions and may use any of the supported triggered operations:
+// lowpass_filter, shrink_wrap, phc (phase constrain), pc (partial coherence), twin, average.
+// The triggered operations have trigger parameter which defines iteration a t which they are active.
+// In addition each feature may have other configurable parameters.
 // Trigger can be defined as a single iteration, or multiple iterations.
 // examples:
 // (3) trigger at iteration 3
@@ -12,47 +13,48 @@
 
 // GENERAL
 //data_dir = "phasing_data"
-                             // directory from which data is read
+                             // Defines directory from which data is read.
 
 //save_dir = "results"
-                             // directory where results of reconstruction are saved as npy files
-                             // if samples > 1, result from each thread will be stored in subdirectory 1,2,3 etc.
+                             // Defines directory where results of reconstruction are saved as npy files.
+                             // If samples > 1, result from each thread will be stored in subdirectory 1,2,3 etc.
 
 init_guess = "random"
-                             // defines what to apply as initial guess. Choices are: random, continue, and AI_guess.
+                             // Defines what to apply as initial guess. Choices are: random, continue, and AI_guess.
                              // "random" will generate random guess, "continue" will start from previously saved
-                             // results, and "AI_guess" will start AI reconstruction that will be an initial guess
+                             // results, and "AI_guess" will start AI reconstruction that will be an initial guess.
 
 // continue_dir = "cont"
-                             // valid if init_guess is "continue"
-                             // Directory from which results are read for reconstruction continuation
+                             // Valid if init_guess is "continue".
+                             // Defines directory from which results are read for reconstruction continuation.
 
 // AI_trained_model
-                             // valid and mandatory if init_guess is "AI_guess"
-                             // defines the file of hdf5 format that holds trained model
+                             // Valid and mandatory if init_guess is "AI_guess".
+                             // Defines the file of hdf5 format that holds trained model.
 
 reconstructions = 1
-                             // number of reconstructions to start with
-                             // typically used when running genetic algorithm
+                             // Defines number of reconstructions to start with.
 
 processing = "auto"
-                             // optional, the library used when running reconstruction. When the auto option is
-                             // selected the program will use the best performing library that is available, in the
-                             // following order: cupy, af, numpy. The cp option will utilize cupy,
-                             // np will utilize numpy, and af will leave selection to arrayfire. The cuda, opencl,
-                             // and cpu are arrayfire libraries. The "cuda" and "opencl" options will invoke the
-                             // processing on GPUs, and the "cpu" option on cpu. Default is auto.
+                             // Optional parameter. Defines the library used when running reconstruction.
+                             // When the auto option is selected the program will use the best performing library
+                             // that is available, in the following order: cupy, torch, numpy. Default is auto.
 
 device = [0,1]
-                             // IDs of the target devices for each thread (reconstruction).
-                             // If not defined, it will default to -1 for the OS to select device
+device = 'all'
+device = {'host1':'all', 'host2':[0,1,2,3,4]}
+                             // Defines GPU id(s) that should be used for reconstruction(s) when using cupy or torch
+                             // library. Not needed for numpy.
+                             // Can be defined as list of GPU IDs or 'all' if all available GPUs should be used.
+                             // For cluster configuration it is defined as dict with hosts names as keys.
 
 algorithm_sequence = "3* (20*ER + 180*HIO) + 20*ER"
-                            // mandatory, defines algorithm applied in each iteration during modulus projection and
+algorithm_sequence = "3* (20*ER.SW0 + 180*HIO.SW1) + 20*ER.SW0"
+                            // Mandatory, defines algorithm applied in each iteration during modulus projection and
                             // during modulus. The "*" character means repeat, and the "+" means add to the sequence.
                             // The sequence may contain single brackets defining a group that will be repeated by the
-                            // preceding multiplier. The alphabetic entries: 'ER', 'ERpc', 'HIO', 'HIOpc' define algorithms
-                            // used in this iteration. The entries will invoke functions as follows:
+                            // preceding multiplier. The alphabetic entries: 'ER', 'ERpc', 'HIO', 'HIOpc' define
+                            // algorithms used in this iteration. The entries will invoke functions as follows:
                             // 'ER' definition will invoke 'er' and 'modulus' functions
                             // 'ERpc' will invoke 'er' and 'pc_modulus'
                             // 'HIO' will invoke 'hio' and 'modulus'
@@ -61,34 +63,45 @@ algorithm_sequence = "3* (20*ER + 180*HIO) + 20*ER"
                             // If defining ERpc or HIOpc the pcdi feature must be activated. If not activated,
                             // the phasing will use modulus function instead.
 
+                            // Another way of defining algorithm is with the sub-triggers, shown in a second line.
+                            // The triggers that can be defined as sub-triggers are:
+                            // - shrink_wrap_trigger, with the mnemonic SW
+                            // - lowpass_filter_trigger, with the mnemonic LPF
+                            // - phc_trigger, with the mnemonic PHC
+                            // If sub-triggers are used in algorith_sequence then the trigger
+                            // must be defined as a list of sub-triggers. Also all parameters
+                            // must be defined as lists of parameters, specific for each sub-trigger.
+                            // The number post-fixed to the sub-trigger mnemonic defines the
+                            // sub-trigger place in the list.
+
 hio_beta = .9
-                             // used in hio algorithm
+                             // Parameter used in hio algorithm.
 
 // GENERATIc ALGORITHM
 // ga_generations = 4
-                             // number of generations
+                             // Defines number of generations.
 
 // ga_metrics = ["chi", "sharpness"]
-                             // defines which metric should be used to rank the reconstruction results
-                             // supported:
+                             // Defines which metric should be used to rank the reconstruction results.
+                             // Supported metrics:
                              // - 'chi' - the last error calculated as norm(rs_amplitudes - data)/norm(data)
                              //   The smallest 'chi' value is the best.
                              // - 'sharpness' - sum(power(abs(image), 4))
                              //   The smallest 'sharpness' value is the best.
                              // - 'summed_phase' -  angle(image) - sum(angle(image) * support) / sum(support)
                              //   where support is calculated with shrink wrap using hardcoded threshold=.2 and sigma=.5
-                             //   The greatest 'summed_phase' value is the best.
+                             //   The biggest 'summed_phase' value is the best.
                              // - 'area' - sum(support)
                              //   where support is calculated with shrink wrap using hardcoded threshold=.2 and sigma=.5
-                             //   The greatest 'area' value is the best.
+                             //   The biggest 'area' value is the best.
 
 // ga_breed_modes = ["sqrt_ab", "2ab_a_b"]
-                             // defines which breeding mode to use to populate new generation. If "none"
+                             // Defines which breeding mode to use to populate new generation. If defined as "none",
                              // there is no breeding.
                              // Breeding starts with choosing alpha image. The rest of the images are crossed with alpha.
-                             // Before the crossing, the image, called beta is aligned with alpha, and phases in both of
+                             // Before the crossing, the image beta is aligned with alpha, and phases in both of
                              // the arrays are normalized to derive ph_alpha = angle(alpha), and ph_beta = angle(beta)
-                             // supported:
+                             // Supported breedings:
                              // 'sqrt_ab' - sqrt(abs(alpha) * abs(beta)) * exp(0.5j * (ph_beta + ph_alpha))
                              // 'pixel_switch' - where((cond > 0.5), beta, alpha), cond = random(shape(beta))
                              // 'b_pa' - abs(beta) * exp(1j * (ph_alpha))
@@ -105,114 +118,132 @@ hio_beta = .9
                              // 'avg_ab_pa - 0.5 * (abs(alpha) + abs(beta)) * exp(1j * (ph_alpha))
 
 // ga_cullings = [2,1]
-                             // defines how many worst samples to remove in breeding phase for each generation
-                             // defaults to 0
+                             // Defines how many worst samples to remove in breeding phase for each generation.
 
 // ga_sw_thresholds = [.15, .1]
-                             // the support is recalculated with this threshold after breeding phase
-                             // defaults to support threshold
+                             // The threshold to apply when recalculating support after breeding.
 
 // ga_sw_gauss_sigmas = [1.1, 1.0]
-                             // the support is recalculated with this sigma after breeding phase
-                             // defaults to support sigma
+                             // The gauss sigma to apply when recalculating support after breeding.
 
 // ga_lpf_sigmas = [2.0, 1.5]
-                             // list of sigmas that will be used in subsequent generations to calculate
-                             // Gauss (assuming algorithm is GAUSS) and apply it to the data
-                             // This determines low resolution generations number
+                             // List of sigmas that will be used in subsequent generations to calculate
+                             // Gauss (assuming algorithm is GAUSS) and apply it to the data.
+                             // This determines low resolution generations number.
 
 // ga_gen_pc_start = 3
-                             // generation at which pcdi feature will start, if active.
+                             // Defines generation at which pcdi feature will start, if active.
 
-// ga_fast = True            // defines which GA algorithm to use
-                             // if present and True, the number of reconstructions is limited to
+// ga_fast = True            // Defines which GA algorithm to use.
+                             // If present and True, the number of reconstructions is limited to
                              // available resources. This reconstruction is very fast.
                              // Otherwise the number of reconstructions is unlimited but the
                              // performance is worse as the intermediate results must be stored.
 
 // TWIN
-// twin feature trims the image array at the current state by zeroing half of the array in each dimension.
+// Twin feature trims the image array at the current state by zeroing half of the array in scan dimensions (x, y).
 
 twin_trigger = [2]
-                             // twin defines at which iteration to cut half of the array(i.e. multiply by 0s),
-                             // Comment out, if don't want to apply twin.
-                             // when running GA applied only in first generation
+                             // Defines at which iteration to apply twin operation.
+                             // When running GA it is applied only in first generation.
 
 twin_halves = [0, 0]
-                             // defines which half of the array is zeroed out in x and y dimensions.
+                             // Defines which half of the array is zeroed out in x and y dimensions.
                              // If 0, the first half in that dimension is zeroed out, otherwise, the second half.
 
-// SUPPORT
+// SHRINK WRAP
 // Support area is an array that defines region in which the image is meaningful. This area is recalculated at the
-// trigger iteration. The calculation employ an algorithm defined here as shrink_wrap_type.
+// shrink wrap trigger iteration. The calculation employ an algorithm defined here as shrink_wrap_type.
 
 shrink_wrap_trigger = [1, 1]
-                             // defines when to update support array using the parameters below.
-                             // Comment out, if support feature not used.
+shrink_wrap_trigger = [[1, 2], [0, 5]]
+                             // Defines when to update support array using the parameters below.
 shrink_wrap_type = "GAUSS"
+shrink_wrap_type = ["GAUSS", "GAUSS"]
+                             // Type of shrink wrap, currently supporting GAUSS type.
+                             // The second line shows configuration when two sub-triggers are defined.
 shrink_wrap_threshold = 0.1
+shrink_wrap_threshold = [0.1, 0.2]
+                             // Applies to Gauss type of shrink wrap and defines threshold.
+                             // The second line shows configuration when two sub-triggers are defined.
 shrink_wrap_gauss_sigma = 1.0
+shrink_wrap_gauss_sigma = [1.0, 1.1]
+                             // Applies to Gauss type of shrink wrap and defines gauss sigma.
+                             // The second line shows configuration when two sub-triggers are defined.
 initial_support_area = [.5,.5,.5]
-                             // initial support area. If the values are fractional, the support area will be calculated
-                             // by multiplying by the data array dimensions. The support will be set to 1s to this
-                             // dimensions centered.
+                             // Defines setting of initial support area. The subsequent elements define
+                             // fraction of array in each dimension allocated to support.
+                             // The support array will be set to 1s in the centered part of support array,
+                             // otherwise to 0.
 
 // PHASE CONSTRAIN
 // At the begginning iterations the support area is modified in respect to the phase. Support area will exclude points
-// that phase is outside of the defined bounds
+// that phase is outside of the defined bounds.
 
-// phm_trigger = [0, 1, 310]
-                             // defines when to update support array using the parameters below by applaying phase constrain.
-                             // Comment out, if phase constrain feature not used.
-                             // when running GA applied only in first generation
-// phm_phase_min = -1.57
-// phm_phase_max = 1.57
+// phc_trigger = [0, 1, 310]
+// phc_trigger = [[0, 1, 150], [0, 1, 160]]
+                             // Defines when to update support using the parameters below by applying phase constrain.
+                             // The best results may be obtained when configured to the first half of iterations.
+                             // The second line shows configuration when two sub-triggers are defined.
+                             // When running GA applied only in first generation.
+// phc_phase_min = -1.57
+// phc_phase_min = [-1.2, -1.57]
+                             // Defines lower threshold.
+                             // The second line shows configuration when two sub-triggers are defined.
+// phc_phase_max = 1.57
+// phc_phase_max = [1.2, 1.57]
+                             // Defines upper threshold.
+                             // The second line shows configuration when two sub-triggers are defined.
 
 // PARTIAL COHERENCE
-// Partial coherence triggers recalculation of coherence array for the amplitudes in reciprocal space.
+// Partial coherence turns recalculation of coherence array for the amplitudes in reciprocal space.
 // After first coherence array is determined, it is used for convolution in subsequent iteration.
 
 // pc_interval = 50
-                             // defines iteration interval to update coherence.
-                             // Comment out, if pcdi feature not used.
+                             // Defines iteration interval to update coherence.
 // pc_type = "LUCY"
-                             // partial coherence algorithm
+                             // Partial coherence algorithm. Currently LUCY type is supported.
 // pc_LUCY_iterations = 20
 // pc_normalize = True
 // pc_LUCY_kernel = [16,16,16]
-                             // coherence area. If the values are fractional, the coherence area will be calculated
+                             // Coherence kernel area. If the values are fractional, the area will be calculated
                              // by multiplying by the data array dimensions.
 
-// LOW RESOLUTION
-// At the beginning iterations the data resolution and sigma used in recalculation of the support area are modified gradually.
-// The sigma for each iteration where the low resolution is applied is a linespaced result of iter_res_sigma_range.
-// The last sigma is typically set to shrink_wrap_gauss_sigma. If the last sigma is not specified, it defaults to shrink_wrap_gauss_sigma.
-// The sigma is used by in recalculation of the support area, i.e when support trigger is on.
-// The iter_res_det_range is similiary linespaced for the duration of low resolution iterations. The values are used
-// as sigmas to calculate Gaussian distribution and applied (multiplied) to data.
+// LOW PASS FILTER
+// This functionality should be applied in the beginning iterations. For the iterations with active low-pass filter the
+// shrink wrap operation is inactive and instead a Gauss type shrink wrap with the threshold and sigma determined by
+// low-pass parameters is applied. The low-pass sigma is iteration dependent and is calculated as line space of
+// lowpass_filter_range parameter across the low-pass iterations. The iteration sigma is then used to modify iteration
+// data by applying low-pass gaussian filter. The gaussian filter has effect in both spaces: direct, and reciprocal.
+// Along with gradually modification of data in reciprocal space, the shrink wrap applied in the direct space, uses
+// the inverse of iteration sigma.
 
 // lowpass_filter_trigger = [0, 1, 320]
-                             // defines when to apply low resolution using the parameters below.
-                             // Comment out, if low resolution feature not used.
-                             // when running, GA it is applied only in first generation
+// lowpass_filter_trigger = [[0, 2, 150],[0, 2, 50]]
+                             // Defines when to apply low resolution using the parameters below.
+                             // The second line shows configuration when two sub-triggers are defined.
+                             // When running, GA it is applied only in first generation.
 // lowpass_filter_range = [.7, 1]
-                             // used when applying low-pass data filter while iterating.
-                             // The det values are linespaced for low resolution iterations from first value to last. 
-                             // The filter is gauss with sigma of linespaced det. If only one number given,
-                             // the last det will default to 1.
+// lowpass_filter_range = [[.7, .8],[.8,1.0]]
+                             // Used to calculate iteration sigma when applying low-pass data filter while iterating.
+                             // The values defined in his range are line-spaced across low resolution iterations.
+                             // If only one number is given, the last det will default to shrink_wrap_gauss_sigma.
+                             // The second line shows configuration when two sub-triggers are defined.
 // lowpass_filter_sw_threshold = 0.1
-                             // during lowpass iterations a GAUSS type shrink wrap is applied with
-                             // this threshold ans sigma calculated as reverse of low pass filter
+// lowpass_filter_sw_threshold = [0.11, 0.1]
+                             // During lowpass iterations a GAUSS type shrink wrap is applied with
+                             // this threshold.
+                             // The second line shows configuration when two sub-triggers are defined.
 
 // AVERAGING
 // The amplitudes of the last several iterations are averaged. This trigger defines at which iteration the averaging
 // starts.
 
 // average_trigger = [-65, 1]
-                             // defines when to apply averaging. Negative start means it is offset from the last iteration
-                             // Comment out, if averaging not used.
+                             // Defines when to apply averaging. Negative start means it is an offset from the last
+                             // iteration.
 
 progress_trigger = [0, 5]
-                             // defines when to print info on the console
-                             // the info includes current iteration and error
+                             // Defines when to print info on the console.
+                             // The info includes current iteration and error.
 

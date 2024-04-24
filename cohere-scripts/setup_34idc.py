@@ -18,11 +18,10 @@ __all__ = ['copy_conf',
            'main']
 
 import argparse
-import sys
 import os
 import shutil
 import glob
-import util.util as ut
+import cohere_core.utilities as ut
 
 
 ######################################################################
@@ -42,27 +41,27 @@ def copy_conf(src, dest, specfile):
     nothing
     """
     try:
-        conf_prep = src + '/config_prep'
+        conf_prep = ut.join(src, 'config_prep')
         shutil.copy(conf_prep, dest)
     except:
         pass
     try:
-        conf_data = src + '/config_data'
+        conf_data = ut.join(src, 'config_data')
         shutil.copy(conf_data, dest)
     except:
         pass
     try:
-        conf_rec = src + '/config_rec'
+        conf_rec = ut.join(src, 'config_rec')
         shutil.copy(conf_rec, dest)
     except:
         pass
     try:
-        conf_disp = src + '/config_disp'
+        conf_disp = ut.join(src, 'config_disp')
         shutil.copy(conf_disp, dest)
     except:
         pass
     try:
-        conf_instr = src + '/config_instr'
+        conf_instr = ut.join(src, 'config_instr')
         if specfile is None:
             shutil.copy(conf_instr, dest)
         else:
@@ -94,10 +93,10 @@ def setup_rundirs(prefix, scan, conf_dir, **kwargs):
     """
     conf_dir = conf_dir.replace(os.sep, '/')
     if not os.path.isdir(conf_dir):
-        print('configured directory ' + conf_dir + ' does not exist')
+        print(f'configured directory {conf_dir} does not exist')
         return
 
-    main_conf = conf_dir + '/config'
+    main_conf = ut.join(conf_dir, 'config')
     config_map = ut.read_config(main_conf)
     if config_map is None:
         return None
@@ -109,11 +108,11 @@ def setup_rundirs(prefix, scan, conf_dir, **kwargs):
     else:
         working_dir = os.getcwd().replace(os.sep, '/')
 
-    experiment_dir = working_dir + '/' + id
+    experiment_dir = ut.join(working_dir, id)
     if not os.path.exists(experiment_dir):
         os.makedirs(experiment_dir)
 
-    experiment_conf_dir = experiment_dir + '/conf'
+    experiment_conf_dir = ut.join(experiment_dir, 'conf')
     if not os.path.exists(experiment_conf_dir):
         os.makedirs(experiment_conf_dir)
 
@@ -121,7 +120,7 @@ def setup_rundirs(prefix, scan, conf_dir, **kwargs):
     config_map['working_dir'] = working_dir
     config_map['experiment_id'] = prefix
     config_map['scan'] = scan
-    ut.write_config(config_map, experiment_conf_dir + '/config')
+    ut.write_config(config_map, ut.join(experiment_conf_dir, 'config'))
 
     # here we want the command line to be used if present
     if 'specfile' in kwargs and kwargs['specfile'] is not None:
@@ -139,20 +138,20 @@ def setup_rundirs(prefix, scan, conf_dir, **kwargs):
         new_exp_dir = os.path.split(os.path.abspath(experiment_conf_dir))[0]
 
         # get case of single scan or summed
-        prep_dir_list = glob.glob(other_exp_dir + '/preprocessed_data', recursive=True)
+        prep_dir_list = glob.glob(ut.join(other_exp_dir, 'preprocessed_data'), recursive=True)
         for dir in prep_dir_list:
-            shutil.copytree(dir.replace(os.sep, '/'), new_exp_dir + '/preprocessed_data')
+            shutil.copytree(dir.replace(os.sep, '/'), ut.join(new_exp_dir, 'preprocessed_data'))
 
             # get case of split scans
         prep_dir_list = glob.glob(other_exp_dir  = '/scan*/preprocessed_data', recursive=True)
         for dir in prep_dir_list:
             scandir = os.path.basename(os.path.split(dir.replace(os.sep, '/'))[0]).replace(os.sep, '/')
-            shutil.copytree(dir.replace(os.sep, '/'), new_exp_dir + '/' + scandir + '/preprocessed_data')
+            shutil.copytree(dir.replace(os.sep, '/'), ut.join(new_exp_dir, scandir, 'preprocessed_data'))
     return experiment_dir
         #################################################################################
 
 
-def main(arg):
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("id", help="prefix to name of the experiment/data reconstruction")
     parser.add_argument("scan", help="a range of scans to prepare data from")
@@ -170,4 +169,4 @@ def main(arg):
 
 
 if __name__ == "__main__":
-    exit(main(sys.argv[1:]))
+    exit(main())

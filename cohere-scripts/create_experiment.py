@@ -21,9 +21,8 @@ __all__ = ['create_conf_prep',
            'main']
 
 import argparse
-import sys
 import os
-import util.util as ut
+import cohere_core.utilities as ut
 import convertconfig as conv
 
 
@@ -70,7 +69,7 @@ def create_conf_data(conf_dir):
     conf_dir = conf_dir.replace(os.sep, '/')
     conf_file_name = conf_dir + '/config_data'
     f = open(conf_file_name, "w+")
-    
+
     f.write('// data_dir = "/path/to/dir/formatted_data/is/saved"\n')
     f.write('alien_alg = "none"\n')
     f.write('// aliens = [[170,220,112,195,245,123], [50,96,10,60,110,20]]\n')
@@ -137,7 +136,7 @@ def create_conf_rec(conf_dir):
     f.write('progress_trigger = [0, 20]')
     f.close()
 
-   
+
 def create_conf_disp(conf_dir):
     """
     Creates a "config_disp" file with some parameters commented out.
@@ -154,7 +153,7 @@ def create_conf_disp(conf_dir):
     conf_dir = conf_dir.replace(os.sep, '/')
     conf_file_name = conf_dir + '/config_disp'
     f = open(conf_file_name, "w+")
-    
+
     f.write('// results_dir = "/path/to/dir/with/reconstructed/image(s)"\n')
     f.write('// rampups = 1\n')
     f.write('crop = [.5, .5, .5]\n')
@@ -213,11 +212,11 @@ def create_exp(prefix, scan, working_dir, **args):
 
     experiment_dir = working_dir + '/' + id
     if not os.path.exists(experiment_dir):
-       os.makedirs(experiment_dir)
+        os.makedirs(experiment_dir)
     else:
         print('experiment with this id already exists')
         return experiment_dir
- 
+
     experiment_conf_dir = experiment_dir + '/conf'
     if not os.path.exists(experiment_conf_dir):
         os.makedirs(experiment_conf_dir)
@@ -243,11 +242,11 @@ def create_exp(prefix, scan, working_dir, **args):
     create_conf_data(experiment_conf_dir)
     create_conf_rec(experiment_conf_dir)
     create_conf_disp(experiment_conf_dir)
-    
-    return experiment_dir
-        
 
-def main(arg):
+    return experiment_dir
+
+
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("id", help="prefix to name of the experiment/data reconstruction")
     parser.add_argument("scan", help="a range of scans to prepare data from")
@@ -263,7 +262,7 @@ def main(arg):
     varpar = {}
     if args.specfile and os.path.isfile(args.specfile):
         varpar['specfile'] = args.specfile
-    
+
     if args.beamline:
         varpar['beamline'] = args.beamline
 
@@ -271,4 +270,4 @@ def main(arg):
 
 
 if __name__ == "__main__":
-    exit(main(sys.argv[1:]))
+    exit(main())

@@ -1,18 +1,24 @@
 // PARAMETERS FOR VISUALISATION
 results_dir = "ANLDIR"
-                           // optional, a directory of off which all results will be
-                           // visualized. Default is the experiment directory
+                           // Optional, a directory containing phasing results that will be
+                           // processed for visualization.
+                           // All phasing results in this directory tree will be discovered and processed.
+                           // Default is the experiment directory
 rampups = 1
-                           // optional, upsize when running ramp removal
-                           // default is 1
+                           // Optional, upsize when running ramp removal.
+                           // Default is 1.
 
 crop = [.5, .5, .5]
-                           // fractions of the image array dimensions assigned to cropped array dimensions
-                           // default [1.0, 1.0, 1.0] meaning the whole array
+                           // Fractions of the image array selected for presentation.
+                           // Default is [1.0, 1.0, 1.0] meaning the whole array.
 
 unwrap = False
-                           // if True the vts file will contain unwrapped phase in addition to
-                           // phase and amplitude
+                           // If True the image.vts file will contain unwrapped phase in addition to
+                           // phase and amplitude.
 
 make_twin = False
-                           // switch to whether visualize twin image
+                           // A switch to whether visualize twin image.
+
+save_dir = "results_viz"
+                           // Optional, a directory where the results of visualization will be saved.
+                           // Defaults to <experiment_dir>/results_viz

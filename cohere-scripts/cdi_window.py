@@ -18,6 +18,7 @@ __all__ = ['select_file',
 
 import sys
 import os
+import argparse
 import shutil
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
@@ -26,7 +27,8 @@ import importlib
 import convertconfig as conv
 import ast
 import cohere_core as cohere
-import util.util as ut
+import cohere_core.utilities as ut
+import common as com
 
 
 def select_file(start_dir):
@@ -125,6 +127,9 @@ class cdi_gui(QWidget):
         self.beamline_widget = QLineEdit()
         ruplayout.addRow("beamline", self.beamline_widget)
         scan_layout = QHBoxLayout()
+        self.auto_data = QCheckBox('auto data')
+        self.auto_data.setChecked(False)
+        scan_layout.addWidget(self.auto_data)
         self.separate_scans = QCheckBox('separate scans')
         self.separate_scans.setChecked(False)
         scan_layout.addWidget(self.separate_scans)
@@ -165,12 +170,14 @@ class cdi_gui(QWidget):
         self.run_button.clicked.connect(self.run_everything)
         self.create_exp_button.clicked.connect(self.set_experiment)
         self.multipeak.stateChanged.connect(self.toggle_multipeak)
+        self.auto_data.stateChanged.connect(self.toggle_auto_data)
         self.separate_scans.stateChanged.connect(self.toggle_separate_scans)
         self.separate_scan_ranges.stateChanged.connect(self.toggle_separate_scan_ranges)
 
 
-    def set_args(self, args):
+    def set_args(self, args, **kwargs):
         self.args = args
+        self.debug = 'debug' in kwargs and kwargs['debug']
 
 
     def run_everything(self):
@@ -199,6 +206,7 @@ class cdi_gui(QWidget):
         self.Id_widget.setText('')
         self.scan_widget.setText('')
         self.beamline_widget.setText('')
+        self.auto_data.setChecked(False)
         self.separate_scans.setChecked(False)
         self.separate_scan_ranges.setChecked(False)
         self.multipeak.setChecked(False)
@@ -246,8 +254,8 @@ class cdi_gui(QWidget):
         exp_id = str(self.Id_widget.text()).strip()
         scan = str(self.scan_widget.text()).replace(' ','')
         if scan != '':
-            exp_id = exp_id + '_' + scan
-        if not os.path.exists(self.working_dir + '/' + exp_id):
+            exp_id = f'{exp_id}_{scan}'
+        if not os.path.exists(ut.join(self.working_dir, exp_id)):
             return False
         return True
 
@@ -282,21 +290,23 @@ class cdi_gui(QWidget):
         -------
         nothing
         """
+        self.loaded = False
         self.reset_window()
         load_dir = select_dir(os.getcwd())
         if load_dir is None:
             msg_window('please select valid conf directory')
             return
-        load_dir = load_dir.replace(os.sep, '/')
-        # self.reset_window()
 
-        if not os.path.isfile(load_dir + '/conf/config'):
+        if not os.path.isfile(ut.join(load_dir, 'conf', 'config')):
             msg_window('missing conf/config file, not experiment directory')
             return
 
-        conf_dicts, converted = self.get_conf_dicts(load_dir)
-        if conf_dicts is None:
-            return
+        debug = self.debug
+        conf_list = ['config_prep', 'config_data', 'config_rec', 'config_disp', 'config_instr', 'config_mp']
+        err_msg, conf_dicts, converted = com.get_config_maps(load_dir, conf_list, debug)
+        if len(err_msg) > 0:
+            return err_msg
+
         self.load_main(conf_dicts['config'])
 
         if self.t is None:
@@ -306,6 +316,7 @@ class cdi_gui(QWidget):
             except:
                 pass
         self.set_experiment(True)
+        self.loaded = True
         self.t.load_conf(conf_dicts)
 
         if not self.is_exp_set():
@@ -314,25 +325,6 @@ class cdi_gui(QWidget):
         if converted:
             self.save_main()
             self.t.save_conf()
-
-
-    def get_conf_dicts(self, load_dir):
-        load_dir = load_dir.replace(os.sep, '/')
-        conf_file = load_dir + '/conf/config'
-        conf_map = ut.read_config(conf_file)
-        if conf_map is None:
-            msg_window('please check configuration file ' + conf_file + '. Cannot parse, ')
-            return None
-        # convert configuration files if needed
-        if 'converter_ver' not in conf_map or conv.get_version() is None or conv.get_version() > conf_map[
-            'converter_ver']:
-            return conv.convert(load_dir + '/conf'), True
-        else:
-            conf_dirs = {}
-            for cf in os.listdir(load_dir + '/conf'):
-                if os.path.isfile(load_dir + '/conf/' + cf) and cf.startswith('conf'):
-                    conf_dirs[cf] = ut.read_config(load_dir + '/conf/' + cf)
-            return conf_dirs, False
 
 
     def load_main(self, conf_map):
@@ -356,6 +348,8 @@ class cdi_gui(QWidget):
             self.scan_widget.setText(conf_map['scan'].replace(' ',''))
         if 'beamline' in conf_map:
             self.beamline_widget.setText(conf_map['beamline'])
+        if 'auto_data' in conf_map and conf_map['auto_data']:
+            self.auto_data.setChecked(True)
         if 'separate_scans' in conf_map and conf_map['separate_scans']:
             self.separate_scans.setChecked(True)
         if 'separate_scan_ranges' in conf_map and conf_map['separate_scan_ranges']:
@@ -376,7 +370,7 @@ class cdi_gui(QWidget):
         """
         if not os.path.exists(self.experiment_dir):
             os.makedirs(self.experiment_dir)
-        experiment_conf_dir = self.experiment_dir + '/conf'
+        experiment_conf_dir = ut.join(self.experiment_dir, 'conf')
         if not os.path.exists(experiment_conf_dir):
             os.makedirs(experiment_conf_dir)
 
@@ -393,6 +387,8 @@ class cdi_gui(QWidget):
             conf_map['beamline'] = self.beamline
         if self.multipeak.isChecked():
             conf_map['multipeak'] = True
+        if self.auto_data.isChecked():
+            conf_map['auto_data'] = True
         if self.separate_scans.isChecked():
             conf_map['separate_scans'] = True
         if self.separate_scan_ranges.isChecked():
@@ -401,8 +397,10 @@ class cdi_gui(QWidget):
         er_msg = cohere.verify('config', conf_map)
         if len(er_msg) > 0:
             msg_window(er_msg)
+            if self.debug:
+                ut.write_config(conf_map, ut.join(self.experiment_dir, 'conf', 'config'))
         else:
-            ut.write_config(conf_map, self.experiment_dir + '/conf/config')
+            ut.write_config(conf_map, ut.join(self.experiment_dir, 'conf', 'config'))
 
 
     def set_experiment(self, loaded=False):
@@ -424,12 +422,12 @@ class cdi_gui(QWidget):
             return
         elif not os.path.isdir(working_dir):
             msg_window(
-                'The working directory ' + working_dir + ' from config file does not exist. Select valid working directory and set experiment')
+                f'The working directory {working_dir} from config file does not exist. Select valid working directory and set experiment')
             self.set_work_dir_button.setText('')
             return
         elif not os.access(working_dir, os.W_OK):
             msg_window(
-                'The working directory ' + working_dir + ' is not writable. Select valid working directory and set experiment')
+                f'The working directory {working_dir} is not writable. Select valid working directory and set experiment')
             self.set_work_dir_button.setText('')
             return
 
@@ -441,10 +439,10 @@ class cdi_gui(QWidget):
         self.working_dir = working_dir
         self.id = id
         if len(self.scan_widget.text()) > 0:
-            self.exp_id = self.id + '_' + str(self.scan_widget.text()).replace(' ','')
+            self.exp_id = f'{self.id}_{str(self.scan_widget.text()).replace(" ","")}'
         else:
             self.exp_id = self.id
-        self.experiment_dir = self.working_dir + '/' + self.exp_id
+        self.experiment_dir = ut.join(self.working_dir, self.exp_id)
         self.assure_experiment_dir()
 
         if len(self.beamline_widget.text().strip()) > 0:
@@ -466,7 +464,7 @@ class cdi_gui(QWidget):
             self.save_main()
             self.t.save_conf()
 
-        self.t.notify(**{'experiment_dir': self.experiment_dir})
+        #self.t.notify(**{'experiment_dir': self.experiment_dir})
 
     def toggle_multipeak(self):
         if self.is_exp_set():
@@ -487,6 +485,10 @@ class cdi_gui(QWidget):
             self.t.toggle_checked(self.separate_scan_ranges.isChecked(), False)
 
 
+    def toggle_auto_data(self):
+        if self.is_exp_set():
+            self.save_main()
+
 
 class Tabs(QTabWidget):
     """
@@ -503,10 +505,10 @@ class Tabs(QTabWidget):
 
         if beamline is not None and len(beamline) > 0:
             try:
-                self.beam = importlib.import_module('beamlines.' + beamline + '.beam_tabs')
+                self.beam = importlib.import_module(f'beamlines.{beamline}.beam_tabs')
             except Exception as e:
                 print (e)
-                msg_window('cannot import beamlines.' + beamline + ' module')
+                msg_window(f'cannot import beamlines.{beamline} module')
                 raise
             self.instr_tab = self.beam.InstrTab()
             self.prep_tab = self.beam.PrepTab()
@@ -535,10 +537,10 @@ class Tabs(QTabWidget):
         if not self.instr_tab is None:
             return
         try:
-            self.beam = importlib.import_module('beamlines.' + beamline + '.beam_tabs')
+            self.beam = importlib.import_module(f'beamlines.{beamline}.beam_tabs')
         except Exception as e:
             print (e)
-            msg_window('cannot import beamlines.' + beamline + ' module')
+            msg_window(f'cannot import beamlines.{beamline} module')
             raise
         self.instr_tab = self.beam.InstrTab()
         self.insertTab(0, self.instr_tab, self.instr_tab.name)
@@ -573,14 +575,14 @@ class Tabs(QTabWidget):
 
         # this line is passing all parameters from command line to prep script. 
         # if there are other parameters, one can add some code here
-        msg = prep.handle_prep(self.main_win.experiment_dir, self.main_win.args)
+        msg = prep.handle_prep(self.main_win.experiment_dir, debug=self.main_win.debug)
         if len(msg) > 0:
             msg_window(msg)
 
     def run_viz(self):
         import beamline_visualization as dp
 
-        msg = dp.handle_visualization(self.main_win.experiment_dir)
+        msg = dp.handle_visualization(self.main_win.experiment_dir, debug=self.main_win.debug)
         if len(msg) > 0:
             msg_window(msg)
 
@@ -746,7 +748,7 @@ class DataTab(QWidget):
         if self.alien_alg.currentIndex() == 1:
             conf_map['alien_alg'] = 'block_aliens'
             if len(self.aliens.text()) > 0:
-                conf_map['aliens'] = str(self.aliens.text()).replace('\n', '')
+                conf_map['aliens'] = str(self.aliens.text()).replace(os.linesep, '')
         if self.alien_alg.currentIndex() == 2:
             conf_map['alien_alg'] = 'alien_file'
             if len(self.alien_file.text()) > 0:
@@ -771,11 +773,11 @@ class DataTab(QWidget):
         if len(self.intensity_threshold.text()) > 0:
             conf_map['intensity_threshold'] = ast.literal_eval(str(self.intensity_threshold.text()))
         if len(self.binning.text()) > 0:
-            conf_map['binning'] = ast.literal_eval(str(self.binning.text()).replace('\n', ''))
+            conf_map['binning'] = ast.literal_eval(str(self.binning.text()).replace(os.linesep, ''))
         if len(self.center_shift.text()) > 0:
-            conf_map['center_shift'] = ast.literal_eval(str(self.center_shift.text()).replace('\n', ''))
+            conf_map['center_shift'] = ast.literal_eval(str(self.center_shift.text()).replace(os.linesep, ''))
         if len(self.adjust_dimensions.text()) > 0:
-            conf_map['adjust_dimensions'] = ast.literal_eval(str(self.adjust_dimensions.text()).replace('\n', ''))
+            conf_map['adjust_dimensions'] = ast.literal_eval(str(self.adjust_dimensions.text()).replace(os.linesep, ''))
 
         return conf_map
 
@@ -866,11 +868,18 @@ class DataTab(QWidget):
                 er_msg = cohere.verify('config_data', conf_map)
                 if len(er_msg) > 0:
                     msg_window(er_msg)
-                    return
-                ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_data')
-                run_dt.format_data(self.main_win.experiment_dir)
+                    if not self.main_win.debug:
+                        return
+                ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_data'))
+                run_dt.format_data(self.main_win.experiment_dir, debug=self.main_win.debug)
             else:
                 msg_window('Please, run data preparation in previous tab to activate this function')
+
+        # reload the window if auto_data as the intensity_threshold and binning could change
+        main_conf_map = ut.read_config(ut.join(self.main_win.experiment_dir, 'conf', 'config'))
+        if 'auto_data' in main_conf_map and main_conf_map['auto_data']:
+            data_map = ut.read_config(ut.join(self.main_win.experiment_dir, 'conf', 'config_data'))
+            self.load_tab(data_map)
 
 
     def save_conf(self):
@@ -880,8 +889,9 @@ class DataTab(QWidget):
             er_msg = cohere.verify('config_data', conf_map)
             if len(er_msg) > 0:
                 msg_window(er_msg)
-                return
-            ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_data')
+                if not self.main_win.debug:
+                    return
+            ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_data'))
 
 
     def load_data_conf(self):
@@ -1074,9 +1084,13 @@ class RecTab(QWidget):
             conf_map['processing'] = str(self.proc.currentText())
         if len(self.device.text()) > 0:
             try:
-                conf_map['device'] = ast.literal_eval(str(self.device.text()).replace('\n',''))
+                d = str(self.device.text()).replace(os.linesep,'')
+                if d == 'all':
+                    conf_map['device'] = d
+                else:
+                    conf_map['device'] = ast.literal_eval(d)
             except:
-                msg_window('device parameter should be a list of int')
+                msg_window('device parameter should be "all" or a list of int or dict')
                 return {}
         if len(self.alg_seq.text()) > 0:
             conf_map['algorithm_sequence'] = str(self.alg_seq.text()).strip()
@@ -1088,7 +1102,7 @@ class RecTab(QWidget):
                 return {}
         if len(self.initial_support_area.text()) > 0:
             try:
-                conf_map['initial_support_area'] = ast.literal_eval(str(self.initial_support_area.text()).replace('\n',''))
+                conf_map['initial_support_area'] = ast.literal_eval(str(self.initial_support_area.text()).replace(os.linesep,''))
             except:
                 msg_window('initial_support_area parameter should be a list of floats')
                 return {}
@@ -1113,9 +1127,10 @@ class RecTab(QWidget):
         er_msg = cohere.verify('config_rec', conf_map)
         if len(er_msg) > 0:
             msg_window(er_msg)
-            return
+            if not self.main_win.debug:
+             return
         if len(conf_map) > 0:
-            ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_rec')
+            ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_rec'))
 
 
     def set_init_guess_layout(self, layout):
@@ -1161,7 +1176,7 @@ class RecTab(QWidget):
     def add_rec_conf(self):
         id, ok = QInputDialog.getText(self, '', "enter configuration id")
         if id in self.rec_ids:
-            msg_window('the ' + id + ' is alredy used')
+            msg_window(f'the {id} is alredy used')
             return
         if ok and len(id) > 0:
             if len(self.rec_ids) > 1:
@@ -1173,8 +1188,9 @@ class RecTab(QWidget):
             return
 
         # copy the config_rec into <id>_config_rec
-        conf_file = self.main_win.experiment_dir + '/conf/config_rec'
-        new_conf_file = self.main_win.experiment_dir + '/conf/config_rec_' + id
+
+        conf_file = ut.join(self.main_win.experiment_dir, 'conf', 'config_rec')
+        new_conf_file = ut.join(self.main_win.experiment_dir, 'conf', f'config_rec_{id}')
         shutil.copyfile(conf_file, new_conf_file)
         self.rec_id.setCurrentIndex(self.rec_id.count() - 1)
 
@@ -1198,14 +1214,14 @@ class RecTab(QWidget):
         if self.old_conf_id == '':
             conf_file = 'config_rec'
         else:
-            conf_file =  'config_rec_' + self.old_conf_id
+            conf_file =  f'config_rec_{self.old_conf_id}'
 
         conf_map = self.get_rec_config()
         if len(conf_map) == 0:
             return
-        conf_dir = self.main_win.experiment_dir + '/conf'
+        conf_dir = ut.join(self.main_win.experiment_dir, 'conf')
 
-        ut.write_config(conf_map, conf_dir + '/' + conf_file)
+        ut.write_config(conf_map, ut.join(conf_dir, conf_file))
         if str(self.rec_id.currentText()) == 'main':
             self.old_conf_id = ''
         else:
@@ -1213,13 +1229,13 @@ class RecTab(QWidget):
         # if a config file corresponding to the rec id exists, load it
         # otherwise read from base configuration and load
         if self.old_conf_id == '':
-            conf_file = conf_dir + '/config_rec'
+            conf_file = ut.join(conf_dir, 'config_rec')
         else:
-            conf_file = conf_dir +  '/config_rec_' + self.old_conf_id
+            conf_file = ut.join(conf_dir, f'config_rec_{self.old_conf_id}')
 
         conf_map = ut.read_config(conf_file)
         if conf_map is None:
-            msg_window('please check configuration file ' + conf_file)
+            msg_window(f'please check configuration file {conf_file}')
             return
         self.load_tab(conf_map, False)
         self.notify()
@@ -1239,7 +1255,7 @@ class RecTab(QWidget):
         if rec_file is not None:
             conf_map = ut.read_config(rec_file.replace(os.sep, '/'))
             if conf_map is None:
-                msg_window('please check configuration file ' + rec_file)
+                msg_window(f'please check configuration file {rec_file}')
                 return
 
             self.load_tab(conf_map)
@@ -1289,9 +1305,10 @@ class RecTab(QWidget):
                 er_msg = cohere.verify('config_rec', conf_map)
                 if len(er_msg) > 0:
                     msg_window(er_msg)
-                    return
-                ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/' + conf_file)
-                run_rc.manage_reconstruction(self.main_win.experiment_dir, conf_id)
+                    if not self.main_win.debug:
+                        return
+                ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', conf_file))
+                run_rc.manage_reconstruction(self.main_win.experiment_dir, config_id=conf_id, debug=self.main_win.debug)
                 self.notify()
             else:
                 msg_window('Please, run format data in previous tab to activate this function')
@@ -1333,7 +1350,7 @@ class RecTab(QWidget):
         # fill out the config_id choice bar by reading configuration files names
         if not self.main_win.is_exp_set():
             return
-        for file in os.listdir(self.main_win.experiment_dir + '/conf'):
+        for file in os.listdir(ut.join(self.main_win.experiment_dir, 'conf')):
             if file.startswith('config_rec_'):
                 self.rec_ids.append(file[len('config_rec_') : len(file)])
         if len(self.rec_ids) > 0:
@@ -1602,7 +1619,7 @@ class GA(Feature):
         -------
         nothing
         """
-        self.generations.setText('5')
+        self.generations.setText('3')
         self.metrics.setText('["chi"]')
         self.breed_modes.setText('["sqrt_ab"]')
         self.ga_sw_thresholds.setText('[.1]')
@@ -1627,17 +1644,17 @@ class GA(Feature):
         if len(self.generations.text()) > 0:
             conf_map['ga_generations'] = ast.literal_eval(str(self.generations.text()))
         if len(self.metrics.text()) > 0:
-         conf_map['ga_metrics'] = ast.literal_eval(str(self.metrics.text()).replace('\n',''))
+         conf_map['ga_metrics'] = ast.literal_eval(str(self.metrics.text()).replace(os.linesep,''))
         if len(self.breed_modes.text()) > 0:
-          conf_map['ga_breed_modes'] = ast.literal_eval(str(self.breed_modes.text()).replace('\n',''))
+          conf_map['ga_breed_modes'] = ast.literal_eval(str(self.breed_modes.text()).replace(os.linesep,''))
         if len(self.removes.text()) > 0:
-           conf_map['ga_cullings'] = ast.literal_eval(str(self.removes.text()).replace('\n',''))
+           conf_map['ga_cullings'] = ast.literal_eval(str(self.removes.text()).replace(os.linesep,''))
         if len(self.ga_sw_thresholds.text()) > 0:
-            conf_map['ga_sw_thresholds'] = ast.literal_eval(str(self.ga_sw_thresholds.text()).replace('\n',''))
+            conf_map['ga_sw_thresholds'] = ast.literal_eval(str(self.ga_sw_thresholds.text()).replace(os.linesep,''))
         if len(self.ga_sw_gauss_sigmas.text()) > 0:
-            conf_map['ga_sw_gauss_sigmas'] = ast.literal_eval(str(self.ga_sw_gauss_sigmas.text()).replace('\n',''))
+            conf_map['ga_sw_gauss_sigmas'] = ast.literal_eval(str(self.ga_sw_gauss_sigmas.text()).replace(os.linesep,''))
         if len(self.lr_sigmas.text()) > 0:
-            conf_map['ga_lpf_sigmas'] = ast.literal_eval(str(self.lr_sigmas.text()).replace('\n',''))
+            conf_map['ga_lpf_sigmas'] = ast.literal_eval(str(self.lr_sigmas.text()).replace(os.linesep,''))
         if len(self.gen_pc_start.text()) > 0:
             conf_map['ga_gen_pc_start'] = ast.literal_eval(str(self.gen_pc_start.text()))
 
@@ -1726,11 +1743,11 @@ class low_resolution(Feature):
         nothing
         """
         if len(self.lpf_triggers.text()) > 0:
-            conf_map['lowpass_filter_trigger'] = ast.literal_eval(str(self.lpf_triggers.text()).replace('\n', ''))
+            conf_map['lowpass_filter_trigger'] = ast.literal_eval(str(self.lpf_triggers.text()).replace(os.linesep, ''))
         if len(self.lpf_sw_threshold.text()) > 0:
-            conf_map['lowpass_filter_sw_threshold'] = ast.literal_eval(str(self.lpf_sw_threshold.text()).replace('\n', ''))
+            conf_map['lowpass_filter_sw_threshold'] = ast.literal_eval(str(self.lpf_sw_threshold.text()).replace(os.linesep, ''))
         if len(self.lpf_range.text()) > 0:
-            conf_map['lowpass_filter_range'] = ast.literal_eval(str(self.lpf_range.text()).replace('\n', ''))
+            conf_map['lowpass_filter_range'] = ast.literal_eval(str(self.lpf_range.text()).replace(os.linesep, ''))
 
 
 class shrink_wrap(Feature):
@@ -1823,7 +1840,7 @@ class shrink_wrap(Feature):
         nothing
         """
         if len(self.shrink_wrap_triggers.text()) > 0:
-            conf_map['shrink_wrap_trigger'] = ast.literal_eval(str(self.shrink_wrap_triggers.text()).replace('\n',''))
+            conf_map['shrink_wrap_trigger'] = ast.literal_eval(str(self.shrink_wrap_triggers.text()).replace(os.linesep,''))
         if len(self.shrink_wrap_type.text()) > 0:
             sw_type = str(self.shrink_wrap_type.text()).replace(' ','')
             # in case of multiple shrink wraps the shrink_wrap_type is a list of strings
@@ -1841,18 +1858,18 @@ class shrink_wrap(Feature):
             conf_map['shrink_wrap_gauss_sigma'] = ast.literal_eval(str(self.shrink_wrap_gauss_sigma.text()))
 
 
-class phase_support(Feature):
+class phase_constrain(Feature):
     """
-    This class encapsulates phase support feature.
+    This class encapsulates phase constrain feature.
     """
     def __init__(self):
-        super(phase_support, self).__init__()
-        self.id = 'phase support'
+        super(phase_constrain, self).__init__()
+        self.id = 'phase constrain'
 
 
     def init_config(self, conf_map):
         """
-        This function sets phase support feature's parameters to parameters in dictionary and displays in the window.
+        This function sets phase constrain feature's parameters to parameters in dictionary and displays in the window.
         Parameters
         ----------
         conf_map : dict
@@ -1861,21 +1878,21 @@ class phase_support(Feature):
         -------
         nothing
         """
-        if 'phm_trigger' in conf_map:
-            triggers = conf_map['phm_trigger']
+        if 'phc_trigger' in conf_map:
+            triggers = conf_map['phc_trigger']
             self.active.setChecked(True)
             self.phase_triggers.setText(str(triggers).replace(" ", ""))
         else:
             self.active.setChecked(False)
             return
-        if 'phm_phase_min' in conf_map:
-            self.phm_phase_min.setText(str(conf_map['phm_phase_min']).replace(" ", ""))
+        if 'phc_phase_min' in conf_map:
+            self.phc_phase_min.setText(str(conf_map['phc_phase_min']).replace(" ", ""))
         else:
-            self.phm_phase_min.setText('')
-        if 'phm_phase_max' in conf_map:
-            self.phm_phase_max.setText(str(conf_map['phm_phase_max']).replace(" ", ""))
+            self.phc_phase_min.setText('')
+        if 'phc_phase_max' in conf_map:
+            self.phc_phase_max.setText(str(conf_map['phc_phase_max']).replace(" ", ""))
         else:
-            self.phm_phase_max.setText('')
+            self.phc_phase_max.setText('')
 
 
     def fill_active(self, layout):
@@ -1890,17 +1907,17 @@ class phase_support(Feature):
         nothing
         """
         self.phase_triggers = QLineEdit()
-        layout.addRow("phase support triggers", self.phase_triggers)
+        layout.addRow("phase constrain triggers", self.phase_triggers)
         self.phase_triggers.setToolTip('suggested trigger: [0, 1, <half iteration number>]')
-        self.phm_phase_min = QLineEdit()
-        layout.addRow("phase minimum", self.phm_phase_min)
-        self.phm_phase_max = QLineEdit()
-        layout.addRow("phase maximum", self.phm_phase_max)
+        self.phc_phase_min = QLineEdit()
+        layout.addRow("phase minimum", self.phc_phase_min)
+        self.phc_phase_max = QLineEdit()
+        layout.addRow("phase maximum", self.phc_phase_max)
 
 
     def rec_default(self):
         """
-        This function sets phase support feature's parameters to hardcoded default values.
+        This function sets phase constrain feature's parameters to hardcoded default values.
         Parameters
         ----------
         none
@@ -1908,14 +1925,14 @@ class phase_support(Feature):
         -------
         nothing
         """
-        self.phase_triggers.setText('[0,1,320]')
-        self.phm_phase_min.setText('-1.57')
-        self.phm_phase_max.setText('1.57')
+        self.phase_triggers.setText('[1,5,320]')
+        self.phc_phase_min.setText('-1.57')
+        self.phc_phase_max.setText('1.57')
 
 
     def add_feat_conf(self, conf_map):
         """
-        This function adds phase support feature's parameters to dictionary.
+        This function adds phase constrain feature's parameters to dictionary.
         Parameters
         ----------
         conf_map : dict
@@ -1925,11 +1942,11 @@ class phase_support(Feature):
         nothing
         """
         if len(self.phase_triggers.text()) > 0:
-            conf_map['phm_trigger'] = ast.literal_eval(str(self.phase_triggers.text()).replace('\n',''))
-        if len(self.phm_phase_min.text()) > 0:
-            conf_map['phm_phase_min'] = ast.literal_eval(str(self.phm_phase_min.text()))
-        if len(self.phm_phase_max.text()) > 0:
-            conf_map['phm_phase_max'] = ast.literal_eval(str(self.phm_phase_max.text()))
+            conf_map['phc_trigger'] = ast.literal_eval(str(self.phase_triggers.text()).replace(os.linesep,''))
+        if len(self.phc_phase_min.text()) > 0:
+            conf_map['phc_phase_min'] = ast.literal_eval(str(self.phc_phase_min.text()))
+        if len(self.phc_phase_max.text()) > 0:
+            conf_map['phc_phase_max'] = ast.literal_eval(str(self.phc_phase_max.text()))
 
 
 class pcdi(Feature):
@@ -2039,7 +2056,7 @@ class pcdi(Feature):
         else:
             conf_map['pc_normalize'] = True
         if len(self.pc_LUCY_kernel.text()) > 0:
-            conf_map['pc_LUCY_kernel'] = ast.literal_eval(str(self.pc_LUCY_kernel.text()).replace('\n',''))
+            conf_map['pc_LUCY_kernel'] = ast.literal_eval(str(self.pc_LUCY_kernel.text()).replace(os.linesep,''))
 
 
 class twin(Feature):
@@ -2117,9 +2134,9 @@ class twin(Feature):
         nothing
         """
         if len(self.twin_triggers.text()) > 0:
-            conf_map['twin_trigger'] = ast.literal_eval(str(self.twin_triggers.text()).replace('\n',''))
+            conf_map['twin_trigger'] = ast.literal_eval(str(self.twin_triggers.text()).replace(os.linesep,''))
         if len(self.twin_halves.text()) > 0:
-            conf_map['twin_halves'] = ast.literal_eval(str(self.twin_halves.text()).replace('\n',''))
+            conf_map['twin_halves'] = ast.literal_eval(str(self.twin_halves.text()).replace(os.linesep,''))
 
 
 class average(Feature):
@@ -2189,7 +2206,7 @@ class average(Feature):
         -------
         nothing
         """
-        conf_map['average_trigger'] = ast.literal_eval(str(self.average_triggers.text()).replace('\n',''))
+        conf_map['average_trigger'] = ast.literal_eval(str(self.average_triggers.text()).replace(os.linesep,''))
 
 
 class progress(Feature):
@@ -2259,7 +2276,7 @@ class progress(Feature):
         -------
         nothing
         """
-        conf_map['progress_trigger'] = ast.literal_eval(str(self.progress_triggers.text()).replace('\n',''))
+        conf_map['progress_trigger'] = ast.literal_eval(str(self.progress_triggers.text()).replace(os.linesep,''))
 
 
 class Features(QWidget):
@@ -2271,12 +2288,12 @@ class Features(QWidget):
         Constructor, creates all concrete feature objects, and displays in window.
         """
         super(Features, self).__init__()
-        feature_ids = ['GA', 'low resolution', 'shrink wrap', 'phase support', 'pcdi', 'twin', 'average', 'progress']
+        feature_ids = ['GA', 'low resolution', 'shrink wrap', 'phase constrain', 'pcdi', 'twin', 'average', 'progress']
         self.leftlist = QListWidget()
         self.feature_dir = {'GA' : GA(),
                             'low resolution' : low_resolution(),
                             'shrink wrap' : shrink_wrap(),
-                            'phase support' : phase_support(),
+                            'phase constrain' : phase_constrain(),
                             'pcdi' : pcdi(),
                             'twin' : twin(),
                             'average' : average(),
@@ -2343,6 +2360,8 @@ class MpTab(QWidget):
         layout.addRow("mp taper", self.mp_taper)
         self.lattice_size = QLineEdit()
         layout.addRow("lattice size", self.lattice_size)
+        self.ds_voxel_size = QLineEdit()
+        layout.addRow("ds voxel size", self.ds_voxel_size)
         self.switch_peak_trigger = QLineEdit()
         layout.addRow("switch peak trigger", self.switch_peak_trigger)
 
@@ -2375,6 +2394,7 @@ class MpTab(QWidget):
         self.mp_max_weight.setText('')
         self.mp_taper.setText('')
         self.lattice_size.setText('')
+        self.ds_voxel_size.setText('')
         self.switch_peak_trigger.setText('')
 
 
@@ -2409,6 +2429,8 @@ class MpTab(QWidget):
             self.mp_taper.setText(str(conf_map['mp_taper']))
         if 'lattice_size' in conf_map:
             self.lattice_size.setText(str(conf_map['lattice_size']))
+        if 'ds_voxel_size' in conf_map:
+            self.ds_voxel_size.setText(str(conf_map['ds_voxel_size']))
         if 'switch_peak_trigger' in conf_map:
             self.switch_peak_trigger.setText(str(conf_map['switch_peak_trigger']))
 
@@ -2446,6 +2468,8 @@ class MpTab(QWidget):
             conf_map['mp_taper'] = ast.literal_eval(str(self.mp_taper.text()))
         if len(self.lattice_size.text()) > 0:
             conf_map['lattice_size'] = ast.literal_eval(str(self.lattice_size.text()))
+        if len(self.ds_voxel_size.text()) > 0:
+            conf_map['ds_voxel_size'] = ast.literal_eval(str(self.ds_voxel_size.text()))
         if len(self.switch_peak_trigger.text()) > 0:
             conf_map['switch_peak_trigger'] = ast.literal_eval(str(self.switch_peak_trigger.text()))
 
@@ -2470,16 +2494,20 @@ class MpTab(QWidget):
             msg_window('please select valid config file')
 
 
-def main(args):
+def main():
     """
     Starts GUI application.
     """
-    app = QApplication(args)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--debug", action="store_true",
+                        help="if True the verifier has no effect on processing")
+    args = parser.parse_args()
+    app = QApplication(sys.argv)
     ex = cdi_gui()
-    ex.set_args(args)
+    ex.set_args(sys.argv[1:], debug=args.debug)
     ex.show()
     sys.exit(app.exec_())
 
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
+    main()

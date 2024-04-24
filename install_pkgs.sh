@@ -1,6 +1,4 @@
-conda install mayavi -c conda-forge
-conda install xrayutilities -c conda-forge
-conda install psutil -c conda-forge
-conda install gputil -c conda-forge
-conda install pyqt -c conda-forge
-python -m pip install -U scikit-image
+conda install -y mayavi -c conda-forge
+conda install -y xrayutilities -c conda-forge
+conda install -y pyqt -c conda-forge
+conda install -y scikit-image -c conda-forge

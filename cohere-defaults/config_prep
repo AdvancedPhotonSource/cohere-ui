@@ -1,27 +1,29 @@
 data_dir = "ADDATADIR"
                                             // The directory containing raw data. This directory will have several 
                                             // subdirectories each containing .tif data files. Each subdirectory 
-                                            // represents separate scan and is numbered with the scan index
+                                            // represents separate scan and is numbered with the scan index.
 
 darkfield_filename = "DARKFIELD"
-                                            // dark file taken to clean bad pixels or correct background in CCD.
-                                            // each detector needs to implement this correctly.
+                                            // Dark file taken to clean bad pixels or correct background in CCD.
+                                            // Depends on detector if used.
 
 whitefield_filename = "WHITEFIELD"
-                                            // each detector needs to implement this correctly.
+                                            // White file to correct background in CCD.
+                                            // Depends on detector if used.
 
 //roi = [0,256,0,256]
-                                            // Used to determine corrections on the detector if they are local.
-                                            // Read from specfile preferrably
+                                            // Region of interest, an area covered by detector.
+                                            // Read from specfile.
 //min_files = 80
-                                            // only scans containing minimum of .tif files will be included
+                                            // Only scans containing minimum of .tif files will be included.
 
 //exclude_scans = [78,81]
-                                            // a list containing scan indexes that will be excluded from preparation
+                                            // A list containing scan indexes that will be excluded when adding scans.
+
+//ouliers_scans = [78,81]
+                                            // A list containing scan indexes that will be excluded when adding scans.
+                                            // This list is determined when running auto-data preprocessing.
 
 //Imult = 10000
-                                            // Optional, defaults to the average of the whitefield
+                                            // Optional, defaults to the average of the whitefield.
                                             // A multiplication factor used to renormalize the whitefield correction.
-
-//detector = "34idcTIM2"
-                                            // optional, can be omitted only if roi param is specified

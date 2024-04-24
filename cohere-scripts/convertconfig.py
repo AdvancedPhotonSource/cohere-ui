@@ -1,8 +1,8 @@
-import sys
 import os
 import argparse
 import shutil
-import util.util as ut
+import cohere_core.utilities as ut
+
 
 # version must be increased after each modification of configuration file(s)
 version = 1
@@ -24,9 +24,9 @@ config_rec_map = {'samples': 'reconstructions',
                   'partial_coherence_iteration_num' : 'pc_LUCY_iterations',
                   'partial_coherence_normalize' : 'pc_normalize',
                   'partial_coherence_roi' : 'pc_LUCY_kernel',
-                  'phase_min' : 'phm_phase_min',
-                  'phase_max' : 'phm_phase_max',
-                  'phase_support_trigger' : 'phm_trigger',
+                  'phase_min' : 'phc_phase_min',
+                  'phase_max' : 'phc_phase_max',
+                  'phase_support_trigger' : 'phc_trigger',
                   'resolution_trigger' : 'lowpass_filter_trigger',
                   'iter_res_det_range' : 'lowpass_filter_range',
                   'generations' : 'ga_generations',
@@ -117,11 +117,11 @@ def convert_dict(conf_dicts, prev_ver=0):
         conf_dict = conf_dicts['config_rec']
         def add_iter(el, s):
             if len(el) == 2:
-                s = s + str(el[0] * el[1][1]) + '*' + el[1][0]
+                s = f'{s}{str(el[0] * el[1][1])}*{el[1][0]}'
             elif len(el) > 2:
-                s = s + str(el[0]) + '*('
+                s = f'{s}{str(el[0])}*('
                 for i in range(1, len(el)):
-                    s = s + str(el[i][1]) + '*' + el[i][0]
+                    s = f'{s}{str(el[i][1])}*{el[i][0]}'
                     if i == len(el) - 1:
                         last_char = ')'
                     else:
@@ -136,7 +136,7 @@ def convert_dict(conf_dicts, prev_ver=0):
             for i in range(len(alg_seq)):
                 s = add_iter(alg_seq[i], s)
                 if i < len(alg_seq)-1:
-                    s = s + '+'
+                    s = f'{s}+'
             s = s + '"'
             conf_dict['algorithm_sequence'] = s
 
@@ -217,30 +217,32 @@ def convert(conf_dir):
     # First check to see if directory exists, if not then exit
     if not os.path.exists(conf_dir):
         # there is nothing to convert
-        print('configuration directory', conf_dir, 'does not exist')
-        return None
+        print(f'configuration directory {conf_dir} does not exist')
+        return
 
     # read main config and check the converter version
-    main_conf = ut.read_config(conf_dir + '/config')
+    main_conf = ut.read_config(ut.join(conf_dir, 'config'))
     if main_conf is None:
-        return None
+        print(f'main configuration file {main_conf} does not exist')
+        return
     if 'converter_ver' in main_conf:
         conf_version = main_conf['converter_ver']
+        if conf_version == get_version():
+            # nothing to convert
+            return
     else:
         conf_version = None
-    if conf_version == get_version():
-        return None
 
     config_dicts = {}
-    if not os.path.isfile(conf_dir + '/config_instr'):
+    if not os.path.isfile(ut.join(conf_dir, 'config_instr')):
         config_dicts['config_instr'] = {}
     for cfile in config_maps.keys():
-        conf_file = conf_dir + '/' + cfile
+        conf_file = ut.join(conf_dir, cfile)
         # check if file exist
         if not os.path.isfile(conf_file):
             continue
         if os.access(os.path.dirname(conf_dir), os.W_OK):
-            shutil.copy(conf_file, conf_file + '_backup')
+            shutil.copy(conf_file, f'{conf_file}_backup')
 
         config_dicts[cfile] = ut.read_config(conf_file)
 
@@ -265,16 +267,18 @@ def convert(conf_dir):
     if conf_version is None:
         config_dicts = convert_dict(config_dicts)
 
+    # set the converter version in config to the current
+    config_dicts['config']['converter_ver'] = get_version()
+
     # Write the data out to the same-named file
     if os.access(os.path.dirname(conf_dir), os.W_OK):
         for k, v in config_dicts.items():
-            file_name = conf_dir + '/' + k
+            file_name = ut.join(conf_dir, k)
             ut.write_config(v, file_name)
 
-    return config_dicts
 
 
-def main(arg):
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("conv_dir", help="path to directory with configuration files that will be converted")
     args = parser.parse_args()
@@ -282,4 +286,4 @@ def main(arg):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    main()

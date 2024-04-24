@@ -20,7 +20,6 @@ import beamline_preprocess as prep
 import standard_preprocess as dt
 import run_reconstruction as rec
 import beamline_visualization as dsp
-import sys
 import os
 import argparse
 
@@ -34,33 +33,31 @@ def run_all(experiment_dir, **kwargs):
         processing library, choices are: cpu, cuda, opencl
     experiment_dir : str
         directory where the experiment files are loacted
-    rec_id : str
-        optional, if given, alternate configuration file will be used for reconstruction, (i.e. <rec_id>_config_rec)
+    config_id : str
+        optional, if given, alternate configuration file will be used for reconstruction, (i.e. <config_id>_config_rec)
 
     Returns
     -------
     nothing
     """
     experiment_dir = experiment_dir.replace(os.sep, '/')
-    prep.handle_prep(experiment_dir)
-    dt.format_data(experiment_dir)
-    if 'rec_id' in kwargs:
-        rec.manage_reconstruction(experiment_dir, kwargs['rec_id'])
-        dsp.handle_visualization(experiment_dir, kwargs['rec_id'])
-    else:
-        rec.manage_reconstruction(experiment_dir)
-        dsp.handle_visualization(experiment_dir)
+    prep.handle_prep(experiment_dir, **kwargs)
+    dt.format_data(experiment_dir, **kwargs)
+    rec.manage_reconstruction(experiment_dir, **kwargs)
+    dsp.handle_visualization(experiment_dir, **kwargs)
 
-def main(arg):
+
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_dir", help="experiment directory")
-    parser.add_argument("--rec_id", help="reconstruction id, a prefix to '_results' directory")
+    parser.add_argument("--config_id", help="reconstruction id, a prefix to '_results' directory")
+    parser.add_argument("--debug", action="store_true",
+                        help="if True the vrifier has no effect on processing")
 
     args = parser.parse_args()
-    experiment_dir = args.experiment_dir
-    run_all(experiment_dir, rec_id=args.rec_id)
+    run_all(args.experiment_dir, config_id=args.config_id, debug=args.debug)
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    main()
 
