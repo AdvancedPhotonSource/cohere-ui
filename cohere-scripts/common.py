@@ -84,39 +84,41 @@ def get_config_maps(experiment_dir, configs, debug=False, config_id=None):
     return err_msg, maps, converted
 
 
-def get_lib(proc):
-    lib = 'np'
+def get_pkg(proc, dev):
+    pkg = 'np'
     err_msg = ''
 
-    # find which library to run it on, default is numpy ('np')
-    if sys.platform == 'darwin':
-        return err_msg, lib
-
     if proc == 'auto':
+        if sys.platform == 'darwin':
+            return err_msg, pkg
         try:
             import cupy
-            lib = 'cp'
+            pkg = 'cp'
         except:
             try:
                 import torch
-                lib = 'torch'
+                pkg = 'torch'
             except:
                 pass
     elif proc == 'cp':
+        if sys.platform == 'darwin':
+            return 'cupy is not supported by Mac, running with numpy', pkg
+        if dev == [-1]:
+            return 'when using cupy processing, define device', pkg
         try:
             import cupy
-            lib = 'cp'
+            pkg = 'cp'
         except:
-            err_msg = 'cupy is not installed, select different library (proc)'
+            err_msg = 'cupy is not installed, select different processing'
     elif proc == 'torch':
         try:
             import torch
-            lib = 'torch'
+            pkg = 'torch'
         except:
-            err_msg = 'pytorch is not installed, select different library (proc)'
+            err_msg = 'pytorch is not installed, select different processing'
     elif proc == 'np':
         pass  # lib set to 'np'
     else:
-        err_msg = f'invalid "proc" value, {proc} is not supported'
+        err_msg = f'invalid "processing" value, {proc} is not supported'
 
-    return err_msg, lib
+    return err_msg, pkg
