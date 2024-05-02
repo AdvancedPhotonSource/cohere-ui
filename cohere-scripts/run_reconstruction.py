@@ -19,6 +19,7 @@ __all__ = ['get_job_size',
            'main']
 
 import os
+import sys
 import argparse
 from multiprocessing import Process, Queue
 import cohere_core as cohere
@@ -75,14 +76,14 @@ def split_resources(hostfile, devs, no_scans):
     return hostfiles
 
 
-def process_scan_range(ga_method, lib, conf_file, datafile, dir, picked_devs, hostfile, q=None):
+def process_scan_range(ga_method, pkg, conf_file, datafile, dir, picked_devs, hostfile, q=None):
     """
     Calls the reconstruction function in a module identified by parameter. After the reconstruction is finished, it enqueues th eprocess id wit associated list of gpus.
     Parameters
     ----------
     ga_method : str
         defines what type of GA was requested, or None
-    lib : str
+    pkg : str
         defines library to run reconstruction with
     conf_file : str
         configuration file with reconstruction parameters
@@ -95,17 +96,18 @@ def process_scan_range(ga_method, lib, conf_file, datafile, dir, picked_devs, ho
     hostfile : str
        name of hostfile if cluster configuration was used
     q : Queue
-       a queue that returns tuple of procees id and associated gpu list after the reconstruction process is done
+       a queue that returns tuple of procees id and associated gpu list after the reconstruction process is done;
+       is used in multiple scans scenario
     Returns
     -------
     nothing
     """
     if len(picked_devs) == 1:
-        cohere.reconstruction_single.reconstruction(lib, conf_file, datafile, dir, picked_devs)
+        cohere.reconstruction_single.reconstruction(pkg, conf_file, datafile, dir, picked_devs)
     elif ga_method is None or ga_method == 'ga_fast':
-        cohere.mpi_cmd.run_with_mpi(ga_method, lib, conf_file, datafile, dir, picked_devs, hostfile)
+        cohere.mpi_cmd.run_with_mpi(ga_method, pkg, conf_file, datafile, dir, picked_devs, hostfile)
     else:
-        cohere.reconstruction_populous_GA.reconstruction(lib, conf_file, datafile, dir, picked_devs)
+        cohere.reconstruction_populous_GA.reconstruction(pkg, conf_file, datafile, dir, picked_devs)
 
     if q is not None:
         q.put((os.getpid(), picked_devs, hostfile))
@@ -136,14 +138,19 @@ def manage_reconstruction(experiment_dir, config_id, debug):
 
     main_config_map = conf_maps['config']
     rec_config_map = conf_maps['config_rec']
+
+    proc = rec_config_map.get('processing', 'auto')
+    devices = rec_config_map.get('device', [-1])
+
+    main_config_map = conf_maps['config']
+    rec_config_map = conf_maps['config_rec']
     # find which library to run it on, default is numpy ('np')
-    if 'processing' in rec_config_map:
-        proc = rec_config_map['processing']
-    else:
-        proc = 'auto'
-    err_msg, lib = com.get_lib(proc)
+    err_msg, pkg = com.get_pkg(proc, devices)
     if len(err_msg) > 0:
         return err_msg
+
+    if sys.platform == 'darwin' or pkg == 'np':
+        devices = [-1]
 
     # for multipeak reconstruction divert here
     if 'config_mp' in conf_maps:
@@ -151,15 +158,11 @@ def manage_reconstruction(experiment_dir, config_id, debug):
         config_map.update(main_config_map)
         config_map.update(rec_config_map)
         config_map.update({"save_dir": f"{experiment_dir}/results_phasing"})
-        if 'device' in config_map:
-            dev = config_map['device']
-        else:
-            dev = [-1]
         peak_dirs = []
         for dir in os.listdir(experiment_dir):
             if dir.startswith('mp'):
                 peak_dirs.append(ut.join(experiment_dir, dir))
-        return cohere.reconstruction_coupled.reconstruction(lib, config_map, peak_dirs, dev)
+        return cohere.reconstruction_coupled.reconstruction(pkg, config_map, peak_dirs, devices)
 
     # exp_dirs_data list hold pairs of data and directory, where the directory is the root of phasing_data/data.tif file, and
     # data is the data.tif file in this directory.
@@ -174,10 +177,7 @@ def manage_reconstruction(experiment_dir, config_id, debug):
     if len(exp_dirs_data) == 0:
         # in typical scenario data_dir is not configured, and it is defaulted to <experiment_dir>/data
         # the data_dir is ignored in multi-scan scenario
-        if 'data_dir' in rec_config_map:
-            data_dir = rec_config_map['data_dir']
-        else:
-            data_dir = ut.join(experiment_dir, 'phasing_data')
+        data_dir = rec_config_map.get('data_dir', ut.join(experiment_dir, 'phasing_data'))
         datafile = ut.join(data_dir, 'data.tif')
         if os.path.isfile(datafile):
             exp_dirs_data.append((datafile, experiment_dir))
@@ -199,18 +199,10 @@ def manage_reconstruction(experiment_dir, config_id, debug):
         else:
             ga_method = 'populous'
 
-    if 'reconstructions' in rec_config_map:
-        reconstructions = rec_config_map['reconstructions']
-    else:
-        reconstructions = 1
+    reconstructions = rec_config_map.get('reconstructions', 1)
 
     # number of wanted devices to accomodate all reconstructions is a product of no_scan_ranges and reconstructions
     want_dev_no = no_scan_ranges * reconstructions
-
-    if lib == 'np' or 'device' not in rec_config_map:
-        devices = [-1]
-    else:
-        devices = rec_config_map['device']
 
     hostfile = None
     # if device is [-1] it will be run on cpu
@@ -229,7 +221,7 @@ def manage_reconstruction(experiment_dir, config_id, debug):
 
     if no_scan_ranges == 1:
             datafile, dir = exp_dirs_data[0]
-            process_scan_range(ga_method, lib, conf_file, datafile, dir, picked_devs, hostfile)
+            process_scan_range(ga_method, pkg, conf_file, datafile, dir, picked_devs, hostfile)
     else: # multiple scans or scan ranges
         q = None
         if avail_jobs >= want_dev_no:
@@ -253,7 +245,7 @@ def manage_reconstruction(experiment_dir, config_id, debug):
         for i in range(no_concurrent_scans):
             datafile, dir = exp_dirs_data[i]
             # run concurrently
-            p = Process(target=process_scan_range, args=(ga_method, lib, conf_file, datafile, dir, scan_picked_devs[i], hostfiles[i], q))
+            p = Process(target=process_scan_range, args=(ga_method, pkg, conf_file, datafile, dir, scan_picked_devs[i], hostfiles[i], q))
             p.start()
             pr[p.pid] = p
 
@@ -264,7 +256,7 @@ def manage_reconstruction(experiment_dir, config_id, debug):
             pid, devs, hostfile = q.get()
             if pid in pr.keys():
                del pr[pid]
-            p = Process(target=process_scan_range, args=(ga_method, lib, conf_file, datafile, dir, devs, hostfile, q))
+            p = Process(target=process_scan_range, args=(ga_method, pkg, conf_file, datafile, dir, devs, hostfile, q))
             p.start()
             pr[p.pid] = p
 
