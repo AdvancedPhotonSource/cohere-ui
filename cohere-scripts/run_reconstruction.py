@@ -142,6 +142,8 @@ def manage_reconstruction(experiment_dir, config_id, debug):
     proc = rec_config_map.get('processing', 'auto')
     devices = rec_config_map.get('device', [-1])
 
+    main_config_map = conf_maps['config']
+    rec_config_map = conf_maps['config_rec']
     # find which library to run it on, default is numpy ('np')
     err_msg, pkg = com.get_pkg(proc, devices)
     if len(err_msg) > 0:
