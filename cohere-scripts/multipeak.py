@@ -25,7 +25,6 @@ import numpy as np
 from tvtk.api import tvtk
 from multiprocessing import Process
 from prep_helper import Preparer, combine_scans, write_prep_arr
-from matplotlib import pyplot as plt
 from skimage import transform
 import scipy.ndimage as ndi
 from scipy.spatial.transform import Rotation as R

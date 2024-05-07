@@ -1,14 +1,12 @@
 import os
 import re
 import glob
-import time
-
 import numpy as np
 from multiprocessing import Pool, Process, Queue
 import cohere_core.utilities as ut
-from functools import partial
 import cohere_core.utilities.dvc_utils as dvut
 import importlib
+from functools import partial
 
 
 PREP_DATA_FILENAME = 'prep_data.tif'

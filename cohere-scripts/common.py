@@ -1,6 +1,5 @@
 import sys
 import os
-import cohere_core as cohere
 import convertconfig as conv
 import cohere_core.utilities as ut
 
@@ -35,14 +34,14 @@ def get_config_maps(experiment_dir, configs, debug=False, config_id=None):
         return err_msg, maps, None
 
     converted = False
-    main_config_map = cohere.read_config(main_conf)
+    main_config_map = ut.read_config(main_conf)
     # convert configuration files if different converter version
     if 'converter_ver' not in main_config_map or conv.get_version() is None or conv.get_version() > main_config_map['converter_ver']:
         conv.convert(conf_dir)
-        main_config_map = cohere.read_config(main_conf)
+        main_config_map = ut.read_config(main_conf)
         converted = True
     # verify main config file
-    err_msg = cohere.verify('config', main_config_map)
+    err_msg = ut.verify('config', main_config_map)
     if len(err_msg) > 0:
         # the error message is printed in verifier
         if not debug:
@@ -68,10 +67,10 @@ def get_config_maps(experiment_dir, configs, debug=False, config_id=None):
             err_msg = f'info: missing {conf_file} configuration file'
             return err_msg, maps, converted
 
-        config_map = cohere.read_config(conf_file)
+        config_map = ut.read_config(conf_file)
 
         # verify configuration
-        err_msg = cohere.verify(conf, config_map)
+        err_msg = ut.verify(conf, config_map)
         if len(err_msg) > 0:
             # the error message is printed in verifier
             if not debug:

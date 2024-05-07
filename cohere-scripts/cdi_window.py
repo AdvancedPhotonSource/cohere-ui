@@ -26,7 +26,6 @@ from PyQt5.QtWidgets import *
 import importlib
 import convertconfig as conv
 import ast
-import cohere_core as cohere
 import cohere_core.utilities as ut
 import common as com
 
@@ -394,7 +393,7 @@ class cdi_gui(QWidget):
         if self.separate_scan_ranges.isChecked():
             conf_map['separate_scan_ranges'] = True
         conf_map['converter_ver'] = conv.get_version()
-        er_msg = cohere.verify('config', conf_map)
+        er_msg = ut.verify('config', conf_map)
         if len(er_msg) > 0:
             msg_window(er_msg)
             if self.debug:
@@ -865,7 +864,7 @@ class DataTab(QWidget):
             if found_file:
                 conf_map = self.get_data_config()
                 # verify that data configuration is ok
-                er_msg = cohere.verify('config_data', conf_map)
+                er_msg = ut.verify('config_data', conf_map)
                 if len(er_msg) > 0:
                     msg_window(er_msg)
                     if not self.main_win.debug:
@@ -886,7 +885,7 @@ class DataTab(QWidget):
         # save data config
         conf_map = self.get_data_config()
         if len(conf_map) > 0:
-            er_msg = cohere.verify('config_data', conf_map)
+            er_msg = ut.verify('config_data', conf_map)
             if len(er_msg) > 0:
                 msg_window(er_msg)
                 if not self.main_win.debug:
@@ -1124,7 +1123,7 @@ class RecTab(QWidget):
         conf_map = self.get_rec_config()
         if len(conf_map) == 0:
             return
-        er_msg = cohere.verify('config_rec', conf_map)
+        er_msg = ut.verify('config_rec', conf_map)
         if len(er_msg) > 0:
             msg_window(er_msg)
             if not self.main_win.debug:
@@ -1302,7 +1301,7 @@ class RecTab(QWidget):
                     return
 
                 # verify that reconstruction configuration is ok
-                er_msg = cohere.verify('config_rec', conf_map)
+                er_msg = ut.verify('config_rec', conf_map)
                 if len(er_msg) > 0:
                     msg_window(er_msg)
                     if not self.main_win.debug:
