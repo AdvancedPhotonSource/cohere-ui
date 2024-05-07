@@ -11,7 +11,7 @@ This script formats data for reconstruction according to configuration.
 
 import argparse
 import os
-import cohere_core as cohere
+import cohere_core.data as fd
 import cohere_core.utilities as ut
 import common as com
 
@@ -72,7 +72,7 @@ def format_data(experiment_dir, **kwargs):
             os.makedirs(data_dir)
         data_conf_map['data_dir'] = data_dir
         # call the preprocessing in cohere_core, it will return updated configuration if auto_data
-        data_conf_map = cohere.prep(ut.join(proc_dir, 'preprocessed_data', 'prep_data.tif'), auto_data, **data_conf_map)
+        data_conf_map = fd.prep(ut.join(proc_dir, 'preprocessed_data', 'prep_data.tif'), auto_data, **data_conf_map)
 
     # This will work for a single reconstruction.
     # For separate scan the last auto-calculated values will be saved

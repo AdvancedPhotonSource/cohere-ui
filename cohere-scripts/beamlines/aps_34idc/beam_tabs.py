@@ -2,7 +2,6 @@ import os
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 import ast
-import cohere_core as cohere
 import cohere_core.utilities as ut
 
 
@@ -270,7 +269,7 @@ class PrepTab(QWidget):
         else:
             conf_map = self.get_prep_config()
         # verify that prep configuration is ok
-        er_msg = cohere.verify('config_prep', conf_map)
+        er_msg = ut.verify('config_prep', conf_map)
         if len(er_msg) > 0:
             msg_window(er_msg)
             if not self.main_win.debug:
@@ -361,7 +360,7 @@ class PrepTab(QWidget):
 
         conf_map = self.get_prep_config()
         if len(conf_map) > 0:
-            er_msg = cohere.verify('config_prep', conf_map)
+            er_msg = ut.verify('config_prep', conf_map)
             if len(er_msg) > 0:
                 msg_window(er_msg)
                 if self.main_win.debug:
@@ -551,7 +550,7 @@ class DispTab(QWidget):
 
         conf_map = self.get_disp_config()
         # verify that disp configuration is ok
-        er_msg = cohere.verify('config_disp', conf_map)
+        er_msg = ut.verify('config_disp', conf_map)
         if len(er_msg) > 0:
             msg_window(er_msg)
             if not self.main_win.debug:
@@ -568,7 +567,7 @@ class DispTab(QWidget):
 
         conf_map = self.get_disp_config()
         if len(conf_map) > 0:
-            er_msg = cohere.verify('config_disp', conf_map)
+            er_msg = ut.verify('config_disp', conf_map)
             if len(er_msg) > 0:
                 msg_window(er_msg)
                 if self.main_win.debug:
@@ -1042,7 +1041,7 @@ class InstrTab(QWidget):
 
         conf_map = self.get_instr_config()
         # verify that disp configuration is ok
-        er_msg = cohere.verify('config_instr', conf_map)
+        er_msg = ut.verify('config_instr', conf_map)
         if len(er_msg) > 0:
             msg_window(er_msg)
             if not self.main_win.debug:

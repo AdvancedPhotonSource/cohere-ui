@@ -22,7 +22,7 @@ import os
 import sys
 import argparse
 from multiprocessing import Process, Queue
-import cohere_core as cohere
+import cohere_core.controller as rec
 import cohere_core.utilities as ut
 import common as com
 
@@ -103,11 +103,11 @@ def process_scan_range(ga_method, pkg, conf_file, datafile, dir, picked_devs, ho
     nothing
     """
     if len(picked_devs) == 1:
-        cohere.reconstruction_single.reconstruction(pkg, conf_file, datafile, dir, picked_devs)
+        rec.reconstruction_single.reconstruction(pkg, conf_file, datafile, dir, picked_devs)
     elif ga_method is None or ga_method == 'ga_fast':
-        cohere.mpi_cmd.run_with_mpi(ga_method, pkg, conf_file, datafile, dir, picked_devs, hostfile)
+        rec.mpi_cmd.run_with_mpi(ga_method, pkg, conf_file, datafile, dir, picked_devs, hostfile)
     else:
-        cohere.reconstruction_populous_GA.reconstruction(pkg, conf_file, datafile, dir, picked_devs)
+        rec.reconstruction_populous_GA.reconstruction(pkg, conf_file, datafile, dir, picked_devs)
 
     if q is not None:
         q.put((os.getpid(), picked_devs, hostfile))
@@ -162,7 +162,7 @@ def manage_reconstruction(experiment_dir, config_id, debug):
         for dir in os.listdir(experiment_dir):
             if dir.startswith('mp'):
                 peak_dirs.append(ut.join(experiment_dir, dir))
-        return cohere.reconstruction_coupled.reconstruction(pkg, config_map, peak_dirs, devices)
+        return rec.reconstruction_coupled.reconstruction(pkg, config_map, peak_dirs, devices)
 
     # exp_dirs_data list hold pairs of data and directory, where the directory is the root of phasing_data/data.tif file, and
     # data is the data.tif file in this directory.
@@ -212,7 +212,7 @@ def manage_reconstruction(experiment_dir, config_id, debug):
     else:
         # based on configured devices find what is available
         # this code below assigns jobs for GPUs
-        data_size = cohere.read_tif(exp_dirs_data[0][0]).size
+        data_size = ut.read_tif(exp_dirs_data[0][0]).size
         job_size = get_job_size(data_size, ga_method, 'pc' in rec_config_map['algorithm_sequence'])
         picked_devs, avail_jobs, hostfile = ut.get_gpu_use(devices, want_dev_no, job_size)
 
