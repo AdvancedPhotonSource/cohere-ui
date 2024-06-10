@@ -286,9 +286,9 @@ def handle_prep(experiment_dir, **kwargs):
     """
     print('pre-processing data')
 
-    debug = 'debug' in kwargs and kwargs['debug']
+    verify = not ('debug' in kwargs and kwargs['debug'])
     conf_list = ['config_prep', 'config_instr', 'config_mp']
-    err_msg, conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, debug)
+    err_msg, conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, verify)
     if len(err_msg) > 0:
         return err_msg
 

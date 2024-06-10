@@ -4,7 +4,7 @@ import convertconfig as conv
 import cohere_core.utilities as ut
 
 
-def get_config_maps(experiment_dir, configs, debug=False, config_id=None):
+def get_config_maps(experiment_dir, configs, verify=False, config_id=None):
     """
     Reads the configuration files included in configs list and returns dictionaries.
     It will check for missing main config, for converter version. If needed it will convert
@@ -25,6 +25,7 @@ def get_config_maps(experiment_dir, configs, debug=False, config_id=None):
         configuration dictionaries
         boolean value telling if conversion happened
     """
+    err_msg = ''
     maps = {}
     # always get main config
     conf_dir = ut.join(experiment_dir, 'conf')
@@ -40,14 +41,12 @@ def get_config_maps(experiment_dir, configs, debug=False, config_id=None):
         conv.convert(conf_dir)
         main_config_map = ut.read_config(main_conf)
         converted = True
-    # verify main config file
-    err_msg = ut.verify('config', main_config_map)
-    if len(err_msg) > 0:
-        # the error message is printed in verifier
-        if not debug:
+    if verify:
+        # verify main config file
+        err_msg = ut.verify('config', main_config_map)
+        if len(err_msg) > 0:
+            # the error message is printed in verifier
             return err_msg, maps, converted
-        else:
-            err_msg = ''
 
     maps['config'] = main_config_map
 
@@ -65,18 +64,16 @@ def get_config_maps(experiment_dir, configs, debug=False, config_id=None):
 
         if not os.path.isfile(conf_file):
             err_msg = f'info: missing {conf_file} configuration file'
-            return err_msg, maps, converted
+            continue
+            # return err_msg, maps, converted
 
         config_map = ut.read_config(conf_file)
 
+        if verify:
         # verify configuration
-        err_msg = ut.verify(conf, config_map)
-        if len(err_msg) > 0:
-            # the error message is printed in verifier
-            if not debug:
+            err_msg = ut.verify(conf, config_map)
+            if len(err_msg) > 0:
                 return err_msg, maps, converted
-            else:
-                err_msg = ''
 
         maps[conf] = config_map
 

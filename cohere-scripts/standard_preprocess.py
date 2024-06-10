@@ -38,9 +38,9 @@ def format_data(experiment_dir, **kwargs):
     """
     print('formatting data')
 
-    debug = 'debug' in kwargs and kwargs['debug']
+    verify = not ('debug' in kwargs and kwargs['debug'])
     conf_list = ['config_data']
-    err_msg, conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, debug)
+    err_msg, conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, verify)
     if len(err_msg) > 0:
         return err_msg
     main_conf_map = conf_maps['config']
@@ -48,7 +48,7 @@ def format_data(experiment_dir, **kwargs):
     auto_data = 'auto_data' in main_conf_map and main_conf_map['auto_data']
 
     data_conf_map = conf_maps['config_data']
-    if debug:
+    if not verify:
         data_conf_map['debug'] = True
     if auto_data:
         data_conf_map['do_auto_binning'] = not('multipeak' in main_conf_map and main_conf_map['multipeak'])

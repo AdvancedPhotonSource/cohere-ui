@@ -790,7 +790,7 @@ class SubInstrTab():
         -------
         nothing
         """
-        if not self.main_window.loaded:
+        if not self.main_window.loaded and not self.main_window.is_exp_set():
             return
         scan = str(self.main_window.scan_widget.text())
         if len(scan) == 0:
@@ -817,7 +817,13 @@ class SubInstrTab():
             return
 
         last_scan = int(scan.split('-')[-1].split(',')[-1])
-        spec_dict = instr.parse_spec(specfile, last_scan, diff_obj)
+
+        spec_dict = None
+        try:
+            spec_dict = instr.parse_spec(specfile, last_scan, diff_obj)
+        except:
+            spec_dict = None
+
         if spec_dict is None:
             return
         if 'energy' in spec_dict:
@@ -1040,6 +1046,9 @@ class InstrTab(QWidget):
             return
 
         conf_map = self.get_instr_config()
+        if len(conf_map) == 0:
+            return
+
         # verify that disp configuration is ok
         er_msg = ut.verify('config_instr', conf_map)
         if len(er_msg) > 0:

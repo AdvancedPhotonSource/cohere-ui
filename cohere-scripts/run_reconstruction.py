@@ -132,7 +132,7 @@ def manage_reconstruction(experiment_dir, config_id, debug):
     print('started reconstruction')
 
     conf_list = ['config_rec', 'config_mp']
-    err_msg, conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, debug, config_id)
+    err_msg, conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, not (debug), config_id)
     if len(err_msg) > 0:
         return err_msg
 

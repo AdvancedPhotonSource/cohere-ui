@@ -105,6 +105,7 @@ class cdi_gui(QWidget):
         """
         super(cdi_gui, self).__init__(parent)
 
+        self.loaded = False
         self.beamline = None
         self.exp_id = None
         self.experiment_dir = None
@@ -295,16 +296,12 @@ class cdi_gui(QWidget):
         if load_dir is None:
             msg_window('please select valid conf directory')
             return
-
         if not os.path.isfile(ut.join(load_dir, 'conf', 'config')):
             msg_window('missing conf/config file, not experiment directory')
             return
 
-        debug = self.debug
         conf_list = ['config_prep', 'config_data', 'config_rec', 'config_disp', 'config_instr', 'config_mp']
-        err_msg, conf_dicts, converted = com.get_config_maps(load_dir, conf_list, debug)
-        if len(err_msg) > 0:
-            return err_msg
+        err_msg, conf_dicts, converted = com.get_config_maps(load_dir, conf_list)
 
         self.load_main(conf_dicts['config'])
 
@@ -1123,13 +1120,12 @@ class RecTab(QWidget):
         conf_map = self.get_rec_config()
         if len(conf_map) == 0:
             return
-        er_msg = ut.verify('config_rec', conf_map)
-        if len(er_msg) > 0:
-            msg_window(er_msg)
-            if not self.main_win.debug:
-             return
-        if len(conf_map) > 0:
-            ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_rec'))
+        # er_msg = ut.verify('config_rec', conf_map)
+        # if len(er_msg) > 0:
+        #     msg_window(er_msg)
+        #     if not self.main_win.debug:
+        #      return
+        ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_rec'))
 
 
     def set_init_guess_layout(self, layout):
