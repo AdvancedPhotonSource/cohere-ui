@@ -177,7 +177,7 @@ class cdi_gui(QWidget):
 
     def set_args(self, args, **kwargs):
         self.args = args
-        self.debug = 'debug' in kwargs and kwargs['debug']
+        self.no_verify = 'no_verify' in kwargs and kwargs['no_verify']
 
 
     def run_everything(self):
@@ -301,7 +301,7 @@ class cdi_gui(QWidget):
             return
 
         conf_list = ['config_prep', 'config_data', 'config_rec', 'config_disp', 'config_instr', 'config_mp']
-        err_msg, conf_dicts, converted = com.get_config_maps(load_dir, conf_list)
+        conf_dicts, converted = com.get_config_maps(load_dir, conf_list)
 
         self.load_main(conf_dicts['config'])
 
@@ -393,7 +393,7 @@ class cdi_gui(QWidget):
         er_msg = ut.verify('config', conf_map)
         if len(er_msg) > 0:
             msg_window(er_msg)
-            if self.debug:
+            if self.no_verify:
                 ut.write_config(conf_map, ut.join(self.experiment_dir, 'conf', 'config'))
         else:
             ut.write_config(conf_map, ut.join(self.experiment_dir, 'conf', 'config'))
@@ -571,14 +571,14 @@ class Tabs(QTabWidget):
 
         # this line is passing all parameters from command line to prep script. 
         # if there are other parameters, one can add some code here
-        msg = prep.handle_prep(self.main_win.experiment_dir, debug=self.main_win.debug)
+        msg = prep.handle_prep(self.main_win.experiment_dir, no_verify=self.main_win.no_verify)
         if len(msg) > 0:
             msg_window(msg)
 
     def run_viz(self):
         import beamline_visualization as dp
 
-        msg = dp.handle_visualization(self.main_win.experiment_dir, debug=self.main_win.debug)
+        msg = dp.handle_visualization(self.main_win.experiment_dir, no_verify=self.main_win.no_verify)
         if len(msg) > 0:
             msg_window(msg)
 
@@ -850,7 +850,7 @@ class DataTab(QWidget):
             msg_window('the experiment has not been created yet')
         elif not self.main_win.is_exp_set():
             msg_window('the experiment has changed, pres "set experiment" button')
-        elif len(self.intensity_threshold.text()) == 0:
+        elif len(self.intensity_threshold.text()) == 0 and not self.main_win.auto_data:
             msg_window('Please, enter Intensity Threshold parameter')
         else:
             found_file = False
@@ -864,10 +864,10 @@ class DataTab(QWidget):
                 er_msg = ut.verify('config_data', conf_map)
                 if len(er_msg) > 0:
                     msg_window(er_msg)
-                    if not self.main_win.debug:
+                    if not self.main_win.no_verify:
                         return
                 ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_data'))
-                run_dt.format_data(self.main_win.experiment_dir, debug=self.main_win.debug)
+                run_dt.format_data(self.main_win.experiment_dir, no_verify=self.main_win.no_verify)
             else:
                 msg_window('Please, run data preparation in previous tab to activate this function')
 
@@ -885,7 +885,7 @@ class DataTab(QWidget):
             er_msg = ut.verify('config_data', conf_map)
             if len(er_msg) > 0:
                 msg_window(er_msg)
-                if not self.main_win.debug:
+                if not self.main_win.no_verify:
                     return
             ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_data'))
 
@@ -1120,11 +1120,7 @@ class RecTab(QWidget):
         conf_map = self.get_rec_config()
         if len(conf_map) == 0:
             return
-        # er_msg = ut.verify('config_rec', conf_map)
-        # if len(er_msg) > 0:
-        #     msg_window(er_msg)
-        #     if not self.main_win.debug:
-        #      return
+
         ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_rec'))
 
 
@@ -1300,10 +1296,10 @@ class RecTab(QWidget):
                 er_msg = ut.verify('config_rec', conf_map)
                 if len(er_msg) > 0:
                     msg_window(er_msg)
-                    if not self.main_win.debug:
+                    if not self.main_win.no_verify:
                         return
                 ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', conf_file))
-                run_rc.manage_reconstruction(self.main_win.experiment_dir, config_id=conf_id, debug=self.main_win.debug)
+                run_rc.manage_reconstruction(self.main_win.experiment_dir, config_id=conf_id, no_verify=self.main_win.no_verify)
                 self.notify()
             else:
                 msg_window('Please, run format data in previous tab to activate this function')
@@ -2494,12 +2490,12 @@ def main():
     Starts GUI application.
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument("--debug", action="store_true",
+    parser.add_argument("--no_verify", action="store_true",
                         help="if True the verifier has no effect on processing")
     args = parser.parse_args()
     app = QApplication(sys.argv)
     ex = cdi_gui()
-    ex.set_args(sys.argv[1:], debug=args.debug)
+    ex.set_args(sys.argv[1:], no_verify=args.no_verify)
     ex.show()
     sys.exit(app.exec_())
 

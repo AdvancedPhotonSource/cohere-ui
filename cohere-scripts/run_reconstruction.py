@@ -113,7 +113,7 @@ def process_scan_range(ga_method, pkg, conf_file, datafile, dir, picked_devs, ho
         q.put((os.getpid(), picked_devs, hostfile))
 
 
-def manage_reconstruction(experiment_dir, config_id, debug):
+def manage_reconstruction(experiment_dir, config_id, no_verify):
     """
     This function starts the interruption discovery process and continues the recontruction processing.
     It reads configuration file defined as <experiment_dir>/conf/config_rec.
@@ -132,12 +132,23 @@ def manage_reconstruction(experiment_dir, config_id, debug):
     print('started reconstruction')
 
     conf_list = ['config_rec', 'config_mp']
-    err_msg, conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, not (debug), config_id)
+    conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, config_id)
+    # check the maps
+    if 'config' not in conf_maps.keys():
+        return 'missing main config file'
+    if 'config_rec' not in conf_maps.keys():
+        return 'missing config_rec file'
+
+    # verify that config files are correct
+    main_conf_map = conf_maps['config']
+    err_msg = ut.verify('config', main_conf_map)
     if len(err_msg) > 0:
         return err_msg
 
-    main_config_map = conf_maps['config']
     rec_config_map = conf_maps['config_rec']
+    err_msg = ut.verify('config_rec', rec_config_map)
+    if len(err_msg) > 0:
+        return err_msg
 
     proc = rec_config_map.get('processing', 'auto')
     devices = rec_config_map.get('device', [-1])
@@ -274,15 +285,17 @@ def manage_reconstruction(experiment_dir, config_id, debug):
     if hostfile is not None:
         os.remove(hostfile)
 
+    print('finished reconstruction')
+
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_dir", help="experiment directory.")
     parser.add_argument("--rec_id", action="store", help="reconstruction id, a postfix to 'results_phasing_' directory")
-    parser.add_argument("--debug", action="store_true",
+    parser.add_argument("--no_verify", action="store_true",
                         help="if True the vrifier has no effect on processing")
     args = parser.parse_args()
-    manage_reconstruction(args.experiment_dir, config_id=args.rec_id, debug=args.debug)
+    manage_reconstruction(args.experiment_dir, config_id=args.rec_id, no_verify=args.no_verify)
 
 
 if __name__ == "__main__":

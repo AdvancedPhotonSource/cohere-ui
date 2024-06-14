@@ -1,14 +1,12 @@
-import numpy as np
-import math as m
-import xrayutilities.experiment as xuexp
-from xrayutilities.io import spec as spec
 import beamlines.aps_34idc.diffractometers as diff
 import beamlines.aps_34idc.detectors as det
+from xrayutilities.io import spec
+import re
 
 
-def parse_spec(specfile, scan, diff):
+def parse_spec4roi(specfile, scan):
     """
-    Reads parameters from spec file for given scan.
+    Returns detector name and detector area parsed from spec file for given scan.
 
     Parameters
     ----------
@@ -18,71 +16,42 @@ def parse_spec(specfile, scan, diff):
     scan : int
         scan number to use to recover the saved measurements
 
-    diff : object
-        diffractometer object
-
     Returns
     -------
-    dict with delta, gamma, theta, phi, chi, scanmot, scanmot_del, detdist, detector_name, energy
+    dict
+        dictionary of parameters; name : value
     """
-    spec_dict = {}
-
-    # Scan numbers start at one but the list is 0 indexed
+    params_values = {}
+    # Scan numbers start at one but the list is 0 indexed, so we subtract 1
     try:
         ss = spec.SPECFile(specfile)[scan - 1]
     except Exception as ex:
         print(str(ex))
         print('Could not parse ' + specfile)
-        return None
+        return params_values
 
     try:
-        spec_dict['detector'] = str(ss.getheader_element('UIMDET'))
-        if spec_dict['detector'].endswith(':'):
-            spec_dict['detector'] = spec_dict['detector'][:-1]
-    except:
-        pass
+        params_values['detector'] = str(ss.getheader_element('UIMDET'))
+        if params_values['detector'].endswith(':'):
+            params_values['detector'] = params_values['detector'][:-1]
+    except Exception as ex:
+        print(str(ex))
 
     try:
-        command = ss.command.split()
-        spec_dict['scanmot'] = command[1]
-        spec_dict['scanmot_del'] = (float(command[3]) - float(command[2])) / int(command[4])
-    except:
-        pass
+        params_values['roi'] = [int(n) for n in ss.getheader_element('UIMR5').split()]
+    except Exception as ex:
+        print (str(ex))
 
-    for mot_mne, mot_name in zip(diff.sampleaxes_mne + diff.detectoraxes_mne, diff.sampleaxes_name + diff.detectoraxes_name):
-        try:
-            motname = "INIT_MOPO_{m}".format(m=mot_name)
-            spec_dict[mot_mne] = ss.init_motor_pos[motname]
-        except:
-            pass
-
-    try:
-        motname = "INIT_MOPO_{m}".format(m=diff.detectordist_name)
-        spec_dict['detdist'] = ss.init_motor_pos[motname]
-    except:
-        pass
-
-    try:
-        spec_dict['energy'] = ss.init_motor_pos['INIT_MOPO_Energy']
-    except:
-        pass
-
-    try:
-        spec_dict['det_area'] = [int(n) for n in ss.getheader_element('UIMR5').split()]
-    except:
-        pass
-
-    return spec_dict
+    return params_values
 
 
 class Instrument:
     """
-      This class encapsulates parameters defining experiment instruments and parameters defining geometry.
-      It contains diffractometer attributes, detector attributes and parameters parsed from spec file. The
-      parsed parameters will be overridden with configured parameters in config_instr file.
+      This class encapsulates istruments: diffractometer and detector used for that experiment.
+      It provides interface to get the classes encapsulating the diffractometer and detector.
     """
 
-    def initialize(self, config, scan):
+    def __init__(self, *args):
         """
         The constructor.
 
@@ -96,116 +65,106 @@ class Instrument:
         str
             a string containing error message or empty
         """
-        # The calling code ensures diffractometer and specfile are configured
-        self.diff_obj = diff.create_diffractometer(config['diffractometer'])
-        self.specfile = config['specfile']
-
-        if 'binning' in config:
-            self.binning = config['binning']
-        else:
-            self.binning = [1, 1, 1]
-
-        attrs = parse_spec(self.specfile, scan, self.diff_obj)
-
-        # set the attributes with values parsed from spec
-        for attr in attrs:
-            setattr(self, attr, attrs[attr])
-
-        # save the instrument parameters from configuration
-        # and override the parsed parameters with entries in config file
-        # Note: the multipeak and separate scans configuration will not
-        # include the spec parsed parameters
-        for attr in config:
-            setattr(self, attr, config[attr])
-
-        self.det_obj = det.create_detector(self.detector)
+        (self.specfile, diffractometer) = args
+        self.diff_obj = diff.create_diffractometer(diffractometer)
+        self.det_obj = None
 
 
-    def get_geometry(self, shape, xtal=False):
+    def init_detector(self, *args, **kwargs):
+       # the detector is parsed from specfile, and therefore scan number must be given
+        # parse the frame size (roi) at the same time
+        (scan,) = args
+        det_pars = parse_spec4roi(self.specfile, scan)
+
+        det_name = kwargs.pop('detector', None)
+        if det_name is None:
+            det_name = det_pars.pop('detector', None)
+
+        if det_name is None:
+            return 'detector name unknown'
+
+        kwargs.update(det_pars)
+
+        self.det_obj = det.create_detector(det_name, **kwargs)
+        if self.det_obj is None:
+            raise RuntimeError
+
+
+    def datainfo4scans(self, scans):
         """
-        Calculates geometry based on diffractometer's attributes and experiment parameters.
+        Finds existing sub-directories in data_dir that correspond to given scans and scan ranges.
+        Parameters
+        ----------
+        scans : list
+            list of tuples defining scan(s) and scan range(s), ordered
+
+        Returns
+        -------
+        list
+        """
+        return self.det_obj.dirs4scans(scans)
+
+
+    def get_scan_array(self, scan_dir):
+        return self.det_obj.get_scan_array(scan_dir)
+
+
+    def get_geometry(self, shape, scan, xtal=False, **kwargs):
+        """
+        Calculates geometry based on diffractometer's and detctor's attributes and experiment parameters.
+
+        For the aps_34idc typically the delta, gamma, theta, phi, chi, scanmot, scanmot_del,
+        detdist, detector_name, energy values are parsed from spec file.
+        They can be overridden by configuration.
 
         Parameters
         ----------
         shape : tuple
             shape of reconstructed array
+        The *args for aps_34idc contain scan number.
+        The **kwargs reflect configuration, and could contain delta, gamma, theta, phi, chi, scanmot, scanmot_del,
+        detdist, detector_name, energy.
 
         Returns
         -------
         tuple
             (Trecip, Tdir)
         """
-        px = self.det_obj.pixel[0] * self.binning[0]
-        py = self.det_obj.pixel[1] * self.binning[1]
-
-        detdist = self.detdist / 1000.0  # convert to meters
-        scanmot = self.scanmot.strip()
-        enfix = 1
-        # if energy is given in kev convert to ev for xrayutilities
-        if m.floor(m.log10(self.energy)) < 3:
-            enfix = 1000
-        energy = self.energy * enfix  # x-ray energy in eV
-
-        if scanmot == 'en':
-            scanen = np.array((energy, energy + self.scanmot_del * enfix))
-        else:
-            scanen = np.array((energy,))
-        qc = xuexp.QConversion(self.diff_obj.sampleaxes, self.diff_obj.detectoraxes, self.diff_obj.incidentaxis, en=scanen)
-
-        # compute for 4pixel (2x2) detector
-        qc.init_area(self.det_obj.pixelorientation[0], self.det_obj.pixelorientation[1], shape[0], shape[1], 2, 2,
-                     distance=detdist, pwidth1=px, pwidth2=py)
-        # I think q2 will always be (3,2,2,2) (vec, scanarr, px, py)
-        # should put some try except around this in case something goes wrong.
-        if scanmot == 'en':  # seems en scans always have to be treated differently since init is unique
-            q2 = np.array(qc.area(self.th, self.chi, self.phi, self.delta, self.gamma, deg=True))
-        elif scanmot in self.diff_obj.sampleaxes_mne:  # based on scanmot args are made for qc.area
-            args = []
-            axisindex = self.diff_obj.sampleaxes_mne.index(scanmot)
-            for n in range(len(self.diff_obj.sampleaxes_mne)):
-                if n == axisindex:
-                    scanstart = getattr(self, scanmot)
-                    args.append(np.array((scanstart, scanstart + self.scanmot_del * self.binning[2])))
-                else:
-                    args.append(self.__dict__[self.diff_obj.sampleaxes_mne[n]])
-            for axis in self.diff_obj.detectoraxes_mne:
-                args.append(getattr(self, axis))
-            q2 = np.array(qc.area(*args, deg=True))
-        else:
-            print("scanmot not in sample axes or energy, exiting")
+        if self.diff_obj is None:
             raise RuntimeError
 
-        # I think q2 will always be (3,2,2,2) (vec, scanarr, px, py)
-        Astar = q2[:, 0, 1, 0] - q2[:, 0, 0, 0]
-        Bstar = q2[:, 0, 0, 1] - q2[:, 0, 0, 0]
-        Cstar = q2[:, 1, 0, 0] - q2[:, 0, 0, 0]
+        kwargs.pop('specfile', None)
+        return self.diff_obj.get_geometry(shape, scan, self.specfile, xtal, self.det_obj, **kwargs)
 
-        if xtal:
-            Trecip_cryst = np.zeros(9)
-            Trecip_cryst.shape = (3, 3)
-            Trecip_cryst[:, 0] = Astar * 10
-            Trecip_cryst[:, 1] = Bstar * 10
-            Trecip_cryst[:, 2] = Cstar * 10
-            return Trecip_cryst, None
 
-        # transform to lab coords from sample reference frame
-        Astar = qc.transformSample2Lab(Astar, self.th, self.chi, self.phi) * 10.0  # convert to inverse nm.
-        Bstar = qc.transformSample2Lab(Bstar, self.th, self.chi, self.phi) * 10.0
-        Cstar = qc.transformSample2Lab(Cstar, self.th, self.chi, self.phi) * 10.0
+def create_instr(params):
+    """
+    Build factory for the Instrument class.
 
-        denom = np.dot(Astar, np.cross(Bstar, Cstar))
-        A = 2 * m.pi * np.cross(Bstar, Cstar) / denom
-        B = 2 * m.pi * np.cross(Cstar, Astar) / denom
-        C = 2 * m.pi * np.cross(Astar, Bstar) / denom
+    Parameters
+    ----------
+    params : dict
+        the parameters parsed from config file
 
-        Trecip = np.zeros(9)
-        Trecip.shape = (3, 3)
-        Trecip[:, 0] = Astar
-        Trecip[:, 1] = Bstar
-        Trecip[:, 2] = Cstar
+    Returns
+    -------
+    (str, Object)
+        error msg, Instrument object or None
+    """
+    specfile = params.get('specfile', None)
+    if specfile is None:
+        print ('spec file must be provided to create Instrument for aps-34idc beamline')
+        return None
+    diffractometer = params.get('diffractometer', None)
+    if diffractometer is None:
+        print ('diffractometer must be provided to create Instrument for aps-34idc beamline')
+        return None
+    instr = Instrument(specfile, diffractometer)
 
-        Tdir = np.zeros(9)
-        Tdir.shape = (3, 3)
-        Tdir = np.array((A, B, C)).transpose()
+    if 'scan' in params:
+        # This is executed when preprocessing
+        # Find first scan to set detector. Pass preprocessor configuration (conf_prep) parameters to init the detector.
+        first_scan = int(re.search(r'\d+', params.get('scan')).group())
+        instr.init_detector(first_scan, **params)
 
-        return (Trecip, Tdir)
+    return instr

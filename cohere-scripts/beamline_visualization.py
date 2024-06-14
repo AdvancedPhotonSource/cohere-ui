@@ -81,7 +81,7 @@ class CXDViz:
         save_dir = save_dir.replace(os.sep, '/')
         arrays = {"imAmp": abs(image), "imPh": np.angle(image)}
 
-          # unwrap phase here
+        # unwrap phase here
         if unwrap:
             from skimage import restoration
             arrays['imUwPh'] = restoration.unwrap_phase(arrays['imPh'])
@@ -255,7 +255,7 @@ class CXDViz:
         print(f'saved file {filename}')
 
 
-def process_dir(instrument, config_map, rampups, crop, unwrap, make_twin, res_dir_scan):
+def process_dir(instr_conf_map, config_map, res_scans_dirs):
     """
     Loads arrays from files in results directory. If reciprocal array exists, it will save reciprocal info in tif format. It calls the save_CX function with the relevant parameters.
     Parameters
@@ -268,7 +268,7 @@ def process_dir(instrument, config_map, rampups, crop, unwrap, make_twin, res_di
     -------
     nothing
     """
-    [res_dir, scan] = res_dir_scan
+    [scan, res_dir] = res_scans_dirs
     if 'save_dir' in config_map:
         save_dir = config_map['save_dir']
     else:
@@ -280,10 +280,11 @@ def process_dir(instrument, config_map, rampups, crop, unwrap, make_twin, res_di
     imagefile = ut.join(res_dir, 'image.npy')
     try:
         image = np.load(imagefile)
-        ut.save_tif(image, ut.join(save_dir, 'support.tif'))
+        ut.save_tif(image, ut.join(save_dir, 'image.tif'))
     except:
         print(f'cannot load file {imagefile}')
         return
+    shape = image.shape
 
     # init support and coh, will be overridden if not None
     support = None
@@ -299,9 +300,16 @@ def process_dir(instrument, config_map, rampups, crop, unwrap, make_twin, res_di
     else:
         print(f'support file is missing in {res_dir} directory')
 
-    # get geometry
-    instrument.initialize(config_map, scan)
-    geometry = instrument.get_geometry(image.shape)
+    beamline = config_map["beamline"]
+    try:
+        instr_module = importlib.import_module(f'beamlines.{beamline}.instrument')
+    except Exception as e:
+        print(e)
+        print(f'cannot import beamlines.{beamline}.instrument module.')
+        return (f'cannot import beamlines.{beamline}.instrument module.')
+
+    instr_obj = instr_module.create_instr(instr_conf_map)
+    geometry = instr_obj.get_geometry(shape, scan, **instr_conf_map)
 
     cohfile = ut.join(res_dir, 'coherence.npy')
     if os.path.isfile(cohfile):
@@ -310,19 +318,20 @@ def process_dir(instrument, config_map, rampups, crop, unwrap, make_twin, res_di
         except:
             print(f'cannot load file {cohfile}')
 
-    if rampups > 1:
-        import importlib
+    if config_map.get('rampups', 1) > 1:
         import cohere_core.utilities.dvc_utils as dvut
 
-        devlib = importlib.import_module('cohere_core.lib.nplib').nplib
-        dvut.set_lib(devlib)
+        dvut.set_lib_from_pkg('np')
+        rampups = config_map.get('rampups', 1)
         image = dvut.remove_ramp(image, ups=rampups)
 
+    unwrap = config_map.get('unwrap', False)
+    crop = config_map.get('crop', [1., 1., 1.])
     crop = crop + [1.0] * (len(image.shape) - len(crop))
     viz = CXDViz(crop, geometry)
     viz.visualize(image, support, coh, save_dir, unwrap)
 
-    if make_twin:
+    if config_map.get('make_twin', False):
         image = np.conjugate(np.flip(image))
         if support is not None:
             support = np.flip(support)
@@ -342,63 +351,54 @@ def handle_visualization(experiment_dir, rec_id=None, **kwargs):
     """
     print ('starting visualization process')
 
-    verify = not ('debug' in kwargs and kwargs['debug'])
     conf_list = ['config_disp', 'config_instr', 'config_data']
-    err_msg, conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, verify)
-    if len(err_msg) > 0:
-        return err_msg
+    conf_maps, converted = com.get_config_maps(experiment_dir, conf_list)
+    # check the maps
+    if 'config' not in conf_maps.keys():
+        return 'missing main config file'
+    if 'config_disp' not in conf_maps.keys():
+        return 'missing config_disp file'
+    if 'config_instr' not in conf_maps.keys():
+        return 'missing config_instr file'
+    if 'config_data' not in conf_maps.keys():
+        return 'missing config_data file'
 
     main_conf_map = conf_maps['config']
+    instr_conf_map = conf_maps['config_instr']
+    data_conf_map = conf_maps['config_data']
+    disp_conf_map = conf_maps['config_disp']
+
+    beamline = main_conf_map.get('beamline', None)
+    if beamline is  None:
+        print('Beamline must be configured in main configuration file')
+        return 'Beamline must be configured in main configuration file'
+
+    try:
+        ver = importlib.import_module(f'beamlines.{beamline}.beam_verifier')
+    except Exception as e:
+        print(e)
+        print(f'cannot import beamlines.{beamline} module.')
+        return f'cannot import beamlines.{beamline} module.'
+
+    # verify that config files are correct
+    err_msg = ut.verify('config', main_conf_map)
+    if len(err_msg) > 0:
+        return err_msg
+    err_msg = ver.verify('config_disp', disp_conf_map)
+    if len(err_msg) > 0:
+        return err_msg
+    err_msg = ver.verify('config_instr', instr_conf_map)
+    if len(err_msg) > 0:
+        return err_msg
 
     if 'multipeak' in main_conf_map and main_conf_map['multipeak']:
         mp.process_dir(experiment_dir, make_twin=False)
     else:
-        try:
-            instr = importlib.import_module(f'beamlines.{main_conf_map["beamline"]}.instrument')
-            instrument = instr.Instrument()
-        except:
-            print(f'cannot import beamlines.{main_conf_map["beamline"]}.instrument module.')
-            return (f'cannot import beamlines.{main_conf_map["beamline"]}.instrument module.')
-
-        instr_conf_map = conf_maps['config_instr']
-        data_conf_map = conf_maps['config_data']
-        disp_conf_map = conf_maps['config_disp']
-
-        config_map = {}
-        if ('separate_scans' in main_conf_map and main_conf_map['separate_scans']) or \
-                ('separate_scan_ranges' in main_conf_map and main_conf_map['separate_scan_ranges']):
-            config_map['diffractometer'] = instr_conf_map['diffractometer']
-            config_map['specfile'] = instr_conf_map['specfile']
-            separate = True
-        else:
-            config_map = instr_conf_map
-            separate = False
-
-        if 'binning' in data_conf_map:
-            config_map['binning'] = data_conf_map['binning']
-
-        # if save_dir is configured, add it to config_map
-        if 'save_dir' in disp_conf_map:
-            config_map['save_dir'] = disp_conf_map['save_dir']
-        if 'rampups' in disp_conf_map:
-            rampups = disp_conf_map['rampups']
-        else:
-            rampups = 1
-
-        if 'make_twin' in disp_conf_map:
-            make_twin = disp_conf_map['make_twin']
-        else:
-            make_twin = False
-
-        if 'crop' in disp_conf_map:
-            crop = disp_conf_map['crop']
-        else:
-            crop = []
-
-        if 'unwrap' in disp_conf_map:
-            unwrap = disp_conf_map['unwrap']
-        else:
-            unwrap = False
+        separate = main_conf_map.get('separate_scans', False) or main_conf_map.get('separate_scan_ranges', False)
+        # get parameters from config files
+        conf_map = disp_conf_map
+        conf_map['binning'] = data_conf_map.get('binning', [1,1,1])
+        conf_map['beamline'] = main_conf_map.get('beamline')
 
         if 'results_dir' in disp_conf_map:
             results_dir = disp_conf_map['results_dir'].replace(os.sep, '/')
@@ -411,38 +411,38 @@ def handle_visualization(experiment_dir, rec_id=None, **kwargs):
             results_dir = ut.join(experiment_dir, f'results_phasing_{rec_id}')
         else:
             results_dir = ut.join(experiment_dir, 'results_phasing')
+
         # find directories with image.npy file in the root of results_dir
-        dirs = []
+        scandirs = []
         for (dirpath, dirnames, filenames) in os.walk(results_dir):
             for file in filenames:
                 if file.endswith('image.npy'):
-                    dirs.append((dirpath).replace(os.sep, '/'))
-        if len(dirs) == 0:
+                    scandirs.append((dirpath).replace(os.sep, '/'))
+        if len(scandirs) == 0:
             print (f'no image.npy files found in the directory tree {results_dir}')
             return (f'no image.npy files found in the directory tree {results_dir}')
 
-        last_scan = int(main_conf_map['scan'].split(',')[-1].split('-')[-1])
+        scans_dirs = []
         if separate:
             scans = []
             # the scan that will be used to derive geometry is determined from the scan directory
-            for dir in dirs:
-                subdir = dir.removeprefix(f'{experiment_dir}/')
-                if subdir.startswith('scan'):
-                    scan_dir = subdir.split('/')[0]
-                    scans.append(int(scan_dir.removeprefix('scan_').split('-')[-1]))
-                else:
-                    print(f'directory {dir} does not start with "scan", not visualizing')
-            dirs = list(zip(dirs, scans))
+            for dir in scandirs:
+                scan_sub = dir.split('/')[-2]
+                scans_dirs.append((int(scan_sub.split('_')[-1].split('-')[-1]), dir))
         else:
-            dirs = [[dir, last_scan] for dir in dirs]
+            last_scan = int(main_conf_map['scan'].split(',')[-1].split('-')[-1])
+            scans_dirs = [[last_scan, dir] for dir in scandirs]
 
-        if len(dirs) == 1:
-            process_dir(instrument, config_map, rampups, crop, unwrap, make_twin, dirs[0])
+        if len(scans_dirs) == 1:
+            process_dir(instr_conf_map, conf_map, scans_dirs[0])
         else:
-            func = partial(process_dir, instrument, config_map, rampups, crop, unwrap, make_twin)
-            no_proc = min(cpu_count(), len(dirs))
+            func = partial(process_dir, instr_conf_map, conf_map)
+            # TODO account for available memory when calculating number of processes
+            # Currently the code will hung if not enough memory
+            # Work around is to lower no_proc
+            no_proc = min(cpu_count(), len(scandirs))
             with Pool(processes = no_proc) as pool:
-               pool.map_async(func, dirs)
+               pool.map_async(func, scans_dirs)
                pool.close()
                pool.join()
     print ('done with processing display')
@@ -453,10 +453,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_dir", help="experiment directory")
     parser.add_argument("--rec_id", help="alternate reconstruction id")
-    parser.add_argument("--debug", action="store_true",
+    parser.add_argument("--no_verify", action="store_true",
                         help="if True the vrifier has no effect on processing")
     args = parser.parse_args()
-    handle_visualization(args.experiment_dir, args.rec_id, debug=args.debug)
+    handle_visualization(args.experiment_dir, args.rec_id, no_verify=args.no_verify)
 
 
 if __name__ == "__main__":

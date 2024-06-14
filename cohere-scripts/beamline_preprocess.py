@@ -19,257 +19,13 @@ __all__ = ['handle_prep',
            'main']
 
 import argparse
-import os
 import importlib
-import time
 import cohere_core.utilities as ut
-import cohere_core.utilities.dvc_utils as dvut
-import shutil
-from multiprocessing import Queue, Process, Pool
-from functools import partial
-from multipeak import MultPeakPreparer
-from prep_helper import SepPreparer, SinglePreparer, process_separate_scans
+import auto_data as ad
+from multiprocessing import Process
 import common as com
+import multipeak as mp
 
-
-def set_lib(lib):
-    # initialize the library to cupy if available, otherwise to numpy
-    global devlib
-    if lib == 'cp':
-        devlib = importlib.import_module('cohere_core.lib.cplib').cplib
-    else:
-        devlib = importlib.import_module('cohere_core.lib.nplib').nplib
-    dvut.set_lib(devlib)
-
-
-def prep_data(prep_obj, **kwargs):
-    """
-    Creates prep_data.tif file in <experiment_dir>/preprocessed_data directory or multiple prep_data.tif in <experiment_dir>/<scan_<scan_no>>/preprocessed_data directories.
-    Parameters
-    ----------
-    none
-    Returns
-    -------
-    nothingcreated mp
-    """
-    if prep_obj.multipeak:
-        preparer = MultPeakPreparer(prep_obj)
-    elif prep_obj.separate_scan_ranges or prep_obj.separate_scans:
-        preparer = SepPreparer(prep_obj)
-    else:
-        preparer = SinglePreparer(prep_obj)
-
-    batches = preparer.get_batches()
-    if len(batches) == 0:
-        return 'no scans to process'
-    preparer.prepare(batches)
-
-    return ''
-
-
-def get_correlation_err(experiment_dir, scans, scan):
-    """
-    author: Paul Frosik
-    This function finds a mean of correlation errors calculated between given scan and all other scans.
-
-    :param experiment_dir: str
-        path to cohere experiment
-    :param scans: list of int
-        list of scans included in the batch
-    :param scan: int
-        scan number the mean correlation error is calculated for
-    :return: float
-        mean of all correlation errors
-    """
-    refarr = ut.read_tif(ut.join(experiment_dir, f'scan_{str(scan)}', 'preprocessed_data', 'prep_data.tif'))
-    err = 0
-    refarr = devlib.from_numpy(refarr)
-
-    for s in scans:
-       if s != scan:
-            datafile = ut.join(experiment_dir, f'scan_{str(s)}', 'preprocessed_data', 'prep_data.tif')
-            arr = devlib.from_numpy(ut.read_tif(datafile))
-            e = dvut.correlation_err(refarr, arr)
-            err += e
-    return (err / (len(scans) - 1), scan)
-
-
-def find_outliers_in_batch(experiment_dir, scans, q, no_processes):
-    """
-    Author: Paul Frosik
-
-    Used by auto-data. This function is called after experiment data has been read for each scan that is part of batch, i.e. scans that are being added together to bear a data file.
-    Each scan is aligned with other scans and correlation error is calculated for each pair. The errors are summed for each scan. Mertics such as average and standard deviation on the summed errors are used to find the outliers.
-    The scans with summed errors exceeding standard deviation are considered outliers that are returned in a list. The outliers scans will be excluded from the data set.
-    The outliers scans are added to the queue and will be consumed by calling process.
-
-    :param experiment_dir: str
-        path to the cohere experiment
-    :param scans: list
-        list of scans in the batch
-    :param q: Queue
-        a queue used to pass outliers scans calculated for this batch
-    :param no_processes: int
-        number processes allocated to this computing
-    :return:
-    """
-    from statistics import mean, pstdev
-
-    err_scan = []
-    outlier_scans = []
-    # if multiple processes can run concurrently use this code
-    if no_processes > 1:
-        func = partial(get_correlation_err, experiment_dir, scans)
-        with Pool(processes=no_processes) as pool:
-            res = pool.map_async(func, scans)
-            pool.close()
-            pool.join()
-        for r in res.get():
-            err_scan.append(r)
-    else:
-        # otherwise run it sequentially
-        for scan in scans:
-            err_scan.append(get_correlation_err(experiment_dir, scans, scan))
-
-    err = [el[0].item() for el in err_scan]
-    err_mean = mean(err)
-    stdev = pstdev(err)
-    # print('mean, std', mean, stdev)
-    for (err_value, scan) in err_scan:
-       # print(err_value, scan)
-        if err_value > (err_mean + stdev):
-            outlier_scans.append(scan)
-    q.put(outlier_scans)
-
-
-def find_outlier_scans(experiment_dir, prep_obj):
-    """
-    This function finds batches of scans with number of scans greater than 3 and follows to find outliers in those batches.
-    Scans data are read and saved in scan directories.
-    The function finds available resources and calls concurrent processes on each batch to find outliers.
-    The outliers scans are receives through queue from each process.
-    :param experiment_dir:
-         path to the cohere experiment
-    :param prep_obj:
-        object holding parameters for beamline preprocess
-    :return: list of int
-        list of outliers scans
-    """
-    auto_batches = []
-    dirs = []
-    scans = []
-    batches = prep_obj.get_batches()
-    for batch in batches:
-        if len(batch[0]) > 3:
-            dirs += batch[0]
-            scans += batch[1]
-            if prep_obj.separate_scan_ranges or prep_obj.multipeak:
-                auto_batches.append(batch)
-
-    if len(auto_batches) == 0:
-        return []
-
-    print('finding outliers')
-    if not prep_obj.separate_scan_ranges:
-        auto_batches.append([dirs, scans])
-    # save scans that are in auto_batches
-    process_separate_scans(prep_obj, dirs, scans, experiment_dir)
-
-    # this code determines which library to use and how many scans can be processed concurrently
-    try:
-        import cupy
-        lib = 'cp'
-        data_size = ut.read_tif(ut.join(experiment_dir, f'scan_{str(scans[0])}', 'preprocessed_data', 'prep_data.tif')).size
-        job_size = data_size * 67 / 1000000. + 84 # empirically found constants
-        # for now use the first GPU
-        # it will be revised after cluster availability is merged
-        avail_devs_dict = ut.get_avail_gpu_runs(job_size, [0])
-        avail_devs = []
-        for k,v in avail_devs_dict.items():
-            avail_devs.extend([k] * v)
-        available_processes = len(avail_devs)
-    except:
-        lib = 'np'
-        available_processes = os.cpu_count() * 2
-    set_lib(lib)
-
-    # the available processes will be distributed among processes for each batch, i.e. scan range
-    no_concurrent = available_processes // len(auto_batches)
-        # in case when number of batches is greater than available processes
-        # the chunking will handle all batches
-
-    # find outliers in each batch
-    q = Queue()
-
-    outliers = []
-    chunk_size = available_processes
-    while auto_batches:
-        chunk, auto_batches = auto_batches[:chunk_size], auto_batches[chunk_size:]
-
-        processes = []
-        for batch in chunk:
-            p = Process(target=find_outliers_in_batch, args=(experiment_dir, batch[1], q, no_concurrent))
-            processes.append(p)
-            p.start()
-        i = len(processes)
-        while i > 0:
-            outliers.extend(q.get())
-            i -= 1
-
-        for p in processes:
-            p.join()
-
-    # remove individual scan directories
-    for scan_dir in os.listdir(experiment_dir):
-        if scan_dir.startswith('scan'):
-            shutil.rmtree(ut.join(experiment_dir, scan_dir))
-    outliers.sort()
-    return outliers
-
-
-# def auto_separate_scans(experiment_dir, prep_obj, no_auto_batches):
-#     # this code determines which library to use and how many scans can be processed concurrently
-#     try:
-#         import cupy
-#         lib = 'cp'
-#         no_concurrent = 1
-#     except:
-#         lib = 'np'
-#         # the available processes will be distributed among processes for each batch, i.e. scan range
-#         no_concurrent = os.cpu_count() * 2 // no_auto_batches
-#     set_lib(lib)
-#
-#     print('finding outliers')
-#     dirs = []
-#     scans = []
-#     arrs = []
-#     batches = prep_obj.get_batches()
-#     for batch in batches:
-#         dirs.extend(batch[0])
-#         scans.extend(batch[1])
-#     # for dir in dirs:
-#     #     arr = devlib.from_numpy(prep_obj.read_scan(dir))
-#     #     arrs.append(arr)
-#     arr = devlib.from_numpy(prep_obj.read_scan(dirs[0]))
-#     arrs.append((arr))
-#     arr1 = devlib.from_numpy(prep_obj.read_scan(dirs[1]))
-#     arrs.append((arr1))
-#     # # save scans
-#     # process_separate_scans(prep_obj, dirs, scans, experiment_dir)
-#     print(scans)
-#     errs = []
-#     refarr = prep_obj.read_scan(dirs[0])
-#     for dir in dirs[1:]:
-#         arr = prep_obj.read_scan(dir)
-#         errs.append(dvut.correlation_err(devlib.from_numpy(refarr), devlib.from_numpy(arr)))
-#         refarr = arr
-#     errs = [e.item() for e in errs]
-#     for i in range(0,len(errs)):
-#         print(scans[i+1], errs[i])
-#     refarr = prep_obj.read_scan(dirs[3])
-#     arr = prep_obj.read_scan(dirs[7])
-#     print(errs)
-#
 
 def handle_prep(experiment_dir, **kwargs):
     """
@@ -286,67 +42,123 @@ def handle_prep(experiment_dir, **kwargs):
     """
     print('pre-processing data')
 
-    verify = not ('debug' in kwargs and kwargs['debug'])
+    # requesting the configuration files that provide parameters for preprocessing
     conf_list = ['config_prep', 'config_instr', 'config_mp']
-    err_msg, conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, verify)
-    if len(err_msg) > 0:
-        return err_msg
+    conf_maps, converted = com.get_config_maps(experiment_dir, conf_list)
+    # check the maps
+    if 'config' not in conf_maps.keys():
+        return 'missing main config file'
+    if 'config_prep' not in conf_maps.keys():
+        return 'missing config_prep file'
+    if 'config_instr' not in conf_maps.keys():
+        return 'missing config_instr file'
 
+    # verify that config files are correct
     main_conf_map = conf_maps['config']
+    no_verify = kwargs.get('no_verify', False)
+    if not no_verify:
+        err_msg = ut.verify('config', main_conf_map)
+        if len(err_msg) > 0:
+            return err_msg
+
     if 'beamline' in main_conf_map:
         beamline = main_conf_map['beamline']
         try:
-            beam_prep = importlib.import_module(f'beamlines.{beamline}.prep')
+            instr_module = importlib.import_module(f'beamlines.{beamline}.instrument')
+            ph = importlib.import_module(f'beamlines.{beamline}.preprocessor')
+            ver = importlib.import_module(f'beamlines.{beamline}.beam_verifier')
         except Exception as e:
             print(e)
-            print(f'cannot import beamlines.{beamline}.prep module.')
-            return f'cannot import beamlines.{beamline}.prep module.'
+            print(f'cannot import beamlines.{beamline} module.')
+            return f'cannot import beamlines.{beamline} module.'
     else:
         print('Beamline must be configured in main configuration file')
         return 'Beamline must be configured in main configuration file'
 
     prep_conf_map = conf_maps['config_prep']
-    data_dir = prep_conf_map['data_dir'].replace(os.sep, '/')
-    if not os.path.isdir(data_dir):
-        print(f'data directory {data_dir} is not a valid directory')
-        return f'data directory {data_dir} is not a valid directory'
+    if not no_verify:
+        err_msg = ver.verify('config_prep', prep_conf_map)
+        if len(err_msg) > 0:
+            return err_msg
 
-    # create BeamPrepData object defined for the configured beamline
-    instr_conf_map = conf_maps['config_instr']
-    conf_map = main_conf_map
-    conf_map.update(prep_conf_map)
-    conf_map.update(instr_conf_map)
-    conf_map['experiment_dir'] = experiment_dir
+    # config_instr contain all parameters needed to create instrument object
+    # add main config and mutipeak config to parameters, as the beamline might need them
+    # example: beamline 34idc needs scan number to parse spec file
+    all_params = {k:v for d in conf_maps.values() for k,v in d.items()}
+    instr_obj = instr_module.create_instr(all_params)
+    if instr_obj is None:
+        return 'cannot create instrument'
 
-    if 'config_mp' in conf_maps:
-        conf_map.update(conf_maps['config_mp'])
+    scan = all_params.get('scan', None)
+    if scan is None:
+        print('scan not defined in configuration')
+        return ('scan not defined in configuration')
 
-    prep_obj = beam_prep.BeamPrepData()
-    msg = prep_obj.initialize(experiment_dir, conf_map)
-    if len(msg) > 0:
-        print(msg)
-        return msg
+    # get the settings from main config
+    auto_data = main_conf_map.get('auto_data', False)
+    separate_scans = main_conf_map.get('separate_scans', False)
+    separate_scan_ranges = main_conf_map.get('separate_scan_ranges', False)
+    multipeak = main_conf_map.get('multipeak', False)
 
-    auto_data = 'auto_data' in conf_map and conf_map['auto_data']
-    if auto_data:
-        # auto_separate_scans(experiment_dir, prep_obj)
-        # # clear any outliers that might be set in config_prep
-        prep_obj.outliers_scans = []
-        # set the auto found outliers in object
-        srt = time.time()
-        outliers_scans = find_outlier_scans(experiment_dir, prep_obj)
-        spt = time.time()
-       # print('time to find outliers', spt-srt)
+    # 'scan' is configured as string. It can be a single scan, range, or combination separated by comma.
+    # Parse the scan into list of scan ranges, defined by starting scan, and ending scan, inclusive.
+    # The single scan has range defined as the same starting and ending scan.
+    scan_ranges = []
+    scan_units = [u for u in scan.replace(' ','').split(',')]
+    for u in scan_units:
+        if '-' in u:
+            r = u.split('-')
+            scan_ranges.append([int(r[0]), int(r[1])])
+        else:
+            scan_ranges.append([int(u), int(u)])
+
+    # get tuples of (scan, data info) for the scan ranges.
+    # Note: For aps_34idc the data info is a directory path to the data.
+    scans_datainfo = instr_obj.datainfo4scans(scan_ranges)
+
+    # remove exclude_scans from the scans_dirs
+    remove_scans = prep_conf_map.get('remove_scans', None)
+    if remove_scans is not None:
+        scans_datainfo = [[s_d for s_d in batch if s_d[0] not in remove_scans] for batch in scans_datainfo]
+
+    # auto_data should not be configured for separate scans
+    if auto_data and not separate_scans:
+        outliers_scans = ad.find_outlier_scans(experiment_dir, instr_obj.get_scan_array, scans_datainfo, separate_scan_ranges or multipeak)
         if len(outliers_scans) > 0:
-            prep_obj.outliers_scans = outliers_scans
-            # save configuration with the auto found outliers
-            prep_conf_map['outliers_scans'] = outliers_scans
+            # remove outliers_scans from the scans_dirs
+            scans_datainfo = [[s_d for s_d in batch if s_d[0] not in outliers_scans] for batch in scans_datainfo]
+        # save configuration with the auto found outliers. Save even if no outliers found to show it.
+        prep_conf_map['outliers_scans'] = outliers_scans
         ut.write_config(prep_conf_map, ut.join(experiment_dir, 'conf', 'config_prep'))
 
-    msg = prep_data(prep_obj, experiment_dir=experiment_dir)
-    if len(msg) > 0:
-        print(msg)
-        return msg
+    if separate_scans:
+        # get all (scan, data info) tuples, process each scan and save the data in scans directories.
+        single_scans_datainfo = [s_d for batch in scans_datainfo for s_d in batch]
+        # passing in lambda: instr_obj.get_scan_array as the function is instrument dependent
+        ad.process_separate_scans(instr_obj.get_scan_array, single_scans_datainfo, experiment_dir)
+    elif separate_scan_ranges:
+        # combine scans within ranges, save the data in scan ranges directories.
+        processes = []
+        for batch in scans_datainfo:
+            indx = str(batch[0][0])
+            if len(scans_datainfo) > 1:
+                indx = f'{indx}-{str(batch[-1][0])}'
+            # TODO make the 'prep_data.tif' beamline dependent
+            save_file = ut.join(experiment_dir, f'scan_{indx}', 'preprocessed_data', 'prep_data.tif')
+            p = Process(target=ph.process_batch,
+                        args=(instr_obj.get_scan_array, batch, save_file, experiment_dir))
+            p.start()
+            processes.append(p)
+        for p in processes:
+            p.join()
+    elif multipeak:
+        mp.preprocess(ph, instr_obj, scans_datainfo, experiment_dir, conf_maps['config_mp'])
+    else:
+        # combine all scans
+        scans_datainfo = [e for batch in scans_datainfo for e in batch]
+        save_file = ut.join(experiment_dir, 'preprocessed_data', 'prep_data.tif')
+        ph.process_batch(instr_obj.get_scan_array, scans_datainfo, save_file, experiment_dir)
+
     print('finished beamline preprocessing')
     return ''
 
@@ -355,10 +167,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_dir",
                         help="directory where the configuration files are located")
-    parser.add_argument("--debug", action="store_true",
+    parser.add_argument("--no_verify", action="store_true",
                         help="if True the vrifier has no effect on processing")
     args = parser.parse_args()
-    handle_prep(args.experiment_dir, debug=args.debug)
+    handle_prep(args.experiment_dir, no_verify=args.no_verify)
 
 
 if __name__ == "__main__":
