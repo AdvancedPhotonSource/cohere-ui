@@ -143,7 +143,6 @@ def handle_prep(experiment_dir, **kwargs):
             indx = str(batch[0][0])
             if len(scans_datainfo) > 1:
                 indx = f'{indx}-{str(batch[-1][0])}'
-            # TODO make the 'prep_data.tif' beamline dependent
             save_file = ut.join(experiment_dir, f'scan_{indx}', 'preprocessed_data', 'prep_data.tif')
             p = Process(target=ph.process_batch,
                         args=(instr_obj.get_scan_array, batch, save_file, experiment_dir))
