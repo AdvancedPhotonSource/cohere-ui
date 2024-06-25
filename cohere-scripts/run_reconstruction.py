@@ -141,6 +141,7 @@ def manage_reconstruction(experiment_dir, config_id, debug):
 
     main_config_map = conf_maps['config']
     rec_config_map = conf_maps['config_rec']
+    mp_config_map = conf_maps['config_mp']
     # find which library to run it on, default is numpy ('np')
     if 'processing' in rec_config_map:
         proc = rec_config_map['processing']
@@ -160,10 +161,12 @@ def manage_reconstruction(experiment_dir, config_id, debug):
             dev = config_map['device']
         else:
             dev = [-1]
-        peak_dirs = []
-        for dir in os.listdir(experiment_dir):
-            if dir.startswith('mp'):
-                peak_dirs.append(ut.join(experiment_dir, dir))
+
+        # peak_dirs = []
+        # for dir in os.listdir(experiment_dir):
+        #     if dir.startswith('mp'):
+        #         peak_dirs.append(ut.join(experiment_dir, dir))
+        peak_dirs = [ut.join(experiment_dir, d) for d in os.listdir(experiment_dir) if d.startswith("mp")]
         return cohere.reconstruction_coupled.reconstruction(lib, config_map, peak_dirs, dev)
 
     # exp_dirs_data list hold pairs of data and directory, where the directory is the root of phasing_data/data.tif file, and
