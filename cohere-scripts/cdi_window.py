@@ -26,7 +26,6 @@ from PyQt5.QtWidgets import *
 import importlib
 import convertconfig as conv
 import ast
-import cohere_core as cohere
 import cohere_core.utilities as ut
 import common as com
 
@@ -106,6 +105,7 @@ class cdi_gui(QWidget):
         """
         super(cdi_gui, self).__init__(parent)
 
+        self.loaded = False
         self.beamline = None
         self.exp_id = None
         self.experiment_dir = None
@@ -177,7 +177,7 @@ class cdi_gui(QWidget):
 
     def set_args(self, args, **kwargs):
         self.args = args
-        self.debug = 'debug' in kwargs and kwargs['debug']
+        self.no_verify = 'no_verify' in kwargs and kwargs['no_verify']
 
 
     def run_everything(self):
@@ -290,21 +290,18 @@ class cdi_gui(QWidget):
         -------
         nothing
         """
+        self.loaded = False
         self.reset_window()
         load_dir = select_dir(os.getcwd())
         if load_dir is None:
             msg_window('please select valid conf directory')
             return
-
         if not os.path.isfile(ut.join(load_dir, 'conf', 'config')):
             msg_window('missing conf/config file, not experiment directory')
             return
 
-        debug = self.debug
         conf_list = ['config_prep', 'config_data', 'config_rec', 'config_disp', 'config_instr', 'config_mp']
-        err_msg, conf_dicts, converted = com.get_config_maps(load_dir, conf_list, debug)
-        if len(err_msg) > 0:
-            return err_msg
+        conf_dicts, converted = com.get_config_maps(load_dir, conf_list)
 
         self.load_main(conf_dicts['config'])
 
@@ -315,6 +312,7 @@ class cdi_gui(QWidget):
             except:
                 pass
         self.set_experiment(True)
+        self.loaded = True
         self.t.load_conf(conf_dicts)
 
         if not self.is_exp_set():
@@ -392,10 +390,10 @@ class cdi_gui(QWidget):
         if self.separate_scan_ranges.isChecked():
             conf_map['separate_scan_ranges'] = True
         conf_map['converter_ver'] = conv.get_version()
-        er_msg = cohere.verify('config', conf_map)
+        er_msg = ut.verify('config', conf_map)
         if len(er_msg) > 0:
             msg_window(er_msg)
-            if self.debug:
+            if self.no_verify:
                 ut.write_config(conf_map, ut.join(self.experiment_dir, 'conf', 'config'))
         else:
             ut.write_config(conf_map, ut.join(self.experiment_dir, 'conf', 'config'))
@@ -470,10 +468,6 @@ class cdi_gui(QWidget):
         if not self.t is None:
             self.t.toggle_checked(self.multipeak.isChecked(), True)
 
-    def toggle_auto_data(self):
-        if self.is_exp_set():
-            self.save_main()
-
     def toggle_separate_scans(self):
         if self.is_exp_set():
             self.save_main()
@@ -486,6 +480,10 @@ class cdi_gui(QWidget):
         if not self.t is None:
             self.t.toggle_checked(self.separate_scan_ranges.isChecked(), False)
 
+
+    def toggle_auto_data(self):
+        if self.is_exp_set():
+            self.save_main()
 
 
 class Tabs(QTabWidget):
@@ -573,14 +571,14 @@ class Tabs(QTabWidget):
 
         # this line is passing all parameters from command line to prep script. 
         # if there are other parameters, one can add some code here
-        msg = prep.handle_prep(self.main_win.experiment_dir, debug=self.main_win.debug)
+        msg = prep.handle_prep(self.main_win.experiment_dir, no_verify=self.main_win.no_verify)
         if len(msg) > 0:
             msg_window(msg)
 
     def run_viz(self):
         import beamline_visualization as dp
 
-        msg = dp.handle_visualization(self.main_win.experiment_dir, debug=self.main_win.debug)
+        msg = dp.handle_visualization(self.main_win.experiment_dir, no_verify=self.main_win.no_verify)
         if len(msg) > 0:
             msg_window(msg)
 
@@ -852,7 +850,7 @@ class DataTab(QWidget):
             msg_window('the experiment has not been created yet')
         elif not self.main_win.is_exp_set():
             msg_window('the experiment has changed, pres "set experiment" button')
-        elif len(self.intensity_threshold.text()) == 0:
+        elif len(self.intensity_threshold.text()) == 0 and not self.main_win.auto_data:
             msg_window('Please, enter Intensity Threshold parameter')
         else:
             found_file = False
@@ -863,13 +861,13 @@ class DataTab(QWidget):
             if found_file:
                 conf_map = self.get_data_config()
                 # verify that data configuration is ok
-                er_msg = cohere.verify('config_data', conf_map)
+                er_msg = ut.verify('config_data', conf_map)
                 if len(er_msg) > 0:
                     msg_window(er_msg)
-                    if not self.main_win.debug:
+                    if not self.main_win.no_verify:
                         return
                 ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_data'))
-                run_dt.format_data(self.main_win.experiment_dir, debug=self.main_win.debug)
+                run_dt.format_data(self.main_win.experiment_dir, no_verify=self.main_win.no_verify)
             else:
                 msg_window('Please, run data preparation in previous tab to activate this function')
 
@@ -884,10 +882,10 @@ class DataTab(QWidget):
         # save data config
         conf_map = self.get_data_config()
         if len(conf_map) > 0:
-            er_msg = cohere.verify('config_data', conf_map)
+            er_msg = ut.verify('config_data', conf_map)
             if len(er_msg) > 0:
                 msg_window(er_msg)
-                if not self.main_win.debug:
+                if not self.main_win.no_verify:
                     return
             ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_data'))
 
@@ -1122,13 +1120,8 @@ class RecTab(QWidget):
         conf_map = self.get_rec_config()
         if len(conf_map) == 0:
             return
-        er_msg = cohere.verify('config_rec', conf_map)
-        if len(er_msg) > 0:
-            msg_window(er_msg)
-            if not self.main_win.debug:
-             return
-        if len(conf_map) > 0:
-            ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_rec'))
+
+        ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_rec'))
 
 
     def set_init_guess_layout(self, layout):
@@ -1300,13 +1293,13 @@ class RecTab(QWidget):
                     return
 
                 # verify that reconstruction configuration is ok
-                er_msg = cohere.verify('config_rec', conf_map)
+                er_msg = ut.verify('config_rec', conf_map)
                 if len(er_msg) > 0:
                     msg_window(er_msg)
-                    if not self.main_win.debug:
+                    if not self.main_win.no_verify:
                         return
                 ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', conf_file))
-                run_rc.manage_reconstruction(self.main_win.experiment_dir, config_id=conf_id, debug=self.main_win.debug)
+                run_rc.manage_reconstruction(self.main_win.experiment_dir, config_id=conf_id, no_verify=self.main_win.no_verify)
                 self.notify()
             else:
                 msg_window('Please, run format data in previous tab to activate this function')
@@ -1617,7 +1610,7 @@ class GA(Feature):
         -------
         nothing
         """
-        self.generations.setText('5')
+        self.generations.setText('3')
         self.metrics.setText('["chi"]')
         self.breed_modes.setText('["sqrt_ab"]')
         self.ga_sw_thresholds.setText('[.1]')
@@ -1856,18 +1849,18 @@ class shrink_wrap(Feature):
             conf_map['shrink_wrap_gauss_sigma'] = ast.literal_eval(str(self.shrink_wrap_gauss_sigma.text()))
 
 
-class phase_support(Feature):
+class phase_constrain(Feature):
     """
-    This class encapsulates phase support feature.
+    This class encapsulates phase constrain feature.
     """
     def __init__(self):
-        super(phase_support, self).__init__()
-        self.id = 'phase support'
+        super(phase_constrain, self).__init__()
+        self.id = 'phase constrain'
 
 
     def init_config(self, conf_map):
         """
-        This function sets phase support feature's parameters to parameters in dictionary and displays in the window.
+        This function sets phase constrain feature's parameters to parameters in dictionary and displays in the window.
         Parameters
         ----------
         conf_map : dict
@@ -1876,21 +1869,21 @@ class phase_support(Feature):
         -------
         nothing
         """
-        if 'phm_trigger' in conf_map:
-            triggers = conf_map['phm_trigger']
+        if 'phc_trigger' in conf_map:
+            triggers = conf_map['phc_trigger']
             self.active.setChecked(True)
             self.phase_triggers.setText(str(triggers).replace(" ", ""))
         else:
             self.active.setChecked(False)
             return
-        if 'phm_phase_min' in conf_map:
-            self.phm_phase_min.setText(str(conf_map['phm_phase_min']).replace(" ", ""))
+        if 'phc_phase_min' in conf_map:
+            self.phc_phase_min.setText(str(conf_map['phc_phase_min']).replace(" ", ""))
         else:
-            self.phm_phase_min.setText('')
-        if 'phm_phase_max' in conf_map:
-            self.phm_phase_max.setText(str(conf_map['phm_phase_max']).replace(" ", ""))
+            self.phc_phase_min.setText('')
+        if 'phc_phase_max' in conf_map:
+            self.phc_phase_max.setText(str(conf_map['phc_phase_max']).replace(" ", ""))
         else:
-            self.phm_phase_max.setText('')
+            self.phc_phase_max.setText('')
 
 
     def fill_active(self, layout):
@@ -1905,17 +1898,17 @@ class phase_support(Feature):
         nothing
         """
         self.phase_triggers = QLineEdit()
-        layout.addRow("phase support triggers", self.phase_triggers)
+        layout.addRow("phase constrain triggers", self.phase_triggers)
         self.phase_triggers.setToolTip('suggested trigger: [0, 1, <half iteration number>]')
-        self.phm_phase_min = QLineEdit()
-        layout.addRow("phase minimum", self.phm_phase_min)
-        self.phm_phase_max = QLineEdit()
-        layout.addRow("phase maximum", self.phm_phase_max)
+        self.phc_phase_min = QLineEdit()
+        layout.addRow("phase minimum", self.phc_phase_min)
+        self.phc_phase_max = QLineEdit()
+        layout.addRow("phase maximum", self.phc_phase_max)
 
 
     def rec_default(self):
         """
-        This function sets phase support feature's parameters to hardcoded default values.
+        This function sets phase constrain feature's parameters to hardcoded default values.
         Parameters
         ----------
         none
@@ -1923,14 +1916,14 @@ class phase_support(Feature):
         -------
         nothing
         """
-        self.phase_triggers.setText('[0,1,320]')
-        self.phm_phase_min.setText('-1.57')
-        self.phm_phase_max.setText('1.57')
+        self.phase_triggers.setText('[1,5,320]')
+        self.phc_phase_min.setText('-1.57')
+        self.phc_phase_max.setText('1.57')
 
 
     def add_feat_conf(self, conf_map):
         """
-        This function adds phase support feature's parameters to dictionary.
+        This function adds phase constrain feature's parameters to dictionary.
         Parameters
         ----------
         conf_map : dict
@@ -1940,11 +1933,11 @@ class phase_support(Feature):
         nothing
         """
         if len(self.phase_triggers.text()) > 0:
-            conf_map['phm_trigger'] = ast.literal_eval(str(self.phase_triggers.text()).replace(os.linesep,''))
-        if len(self.phm_phase_min.text()) > 0:
-            conf_map['phm_phase_min'] = ast.literal_eval(str(self.phm_phase_min.text()))
-        if len(self.phm_phase_max.text()) > 0:
-            conf_map['phm_phase_max'] = ast.literal_eval(str(self.phm_phase_max.text()))
+            conf_map['phc_trigger'] = ast.literal_eval(str(self.phase_triggers.text()).replace(os.linesep,''))
+        if len(self.phc_phase_min.text()) > 0:
+            conf_map['phc_phase_min'] = ast.literal_eval(str(self.phc_phase_min.text()))
+        if len(self.phc_phase_max.text()) > 0:
+            conf_map['phc_phase_max'] = ast.literal_eval(str(self.phc_phase_max.text()))
 
 
 class pcdi(Feature):
@@ -2286,12 +2279,12 @@ class Features(QWidget):
         Constructor, creates all concrete feature objects, and displays in window.
         """
         super(Features, self).__init__()
-        feature_ids = ['GA', 'low resolution', 'shrink wrap', 'phase support', 'pcdi', 'twin', 'average', 'progress']
+        feature_ids = ['GA', 'low resolution', 'shrink wrap', 'phase constrain', 'pcdi', 'twin', 'average', 'progress']
         self.leftlist = QListWidget()
         self.feature_dir = {'GA' : GA(),
                             'low resolution' : low_resolution(),
                             'shrink wrap' : shrink_wrap(),
-                            'phase support' : phase_support(),
+                            'phase constrain' : phase_constrain(),
                             'pcdi' : pcdi(),
                             'twin' : twin(),
                             'average' : average(),
@@ -2497,12 +2490,12 @@ def main():
     Starts GUI application.
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument("--debug", action="store_true",
+    parser.add_argument("--no_verify", action="store_true",
                         help="if True the verifier has no effect on processing")
     args = parser.parse_args()
     app = QApplication(sys.argv)
     ex = cdi_gui()
-    ex.set_args(sys.argv[1:], debug=args.debug)
+    ex.set_args(sys.argv[1:], no_verify=args.no_verify)
     ex.show()
     sys.exit(app.exec_())
 

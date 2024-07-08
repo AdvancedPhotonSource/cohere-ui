@@ -51,11 +51,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_dir", help="experiment directory")
     parser.add_argument("--config_id", help="reconstruction id, a prefix to '_results' directory")
-    parser.add_argument("--debug", action="store_true",
+    parser.add_argument("--no_verify", action="store_true",
                         help="if True the vrifier has no effect on processing")
 
     args = parser.parse_args()
-    run_all(args.experiment_dir, config_id=args.config_id, debug=args.debug)
+    run_all(args.experiment_dir, config_id=args.config_id, no_verify=args.no_verify)
 
 
 if __name__ == "__main__":

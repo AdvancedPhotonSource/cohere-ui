@@ -30,7 +30,6 @@ from skimage import transform
 import scipy.ndimage as ndi
 from scipy.spatial.transform import Rotation as R
 import cohere_core.utilities as ut
-from beamlines.aps_34idc import instrument as instr
 
 
 def calc_geometry(prep_obj, scans, shape, o_twin):
@@ -134,80 +133,61 @@ def twin_matrix(hklin, hklout, twin_plane, sample_axis):
     return R.from_rotvec(vec * -theta).as_matrix()
 
 
-class MultPeakPreparer(Preparer):
-    def __init__(self, prep_obj):
-        """
-        Creates PrepData instance for beamline aps_34idc. Sets fields to configuration parameters.
-        Parameters
-        ----------
-        experiment_dir : str
-            directory where the files for the experiment processing are created
-        Returns
-        -------
-        PrepData object
-        """
-        super().__init__(prep_obj)
-        try:
-            self.o_twin = twin_matrix(prep_obj.hkl_in, prep_obj.hkl_out, prep_obj.twin_plane,
-                                      prep_obj.sample_axis)
-        except KeyError:
-            self.o_twin = np.identity(3)
+def preprocess(preprocessor, instr_obj, scans_dirs, experiment_dir, mp_conf_map):
+    try:
+        o_twin = twin_matrix(mp_conf_map.get('hkl_in'),
+                             mp_conf_map.get('hkl_out'),
+                             mp_conf_map.get('twin_plane'),
+                             mp_conf_map.get('sample_axis'))
+    except KeyError:
+        o_twin = np.identity(3)
 
-    def get_batches(self):
-        batches = super().get_batches()
-        for batch in batches:
-            # figure order of the batches relative to params stored in prep_obj
-            index = batch[1][0]  # first index of scan in batch
-            i = 0
-            while index > self.prep_obj.scan_ranges[i][-1]:
-                i += 1
-            batch.append(i)
-            shape = self.prep_obj.read_scan(batch[0][0]).shape
-            B_recip, rs_voxel_size = calc_geometry(self.prep_obj, batch[1], shape, self.o_twin)
-            batch.append(B_recip)
-            batch.append(rs_voxel_size)  # reciprocal-space voxel size in inverse nanometers
-            batch.append(2*np.pi/(rs_voxel_size*self.prep_obj.final_size))  # direct-space voxel size in nanometers
-        return batches
+    shape = instr_obj.get_scan_array(scans_dirs[0][0][1]).shape
 
-    def prepare(self, batches):
-        processes = []
-        rs_voxel_size = max(batch[4] for batch in batches)
-        ds_voxel_size = min(batch[5] for batch in batches)
-        f = self.prep_obj.experiment_dir + '/conf/config_mp'
-        mp_config = ut.read_config(f)
-        mp_config["rs_voxel_size"] = rs_voxel_size
-        mp_config["ds_voxel_size"] = ds_voxel_size
-        ut.write_config(mp_config, f)
-        for batch in batches:
-            dirs = batch[0]
-            scans = batch[1]
-            order = batch[2]
-            B_recip = batch[3]
-            conf_scans = f"{self.prep_obj.scan_ranges[order][0]}-{self.prep_obj.scan_ranges[order][1]}"
-            geometry = {
-                "peak_hkl": self.prep_obj.orientations[order],
-                "rmatrix": B_recip.tolist(),
-                "lattice": mp_config["lattice_size"],
-                "rs_voxel_size": rs_voxel_size,
-                "ds_voxel_size": ds_voxel_size,
-                "final_size": self.prep_obj.final_size
-            }
-            orientation = "".join(f"{o}" for o in geometry["peak_hkl"])
-            save_dir = f"{self.prep_obj.experiment_dir}/mp_{conf_scans}_{orientation}"
-            if not Path(save_dir).exists():
-                Path(save_dir).mkdir()
-            ut.write_config(geometry, f"{save_dir}/geometry")
-            p = Process(target=self.process_batch,
-                        args=(dirs, scans, f"{save_dir}/preprocessed_data", 'prep_data.tif'))
-            p.start()
-            processes.append(p)
-        for p in processes:
-            p.join()
+    batches_rs_voxel_sizes = []
+    batches_ds_voxel_sizes = []
+    batches_B_recipes = []
+    for batch in scans_dirs:
+        first_scan = batch[0][0]
+        B_recip, rs_voxel_size = calc_geometry(instr_obj, shape, first_scan, o_twin)
+        batches_rs_voxel_sizes.append(rs_voxel_size)   # reciprocal-space voxel size in inverse nanometers
+        batches_ds_voxel_sizes.append(2*np.pi/(rs_voxel_size*shape[0]))  # direct-space voxel size in nanometers
+        batches_B_recipes.append(B_recip)
 
-    def process_batch(self, dirs, scans, save_dir, filename):
-        batch_arr = combine_scans(self.prep_obj, dirs, scans)
-        batch_arr = self.prep_obj.det_obj.clear_seam(batch_arr)
-        write_prep_arr(batch_arr, save_dir, filename)
+    rs_voxel_size = max(batches_rs_voxel_sizes)
+    ds_voxel_size = min(batches_ds_voxel_sizes)
+    # add the voxel size to config and save
+    mp_conf_map["rs_voxel_size"] = rs_voxel_size
+    mp_conf_map["ds_voxel_size"] = ds_voxel_size
+    ut.write_config(mp_conf_map, ut.join(experiment_dir, 'conf', 'config_mp'))
+
+    # run preprocessor for each batch (data set related to peak)
+    processes = []
+    conf_scans = mp_conf_map.get('scan').split(',')
+    for i, batch in enumerate(scans_dirs):
+        dirs = batch[0]
+        scans = batch[1]
+        geometry = {
+            "peak_hkl": mp_conf_map.get('orientations')[i],
+            "rmatrix": batches_B_recipes[i].tolist(),
+            "lattice": mp_conf_map.get('lattice_size'),
+            "rs_voxel_size": rs_voxel_size,
+            "ds_voxel_size": ds_voxel_size,
+            "final_size": mp_conf_map.get('final_size')
+        }
+        orientation = "".join(f"{o}" for o in geometry["peak_hkl"])
+        save_dir = ut.join(experiment_dir, f'mp_{conf_scans[i]}_{orientation}')
+        if not Path(save_dir).exists():
+            Path(save_dir).mkdir()
+        ut.write_config(geometry, ut.join(save_dir, 'geometry'))
+
+        p = Process(target=preprocessor.process_batch,
+                    args=(instr_obj.get_scan_array, batch, ut.join(save_dir, 'preprocessed_data', 'prep_data.tif'), experiment_dir))
+        p.start()
+        processes.append(p)
+
+    for p in processes:
+        p.join()
 
 
 def center_mp(image, support):

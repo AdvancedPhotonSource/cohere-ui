@@ -11,7 +11,7 @@ This script formats data for reconstruction according to configuration.
 
 import argparse
 import os
-import cohere_core as cohere
+import cohere_core.data as fd
 import cohere_core.utilities as ut
 import common as com
 
@@ -38,18 +38,28 @@ def format_data(experiment_dir, **kwargs):
     """
     print('formatting data')
 
-    debug = 'debug' in kwargs and kwargs['debug']
     conf_list = ['config_data']
-    err_msg, conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, debug)
+    conf_maps, converted = com.get_config_maps(experiment_dir, conf_list)
+     # check the maps
+    if 'config' not in conf_maps.keys():
+        return 'missing main config file'
+    if 'config_data' not in conf_maps.keys():
+        return 'missing config_data file'
+
+    # verify that config files are correct
+    main_conf_map = conf_maps['config']
+    err_msg = ut.verify('config', main_conf_map)
     if len(err_msg) > 0:
         return err_msg
-    main_conf_map = conf_maps['config']
+
+    data_config_map = conf_maps['config_data']
+    err_msg = ut.verify('config_data', data_config_map)
+    if len(err_msg) > 0:
+        return err_msg
 
     auto_data = 'auto_data' in main_conf_map and main_conf_map['auto_data']
 
     data_conf_map = conf_maps['config_data']
-    if debug:
-        data_conf_map['debug'] = True
     if auto_data:
         data_conf_map['do_auto_binning'] = not('multipeak' in main_conf_map and main_conf_map['multipeak'])
 
@@ -72,7 +82,7 @@ def format_data(experiment_dir, **kwargs):
             os.makedirs(data_dir)
         data_conf_map['data_dir'] = data_dir
         # call the preprocessing in cohere_core, it will return updated configuration if auto_data
-        data_conf_map = cohere.prep(ut.join(proc_dir, 'preprocessed_data', 'prep_data.tif'), auto_data, **data_conf_map)
+        data_conf_map = fd.prep(ut.join(proc_dir, 'preprocessed_data', 'prep_data.tif'), auto_data, **data_conf_map)
 
     # This will work for a single reconstruction.
     # For separate scan the last auto-calculated values will be saved
@@ -85,10 +95,10 @@ def format_data(experiment_dir, **kwargs):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_dir", help="experiment directory")
-    parser.add_argument("--debug", action="store_true",
+    parser.add_argument("--no_verify", action="store_true",
                         help="if True the vrifier has no effect on processing")
     args = parser.parse_args()
-    format_data(args.experiment_dir, debug=args.debug)
+    format_data(args.experiment_dir, no_verify=args.no_verify)
 
 
 if __name__ == "__main__":

@@ -38,7 +38,7 @@ def set_lib(pkg):
         devlib = importlib.import_module('cohere_core.lib.nplib').nplib
     elif pkg == 'torch':
         devlib = importlib.import_module('cohere_core.lib.torchlib').torchlib
-    calc.set_lib(devlib)
+    calc.set_lib_from_pkg(devlib)
 
 
 def order_ranks(tracing, proc_metrics, metric_type):

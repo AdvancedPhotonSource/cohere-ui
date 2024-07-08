@@ -2,7 +2,6 @@ import os
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 import ast
-import cohere_core as cohere
 import cohere_core.utilities as ut
 
 
@@ -269,16 +268,16 @@ class PrepTab(QWidget):
             return
         else:
             conf_map = self.get_prep_config()
-        # verify that prep configuration is ok
-        er_msg = cohere.verify('config_prep', conf_map)
-        if len(er_msg) > 0:
-            msg_window(er_msg)
-            if not self.main_win.debug:
-              return
-        # for 34idc prep data directory is needed
-        if len(self.data_dir_button.text().strip()) == 0:
-            msg_window('cannot prepare data for 34idc, need data directory')
-            return
+        # # verify that prep configuration is ok
+        # er_msg = ut.verify('config_prep', conf_map)
+        # if len(er_msg) > 0:
+        #     msg_window(er_msg)
+        #     if not self.main_win.no_verify:
+        #       return
+        # # for 34idc prep data directory is needed
+        # if len(self.data_dir_button.text().strip()) == 0:
+        #     msg_window('cannot prepare data for 34idc, need data directory')
+        #     return
 
         main_config_map = ut.read_config(ut.join(self.main_win.experiment_dir, 'conf', 'config'))
         auto_data = 'auto_data' in main_config_map and main_config_map['auto_data']
@@ -361,13 +360,13 @@ class PrepTab(QWidget):
 
         conf_map = self.get_prep_config()
         if len(conf_map) > 0:
-            er_msg = cohere.verify('config_prep', conf_map)
-            if len(er_msg) > 0:
-                msg_window(er_msg)
-                if self.main_win.debug:
-                    ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
-            else:
-                ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
+            # er_msg = ut.verify('config_prep', conf_map)
+            # if len(er_msg) > 0:
+            #     msg_window(er_msg)
+            #     if self.main_win.no_verify:
+            #         ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
+            # else:
+            ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
 
 
     def notify(self):
@@ -550,12 +549,12 @@ class DispTab(QWidget):
         #     return
 
         conf_map = self.get_disp_config()
-        # verify that disp configuration is ok
-        er_msg = cohere.verify('config_disp', conf_map)
-        if len(er_msg) > 0:
-            msg_window(er_msg)
-            if not self.main_win.debug:
-                return
+        # # verify that disp configuration is ok
+        # er_msg = ut.verify('config_disp', conf_map)
+        # if len(er_msg) > 0:
+        #     msg_window(er_msg)
+        #     if not self.main_win.no_verify:
+        #         return
 
         ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
         self.tabs.run_viz()
@@ -568,13 +567,13 @@ class DispTab(QWidget):
 
         conf_map = self.get_disp_config()
         if len(conf_map) > 0:
-            er_msg = cohere.verify('config_disp', conf_map)
-            if len(er_msg) > 0:
-                msg_window(er_msg)
-                if self.main_win.debug:
-                    ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
-            else:
-                ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
+            # er_msg = ut.verify('config_disp', conf_map)
+            # if len(er_msg) > 0:
+            #     msg_window(er_msg)
+            #     if self.main_win.no_verify:
+            #         ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
+            # else:
+            ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
 
 
     def update_tab(self, **args):
@@ -791,6 +790,8 @@ class SubInstrTab():
         -------
         nothing
         """
+        if not self.main_window.loaded and not self.main_window.is_exp_set():
+            return
         scan = str(self.main_window.scan_widget.text())
         if len(scan) == 0:
             msg_window ('cannot parse spec, scan not defined')
@@ -816,7 +817,7 @@ class SubInstrTab():
             return
 
         last_scan = int(scan.split('-')[-1].split(',')[-1])
-        spec_dict = instr.parse_spec(specfile, last_scan, diff_obj)
+        spec_dict = diff_obj.parse_spec(specfile, last_scan)
         if spec_dict is None:
             return
         if 'energy' in spec_dict:
@@ -871,8 +872,8 @@ class InstrTab(QWidget):
             self.add_config = True
             self.extended.spec_widget.show()
             self.extended.parse_spec()
-
-        self.save_conf()
+        if self.main_win.loaded:
+            self.save_conf()
 
 
     def init(self, tabs, main_window):
@@ -971,7 +972,8 @@ class InstrTab(QWidget):
         else:
             self.spec_file_button.setText('')
 
-        self.save_conf()
+        if self.main_win.is_exp_exists():
+            self.save_conf()
 
 
     def clear_conf(self):
@@ -1038,12 +1040,16 @@ class InstrTab(QWidget):
             return
 
         conf_map = self.get_instr_config()
-        # verify that disp configuration is ok
-        er_msg = cohere.verify('config_instr', conf_map)
-        if len(er_msg) > 0:
-            msg_window(er_msg)
-            if not self.main_win.debug:
-                return
+        if len(conf_map) == 0:
+            return
+
+        # # verify that disp configuration is ok
+        # er_msg = ver.verify('config_instr', conf_map)
+        # print('er, conf', er_msg, conf_map)
+        # if len(er_msg) > 0:
+        #     msg_window(er_msg)
+        #     if not self.main_win.no_verify:
+        #         return
 
         ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_instr'))
 
