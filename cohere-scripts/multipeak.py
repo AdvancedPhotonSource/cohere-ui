@@ -24,23 +24,17 @@ from pathlib import Path
 import numpy as np
 from tvtk.api import tvtk
 from multiprocessing import Process
-from prep_helper import Preparer, combine_scans, write_prep_arr
-from matplotlib import pyplot as plt
 from skimage import transform
 import scipy.ndimage as ndi
 from scipy.spatial.transform import Rotation as R
 import cohere_core.utilities as ut
 
 
-def calc_geometry(prep_obj, scans, shape, o_twin):
+def calc_geometry(instr_obj, shape, scan, o_twin):
     """Calculates the rotation matrix and voxel size for a given peak"""
-    config_map = ut.read_config(prep_obj.experiment_dir + '/conf/config_instr')
-    config_map['multipeak'] = True
-    instr_obj = instr.Instrument()
-    instr_obj.initialize(config_map, scans[-1])
-    B_recip, _ = instr_obj.get_geometry(shape, xtal=True)
+    B_recip, _ = instr_obj.get_geometry(shape, scan, xtal=True)
     B_recip = np.stack([B_recip[1, :], B_recip[0, :], B_recip[2, :]])
-    rs_voxel_size = np.mean([np.linalg.norm(B_recip[:, i]) for i in range(3)])  # Units are inverse nanometers
+    rs_voxel_size = np.max([np.linalg.norm(B_recip[:, i]) for i in range(3)])  # Units are inverse nanometers
     B_recip = o_twin @ B_recip
     return B_recip, rs_voxel_size
 
