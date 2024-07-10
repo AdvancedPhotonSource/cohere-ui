@@ -1,16 +1,7 @@
-from pathlib import Path
-import warnings
-from itertools import chain
 import argparse
 
 import numpy as np
 from matplotlib import pyplot as plt
-from matplotlib import colors
-from scipy import stats
-import skimage.metrics as ski_metrics
-from tqdm import tqdm
-import scipy.ndimage as ndi
-import tifffile
 from mayavi import mlab
 
 
