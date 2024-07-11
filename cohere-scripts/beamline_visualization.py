@@ -254,6 +254,16 @@ class CXDViz:
         sgwriter.write()
         print(f'saved file {filename}')
 
+def voxel_size(geometry, shape):
+    (Tr, Td)  = geometry
+    print('geometry', Tr, Td)
+    B_recip = np.stack([Tr[1, :], Tr[0, :], Tr[2, :]])
+    print('B_recip', B_recip)
+    rs_voxel_size = np.max([np.linalg.norm(B_recip[:, i]) for i in range(3)])  # Units are inverse nanometers
+    print('rs voxel size', rs_voxel_size)
+    ds_voxel_size = 2*np.pi/(rs_voxel_size*shape[0])
+    print('ds voxel size', ds_voxel_size)
+
 
 def process_dir(instr_conf_map, config_map, res_scans_dirs):
     """
