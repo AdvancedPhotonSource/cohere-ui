@@ -66,15 +66,15 @@ def combine_scans(get_scan_func, scans_dirs, experiment_dir):
     (refscan, refdir) = scans_dirs.pop(0)
     refarr = get_scan_func(refdir)
 
+    # It is faster to run concurrently on cpu than on gpu which needs uploading
+    # array on gpu memory. Setting library here before starting multiple processes
+    dvut.set_lib_from_pkg('np')
+
     # start reporting process. It will get correlation error for each scan with reference
     # to the refarray. It will receive the errors via queue.
     q = Queue()
     p = Process(target=report_corr_err, args=(q, refscan, len(scans_dirs) - 1, experiment_dir))
     p.start()
-
-    # It is faster to run concurrently on cpu than on gpu which needs uploading
-    # array on gpu memory. Setting library here before starting multiple processes
-    dvut.set_lib_from_pkg('np')
 
     nproc = min(len(scans_dirs)-1, os.cpu_count() * 2)
 

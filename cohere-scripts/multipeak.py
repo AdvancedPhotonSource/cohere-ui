@@ -157,7 +157,7 @@ def preprocess(preprocessor, instr_obj, scans_dirs, experiment_dir, mp_conf_map)
 
     # run preprocessor for each batch (data set related to peak)
     processes = []
-    conf_scans = mp_conf_map.get('scan').split(',')
+    conf_scans = [s.strip() for s in mp_conf_map.get('scan').split(',')]
     for i, batch in enumerate(scans_dirs):
         dirs = batch[0]
         scans = batch[1]
@@ -176,7 +176,9 @@ def preprocess(preprocessor, instr_obj, scans_dirs, experiment_dir, mp_conf_map)
         ut.write_config(geometry, ut.join(save_dir, 'geometry'))
 
         p = Process(target=preprocessor.process_batch,
-                    args=(instr_obj.get_scan_array, batch, ut.join(save_dir, 'preprocessed_data', 'prep_data.tif'), experiment_dir))
+                    args=(instr_obj.get_scan_array, batch, ut.join(save_dir, 'preprocessed_data', 'prep_data.tif'),
+                          experiment_dir)
+                    )
         p.start()
         processes.append(p)
 
@@ -269,7 +271,6 @@ def process_dir(exp_dir, rampups=1, make_twin=True):
         f.unlink()
 
     image = np.load(f"{res_dir}/reconstruction.npy")
-    image = np.moveaxis(image, 3, 0)
     image[0] = image[0] / np.max(image[0])
     support = np.load(f"{res_dir}/support.npy")
 
