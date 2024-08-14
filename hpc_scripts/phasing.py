@@ -36,7 +36,7 @@ def set_lib_from_pkg(pkg):
     global devlib
 
     # get the lib object
-    devlib = ut.set_lib(pkg)
+    devlib = ut.get_lib(pkg)
     # pass the lib object to the features associated with this reconstruction
     ft.set_lib(devlib)
     # the utilities are not associated with reconstruction and the initialization of lib is independent
@@ -141,7 +141,7 @@ class Rec:
         return 0
 
 
-    def init(self, dir=None, alpha_dir=None, gen=None):
+    def init_iter_loop(self, dir=None, alpha_dir=None, gen=None):
         def create_feat_objects(params, trig_op_info):
             if 'shrink_wrap_trigger' in params:
                 self.shrink_wrap_obj = ft.create('shrink_wrap', params, trig_op_info)
@@ -403,68 +403,78 @@ class TeRec(Rec):
 
     """
 
-    def __init__(self, params, data_file, pkg='cp'):
+    def __init__(self, params, data_file, comm, pkg='cp'):
         super().__init__(params, data_file, pkg)
 
-        self.params['weight'] = 0.1
-        print('data file, rank', data_file, self.rank)
+        self.size = comm.Get_size()
+        self.rank = comm.Get_rank()
+        self.weight = .1
 
 
     def er(self):
         self.comm.Barrier()
         if self.rank != 0:
-            self.comm.send(devlib.absolute(self.rs_amplitudes), dest=self.rank-1)
+            self.comm.send(self.ds_image, dest=self.rank-1)
         if self.rank != self.size -1:
             ds_image_next = self.comm.recv(source=self.rank+1)
         self.comm.Barrier()
         if self.rank != self.size -1:
-            self.comm.send(devlib.absolute(self.rs_amplitudes), dest=self.rank+1)
+            self.comm.send(self.ds_image, dest=self.rank+1)
         if self.rank != 0:
             ds_image_prev = self.comm.recv(source=self.rank-1)
 
-        self.ds.image = (1/(1+2*self.weight)) * self.support * (self.ds_image_raw +
-        self.weight * (ds_image_prev + ds_image_next))
+        if self.rank == 0 or self.rank == self.size - 1:
+            self.ds_image = self.ds_image_raw * self.support
+        else:
+            self.ds_image = (1/(1+2*self.weight)) * self.support * (self.ds_image_raw +
+            self.weight * (ds_image_prev + ds_image_next))
 
 
     def hio(self):
         self.comm.Barrier()
-        if self.rank != 0:
-            self.comm.send(devlib.absolute(self.rs_amplitudes), dest=self.rank-1)
-        if self.rank != self.size -1:
+        if self.rank > 1:
+            self.comm.send(self.ds_image, dest=self.rank-1)
+        if self.rank > 0 and self.rank != self.size - 1:
             ds_image_next = self.comm.recv(source=self.rank+1)
         self.comm.Barrier()
-        if self.rank != self.size -1:
-            self.comm.send(devlib.absolute(self.rs_amplitudes), dest=self.rank+1)
-        if self.rank != 0:
+        if self.rank < self.size - 2:
+            self.comm.send(self.ds_image, dest=self.rank+1)
+        if self.rank < self.size - 1 and self.rank != 0:
             ds_image_prev = self.comm.recv(source=self.rank-1)
 
-        combined_image = self.ds_image - self.ds_image_raw * self.params['hio_beta']
-        corr = self.weight * self.support * (2 * (self.ds_image) - (ds_image_prev + ds_image_next))
-        self.ds_image = devlib.where((self.support > 0), self.ds_image_raw, combined_image) - corr
+        if self.rank == 0 or self.rank == self.size - 1:
+            combined_image = self.ds_image - self.ds_image_raw * self.params['hio_beta']
+            self.ds_image = devlib.where((self.support > 0), self.ds_image_raw, combined_image)
+        else:
+            combined_image = self.ds_image - self.ds_image_raw * self.params['hio_beta']
+            corr = self.weight * self.support * (2 * (self.ds_image) - (ds_image_prev + ds_image_next))
+            self.ds_image = devlib.where((self.support > 0), self.ds_image_raw, combined_image) - corr
 
 
 def time_evolving_rec():
+    import ast
     parser = argparse.ArgumentParser()
     parser.add_argument("conf", help="conf")
     parser.add_argument("datafile_dir", help="directory with datafiles")
     args = parser.parse_args()
 
     params = ut.read_config(args.conf)
+    params['weight'] = 0.1
 
     comm = MPI.COMM_WORLD
     size = comm.Get_size()
     rank = comm.Get_rank()
 
-    data_files = args.datafile_dir
+    data_files = ast.literal_eval(args.datafile_dir)
     datafile = data_files[rank]
-    worker = TeRec(params, datafile)
+    worker = TeRec(params, datafile, comm)
 
     worker.comm = comm
     worker.size = size
     worker.rank = rank
 
     worker.init_dev()
-    ret_code = worker.init()
+    ret_code = worker.init_iter_loop()
     if ret_code < 0:
         print ('reconstruction failed, check algorithm sequence and triggers in configuration')
         return
@@ -478,6 +488,8 @@ def time_evolving_rec():
         save_dir = params['save_dir']
     else:
         save_dir, filename = os.path.split(datafile)
+        save_dir = save_dir.replace('phasing_data', 'results_phasing')
+
     worker.save_res(save_dir)
 
 if __name__ == "__main__":

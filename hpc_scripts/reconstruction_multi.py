@@ -79,7 +79,7 @@ def reconstruction(conf_file, datafile):
     if ret < 0:
         return
 
-    ret = worker.init(prev_dir)
+    ret = worker.init_iter_loop(prev_dir)
     if ret < 0:
         return
 

@@ -185,16 +185,16 @@ def reconstruction(conf_file, datafile):
                     import cohere_core.controller.AI_guess as ai
                     ai_dir = ai.start_AI(pars, datafile, dir)
                     if ai_dir is None:
-                        ret = worker.init(None, alpha_dir, g)
+                        ret = worker.init_iter_loop(None, alpha_dir, g)
                     else:
-                        ret = worker.init(ai_dir, alpha_dir, g)
+                        ret = worker.init_iter_loop(ai_dir, alpha_dir, g)
                 else:
-                    ret = worker.init(None, alpha_dir, g)
+                    ret = worker.init_iter_loop(None, alpha_dir, g)
                 if ret < 0:
                     active = False
         else:
             if active:
-                ret = worker.init(None, alpha_dir, g)
+                ret = worker.init_iter_loop(None, alpha_dir, g)
                 if ret < 0:
                     active = False
 
