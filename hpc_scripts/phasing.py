@@ -100,7 +100,6 @@ class Rec:
         self.saved_data = None
         self.er_iter = False  # Indicates whether the last iteration done was ER, used in CoupledRec
 
-
     def init_dev(self, device_id=-1):
         os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
         if device_id != -1:
@@ -469,9 +468,9 @@ def time_evolving_rec():
     datafile = data_files[rank]
     worker = TeRec(params, datafile, comm)
 
-    worker.comm = comm
-    worker.size = size
-    worker.rank = rank
+#    worker.comm = comm
+#    worker.size = size
+#    worker.rank = rank
 
     worker.init_dev()
     ret_code = worker.init_iter_loop()
@@ -489,8 +488,6 @@ def time_evolving_rec():
     else:
         save_dir, filename = os.path.split(datafile)
         save_dir = save_dir.replace('phasing_data', 'results_phasing')
-
-    worker.save_res(save_dir)
 
 if __name__ == "__main__":
     exit(time_evolving_rec())
