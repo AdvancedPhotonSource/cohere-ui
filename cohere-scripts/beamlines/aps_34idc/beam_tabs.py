@@ -602,14 +602,14 @@ class DispTab(QWidget):
                 else:
                     results_dir = ut.join(self.main_win.experiment_dir, 'results_phasing')
 
-            if 'generations' in args:
-                generations = args['generations']
-                if 'rec_no' in args:
-                    rec_no = args['rec_no']
-                else:
-                    rec_no = 1
-                if generations > 0 and rec_no > 1:
-                    results_dir = ut.join(results_dir, f'g_{str(generations - 1)}', '0')
+            # if 'generations' in args:
+            #     generations = args['generations']
+            #     if 'rec_no' in args:
+            #         rec_no = args['rec_no']
+            #     else:
+            #         rec_no = 1
+            #     if generations > 0 and rec_no > 1:
+            #         results_dir = ut.join(results_dir, f'g_{str(generations - 1)}', '0')
 
         self.result_dir_button.setText(results_dir)
         self.result_dir_button.setStyleSheet("Text-align:left")

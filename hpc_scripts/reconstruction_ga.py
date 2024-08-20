@@ -213,7 +213,7 @@ def reconstruction(conf_file, datafile):
 
         if active:
             metric_type = pars['ga_metrics'][g]
-            metric = worker.get_metric(metric_type)
+            metric = worker.get_metric()
         else:
             metric = None
 

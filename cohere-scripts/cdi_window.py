@@ -1350,14 +1350,7 @@ class RecTab(QWidget):
 
 
     def notify(self):
-        generations = 0
-        if self.features.feature_dir['GA'].active.isChecked():
-            generations = int(self.features.feature_dir['GA'].generations.text())
-        if len(self.reconstructions.text()) > 0:
-            rec_no = int(self.reconstructions.text())
-        else:
-            rec_no = 1
-        self.tabs.notify(**{'rec_id':self.old_conf_id, 'generations':generations, 'rec_no':rec_no})
+        self.tabs.notify(**{'rec_id':self.old_conf_id})
 
 
 class Feature(object):

@@ -15,7 +15,7 @@
 //data_dir = "phasing_data"
                              // Defines directory from which data is read.
 
-//save_dir = "results"
+//save_dir = "results_phasing"
                              // Defines directory where results of reconstruction are saved as npy files.
                              // If samples > 1, result from each thread will be stored in subdirectory 1,2,3 etc.
 
