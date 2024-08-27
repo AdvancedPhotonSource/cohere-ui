@@ -6,6 +6,7 @@ import os
 def reconstruction(datafile):
         datafile = datafile.replace(os.sep, '/')
         rec.phasing.reconstruction(datafile,
+                                   device=[0],
                                    algorithm_sequence='3*(20*ER+180*HIO)+20*ER',
                                    shrink_wrap_trigger=[1, 1],
                                    shrink_wrap_type="GAUSS",
