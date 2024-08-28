@@ -107,6 +107,7 @@ class cdi_gui(QWidget):
 
         self.loaded = False
         self.beamline = None
+        self.id = None
         self.exp_id = None
         self.experiment_dir = None
         self.working_dir = None

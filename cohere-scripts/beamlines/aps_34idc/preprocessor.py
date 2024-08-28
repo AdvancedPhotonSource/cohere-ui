@@ -73,10 +73,10 @@ def combine_scans(get_scan_func, scans_dirs, experiment_dir):
     # start reporting process. It will get correlation error for each scan with reference
     # to the refarray. It will receive the errors via queue.
     q = Queue()
-    p = Process(target=report_corr_err, args=(q, refscan, len(scans_dirs) - 1, experiment_dir))
+    p = Process(target=report_corr_err, args=(q, refscan, len(scans_dirs), experiment_dir))
     p.start()
 
-    nproc = min(len(scans_dirs)-1, os.cpu_count() * 2)
+    nproc = min(len(scans_dirs), os.cpu_count() * 2)
 
     sumarr = np.zeros_like(refarr)
     sumarr = sumarr + refarr
