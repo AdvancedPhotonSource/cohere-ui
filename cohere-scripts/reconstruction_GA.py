@@ -190,9 +190,10 @@ def reconstruction(pkg, conf_file, datafile, dir, devices):
                     worker.support = dvut.shrink_wrap(worker.ds_image, pars['ga_sw_thresholds'][g], pars['ga_sw_gauss_sigmas'][g])
                 try:
                     breed()
-                except:
-                    # retry
-                    breed()
+                except Exception as e:
+                    # this individual will not be bred and will start as is in new generation
+                    # this situation should happen seldom and using culling will mitigate effect
+                    print('except in breed', e)
         if active:
             ret = worker.iterate()
             if ret < 0:
@@ -227,9 +228,6 @@ def reconstruction(pkg, conf_file, datafile, dir, devices):
             for r in to_remove:
                 active_ranks.remove(r)
 
-#        comm.Barrier()
-
-        if rank == 0:
             # order processes by metric
             proc_ranks, best_metrics, last_alpha_best = order_ranks(tracing, metrics, metric_type, last_alpha_metric)
             proc_ranks = [p[0] for p in proc_ranks]
