@@ -1,0 +1,3 @@
+intensity_threshold = 2.0
+adjust_dimensions = [0, 0, 0, 0, 0, 0]
+data_dir = "CUR_DIR/example_workspace/esrf_exp_1/phasing_data"
