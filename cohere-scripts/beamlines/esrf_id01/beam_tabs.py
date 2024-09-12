@@ -104,18 +104,6 @@ class PrepTab(QWidget):
         self.tabs = tabs
         self.main_win = main_window
         layout = QFormLayout()
-        self.data_dir_button = QPushButton()
-        layout.addRow("data directory", self.data_dir_button)
-        self.dark_file_button = QPushButton()
-        layout.addRow("darkfield file", self.dark_file_button)
-        self.white_file_button = QPushButton()
-        layout.addRow("whitefield file", self.white_file_button)
-        self.roi = QLineEdit()
-        layout.addRow("detector area (roi)", self.roi)
-        self.Imult = QLineEdit()
-        layout.addRow("Imult", self.Imult)
-        self.min_files = QLineEdit()
-        layout.addRow("min files in scan", self.min_files)
         self.exclude_scans = QLineEdit()
         layout.addRow("exclude scans", self.exclude_scans)
         self.outliers_scans = QLineEdit()
@@ -132,9 +120,6 @@ class PrepTab(QWidget):
         self.setLayout(layout)
 
         self.prep_button.clicked.connect(self.run_tab)
-        self.data_dir_button.clicked.connect(self.set_data_dir)
-        self.dark_file_button.clicked.connect(self.set_dark_file)
-        self.white_file_button.clicked.connect(self.set_white_file)
         self.set_prep_conf_from_button.clicked.connect(self.load_prep_conf)
 
 
@@ -149,54 +134,15 @@ class PrepTab(QWidget):
         -------
         nothing
         """
-        if 'data_dir' in conf_map:
-            if os.path.isdir(conf_map['data_dir']):
-                self.data_dir_button.setStyleSheet("Text-align:left")
-                self.data_dir_button.setText(conf_map['data_dir'])
-            else:
-                msg_window(f'The data_dir directory in config_prep file {conf_map["data_dir"]} does not exist')
-        else:
-            self.data_dir_button.setText('')
-        if 'darkfield_filename' in conf_map:
-            if os.path.isfile(conf_map['darkfield_filename']):
-                self.dark_file_button.setStyleSheet("Text-align:left")
-                self.dark_file_button.setText(conf_map['darkfield_filename'])
-            else:
-                msg_window(f'The darkfield file {conf_map["darkfield_filename"]} in config_prep file does not exist')
-                self.dark_file_button.setText('')
-        else:
-            self.dark_file_button.setText('')
-        if 'whitefield_filename' in conf_map:
-            if os.path.isfile(conf_map['whitefield_filename']):
-                self.white_file_button.setStyleSheet("Text-align:left")
-                self.white_file_button.setText(conf_map['whitefield_filename'])
-            else:
-                self.white_file_button.setText('')
-                msg_window(f'The whitefield file {conf_map["whitefield_filename"]} in config_prep file does not exist')
-        else:
-            self.white_file_button.setText('')
-        if 'Imult' in conf_map:
-            self.Imult.setText(str(conf_map['Imult']).replace(" ", ""))
-        if 'min_files' in conf_map:
-            self.min_files.setText(str(conf_map['min_files']).replace(" ", ""))
         if 'exclude_scans' in conf_map:
             self.exclude_scans.setText(str(conf_map['exclude_scans']).replace(" ", ""))
         if 'outliers_scans' in conf_map:
             self.outliers_scans.setText(str(conf_map['outliers_scans']).replace(" ", ""))
-        if 'roi' in conf_map:
-            self.roi.setText(str(conf_map['roi']).replace(" ", ""))
-            self.roi.setStyleSheet('color: black')
 
 
     def clear_conf(self):
-        self.data_dir_button.setText('')
-        self.dark_file_button.setText('')
-        self.white_file_button.setText('')
-        self.Imult.setText('')
-        self.min_files.setText('')
         self.exclude_scans.setText('')
         self.outliers_scans.setText('')
-        self.roi.setText('')
 
 
     def load_prep_conf(self):
@@ -230,21 +176,8 @@ class PrepTab(QWidget):
             contains parameters read from window
         """
         conf_map = {}
-        if len(self.data_dir_button.text().strip()) > 0:
-            conf_map['data_dir'] = str(self.data_dir_button.text()).strip()
-        if len(self.dark_file_button.text().strip()) > 0:
-            conf_map['darkfield_filename'] = str(self.dark_file_button.text().strip())
-        if len(self.white_file_button.text().strip()) > 0:
-            conf_map['whitefield_filename'] = str(self.white_file_button.text().strip())
-        if len(self.Imult.text()) > 0:
-            conf_map['Imult'] = ast.literal_eval(str(self.Imult.text()).replace(os.linesep,''))
-        if len(self.min_files.text()) > 0:
-            min_files = ast.literal_eval(str(self.min_files.text()))
-            conf_map['min_files'] = min_files
         if len(self.exclude_scans.text()) > 0:
             conf_map['exclude_scans'] = ast.literal_eval(str(self.exclude_scans.text()).replace(os.linesep,''))
-        if len(self.roi.text()) > 0:
-            conf_map['roi'] = ast.literal_eval(str(self.roi.text()).replace(os.linesep,''))
 
         return conf_map
 
@@ -270,15 +203,12 @@ class PrepTab(QWidget):
         else:
             conf_map = self.get_prep_config()
         # verify that prep configuration is ok
-        er_msg = cohere.verify('config_prep', conf_map)
-        if len(er_msg) > 0:
-            msg_window(er_msg)
-            if not self.main_win.debug:
-              return
+        # er_msg = cohere.verify('config_prep', conf_map)
+        # if len(er_msg) > 0:
+        #     msg_window(er_msg)
+        #     if not self.main_win.debug:
+        #       return
         # for 34idc prep data directory is needed
-        if len(self.data_dir_button.text().strip()) == 0:
-            msg_window('cannot prepare data for 34idc, need data directory')
-            return
 
         main_config_map = ut.read_config(ut.join(self.main_win.experiment_dir, 'conf', 'config'))
         auto_data = 'auto_data' in main_config_map and main_config_map['auto_data']
@@ -296,62 +226,6 @@ class PrepTab(QWidget):
         if auto_data:
             prep_map = ut.read_config(ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
             self.load_tab(prep_map)
-
-
-    def set_dark_file(self):
-        """
-        It display a select dialog for user to select a darkfield file.
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        nothing
-        """
-        darkfield_filename = select_file(os.getcwd().replace(os.sep, '/'))
-        if darkfield_filename is not None:
-            darkfield_filename = darkfield_filename.replace(os.sep, '/')
-            self.dark_file_button.setStyleSheet("Text-align:left")
-            self.dark_file_button.setText(darkfield_filename)
-        else:
-            self.dark_file_button.setText('')
-
-
-    def set_white_file(self):
-        """
-        It display a select dialog for user to select a whitefield file.
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        nothing
-        """
-        whitefield_filename = select_file(os.getcwd().replace(os.sep, '/'))
-        if whitefield_filename is not None:
-            whitefield_filename = whitefield_filename.replace(os.sep, '/')
-            self.white_file_button.setStyleSheet("Text-align:left")
-            self.white_file_button.setText(whitefield_filename)
-        else:
-            self.white_file_button.setText('')
-
-
-    def set_data_dir(self):
-        """
-        It display a select dialog for user to select a directory with raw data file.
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        nothing
-        """
-        data_dir = select_dir(os.getcwd().replace(os.sep, '/')).replace(os.sep, '/')
-        if data_dir is not None:
-            self.data_dir_button.setStyleSheet("Text-align:left")
-            self.data_dir_button.setText(data_dir)
-        else:
-            self.data_dir_button.setText('')
 
 
     def save_conf(self):
@@ -550,12 +424,12 @@ class DispTab(QWidget):
         #     return
 
         conf_map = self.get_disp_config()
-        # verify that disp configuration is ok
-        er_msg = cohere.verify('config_disp', conf_map)
-        if len(er_msg) > 0:
-            msg_window(er_msg)
-            if not self.main_win.debug:
-                return
+        # # verify that disp configuration is ok
+        # er_msg = cohere.verify('config_disp', conf_map)
+        # if len(er_msg) > 0:
+        #     msg_window(er_msg)
+        #     if not self.main_win.debug:
+        #         return
 
         ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
         self.tabs.run_viz()
@@ -863,16 +737,17 @@ class InstrTab(QWidget):
 
 
     def toggle_config(self):
-        if self.main_win.multipeak.isChecked() or self.main_win.separate_scans.isChecked() or self.main_win.separate_scan_ranges.isChecked():
-            self.add_config = False
-            self.extended.clear_conf()
-            self.extended.spec_widget.hide()
-        else:
-            self.add_config = True
-            self.extended.spec_widget.show()
-            self.extended.parse_spec()
-
-        self.save_conf()
+        return
+        # if self.main_win.multipeak.isChecked() or self.main_win.separate_scans.isChecked() or self.main_win.separate_scan_ranges.isChecked():
+        #     self.add_config = False
+        #     self.extended.clear_conf()
+        #     self.extended.spec_widget.hide()
+        # else:
+        #     self.add_config = True
+        #     self.extended.spec_widget.show()
+        #     self.extended.parse_spec()
+        #
+        # self.save_conf()
 
 
     def init(self, tabs, main_window):
@@ -888,23 +763,25 @@ class InstrTab(QWidget):
         self.tabs = tabs
         self.main_win = main_window
         self.extended = None
-        if main_window.multipeak.isChecked() or main_window.separate_scans.isChecked() or main_window.separate_scan_ranges.isChecked():
-            self.add_config = False
-        else:
-            self.add_config = True
-        self.extended = SubInstrTab()
-        self.extended.init(self, main_window)
+        # if main_window.multipeak.isChecked() or main_window.separate_scans.isChecked() or main_window.separate_scan_ranges.isChecked():
+        #     self.add_config = False
+        # else:
+        #     self.add_config = True
+        # self.extended = SubInstrTab()
+        # self.extended.init(self, main_window)
 
         tab_layout = QVBoxLayout()
         gen_layout = QFormLayout()
+        self.detector_button = QLineEdit()
+        gen_layout.addRow("detector name", self.detector_button)
         self.diffractometer = QLineEdit()
         gen_layout.addRow("diffractometer", self.diffractometer)
-        self.spec_file_button = QPushButton()
-        gen_layout.addRow("spec file", self.spec_file_button)
+        self.h5file_button = QPushButton()
+        gen_layout.addRow("h5file file", self.h5file_button)
         tab_layout.addLayout(gen_layout)
-        tab_layout.addWidget(self.extended.spec_widget)
-        if not self.add_config:
-            self.extended.spec_widget.hide()
+        # tab_layout.addWidget(self.extended.spec_widget)
+        # if not self.add_config:
+        #     self.extended.spec_widget.hide()
         cmd_layout = QHBoxLayout()
         self.set_instr_conf_from_button = QPushButton("Load instr conf from")
         self.set_instr_conf_from_button.setStyleSheet("background-color:rgb(205,178,102)")
@@ -916,7 +793,7 @@ class InstrTab(QWidget):
         tab_layout.addStretch()
         self.setLayout(tab_layout)
 
-        self.spec_file_button.clicked.connect(self.set_spec_file)
+        self.h5file_button.clicked.connect(self.set_h5file)
         self.save_instr_conf.clicked.connect(self.save_conf)
         self.set_instr_conf_from_button.clicked.connect(self.load_instr_conf)
 
@@ -936,25 +813,30 @@ class InstrTab(QWidget):
         -------
         nothing
         """
+        if 'detector' in conf_map:
+            self.detector_button.setStyleSheet("Text-align:left")
+            self.detector_button.setText(conf_map['detector'])
+        else:
+            self.detector_button.setText('')
         if 'diffractometer' in conf_map:
             diff = str(conf_map['diffractometer']).replace(" ", "")
             self.diffractometer.setText(diff)
-        if 'specfile' in conf_map:
-            specfile = conf_map['specfile']
-            if os.path.isfile(specfile):
-                self.spec_file_button.setStyleSheet("Text-align:left")
-                self.spec_file_button.setText(specfile)
+        if 'h5file' in conf_map:
+            h5file = conf_map['h5file']
+            if os.path.isfile(h5file):
+                self.h5file_button.setStyleSheet("Text-align:left")
+                self.h5file_button.setText(h5file)
             else:
-                msg_window(f'The specfile file {specfile} in config file does not exist')
+                msg_window(f'The h5file file {h5file} in config file does not exist')
 
-        if self.add_config:
-            self.extended.load_tab(conf_map)
+        # if self.add_config:
+        #     self.extended.load_tab(conf_map)
 
 
-    def set_spec_file(self):
+    def set_h5file(self):
         """
-        Calls selection dialog. The selected spec file is parsed.
-        The specfile is saved in config.
+        Calls selection dialog. The selected h5 file is parsed.
+        The h5file is saved in config.
         Parameters
         ----------
         none
@@ -962,23 +844,24 @@ class InstrTab(QWidget):
         -------
         noting
         """
-        specfile = select_file(os.getcwd())
-        if specfile is not None:
-            self.spec_file_button.setStyleSheet("Text-align:left")
-            self.spec_file_button.setText(specfile)
-            if self.add_config:
-                self.extended.parse_spec()
+        h5file = select_file(os.getcwd())
+        if h5file is not None:
+            self.h5file_button.setStyleSheet("Text-align:left")
+            self.h5file_button.setText(h5file)
+            # if self.add_config:
+            #     self.extended.parse_h5()
         else:
-            self.spec_file_button.setText('')
+            self.h5file_button.setText('')
 
         self.save_conf()
 
 
     def clear_conf(self):
+        self.detector_button.setText('')
         self.diffractometer.setText('')
-        self.spec_file_button.setText('')
-        if self.add_config:
-            self.extended.clear_conf()
+        self.h5file_button.setText('')
+        # if self.add_config:
+        #     self.extended.clear_conf()
 
 
     def load_instr_conf(self):
@@ -1012,13 +895,15 @@ class InstrTab(QWidget):
             contains parameters read from window
         """
         conf_map = {}
+        if len(self.detector_button.text().strip()) > 0:
+            conf_map['detector'] = str(self.detector_button.text()).strip()
         if len(self.diffractometer.text()) > 0:
             conf_map['diffractometer'] = str(self.diffractometer.text())
-        if len(self.spec_file_button.text()) > 0:
-            conf_map['specfile'] = str(self.spec_file_button.text())
+        if len(self.h5file_button.text()) > 0:
+            conf_map['h5file'] = str(self.h5file_button.text())
 
-        if self.add_config:
-            conf_map.update(self.extended.get_instr_config())
+        # if self.add_config:
+        #     conf_map.update(self.extended.get_instr_config())
 
         return conf_map
 
@@ -1039,11 +924,11 @@ class InstrTab(QWidget):
 
         conf_map = self.get_instr_config()
         # verify that disp configuration is ok
-        er_msg = cohere.verify('config_instr', conf_map)
-        if len(er_msg) > 0:
-            msg_window(er_msg)
-            if not self.main_win.debug:
-                return
+        # er_msg = cohere.verify('config_instr', conf_map)
+        # if len(er_msg) > 0:
+        #     msg_window(er_msg)
+        #     if not self.main_win.debug:
+        #         return
 
         ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_instr'))
 
