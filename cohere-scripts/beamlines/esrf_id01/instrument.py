@@ -70,6 +70,7 @@ class Instrument:
         (self.h5file, diffractometer, detector) = args
         self.diff_obj = diff.create_diffractometer(diffractometer)
         self.det_obj = det.create_detector(detector)
+        self.detector = detector
 
 
     def datainfo4scans(self, scans):
@@ -88,7 +89,7 @@ class Instrument:
 
 
     def get_scan_array(self, scan_node):
-        return self.det_obj.get_scan_array(scan_node)
+        return self.det_obj.get_scan_array(scan_node, self.h5file)
 
 
     def get_geometry(self, shape, scan, xtal=False, **kwargs):
@@ -115,7 +116,7 @@ class Instrument:
         if self.diff_obj is None:
             raise RuntimeError
 
-        return self.diff_obj.get_geometry(shape, scan, self.h5file, xtal, self.det_obj, **kwargs)
+        return self.diff_obj.get_geometry(shape, scan, self.h5file, xtal, self.detector)
 
 
 def create_instr(params):
@@ -147,5 +148,4 @@ def create_instr(params):
     instr = Instrument(h5file, diffractometer, detector)
 
     return instr
-
 
