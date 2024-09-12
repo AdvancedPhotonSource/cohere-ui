@@ -1,7 +1,5 @@
 import numpy as np
 import h5py
-import cohere_core as cohere
-import cohere_core.utilities as ut
 from abc import ABC, abstractmethod
 
 
@@ -26,11 +24,9 @@ class Detector(ABC):
             a list of sublist, the sublist reflecting scan ranges or scans and containing tuples of existing scans
             and node where the data for this scan is located
         """
+        scans_nodes_ranges = []
         for (start, stop) in scans:
-            nodes = [f"{i}.1/measurement/{self.name}" for i in range(start, stop+1)]
-
-        with h5py.File("h5file", "r") as h5f:
-            scans_nodes_ranges = [zip(s, n) for s in scans for n in nodes if n in h5f]
+            scans_nodes_ranges.append([(i, f"{i}.1/measurement/{self.name}") for i in range(start, stop+1)])
 
         return scans_nodes_ranges
 
@@ -51,7 +47,7 @@ class Detector(ABC):
         """
         # TODO: need to find out how to parse roi from the h5file. For now it will return the full data.
         # It can be cropped during standard preprocessing
-        with h5py.File("h5file", "r") as h5f:
+        with h5py.File(h5file, "r") as h5f:
             data = np.array(h5f[node])
 
         # apply correction if needed
@@ -85,7 +81,7 @@ class Detector_mpxgaas(Detector):
 
 
     def __init__(self):
-        super(Detector_mpxgaas, self).__init__()
+        super(Detector_mpxgaas, self).__init__(self.name)
 
 
 def create_detector(det_name):
@@ -94,5 +90,4 @@ def create_detector(det_name):
     else:
         print (f'detector {det_name} not defined.')
         return None
-
 
