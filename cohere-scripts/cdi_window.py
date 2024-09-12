@@ -111,7 +111,6 @@ class cdi_gui(QWidget):
         self.exp_id = None
         self.experiment_dir = None
         self.working_dir = None
-        self.beamline = None
 
         uplayout = QHBoxLayout()
         luplayout = QFormLayout()
