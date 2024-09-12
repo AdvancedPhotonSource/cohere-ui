@@ -441,14 +441,14 @@ class DispTab(QWidget):
             return
 
         conf_map = self.get_disp_config()
-        if len(conf_map) > 0:
-            er_msg = cohere.verify('config_disp', conf_map)
-            if len(er_msg) > 0:
-                msg_window(er_msg)
-                if self.main_win.debug:
-                    ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
-            else:
-                ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
+        # if len(conf_map) > 0:
+        #    er_msg = cohere.verify('config_disp', conf_map)
+        #    if len(er_msg) > 0:
+        #        msg_window(er_msg)
+        #        if self.main_win.debug:
+        #            ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
+        #    else:
+        ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
 
 
     def update_tab(self, **args):
