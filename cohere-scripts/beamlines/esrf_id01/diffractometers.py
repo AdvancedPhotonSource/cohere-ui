@@ -74,21 +74,21 @@ class Diffractometer_id01(Diffractometer):
         h5_dict = {}
 
         # Scan numbers start at one but the list is 0 indexed
-        h5file = h5py.File(h5file)
-        info = h5file[f"{scan}.1"]
+        h5f = h5py.File(h5file)
+        info = h5f[f"{scan}.1"]
 
         try:
             h5_dict['detector'] = detector
             command = info['title'].asstr()[()].split(" ")
             if command[0] in ("ascan", "a2scan", "a3scan"):
-                n = 1
-                try:
-                    while command[n] not in self.sampleaxes_mne:
-                        n += 3
-                except IndexError:
-                    raise IOError(f"{__name__}: Could not find any usable sample axes when parsing command: '{info['title']}'")
+                # n = 1
+                # try:
+                #     while command[n] not in self.sampleaxes_mne:
+                #         n += 3
+                # except IndexError:
+                #     raise IOError(f"{__name__}: Could not find any usable sample axes when parsing command: '{info['title']}'")
                 h5_dict['scanmot'] = command[1]
-                h5_dict['scanmot_del'] = (float(command[n+2]) - float(command[n+1])) / int(command[7])
+                h5_dict['scanmot_del'] = (float(command[3]) - float(command[2])) / int(command[4])
             else:
                 raise IOError(f"{__name__}: Unknown scan type: {command[0]}")
 
@@ -99,14 +99,14 @@ class Diffractometer_id01(Diffractometer):
 
             h5_dict['energy'] = info['instrument/monochromator/Energy'][()]
         except Exception as ex:
-            h5file.close()
             print(f"{__name__}: {ex}")
             raise ex
-        
+        h5f.close()
+
         return h5_dict
 
 
-    def get_geometry(self, shape, scan, h5file, xtal, det_obj, **kwargs):
+    def get_geometry(self, shape, scan, h5file, xtal, detector, **kwargs):
         """
         Calculates geometry based on diffractometer's attributes and experiment parameters.
 
@@ -120,7 +120,7 @@ class Diffractometer_id01(Diffractometer):
         tuple
             (Trecip, Tdir)
         """
-        attrs = self.parse_h5(h5file, scan)
+        attrs = self.parse_h5(h5file, scan, detector)
         attrs.update(kwargs)
         binning = attrs.get('binning', [1, 1, 1])
 
@@ -128,8 +128,7 @@ class Diffractometer_id01(Diffractometer):
         for attr in attrs:
             setattr(self, attr, attrs[attr])
 
-        if det_obj is None:
-            det_obj = det.create_detector(self.detector)
+        det_obj = det.create_detector(detector)
         px = det_obj.pixel[0] * binning[0]
         py = det_obj.pixel[1] * binning[1]
 
@@ -159,7 +158,7 @@ class Diffractometer_id01(Diffractometer):
         elif scanmot in self.sampleaxes_mne:  # based on scanmot args are made for qc.area
             args = []
             axisindex = self.sampleaxes_mne.index(scanmot)
-            for n in range(len(self.diff_obj.sampleaxes_mne)):
+            for n in range(len(self.sampleaxes_mne)):
                 if n == axisindex:
                     scanstart = getattr(self, scanmot)
                     args.append(np.array((scanstart, scanstart + attrs.get('scanmot_del') * binning[2])))
@@ -218,3 +217,4 @@ def create_diffractometer(diff_name):
     else:
         print (f'diffractometer {diff_name} not defined.')
         return None
+        
