@@ -20,7 +20,7 @@ def report_corr_err(q, ref_scan, dir_no, save_dir):
     while no > 0:
         (scan, err) = q.get()
         row = str(scan)
-        row += row[0].ljust(scan_col_width + col_gap)
+        row += ''.ljust(scan_col_width + col_gap)
         row += f'{err}{linesep}'
         report_table += row
         no -= 1

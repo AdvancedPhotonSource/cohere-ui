@@ -141,8 +141,7 @@ def handle_prep(experiment_dir, **kwargs):
         processes = []
         for batch in scans_datainfo:
             indx = str(batch[0][0])
-            if len(scans_datainfo) > 1:
-                indx = f'{indx}-{str(batch[-1][0])}'
+            indx = f'{indx}-{str(batch[-1][0])}'
             save_file = ut.join(experiment_dir, f'scan_{indx}', 'preprocessed_data', 'prep_data.tif')
             p = Process(target=ph.process_batch,
                         args=(instr_obj.get_scan_array, batch, save_file, experiment_dir))
