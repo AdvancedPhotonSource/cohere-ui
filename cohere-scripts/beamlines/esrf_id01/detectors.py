@@ -48,7 +48,7 @@ class Detector(ABC):
         # TODO: need to find out how to parse roi from the h5file. For now it will return the full data.
         # It can be cropped during standard preprocessing
         with h5py.File(h5file, "r") as h5f:
-            data = np.array(h5f[node])
+            data = np.array(h5f[node]).T
 
         # apply correction if needed
         # I think the data already is corrected
@@ -90,4 +90,3 @@ def create_detector(det_name):
     else:
         print (f'detector {det_name} not defined.')
         return None
-
