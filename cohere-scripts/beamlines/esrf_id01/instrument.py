@@ -1,50 +1,5 @@
-import numpy as np
-import math as m
-import h5py
 import beamlines.esrf_id01.diffractometers as diff
 import beamlines.esrf_id01.detectors as det
-
-
-
-class Instrument:
-    """
-      This class encapsulates parameters defining experiment instruments and parameters defining geometry.
-      It contains diffractometer attributes, detector attributes and parameters parsed from h5 file. The
-      parsed parameters will be overridden with configured parameters in config_instr file.
-    """
-
-    def initialize(self, config, scan):
-        """
-        The constructor.
-
-        Parameters
-        ----------
-        params : dict
-            <param name> : <param value>
-
-        Returns
-        -------
-        str
-            a string containing error message or empty
-        """
-        # The calling code ensures diffractometer and h5file are configured
-        self.diff_obj = diff.create_diffractometer(config['diffractometer'])
-        self.h5file = config['h5file']
-
-        self.binning = config.get('binning', [1, 1, 1])
-
-        # set the attributes with values parsed from h5
-        for key, val in parse_h5(self.h5file, scan, self.diff_obj).items():
-            setattr(self, key, val)
-
-        # save the instrument parameters from configuration
-        # and override the parsed parameters with entries in config file
-        # Note: the multipeak and separate scans configuration will not
-        # include the h5 parsed parameters
-        for attr in config:
-            setattr(self, attr, config[attr])
-
-        self.det_obj = det.create_detector(self.detector)
 
 
 class Instrument:
@@ -148,4 +103,3 @@ def create_instr(params):
     instr = Instrument(h5file, diffractometer, detector)
 
     return instr
-
