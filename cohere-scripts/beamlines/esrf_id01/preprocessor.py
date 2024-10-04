@@ -70,43 +70,6 @@ def combine_scans(get_scan_func, scans_nodes, experiment_dir):
         sumarr = sumarr + ar
 
     report_corr_err(refscan, scans_errs, experiment_dir)
-    # results = []
-    #
-    # def collect_result(result):
-    #     results.append(result)
-    #
-    # (refscan, refnode) = scans_nodes.pop(0)
-    # refarr = get_scan_func(refnode)
-    #
-    # # It is faster to run concurrently on cpu than on gpu which needs uploading
-    # # array on gpu memory. Setting library here before starting multiple processes
-    # dvut.set_lib_from_pkg('np')
-    #
-    # # start reporting process. It will get correlation error for each scan with reference
-    # # to the refarray. It will receive the errors via queue.
-    # q = Queue()
-    # p = Process(target=report_corr_err, args=(q, refscan, len(scans_nodes), experiment_dir))
-    # p.start()
-    #
-    # nproc = min(len(scans_nodes), os.cpu_count() * 2)
-    #
-    # sumarr = np.zeros_like(refarr)
-    # sumarr = sumarr + refarr
-    #
-    # func = partial(read_align, get_scan_func, refarr)
-    # with Pool(processes=nproc) as pool:
-    #     pool.map_async(func, scans_nodes, callback=collect_result)
-    #     pool.close()
-    #     pool.join()
-    #     pool.terminate()
-    #
-    # if len(results) > 0:
-    #     for res in results[0]:
-    #         [ar, er, scan] = res
-    #         sumarr = sumarr + ar
-    #         q.put((scan, er))
-    # else:
-    #     print(f'did not find any scans to align with {refscan}')
 
     return sumarr
 
