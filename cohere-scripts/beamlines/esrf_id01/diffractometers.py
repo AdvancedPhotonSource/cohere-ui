@@ -81,12 +81,6 @@ class Diffractometer_id01(Diffractometer):
             h5_dict['detector'] = detector
             command = info['title'].asstr()[()].split(" ")
             if command[0] in ("ascan", "a2scan", "a3scan"):
-                # n = 1
-                # try:
-                #     while command[n] not in self.sampleaxes_mne:
-                #         n += 3
-                # except IndexError:
-                #     raise IOError(f"{__name__}: Could not find any usable sample axes when parsing command: '{info['title']}'")
                 h5_dict['scanmot'] = command[1]
                 h5_dict['scanmot_del'] = (float(command[3]) - float(command[2])) / int(command[4])
             else:
@@ -132,7 +126,7 @@ class Diffractometer_id01(Diffractometer):
         px = det_obj.pixel[0] * binning[0]
         py = det_obj.pixel[1] * binning[1]
 
-        detdist = attrs.get('detdist') / 1000.0  # convert to meters
+        detdist = attrs.get('detdist')
         scanmot = attrs.get('scanmot').strip()
         enfix = 1
         # if energy is given in kev convert to ev for xrayutilities
@@ -154,14 +148,23 @@ class Diffractometer_id01(Diffractometer):
         # should put some try except around this in case something goes wrong.
         if scanmot == 'en':  # seems en scans always have to be treated differently since init is unique
             q2 = np.array(qc.area(attrs.get('mu'), attrs.get('eta'), attrs.get('phi'), 
-                                  attrs.get('nu'), attrs.get('delta'), deg=True))
+                                  attrs.get('nu'), attrs.get('delta'), deg=False))
         elif scanmot in self.sampleaxes_mne:  # based on scanmot args are made for qc.area
             args = []
             axisindex = self.sampleaxes_mne.index(scanmot)
             for n in range(len(self.sampleaxes_mne)):
                 if n == axisindex:
-                    scanstart = getattr(self, scanmot)
-                    args.append(np.array((scanstart, scanstart + attrs.get('scanmot_del') * binning[2])))
+                    scaninfo = getattr(self, scanmot)
+                    # checking type, in 34-idc the 'th' type is float and it is the scanstart.
+                    # array is built by adding scanmot_del for each step.
+                    # for the esrf the 'eta' is an array, so in the 'else' clouse no need to build the array.
+                    # adding hack to change the 'eta' attribute from array to the float - first element (scanstart)
+                    if type(scaninfo) == float:
+                        scanstart = getattr(self, scanmot)
+                        args.append(np.array((scanstart, scanstart + attrs.get('scanmot_del') * binning[2])))
+                    else:
+                        args.append(scaninfo * binning[2])
+                        setattr(self, scanmot, getattr(self, scanmot)[0])
                 else:
                     args.append(self.__dict__[self.sampleaxes_mne[n]])
             for axis in self.detectoraxes_mne:
@@ -217,4 +220,3 @@ def create_diffractometer(diff_name):
     else:
         print (f'diffractometer {diff_name} not defined.')
         return None
-        
