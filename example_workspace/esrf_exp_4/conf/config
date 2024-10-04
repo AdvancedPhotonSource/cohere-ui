@@ -1,0 +1,6 @@
+working_dir = "CUR_DIR/example_workspace"
+experiment_id = "esrf_exp"
+scan = "4"
+beamline = "esrf_id01"
+auto_data = True
+converter_ver = 1
