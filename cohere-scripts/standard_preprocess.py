@@ -60,8 +60,6 @@ def format_data(experiment_dir, **kwargs):
     auto_data = 'auto_data' in main_conf_map and main_conf_map['auto_data']
 
     data_conf_map = conf_maps['config_data']
-    if auto_data:
-        data_conf_map['do_auto_binning'] = not('multipeak' in main_conf_map and main_conf_map['multipeak'])
 
     dirs = os.listdir(experiment_dir)
     for dir in dirs:
@@ -80,7 +78,7 @@ def format_data(experiment_dir, **kwargs):
 
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
-        data_conf_map['data_dir'] = data_dir
+
         # call the preprocessing in cohere_core, it will return updated configuration if auto_data
         data_conf_map = fd.prep(ut.join(proc_dir, 'preprocessed_data', 'prep_data.tif'), auto_data, **data_conf_map)
 

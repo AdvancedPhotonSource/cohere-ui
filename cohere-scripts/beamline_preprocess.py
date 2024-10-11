@@ -48,10 +48,10 @@ def handle_prep(experiment_dir, **kwargs):
     # check the maps
     if 'config' not in conf_maps.keys():
         return 'missing main config file'
-    if 'config_prep' not in conf_maps.keys():
-        return 'missing config_prep file'
     if 'config_instr' not in conf_maps.keys():
         return 'missing config_instr file'
+    if 'config_prep' not in conf_maps.keys():
+        print('info: no config_prep file, continue with no parameters')
 
     # verify that config files are correct
     main_conf_map = conf_maps['config']
@@ -75,7 +75,7 @@ def handle_prep(experiment_dir, **kwargs):
         print('Beamline must be configured in main configuration file')
         return 'Beamline must be configured in main configuration file'
 
-    prep_conf_map = conf_maps['config_prep']
+    prep_conf_map = conf_maps.get('config_prep', {})
     if not no_verify:
         err_msg = ver.verify('config_prep', prep_conf_map)
         if len(err_msg) > 0:
@@ -87,7 +87,7 @@ def handle_prep(experiment_dir, **kwargs):
     all_params = {k:v for d in conf_maps.values() for k,v in d.items()}
     instr_obj = instr_module.create_instr(all_params)
     if instr_obj is None:
-        return 'cannot create instrument'
+        return 'cannot create instrument, check configuration'
 
     scan = all_params.get('scan', None)
     if scan is None:

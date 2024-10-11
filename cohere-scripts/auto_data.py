@@ -138,7 +138,7 @@ def find_outlier_scans(experiment_dir, read_scan_func, scans_datainfo, separate_
             return []
     else:
         auto_batches = [s_d for batch in scans_datainfo for s_d in batch]
-        if len(auto_batches) < 3:
+        if len(auto_batches) <= 3:
             return []
         else:
             # make it a single sub-list

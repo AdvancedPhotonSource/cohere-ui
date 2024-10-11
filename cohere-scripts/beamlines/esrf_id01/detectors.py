@@ -8,7 +8,11 @@ class Detector(ABC):
         self.name = name
 
 
-    def nodes4scans(self, scans, h5file):
+    def node4scan(self, scan):
+        return f"{scan}.1/measurement/{self.name}"
+
+
+    def nodes4scans(self, scans):
         """
         Finds nodes in hdf5 file that correspond to given scans and scan ranges.
 
@@ -31,27 +35,41 @@ class Detector(ABC):
         return scans_nodes_ranges
 
 
-    def get_scan_array(self, node, h5file):
+    def get_scan_array(self, scans, h5file):
         """
-        Reads raw data files from scan node, applies correction, and returns 3D corrected data for a single scan.
+        Reads raw rdata files from scan nodes, applies correction, and returns a dict with 3D corrected rdata
+        for each node.
         Parameters
         ----------
         node : str
             node in hd5 file of scan to read the raw files from
         h5file : str
-            h5file containing the data
+            h5file containing the rdata
         Returns
         -------
-        arr : ndarray
-            3D array containing corrected data for one scan.
+        arr : dict {str : ndarray}
+            node : 3D array containing corrected rdata for one scan.
         """
-        # TODO: need to find out how to parse roi from the h5file. For now it will return the full data.
+        # TODO: need to find out how to parse roi from the h5file. For now it will return the full rdata.
         # It can be cropped during standard preprocessing
+        data = {}
         with h5py.File(h5file, "r") as h5f:
-            data = np.array(h5f[node]).T
+            for s in scans:
+                ar = np.array(h5f[self.node4scan(s)][:]).T
+                data[s] = ar
+
+        # print max
+        print('printing max for full scan(s)')
+        for s, d in data.items():
+            print('scan, shape, max coordinates, max value', s, d.shape, np.unravel_index(np.argmax(d), d.shape), np.max(d))
+        # # cut out roi region
+        data = {s : d[self.roi[0] : self.roi[0] + self.roi[1], self.roi[2] : self.roi[2] + self.roi[3], :] for s,d in data.items()}
+        print('printing max for scan(s) trimmed to roi')
+        for s, d in data.items():
+            print('scan, shape, max coordinates, max value', s, d.shape, np.unravel_index(np.argmax(d), d.shape), np.max(d))
 
         # apply correction if needed
-        # I think the data already is corrected
+        # I think the rdata already is corrected
 
         return data
     
@@ -75,18 +93,22 @@ class Detector_mpxgaas(Detector):
     """
     name = "mpxgaas"
     dims = (516, 516)
-    roi = (516, 516)
+    roi = (0, 516, 0, 516)
     pixel = (55.0e-6, 55e-6)
     pixelorientation = ('x-', 'y-')  # in xrayutilities notation
 
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         super(Detector_mpxgaas, self).__init__(self.name)
+        for key, val in kwargs.items():
+            if val is None:
+                continue
+            setattr(self, key, val)
 
 
-def create_detector(det_name):
+def create_detector(det_name, **kwargs):
     if det_name == 'mpxgaas':
-        return Detector_mpxgaas()
+        return Detector_mpxgaas(**kwargs)
     else:
         print (f'detector {det_name} not defined.')
         return None

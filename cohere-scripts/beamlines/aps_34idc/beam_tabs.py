@@ -548,15 +548,8 @@ class DispTab(QWidget):
         #     msg_window('No image files found in the results directory tree. Please, run reconstruction in previous tab to activate this function')
         #     return
 
-        conf_map = self.get_disp_config()
-        # # verify that disp configuration is ok
-        # er_msg = ut.verify('config_disp', conf_map)
-        # if len(er_msg) > 0:
-        #     msg_window(er_msg)
-        #     if not self.main_win.no_verify:
-        #         return
+        self.save_conf()
 
-        ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
         self.tabs.run_viz()
 
 

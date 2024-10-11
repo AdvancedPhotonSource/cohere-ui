@@ -17,7 +17,7 @@ def report_corr_err(ref_scan, scans_errs, save_dir):
 
     for scan, err in scans_errs:
         row = str(scan)
-        row += row[0].ljust(scan_col_width + col_gap)
+        row += ''.ljust(scan_col_width + col_gap)
         row += f'{err}{linesep}'
         report_table += row
 
@@ -26,7 +26,7 @@ def report_corr_err(ref_scan, scans_errs, save_dir):
         f.flush()
 
 
-def read_align(get_scan_func, refarr, scan_node):
+def read_align(scan_ar, refarr):
     """
     Aligns scan with reference array and enqueues the correlation error.
     Parameters
@@ -44,18 +44,13 @@ def read_align(get_scan_func, refarr, scan_node):
     aligned_array : array
         aligned array
     """
-    (scan, node) = scan_node
-    # read
-    arr = get_scan_func(node)
     # align
-    aligned_err = dvut.align_arrays_pixel(refarr, arr)
-    [aligned, err] = aligned_err
-    return [np.absolute(aligned), err, scan]
+    [aligned, err] = dvut.align_arrays_pixel(refarr, scan_ar)
+    return [np.absolute(aligned), err]
 
 
-def combine_scans(get_scan_func, scans_nodes, experiment_dir):
-    (refscan, refnode) = scans_nodes.pop(0)
-    refarr = get_scan_func(refnode)
+def combine_scans(scans_data_dict, experiment_dir, first_scan):
+    refarr = scans_data_dict.pop(first_scan)
 
     # It is faster to run concurrently on cpu than on gpu which needs uploading
     # array on gpu memory. Setting library here before starting multiple processes
@@ -64,21 +59,24 @@ def combine_scans(get_scan_func, scans_nodes, experiment_dir):
     sumarr = np.zeros_like(refarr)
     sumarr = sumarr + refarr
     scans_errs = []
-    for scan_node in scans_nodes:
-        ar, er, scan = read_align(get_scan_func, refarr, scan_node)
+    for scan, scan_ar in scans_data_dict.items():
+        ar, er = read_align(scan_ar, refarr)
         scans_errs.append((scan, er))
         sumarr = sumarr + ar
 
-    report_corr_err(refscan, scans_errs, experiment_dir)
+    report_corr_err(first_scan, scans_errs, experiment_dir)
 
     return sumarr
 
 
 def process_batch(get_scan_func, scans_nodes, save_file, experiment_dir):
+    all_scans_data_dict = get_scan_func([scan_node[0] for scan_node in scans_nodes])
+
     if len(scans_nodes) == 1:
-        arr = get_scan_func(scans_nodes[0][1])
+        print('one scan', scans_nodes[0][0])
+        arr = all_scans_data_dict[scans_nodes[0][0]]
     else:
-        arr = combine_scans(get_scan_func, scans_nodes, experiment_dir)
+        arr = combine_scans(all_scans_data_dict, experiment_dir, scans_nodes[0][0])
     # save the file
     save_dir = os.path.dirname(save_file)
     if not os.path.exists(save_dir):

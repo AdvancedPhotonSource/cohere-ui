@@ -2,7 +2,6 @@ import os
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 import ast
-import cohere_core as cohere
 import cohere_core.utilities as ut
 
 
@@ -106,6 +105,8 @@ class PrepTab(QWidget):
         layout = QFormLayout()
         self.exclude_scans = QLineEdit()
         layout.addRow("exclude scans", self.exclude_scans)
+        self.roi = QLineEdit()
+        layout.addRow("detector area (roi)", self.roi)
         self.outliers_scans = QLineEdit()
         layout.addRow("outliers scans", self.outliers_scans)
 
@@ -136,12 +137,16 @@ class PrepTab(QWidget):
         """
         if 'exclude_scans' in conf_map:
             self.exclude_scans.setText(str(conf_map['exclude_scans']).replace(" ", ""))
+        if 'roi' in conf_map:
+            self.roi.setText(str(conf_map['roi']).replace(" ", ""))
+            self.roi.setStyleSheet('color: black')
         if 'outliers_scans' in conf_map:
             self.outliers_scans.setText(str(conf_map['outliers_scans']).replace(" ", ""))
 
 
     def clear_conf(self):
         self.exclude_scans.setText('')
+        self.roi.setText('')
         self.outliers_scans.setText('')
 
 
@@ -161,7 +166,7 @@ class PrepTab(QWidget):
             conf_map = ut.read_config(prep_file.replace(os.sep, '/'))
             self.load_tab(conf_map)
         else:
-            msg_window('please select valid prep config file')
+            msg_window('info: no prep config file')
 
 
     def get_prep_config(self):
@@ -178,6 +183,8 @@ class PrepTab(QWidget):
         conf_map = {}
         if len(self.exclude_scans.text()) > 0:
             conf_map['exclude_scans'] = ast.literal_eval(str(self.exclude_scans.text()).replace(os.linesep,''))
+        if len(self.roi.text()) > 0:
+            conf_map['roi'] = ast.literal_eval(str(self.roi.text()).replace(os.linesep,''))
 
         return conf_map
 
@@ -202,13 +209,10 @@ class PrepTab(QWidget):
             return
         else:
             conf_map = self.get_prep_config()
-        # verify that prep configuration is ok
-        # er_msg = cohere.verify('config_prep', conf_map)
-        # if len(er_msg) > 0:
-        #     msg_window(er_msg)
-        #     if not self.main_win.debug:
-        #       return
-        # for 34idc prep data directory is needed
+
+        # all parameters are optional, file can be empty
+        if len(conf_map) > 0:
+            ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
 
         main_config_map = ut.read_config(ut.join(self.main_win.experiment_dir, 'conf', 'config'))
         auto_data = 'auto_data' in main_config_map and main_config_map['auto_data']
@@ -235,13 +239,7 @@ class PrepTab(QWidget):
 
         conf_map = self.get_prep_config()
         if len(conf_map) > 0:
-            er_msg = cohere.verify('config_prep', conf_map)
-            if len(er_msg) > 0:
-                msg_window(er_msg)
-                if self.main_win.debug:
-                    ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
-            else:
-                ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
+            ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
 
 
     def notify(self):
@@ -363,7 +361,7 @@ class DispTab(QWidget):
             conf_map = ut.read_config(disp_file.replace(os.sep, '/'))
             self.load_tab(conf_map)
         else:
-            msg_window('please select valid disp config file')
+            msg_window('info: no disp config file')
 
 
     def get_disp_config(self):
@@ -412,26 +410,7 @@ class DispTab(QWidget):
             msg_window('the results directory is not set')
             return
 
-        results_dir = str(self.result_dir_button.text()).replace(os.sep, '/')
-
-        # found_file = False
-        # for p, d, f in os.walk(results_dir):
-        #     if 'image.npy' in f:
-        #         found_file = True
-        #         break
-        # if not found_file:
-        #     msg_window('No image files found in the results directory tree. Please, run reconstruction in previous tab to activate this function')
-        #     return
-
-        conf_map = self.get_disp_config()
-        # # verify that disp configuration is ok
-        # er_msg = cohere.verify('config_disp', conf_map)
-        # if len(er_msg) > 0:
-        #     msg_window(er_msg)
-        #     if not self.main_win.debug:
-        #         return
-
-        ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
+        self.save_conf()
         self.tabs.run_viz()
 
 
@@ -441,14 +420,8 @@ class DispTab(QWidget):
             return
 
         conf_map = self.get_disp_config()
-        # if len(conf_map) > 0:
-        #    er_msg = cohere.verify('config_disp', conf_map)
-        #    if len(er_msg) > 0:
-        #        msg_window(er_msg)
-        #        if self.main_win.debug:
-        #            ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
-        #    else:
-        ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
+        if len(conf_map) > 0:
+            ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
 
 
     def update_tab(self, **args):
@@ -477,15 +450,6 @@ class DispTab(QWidget):
                 else:
                     results_dir = ut.join(self.main_win.experiment_dir, 'results_phasing')
 
-            if 'generations' in args:
-                generations = args['generations']
-                if 'rec_no' in args:
-                    rec_no = args['rec_no']
-                else:
-                    rec_no = 1
-                if generations > 0 and rec_no > 1:
-                    results_dir = ut.join(results_dir, f'g_{str(generations - 1)}', '0')
-
         self.result_dir_button.setText(results_dir)
         self.result_dir_button.setStyleSheet("Text-align:left")
 
@@ -510,222 +474,6 @@ class DispTab(QWidget):
             msg_window('please select valid results directory')
 
 
-class SubInstrTab():
-    def init(self, instr_tab, main_window):
-        """
-        Creates and initializes the 'Instrument' tab.
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        nothing
-        """
-        self.main_window = main_window
-        self.instr_tab = instr_tab
-
-        self.spec_widget = QWidget()
-        spec_layout = QFormLayout()
-        self.spec_widget.setLayout(spec_layout)
-        self.energy = QLineEdit()
-        spec_layout.addRow("energy", self.energy)
-        self.delta = QLineEdit()
-        spec_layout.addRow("delta (deg)", self.delta)
-        self.gamma = QLineEdit()
-        spec_layout.addRow("gamma (deg)", self.gamma)
-        self.detdist = QLineEdit()
-        spec_layout.addRow("detdist (mm)", self.detdist)
-        self.th = QLineEdit()
-        spec_layout.addRow("th (deg)", self.th)
-        self.chi = QLineEdit()
-        spec_layout.addRow("chi (deg)", self.chi)
-        self.phi = QLineEdit()
-        spec_layout.addRow("phi (deg)", self.phi)
-        self.scanmot = QLineEdit()
-        spec_layout.addRow("scan motor", self.scanmot)
-        self.scanmot_del = QLineEdit()
-        spec_layout.addRow("scan motor delta", self.scanmot_del)
-        self.detector = QLineEdit()
-        spec_layout.addRow("detector", self.detector)
-
-        self.energy.textChanged.connect(lambda: set_overriden(self.energy))
-        self.delta.textChanged.connect(lambda: set_overriden(self.delta))
-        self.gamma.textChanged.connect(lambda: set_overriden(self.gamma))
-        self.detdist.textChanged.connect(lambda: set_overriden(self.detdist))
-        self.th.textChanged.connect(lambda: set_overriden(self.th))
-        self.chi.textChanged.connect(lambda: set_overriden(self.chi))
-        self.phi.textChanged.connect(lambda: set_overriden(self.phi))
-        self.scanmot.textChanged.connect(lambda: set_overriden(self.scanmot))
-        self.scanmot_del.textChanged.connect(lambda: set_overriden(self.scanmot_del))
-        self.detector.textChanged.connect(lambda: set_overriden(self.detector))
-
-
-    def load_tab(self, conf_map):
-        """
-        It verifies given configuration file, reads the parameters, and fills out the window.
-        Parameters
-        ----------
-        conf : dict
-            configuration (config_disp)
-        Returns
-        -------
-        nothing
-        """
-        self.parse_spec()
-
-        # if parameters are configured, override the readings from spec file
-        if 'energy' in conf_map:
-            self.energy.setText(str(conf_map['energy']).replace(" ", ""))
-            self.energy.setStyleSheet('color: black')
-        if 'delta' in conf_map:
-            self.delta.setText(str(conf_map['delta']).replace(" ", ""))
-            self.delta.setStyleSheet('color: black')
-        if 'gamma' in conf_map:
-            self.gamma.setText(str(conf_map['gamma']).replace(" ", ""))
-            self.gamma.setStyleSheet('color: black')
-        if 'detdist' in conf_map:
-            self.detdist.setText(str(conf_map['detdist']).replace(" ", ""))
-            self.detdist.setStyleSheet('color: black')
-        if 'th' in conf_map:
-            self.th.setText(str(conf_map['th']).replace(" ", ""))
-            self.th.setStyleSheet('color: black')
-        if 'chi' in conf_map:
-            self.chi.setText(str(conf_map['chi']).replace(" ", ""))
-            self.chi.setStyleSheet('color: black')
-        if 'phi' in conf_map:
-            self.phi.setText(str(conf_map['phi']).replace(" ", ""))
-            self.phi.setStyleSheet('color: black')
-        if 'scanmot' in conf_map:
-            self.scanmot.setText(str(conf_map['scanmot']).replace(" ", ""))
-            self.scanmot.setStyleSheet('color: black')
-        if 'scanmot_del' in conf_map:
-            self.scanmot_del.setText(str(conf_map['scanmot_del']).replace(" ", ""))
-            self.scanmot_del.setStyleSheet('color: black')
-        if 'detector' in conf_map:
-            self.detector.setText(str(conf_map['detector']).replace(" ", ""))
-            self.detector.setStyleSheet('color: black')
-
-
-    def clear_conf(self):
-        self.energy.setText('')
-        self.delta.setText('')
-        self.gamma.setText('')
-        self.detdist.setText('')
-        self.th.setText('')
-        self.chi.setText('')
-        self.phi.setText('')
-        self.scanmot.setText('')
-        self.scanmot_del.setText('')
-        self.detector.setText('')
-
-
-    def get_instr_config(self):
-        """
-        It reads parameters related to instrument from the window into a dictionary.
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        conf_map : dict
-            contains parameters read from window
-        """
-        conf_map = {}
-        if len(self.energy.text()) > 0:
-            conf_map['energy'] = ast.literal_eval(str(self.energy.text()))
-        if len(self.delta.text()) > 0:
-            conf_map['delta'] = ast.literal_eval(str(self.delta.text()))
-        if len(self.gamma.text()) > 0:
-            conf_map['gamma'] = ast.literal_eval(str(self.gamma.text()))
-        if len(self.detdist.text()) > 0:
-            conf_map['detdist'] = ast.literal_eval(str(self.detdist.text()))
-        if len(self.th.text()) > 0:
-            conf_map['th'] = ast.literal_eval(str(self.th.text()))
-        if len(self.chi.text()) > 0:
-            conf_map['chi'] = ast.literal_eval(str(self.chi.text()))
-        if len(self.phi.text()) > 0:
-            conf_map['phi'] = ast.literal_eval(str(self.phi.text()))
-        if len(self.scanmot.text()) > 0:
-            conf_map['scanmot'] = str(self.scanmot.text())
-        if len(self.scanmot_del.text()) > 0:
-            conf_map['scanmot_del'] = ast.literal_eval(str(self.scanmot_del.text()))
-        if len(self.detector.text()) > 0:
-            conf_map['detector'] = str(self.detector.text())
-
-        return conf_map
-
-
-    def parse_spec(self):
-        """
-        Calls utility function to parse spec file. Displas the parsed parameters in the window with blue text.
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        nothing
-        """
-        scan = str(self.main_window.scan_widget.text())
-        if len(scan) == 0:
-            msg_window ('cannot parse spec, scan not defined')
-            return
-
-        diffractometer = self.instr_tab.diffractometer.text()
-        if len(diffractometer) == 0:
-            msg_window ('cannot parse spec, diffractometer not defined')
-            return
-
-        specfile = self.instr_tab.spec_file_button.text()
-        if len(specfile) == 0:
-            msg_window ('cannot parse spec, specfile not defined')
-            return
-
-        import beamlines.aps_34idc.diffractometers as diff
-        import beamlines.aps_34idc.instrument as instr
-
-        try:
-            diff_obj = diff.create_diffractometer(diffractometer)
-        except:
-            msg_window ('cannot create diffractometer', diffractometer)
-            return
-
-        last_scan = int(scan.split('-')[-1].split(',')[-1])
-        spec_dict = instr.parse_spec(specfile, last_scan, diff_obj)
-        if spec_dict is None:
-            return
-        if 'energy' in spec_dict:
-            self.energy.setText(str(spec_dict['energy']))
-            self.energy.setStyleSheet('color: blue')
-        if 'delta' in spec_dict:
-            self.delta.setText(str(spec_dict['delta']))
-            self.delta.setStyleSheet('color: blue')
-        if 'gamma' in spec_dict:
-            self.gamma.setText(str(spec_dict['gamma']))
-            self.gamma.setStyleSheet('color: blue')
-        if 'th' in spec_dict:
-            self.th.setText(str(spec_dict['th']))
-            self.th.setStyleSheet('color: blue')
-        if 'chi' in spec_dict:
-            self.chi.setText(str(spec_dict['chi']))
-            self.chi.setStyleSheet('color: blue')
-        if 'phi' in spec_dict:
-            self.phi.setText(str(spec_dict['phi']))
-            self.phi.setStyleSheet('color: blue')
-        if 'detdist' in spec_dict:
-            self.detdist.setText(str(spec_dict['detdist']))
-            self.detdist.setStyleSheet('color: blue')
-        if 'scanmot' in spec_dict:
-            self.scanmot.setText(str(spec_dict['scanmot']))
-            self.scanmot.setStyleSheet('color: blue')
-        if 'scanmot_del' in spec_dict:
-            self.scanmot_del.setText(str(spec_dict['scanmot_del']))
-            self.scanmot_del.setStyleSheet('color: blue')
-        if 'detector' in spec_dict:
-            self.detector.setText(str(spec_dict['detector']))
-            self.detector.setStyleSheet('color: blue')
-
-
-
 class InstrTab(QWidget):
     def __init__(self, parent=None):
         """
@@ -734,20 +482,6 @@ class InstrTab(QWidget):
         super(InstrTab, self).__init__(parent)
         self.name = 'Instrument'
         self.conf_name = 'config_instr'
-
-
-    def toggle_config(self):
-        return
-        # if self.main_win.multipeak.isChecked() or self.main_win.separate_scans.isChecked() or self.main_win.separate_scan_ranges.isChecked():
-        #     self.add_config = False
-        #     self.extended.clear_conf()
-        #     self.extended.spec_widget.hide()
-        # else:
-        #     self.add_config = True
-        #     self.extended.spec_widget.show()
-        #     self.extended.parse_spec()
-        #
-        # self.save_conf()
 
 
     def init(self, tabs, main_window):
@@ -762,13 +496,6 @@ class InstrTab(QWidget):
         """
         self.tabs = tabs
         self.main_win = main_window
-        self.extended = None
-        # if main_window.multipeak.isChecked() or main_window.separate_scans.isChecked() or main_window.separate_scan_ranges.isChecked():
-        #     self.add_config = False
-        # else:
-        #     self.add_config = True
-        # self.extended = SubInstrTab()
-        # self.extended.init(self, main_window)
 
         tab_layout = QVBoxLayout()
         gen_layout = QFormLayout()
@@ -779,9 +506,6 @@ class InstrTab(QWidget):
         self.h5file_button = QPushButton()
         gen_layout.addRow("h5file file", self.h5file_button)
         tab_layout.addLayout(gen_layout)
-        # tab_layout.addWidget(self.extended.spec_widget)
-        # if not self.add_config:
-        #     self.extended.spec_widget.hide()
         cmd_layout = QHBoxLayout()
         self.set_instr_conf_from_button = QPushButton("Load instr conf from")
         self.set_instr_conf_from_button.setStyleSheet("background-color:rgb(205,178,102)")
@@ -829,9 +553,6 @@ class InstrTab(QWidget):
             else:
                 msg_window(f'The h5file file {h5file} in config file does not exist')
 
-        # if self.add_config:
-        #     self.extended.load_tab(conf_map)
-
 
     def set_h5file(self):
         """
@@ -848,8 +569,6 @@ class InstrTab(QWidget):
         if h5file is not None:
             self.h5file_button.setStyleSheet("Text-align:left")
             self.h5file_button.setText(h5file)
-            # if self.add_config:
-            #     self.extended.parse_h5()
         else:
             self.h5file_button.setText('')
 
@@ -860,8 +579,6 @@ class InstrTab(QWidget):
         self.detector_button.setText('')
         self.diffractometer.setText('')
         self.h5file_button.setText('')
-        # if self.add_config:
-        #     self.extended.clear_conf()
 
 
     def load_instr_conf(self):
@@ -895,15 +612,12 @@ class InstrTab(QWidget):
             contains parameters read from window
         """
         conf_map = {}
-        if len(self.detector_button.text().strip()) > 0:
+        if len(self.detector_button.text()) > 0:
             conf_map['detector'] = str(self.detector_button.text()).strip()
         if len(self.diffractometer.text()) > 0:
             conf_map['diffractometer'] = str(self.diffractometer.text())
         if len(self.h5file_button.text()) > 0:
             conf_map['h5file'] = str(self.h5file_button.text())
-
-        # if self.add_config:
-        #     conf_map.update(self.extended.get_instr_config())
 
         return conf_map
 
@@ -923,12 +637,10 @@ class InstrTab(QWidget):
             return
 
         conf_map = self.get_instr_config()
-        # verify that disp configuration is ok
-        # er_msg = cohere.verify('config_instr', conf_map)
-        # if len(er_msg) > 0:
-        #     msg_window(er_msg)
-        #     if not self.main_win.debug:
-        #         return
+        if len(conf_map) == 0:
+            return
+
+        # verify here
 
         ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_instr'))
 

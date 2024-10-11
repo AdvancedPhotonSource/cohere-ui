@@ -22,9 +22,9 @@ class Instrument:
         str
             a string containing error message or empty
         """
-        (self.h5file, diffractometer, detector) = args
+        (self.h5file, diffractometer, detector, roi) = args
         self.diff_obj = diff.create_diffractometer(diffractometer)
-        self.det_obj = det.create_detector(detector)
+        self.det_obj = det.create_detector(detector, roi=roi)
         self.detector = detector
 
 
@@ -40,7 +40,7 @@ class Instrument:
         -------
         list
         """
-        return self.det_obj.nodes4scans(scans, self.h5file)
+        return self.det_obj.nodes4scans(scans)
 
 
     def get_scan_array(self, scan_node):
@@ -100,6 +100,7 @@ def create_instr(params):
     if detector is None:
         print ('detector must be provided to create Instrument for esrf_id01 beamline')
         return None
-    instr = Instrument(h5file, diffractometer, detector)
+    roi = params.get('roi', None)
+    instr = Instrument(h5file, diffractometer, detector, roi)
 
     return instr
