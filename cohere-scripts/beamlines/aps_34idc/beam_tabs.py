@@ -537,17 +537,6 @@ class DispTab(QWidget):
             msg_window('the results directory is not set')
             return
 
-        results_dir = str(self.result_dir_button.text()).replace(os.sep, '/')
-
-        # found_file = False
-        # for p, d, f in os.walk(results_dir):
-        #     if 'image.npy' in f:
-        #         found_file = True
-        #         break
-        # if not found_file:
-        #     msg_window('No image files found in the results directory tree. Please, run reconstruction in previous tab to activate this function')
-        #     return
-
         self.save_conf()
 
         self.tabs.run_viz()

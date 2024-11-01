@@ -31,6 +31,10 @@ def format_data(experiment_dir, **kwargs):
     ----------
     experiment_dir : str
         directory where the experiment processing files are saved
+    kwargs: ver parameters
+        may contain:
+        - no_verify : boolean switch to determine if the verification error is returned
+        - debug : boolean switch not used in this code
 
     Returns
     -------
@@ -39,27 +43,19 @@ def format_data(experiment_dir, **kwargs):
     print('formatting data')
 
     conf_list = ['config_data']
-    conf_maps, converted = com.get_config_maps(experiment_dir, conf_list)
-     # check the maps
-    if 'config' not in conf_maps.keys():
-        return 'missing main config file'
+    err_msg, conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, **kwargs)
+    if len(err_msg) > 0:
+        return err_msg
+
+    # check the maps
     if 'config_data' not in conf_maps.keys():
         return 'missing config_data file'
 
     # verify that config files are correct
     main_conf_map = conf_maps['config']
-    err_msg = ut.verify('config', main_conf_map)
-    if len(err_msg) > 0:
-        return err_msg
-
-    data_config_map = conf_maps['config_data']
-    err_msg = ut.verify('config_data', data_config_map)
-    if len(err_msg) > 0:
-        return err_msg
-
-    auto_data = 'auto_data' in main_conf_map and main_conf_map['auto_data']
-
     data_conf_map = conf_maps['config_data']
+
+    auto_data = main_conf_map.get('auto_data', False)
 
     dirs = os.listdir(experiment_dir)
     for dir in dirs:
@@ -68,10 +64,7 @@ def format_data(experiment_dir, **kwargs):
             data_dir = ut.join(scan_dir, 'phasing_data')
             proc_dir = scan_dir
         elif dir == 'preprocessed_data':
-            if 'data_dir' in data_conf_map:
-                data_dir = data_conf_map['data_dir']
-            else:
-                data_dir = ut.join(experiment_dir, 'phasing_data')
+            data_dir = data_conf_map.get('data_dir', ut.join(experiment_dir, 'phasing_data'))
             proc_dir = experiment_dir
         else:
             continue
@@ -94,9 +87,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_dir", help="experiment directory")
     parser.add_argument("--no_verify", action="store_true",
-                        help="if True the vrifier has no effect on processing")
+                        help="if True the verifier has no effect on processing, error is always printed when incorrect configuration")
+    parser.add_argument("--debug", action="store_true",
+                        help="not used currently, available to developer for debugging")
     args = parser.parse_args()
-    format_data(args.experiment_dir, no_verify=args.no_verify)
+    format_data(args.experiment_dir, no_verify=args.no_verify, debug=args.debug)
 
 
 if __name__ == "__main__":

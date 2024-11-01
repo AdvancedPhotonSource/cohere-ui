@@ -14,12 +14,12 @@ Refer to cohere_core-ui suite for use cases. The reconstruction can be started f
 import argparse
 import numpy as np
 import os
+from multiprocessing import Process
 import cohere_core.utilities.utils as ut
 import cohere_core.utilities.dvc_utils as dvut
 import cohere_core.utilities.ga_utils as gaut
 import cohere_core.controller.phasing as calc
 from mpi4py import MPI
-import datetime
 
 
 __author__ = "Barbara Frosik"
@@ -40,6 +40,8 @@ def order_ranks(tracing, proc_metrics, metric_type, last_alpha_metric):
         dictionary of <pid> : <evaluations> ; evaluations of the results saved in the directories matching dirs list. The evaluations are dict
         <metric type> : <eval result>
     metric_type : metric type to be applied for evaluation
+    last_alpha_metric : dict
+        metric for the last alpha
 
     Returns
     -------
@@ -78,17 +80,19 @@ def cull(lst, no_left):
         return lst[0:no_left]
 
 
-def write_log(rank: int, msg: str) -> None:
+def write_log(rank, msg):
     """
     Use this to force writes for debugging. PBS sometimes doesn't flush
     std* outputs. MPI faults clobber greedy flushing of default python
     logs.
+    Currently used to log start of generation.
     """
     with open(f'{rank}.log', 'a') as log_f:
-        log_f.write(f'{datetime.datetime.now()} | {msg}\n')
+        log_f.write(f'{msg}\n')
+        #log_f.write(f'{datetime.datetime.now()} | {msg}\n')
 
 
-def reconstruction(pkg, conf_file, datafile, dir, devices):
+def reconstruction(pkg, conf_file, datafile, dir, devices, **kwargs):
     """
     Controls reconstruction that employs genetic algorith (GA).
 
@@ -133,6 +137,7 @@ def reconstruction(pkg, conf_file, datafile, dir, devices):
         # the config_rec might be an alternate configuration with a postfix that will be included in save_dir
         filename = conf_file.split('/')[-1]
         save_dir = ut.join(dir, filename.replace('config_rec', 'results_phasing'))
+
     last_alpha = None
     last_alpha_metric = None
 
@@ -156,7 +161,12 @@ def reconstruction(pkg, conf_file, datafile, dir, devices):
 
     active = True
     success = True
+
     for g in range(pars['ga_generations']):
+        if rank == 0:
+            # write log file when new generation starts
+            #
+            write_log('ga', f'starting generation {g}')
         was_active = active
         if g == 0:
             ret = worker.init_dev(devices[rank])

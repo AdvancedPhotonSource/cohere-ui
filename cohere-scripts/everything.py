@@ -29,15 +29,14 @@ def run_all(experiment_dir, **kwargs):
 
     Parameters
     ----------
-    dev : str
-        processing library, choices are: cpu, cuda, opencl
-    experiment_dir : str
+    :param experiment_dir: str
         directory where the experiment files are loacted
-    config_id : str
-        optional, if given, alternate configuration file will be used for reconstruction, (i.e. <config_id>_config_rec)
-
-    Returns
-    -------
+    :param kwargs: ver parameters
+        may contain:
+        - rec_id : reconstruction id, pointing to alternate config
+        - no_verify : boolean switch to determine if the verification error is returned
+        - debug : boolean switch to determine whether exception shell be handled during reconstruction
+    :return:
     nothing
     """
     experiment_dir = experiment_dir.replace(os.sep, '/')
@@ -50,12 +49,14 @@ def run_all(experiment_dir, **kwargs):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_dir", help="experiment directory")
-    parser.add_argument("--config_id", help="reconstruction id, a prefix to '_results' directory")
+    parser.add_argument("--rec_id", help="reconstruction id, a prefix to '_results' directory")
     parser.add_argument("--no_verify", action="store_true",
                         help="if True the vrifier has no effect on processing")
+    parser.add_argument("--debug", action="store_true",
+                        help="if True the exceptions are not handled")
 
     args = parser.parse_args()
-    run_all(args.experiment_dir, config_id=args.config_id, no_verify=args.no_verify)
+    run_all(args.experiment_dir, rec_id=args.rec_id, no_verify=args.no_verify, debug=args.debug)
 
 
 if __name__ == "__main__":

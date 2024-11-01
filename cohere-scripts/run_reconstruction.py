@@ -78,7 +78,7 @@ def split_resources(hostfile, devs, no_scans):
     return hostfiles
 
 
-def process_scan_range(ga_method, pkg, conf_file, datafile, dir, picked_devs, hostfile, q=None):
+def process_scan_range(ga_method, pkg, conf_file, datafile, dir, picked_devs, **kwargs):
     """
     Calls the reconstruction function in a module identified by parameter. After the reconstruction is finished, it enqueues th eprocess id wit associated list of gpus.
     Parameters
@@ -95,27 +95,27 @@ def process_scan_range(ga_method, pkg, conf_file, datafile, dir, picked_devs, ho
         parent directory to the <prefix>/results, or results directory
     picked_devs : list
        a list of gpus that will be used for reconstruction
-    hostfile : str
-       name of hostfile if cluster configuration was used
-    q : Queue
-       a queue that returns tuple of procees id and associated gpu list after the reconstruction process is done;
-       is used in multiple scans scenario
+    kwargs : var params
+        may contain:
+        hostfile : name of hostfile if cluster configuration was used
     Returns
     -------
     nothing
     """
     if len(picked_devs) == 1:
-        rec.reconstruction_single.reconstruction(pkg, conf_file, datafile, dir, picked_devs)
+        rec.reconstruction_single.reconstruction(pkg, conf_file, datafile, dir, picked_devs, **kwargs)
     elif ga_method is None or ga_method == 'ga_fast':
+        # need hostfile from **kwargs
+        hostfile = kwargs.get('hostfile', None)
         mpi_cmd.run_with_mpi(ga_method, pkg, conf_file, datafile, dir, picked_devs, hostfile)
     else:
         reconstruction_populous_GA.reconstruction(pkg, conf_file, datafile, dir, picked_devs)
 
-    if q is not None:
-        q.put((os.getpid(), picked_devs, hostfile))
+    if 'q' in kwargs:
+        kwargs.get('q').put(os.getpid(), picked_devs, kwargs.get('hostfile', None))
 
 
-def manage_reconstruction(experiment_dir, config_id, no_verify):
+def manage_reconstruction(experiment_dir, **kwargs):
     """
     This function starts the interruption discovery process and continues the recontruction processing.
     It reads configuration file defined as <experiment_dir>/conf/config_rec.
@@ -125,8 +125,11 @@ def manage_reconstruction(experiment_dir, config_id, no_verify):
     ----------
     experiment_dir : str
         directory where the experiment files are loacted
-    config_id : str
-        optional, if given, alternate configuration file will be used for reconstruction, (i.e. <rec_id>_config_rec)
+    :param kwargs: ver parameters
+        may contain:
+        - rec_id : reconstruction id, pointing to alternate config
+        - no_verify : boolean switch to determine if the verification error is returned
+        - debug : boolean switch to determine whether exception shell be handled during reconstruction
     Returns
     -------
     nothing
@@ -134,29 +137,22 @@ def manage_reconstruction(experiment_dir, config_id, no_verify):
     print('started reconstruction')
 
     conf_list = ['config_rec', 'config_mp']
-    conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, config_id)
+    err_msg, conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, **kwargs)
+    if len(err_msg) > 0:
+        return err_msg
+    # it was already used in the function above
+    kwargs.pop('no_verify')
     # check the maps
-    if 'config' not in conf_maps.keys():
-        return 'missing main config file'
+    rec_id = kwargs.pop('rec_id', None)
     if 'config_rec' not in conf_maps.keys():
-        return 'missing config_rec file'
-
-    # verify that config files are correct
-    main_conf_map = conf_maps['config']
-    err_msg = ut.verify('config', main_conf_map)
-    if len(err_msg) > 0:
-        return err_msg
-
+        print(f'missing config_rec_{rec_id} file, exiting')
+        return f'missing config_rec_{rec_id} file, exiting'
+    main_config_map = conf_maps['config']
     rec_config_map = conf_maps['config_rec']
-    err_msg = ut.verify('config_rec', rec_config_map)
-    if len(err_msg) > 0:
-        return err_msg
 
     proc = rec_config_map.get('processing', 'auto')
     devices = rec_config_map.get('device', [-1])
 
-    main_config_map = conf_maps['config']
-    rec_config_map = conf_maps['config_rec']
     # find which library to run it on, default is numpy ('np')
     err_msg, pkg = com.get_pkg(proc, devices)
     if len(err_msg) > 0:
@@ -175,7 +171,7 @@ def manage_reconstruction(experiment_dir, config_id, no_verify):
         for dir in os.listdir(experiment_dir):
             if dir.startswith('mp'):
                 peak_dirs.append(ut.join(experiment_dir, dir))
-        return rec.reconstruction_coupled.reconstruction(pkg, config_map, peak_dirs, devices)
+        return rec.reconstruction_coupled.reconstruction(pkg, config_map, peak_dirs, devices, **kwargs)
 
     # exp_dirs_data list hold pairs of data and directory, where the directory is the root of phasing_data/data.tif file, and
     # data is the data.tif file in this directory.
@@ -200,10 +196,10 @@ def manage_reconstruction(experiment_dir, config_id, no_verify):
         print('did not find data.tif file(s). ')
         return 'did not find data.tif file(s). '
 
-    if config_id is None:
+    if rec_id is None:
         conf_file = ut.join(experiment_dir, 'conf', 'config_rec')
     else:
-        conf_file = ut.join(experiment_dir, 'conf', f'config_rec_{config_id}')
+        conf_file = ut.join(experiment_dir, 'conf', f'config_rec_{rec_id}')
 
     ga_method = None
     if 'ga_generations' in rec_config_map and rec_config_map['ga_generations'] > 1:
@@ -231,10 +227,11 @@ def manage_reconstruction(experiment_dir, config_id, no_verify):
 
     if hostfile is not None:
         picked_devs = sum(picked_devs, [])
+    kwargs['hostfile'] = hostfile
 
     if no_scan_ranges == 1:
             datafile, dir = exp_dirs_data[0]
-            process_scan_range(ga_method, pkg, conf_file, datafile, dir, picked_devs, hostfile)
+            process_scan_range(ga_method, pkg, conf_file, datafile, dir, picked_devs, **kwargs)
     else: # multiple scans or scan ranges
         q = None
         if avail_jobs >= want_dev_no:
@@ -258,7 +255,7 @@ def manage_reconstruction(experiment_dir, config_id, no_verify):
         for i in range(no_concurrent_scans):
             datafile, dir = exp_dirs_data[i]
             # run concurrently
-            p = Process(target=process_scan_range, args=(ga_method, pkg, conf_file, datafile, dir, scan_picked_devs[i], hostfiles[i], q))
+            p = Process(target=process_scan_range, args=(ga_method, pkg, conf_file, datafile, dir, scan_picked_devs[i], hostfiles[i], q, debug))
             p.start()
             pr[p.pid] = p
 
@@ -269,7 +266,7 @@ def manage_reconstruction(experiment_dir, config_id, no_verify):
             pid, devs, hostfile = q.get()
             if pid in pr.keys():
                del pr[pid]
-            p = Process(target=process_scan_range, args=(ga_method, pkg, conf_file, datafile, dir, devs, hostfile, q))
+            p = Process(target=process_scan_range, args=(ga_method, pkg, conf_file, datafile, dir, devs, hostfile, q, debug))
             p.start()
             pr[p.pid] = p
 
@@ -295,9 +292,11 @@ def main():
     parser.add_argument("experiment_dir", help="experiment directory.")
     parser.add_argument("--rec_id", action="store", help="reconstruction id, a postfix to 'results_phasing_' directory")
     parser.add_argument("--no_verify", action="store_true",
-                        help="if True the vrifier has no effect on processing")
+                        help="if True the verifier has no effect on processing, error is always printed when incorrect configuration")
+    parser.add_argument("--debug", action="store_true",
+                        help="if True the exceptions are not handled")
     args = parser.parse_args()
-    manage_reconstruction(args.experiment_dir, config_id=args.rec_id, no_verify=args.no_verify)
+    manage_reconstruction(args.experiment_dir, rec_id=args.rec_id, no_verify=args.no_verify, debug=args.debug)
 
 
 if __name__ == "__main__":

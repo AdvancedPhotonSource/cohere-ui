@@ -95,11 +95,12 @@ class Detector(ABC):
         return np.stack(ordered_slices, axis=-1)
 
     def get_raw_frame(self, filename):
-        try:
-            self.raw_frame = ut.read_tif(filename)
-        except:
-            print("problem reading raw file ", filename)
-            raise
+        return ut.read_tif(filename)
+        # try:
+        #     self.raw_frame = ut.read_tif(filename)
+        # except:
+        #     print("problem reading raw file ", filename)
+        #     raise
 
     @abstractmethod
     def get_frame(self, filename):
@@ -191,10 +192,8 @@ class Detector_34idcTIM1(Detector):
                 self.load_darkfield()
             else:
                 print("Darkfield filename not configured for TIM1, will not correct")
-
         roislice1 = slice(self.roi[0], self.roi[0] + self.roi[1])
         roislice2 = slice(self.roi[2], self.roi[2] + self.roi[3])
-
         raw_frame = self.get_raw_frame(filename)
         try:
             frame = np.where(self.darkfield[roislice1, roislice2] > 1, 0.0, raw_frame)
@@ -300,8 +299,7 @@ class Detector_34idcTIM2(Detector):
         # blank out pixels identified in darkfield
         # insert 4 cols 5 rows if roi crosses asic boundary
         if self.roi is None:
-            self.roi = (0, 512, 0, 512)
-        # WFprocessing using darkfield.  So do it first.
+            self.roi = Detector_34idcTIM2.roi
         if not type(self.darkfield) == np.ndarray:
             self.load_darkfield()
         if not type(self.whitefield) == np.ndarray:
@@ -313,8 +311,8 @@ class Detector_34idcTIM2(Detector):
         roislice2 = slice(self.roi[2], self.roi[2] + self.roi[3])
 
         # some of this should probably be in try blocks
-        self.get_raw_frame(filename)
-        normframe = self.raw_frame / self.whitefield[roislice1, roislice2] * self.Imult
+        raw_frame = self.get_raw_frame(filename)
+        normframe = raw_frame / self.whitefield[roislice1, roislice2] * self.Imult
         normframe = np.where(self.darkfield[roislice1, roislice2] > 1, 0.0, normframe)
         normframe = np.where(np.isfinite(normframe), normframe, 0)
 

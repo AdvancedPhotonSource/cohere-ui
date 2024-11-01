@@ -114,11 +114,10 @@ def multi_rec(pkg, save_dir, devices, no_recs, pars, datafile, prev_dirs, gen=No
         name of file containing data for reconstruction
     :param prev_dirs: list
         directories that hols results of previous reconstructions if it is continuation or None(s)
-    :param metric_type: str
-        a metric defining algorithm by which to evaluate the quality of reconstructed array
     :param gen: int
         current generation
-    :param alpha_dir:
+    :param alpha_dir: str
+        directory of alpha reconstruction
     :param q: queue
         if provided the results will be queued
     :return:
@@ -360,6 +359,10 @@ def reconstruction(pkg, conf_file, datafile, dir, devices):
     # move results from the best reconstruction to save_dir
     source_dir = ut.join(save_dir, 'g_' + str(pars['ga_generations'] - 1), '0')
     for file_name in os.listdir(source_dir):
+        try:
+            os.remove(ut.join(save_dir, file_name))
+        except OSError:
+            pass
         shutil.move(ut.join(source_dir, file_name), save_dir)
     # remove the last gen
     shutil.rmtree(ut.join(save_dir, 'g_' + str(pars['ga_generations'] - 1)))

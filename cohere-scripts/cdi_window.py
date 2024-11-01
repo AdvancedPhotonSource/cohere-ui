@@ -93,7 +93,7 @@ def msg_window(text):
 
 
 class cdi_gui(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, **kwargs):
         """
         Constructor, initializes GUI.
         Parameters
@@ -177,7 +177,8 @@ class cdi_gui(QWidget):
 
     def set_args(self, args, **kwargs):
         self.args = args
-        self.no_verify = 'no_verify' in kwargs and kwargs['no_verify']
+        self.no_verify = kwargs.get('no_verify', False)
+        self.debug = kwargs.get('debug', False)
 
 
     def run_everything(self):
@@ -301,7 +302,12 @@ class cdi_gui(QWidget):
             return
 
         conf_list = ['config_prep', 'config_data', 'config_rec', 'config_disp', 'config_instr', 'config_mp']
-        conf_dicts, converted = com.get_config_maps(load_dir, conf_list)
+        # set no_verify to True so the configuration is loaded even it's wrong. The user will be able to fix it
+        # it is loading the main configuration, so that rec_id is not passed in
+        err_msg, conf_dicts, converted = com.get_config_maps(load_dir, conf_list, no_verify=True)
+        if len(err_msg) > 0:
+            print('err', err_msg)
+            msg_window(err_msg)
 
         self.load_main(conf_dicts['config'])
 
@@ -930,7 +936,7 @@ class RecTab(QWidget):
         """
         self.tabs = tabs
         self.main_win = main_window
-        self.old_conf_id = ''
+        self.old_rec_id = ''
 
         layout = QVBoxLayout()
         ulayout = QFormLayout()
@@ -1047,7 +1053,7 @@ class RecTab(QWidget):
         nu_to_remove = self.rec_id.count() - 1
         for _ in range(nu_to_remove):
             self.rec_id.removeItem(1)
-        self.old_conf_id = ''
+        self.old_rec_id = ''
         self.device.setText('')
         self.proc.setCurrentIndex(0)
         self.reconstructions.setText('')
@@ -1202,10 +1208,10 @@ class RecTab(QWidget):
         if self.main_win.experiment_dir is None:
             return
         # save the configuration file before updating the incoming config
-        if self.old_conf_id == '':
+        if self.old_rec_id == '':
             conf_file = 'config_rec'
         else:
-            conf_file =  f'config_rec_{self.old_conf_id}'
+            conf_file =  f'config_rec_{self.old_rec_id}'
 
         conf_map = self.get_rec_config()
         if len(conf_map) == 0:
@@ -1214,15 +1220,15 @@ class RecTab(QWidget):
 
         ut.write_config(conf_map, ut.join(conf_dir, conf_file))
         if str(self.rec_id.currentText()) == 'main':
-            self.old_conf_id = ''
+            self.old_rec_id = ''
         else:
-            self.old_conf_id = str(self.rec_id.currentText())
+            self.old_rec_id = str(self.rec_id.currentText())
         # if a config file corresponding to the rec id exists, load it
         # otherwise read from base configuration and load
-        if self.old_conf_id == '':
+        if self.old_rec_id == '':
             conf_file = ut.join(conf_dir, 'config_rec')
         else:
-            conf_file = ut.join(conf_dir, f'config_rec_{self.old_conf_id}')
+            conf_file = ut.join(conf_dir, f'config_rec_{self.old_rec_id}')
 
         conf_map = ut.read_config(conf_file)
         if conf_map is None:
@@ -1281,12 +1287,12 @@ class RecTab(QWidget):
                     break
             if found_file:
                 # find out which configuration should be saved
-                if self.old_conf_id == '':
+                if self.old_rec_id == '':
                     conf_file = 'config_rec'
-                    conf_id = None
+                    rec_id = None
                 else:
-                    conf_file =  'config_rec_' + self.old_conf_id
-                    conf_id = self.old_conf_id
+                    conf_file =  'config_rec_' + self.old_rec_id
+                    rec_id = self.old_rec_id
 
                 conf_map = self.get_rec_config()
                 if len(conf_map) == 0:
@@ -1299,7 +1305,10 @@ class RecTab(QWidget):
                     if not self.main_win.no_verify:
                         return
                 ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', conf_file))
-                run_rc.manage_reconstruction(self.main_win.experiment_dir, config_id=conf_id, no_verify=self.main_win.no_verify)
+                run_rc.manage_reconstruction(self.main_win.experiment_dir,
+                                             rec_id=rec_id,
+                                             no_verify=self.main_win.no_verify,
+                                             debug=self.main_win.debug)
                 self.notify()
             else:
                 msg_window('Please, run format data in previous tab to activate this function')
@@ -1338,7 +1347,7 @@ class RecTab(QWidget):
         nothing
         """
         # this will update the configuration choices in reconstruction tab
-        # fill out the config_id choice bar by reading configuration files names
+        # fill out the rec_id choice bar by reading configuration files names
         if not self.main_win.is_exp_set():
             return
         for file in os.listdir(ut.join(self.main_win.experiment_dir, 'conf')):
@@ -1350,7 +1359,7 @@ class RecTab(QWidget):
 
 
     def notify(self):
-        self.tabs.notify(**{'rec_id':self.old_conf_id})
+        self.tabs.notify(**{'rec_id':self.old_rec_id})
 
 
 class Feature(object):
@@ -2485,10 +2494,12 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--no_verify", action="store_true",
                         help="if True the verifier has no effect on processing")
+    parser.add_argument("--debug", action="store_true",
+                        help="if True the exceptions are not handled")
     args = parser.parse_args()
     app = QApplication(sys.argv)
     ex = cdi_gui()
-    ex.set_args(sys.argv[1:], no_verify=args.no_verify)
+    ex.set_args(sys.argv[1:], no_verify=args.no_verify, debug=args.debug)
     ex.show()
     sys.exit(app.exec_())
 

@@ -22,6 +22,7 @@ import numpy as np
 from functools import partial
 from multiprocessing import Pool, cpu_count
 import importlib
+import traceback
 import cohere_core.utilities as ut
 from tvtk.api import tvtk
 import multipeak as mp
@@ -75,6 +76,8 @@ class CXDViz:
             coherence array or None
         save_dir : str
             a directory to save the results
+        unwrap : boolean
+            If True it will unwrap phase
         is_twin : boolean
             True if the image array is result of reconstruction, False if is_twin of reconstructed array.
         """
@@ -117,6 +120,8 @@ class CXDViz:
         ----------
         shape : tuple
             shape of reconstructed array
+        orig_shape : tuple
+            shape of array before binning
         Returns
         -------
         nothing
@@ -267,16 +272,16 @@ def voxel_size(geometry, shape):
 
 def process_dir(instr_conf_map, config_map, res_scans_dirs):
     """
-    Loads arrays from files in results directory. If reciprocal array exists, it will save reciprocal info in tif format. It calls the save_CX function with the relevant parameters.
-    Parameters
-    ----------
-    res_dir_conf : tuple
-        tuple of two elements:
-        res_dir - directory where the results of reconstruction are saved
-        conf_dict - dictionary containing configuration parameters
-    Returns
-    -------
-    nothing
+    Creates and saves file in vts format that represents the phasing results found in the giving directory applying
+    the parameters from configuration files.
+
+    :param instr_conf_map:
+    :param config_map:
+    :param res_scans_dirs: list
+        contain two elements:
+        scan - scan (last scan) relative to the res_dir
+        res-dir - directory where the results of reconstruction are saved and will be processes
+    :return:
     """
     [scan, res_dir] = res_scans_dirs
     if 'save_dir' in config_map:
@@ -319,7 +324,10 @@ def process_dir(instr_conf_map, config_map, res_scans_dirs):
         return (f'cannot import beamlines.{beamline}.instrument module.')
 
     instr_obj = instr_module.create_instr(instr_conf_map)
-    geometry = instr_obj.get_geometry(shape, scan, **instr_conf_map)
+    try:
+        geometry = instr_obj.get_geometry(shape, scan, **instr_conf_map)
+    except Exception as ex:
+        traceback.print_exception(type(ex), ex, ex.__traceback__)
 
     cohfile = ut.join(res_dir, 'coherence.npy')
     if os.path.isfile(cohfile):
@@ -348,13 +356,18 @@ def process_dir(instr_conf_map, config_map, res_scans_dirs):
         viz.visualize(image, support, coh, save_dir, unwrap, True)
 
 
-def handle_visualization(experiment_dir, rec_id=None, **kwargs):
+def handle_visualization(experiment_dir, **kwargs):
     """
     If the image_file parameter is defined, the file is processed and vts file saved. Otherwise this function determines root directory with results that should be processed for visualization. Multiple images will be processed concurrently.
     Parameters
     ----------
-    conf_dir : str
-        directory where the file will be saved
+    experiment_dir : str
+        directory where the experiment files are saved
+    kwargs: ver parameters
+        may contain:
+        - rec_id : reconstruction id, pointing to alternate config
+        - no_verify : boolean switch to determine if the verification error is returned
+        - debug : boolean switch not used in this code
     Returns
     -------
     nothing
@@ -362,44 +375,23 @@ def handle_visualization(experiment_dir, rec_id=None, **kwargs):
     print ('starting visualization process')
 
     conf_list = ['config_disp', 'config_instr', 'config_data']
-    conf_maps, converted = com.get_config_maps(experiment_dir, conf_list)
+    err_msg, conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, **kwargs)
+    if len(err_msg) > 0:
+        return err_msg
     # check the maps
-    if 'config' not in conf_maps.keys():
-        return 'missing main config file'
     if 'config_disp' not in conf_maps.keys():
-        return 'missing config_disp file'
+        print('missing config_disp file')
     if 'config_instr' not in conf_maps.keys():
-        return 'missing config_instr file'
+        return 'missing config_instr file, exiting'
     if 'config_data' not in conf_maps.keys():
-        return 'missing config_data file'
+        print('no config_data file')
 
     main_conf_map = conf_maps['config']
     instr_conf_map = conf_maps['config_instr']
-    data_conf_map = conf_maps['config_data']
-    disp_conf_map = conf_maps['config_disp']
-
-    beamline = main_conf_map.get('beamline', None)
-    if beamline is  None:
-        print('Beamline must be configured in main configuration file')
-        return 'Beamline must be configured in main configuration file'
-
-    try:
-        ver = importlib.import_module(f'beamlines.{beamline}.beam_verifier')
-    except Exception as e:
-        print(e)
-        print(f'cannot import beamlines.{beamline} module.')
-        return f'cannot import beamlines.{beamline} module.'
-
-    # verify that config files are correct
-    err_msg = ut.verify('config', main_conf_map)
-    if len(err_msg) > 0:
-        return err_msg
-    err_msg = ver.verify('config_disp', disp_conf_map)
-    if len(err_msg) > 0:
-        return err_msg
-    err_msg = ver.verify('config_instr', instr_conf_map)
-    if len(err_msg) > 0:
-        return err_msg
+    data_conf_map = conf_maps.get('config_data', {})
+    # add binning to instrument configuration, as this affects instrument processing
+    instr_conf_map['binning'] = data_conf_map.get('binning', [1, 1, 1])
+    disp_conf_map = conf_maps.get('config_disp', {})
 
     if 'multipeak' in main_conf_map and main_conf_map['multipeak']:
         mp.process_dir(experiment_dir, make_twin=False)
@@ -407,18 +399,19 @@ def handle_visualization(experiment_dir, rec_id=None, **kwargs):
         separate = main_conf_map.get('separate_scans', False) or main_conf_map.get('separate_scan_ranges', False)
         # get parameters from config files
         conf_map = disp_conf_map
-        conf_map['binning'] = data_conf_map.get('binning', [1,1,1])
+        # conf_map['binning'] = data_conf_map.get('binning', [1,1,1])
         conf_map['beamline'] = main_conf_map.get('beamline')
 
-        if 'results_dir' in disp_conf_map:
+        rec_id = kwargs.get('rec_id', None)
+        if separate:
+            results_dir = experiment_dir
+        elif rec_id is not None:
+            results_dir = ut.join(experiment_dir, f'results_phasing_{kwargs["rec_id"]}')
+        elif 'results_dir' in disp_conf_map:
             results_dir = disp_conf_map['results_dir'].replace(os.sep, '/')
             if not os.path.isdir(results_dir):
                 print(f'the configured results_dir: {results_dir} does not exist')
                 return(f'the configured results_dir: {results_dir} does not exist')
-        elif separate:
-            results_dir = experiment_dir
-        elif rec_id is not None:
-            results_dir = ut.join(experiment_dir, f'results_phasing_{rec_id}')
         else:
             results_dir = ut.join(experiment_dir, 'results_phasing')
 
@@ -462,11 +455,13 @@ def handle_visualization(experiment_dir, rec_id=None, **kwargs):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_dir", help="experiment directory")
-    parser.add_argument("--rec_id", help="alternate reconstruction id")
+    parser.add_argument("--rec_id", action="store", help="alternate reconstruction id")
     parser.add_argument("--no_verify", action="store_true",
-                        help="if True the vrifier has no effect on processing")
+                        help="if True the verifier has no effect on processing, error is always printed when incorrect configuration")
+    parser.add_argument("--debug", action="store_true",
+                        help="not used currently, available to developer for debugging")
     args = parser.parse_args()
-    handle_visualization(args.experiment_dir, args.rec_id, no_verify=args.no_verify)
+    handle_visualization(args.experiment_dir, rec_id=args.rec_id, no_verify=args.no_verify, debug=args.debug)
 
 
 if __name__ == "__main__":

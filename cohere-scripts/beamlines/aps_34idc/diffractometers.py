@@ -131,8 +131,6 @@ class Diffractometer_34idc(Diffractometer):
             specfile name
         xtal : boolean
             a switch
-        binning : list
-            binning
         det_obj : Object
             detector object
         The **kwargs reflect configuration, and could contain delta, gamma, theta, phi, chi, scanmot, scanmot_del,
@@ -145,14 +143,14 @@ class Diffractometer_34idc(Diffractometer):
         """
         attrs = self.parse_spec(specfile, scan)
         attrs.update(kwargs)
-        binning = attrs.get('binning', [1, 1, 1])
+        binning = kwargs.get('binning', [1, 1, 1])
 
         # set the attributes with values parsed from spec and then possibly overridden by configuration
         for attr in attrs:
             setattr(self, attr, attrs[attr])
 
         if det_obj is None:
-            det_obj = det.create_detector(self.detector)
+            det_obj = det.create_detector(attrs.get('detector'))
         px = det_obj.pixel[0] * binning[0]
         py = det_obj.pixel[1] * binning[1]
 

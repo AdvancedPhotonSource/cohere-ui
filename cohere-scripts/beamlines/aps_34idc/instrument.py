@@ -76,16 +76,13 @@ class Instrument:
         (scan,) = args
         det_pars = parse_spec4roi(self.specfile, scan)
 
-        det_name = kwargs.pop('detector', None)
-        if det_name is None:
-            det_name = det_pars.pop('detector', None)
+        det_pars.update(kwargs)
 
+        det_name = det_pars.pop('detector', None)
         if det_name is None:
             return 'detector name unknown'
 
-        kwargs.update(det_pars)
-
-        self.det_obj = det.create_detector(det_name, **kwargs)
+        self.det_obj = det.create_detector(det_name, **det_pars)
         if self.det_obj is None:
             raise RuntimeError
 
@@ -121,7 +118,10 @@ class Instrument:
         ----------
         shape : tuple
             shape of reconstructed array
-        The *args for aps_34idc contain scan number.
+        scan : int
+            scan to use to parse experiment parameters
+        xtal : boolean
+            request only reciprocal space geometry when True
         The **kwargs reflect configuration, and could contain delta, gamma, theta, phi, chi, scanmot, scanmot_del,
         detdist, detector_name, energy.
 

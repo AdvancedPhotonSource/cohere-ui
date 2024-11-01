@@ -35,6 +35,11 @@ def handle_prep(experiment_dir, **kwargs):
     ----------
     experimnent_dir : str
         directory with experiment files
+    kwargs: ver parameters
+        may contain:
+        - rec_id : reconstruction id, pointing to alternate config
+        - no_verify : boolean switch to determine if the verification error is returned
+        - debug : boolean switch not used in this code
     Returns
     -------
     experimnent_dir : str
@@ -44,42 +49,29 @@ def handle_prep(experiment_dir, **kwargs):
 
     # requesting the configuration files that provide parameters for preprocessing
     conf_list = ['config_prep', 'config_instr', 'config_mp']
-    conf_maps, converted = com.get_config_maps(experiment_dir, conf_list)
+    err_msg, conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, **kwargs)
+    if len(err_msg) > 0:
+        return err_msg
+
     # check the maps
-    if 'config' not in conf_maps.keys():
-        return 'missing main config file'
     if 'config_instr' not in conf_maps.keys():
-        return 'missing config_instr file'
+        return 'missing config_instr file, exiting'
     if 'config_prep' not in conf_maps.keys():
         print('info: no config_prep file, continue with no parameters')
 
-    # verify that config files are correct
     main_conf_map = conf_maps['config']
-    no_verify = kwargs.get('no_verify', False)
-    if not no_verify:
-        err_msg = ut.verify('config', main_conf_map)
-        if len(err_msg) > 0:
-            return err_msg
 
-    if 'beamline' in main_conf_map:
-        beamline = main_conf_map['beamline']
-        try:
-            instr_module = importlib.import_module(f'beamlines.{beamline}.instrument')
-            ph = importlib.import_module(f'beamlines.{beamline}.preprocessor')
-            ver = importlib.import_module(f'beamlines.{beamline}.beam_verifier')
-        except Exception as e:
-            print(e)
-            print(f'cannot import beamlines.{beamline} module.')
-            return f'cannot import beamlines.{beamline} module.'
-    else:
-        print('Beamline must be configured in main configuration file')
-        return 'Beamline must be configured in main configuration file'
+    # checked already if beamline is configured
+    beamline = main_conf_map['beamline']
+    try:
+        instr_module = importlib.import_module(f'beamlines.{beamline}.instrument')
+        ph = importlib.import_module(f'beamlines.{beamline}.preprocessor')
+    except Exception as e:
+        print(e)
+        print(f'cannot import beamlines.{beamline} module.')
+        return f'cannot import beamlines.{beamline} module.'
 
     prep_conf_map = conf_maps.get('config_prep', {})
-    if not no_verify:
-        err_msg = ver.verify('config_prep', prep_conf_map)
-        if len(err_msg) > 0:
-            return err_msg
 
     # config_instr contain all parameters needed to create instrument object
     # add main config and mutipeak config to parameters, as the beamline might need them
@@ -166,9 +158,11 @@ def main():
     parser.add_argument("experiment_dir",
                         help="directory where the configuration files are located")
     parser.add_argument("--no_verify", action="store_true",
-                        help="if True the vrifier has no effect on processing")
+                        help="if True the verifier has no effect on processing, error is always printed when incorrect configuration")
+    parser.add_argument("--debug", action="store_true",
+                        help="not used currently, available to developer for debugging")
     args = parser.parse_args()
-    handle_prep(args.experiment_dir, no_verify=args.no_verify)
+    handle_prep(args.experiment_dir, no_verify=args.no_verify, debug=args.debug)
 
 
 if __name__ == "__main__":
