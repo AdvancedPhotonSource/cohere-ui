@@ -35,7 +35,6 @@ def get_config_maps(experiment_dir, configs, **kwargs):
 
     msg = ut.verify('config', main_config_map)
     if len(msg) > 0:
-        print(msg)
         if not no_verify:
             return msg, maps, None
 

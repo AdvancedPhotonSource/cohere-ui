@@ -324,6 +324,7 @@ def process_dir(instr_conf_map, config_map, res_scans_dirs):
         return (f'cannot import beamlines.{beamline}.instrument module.')
 
     instr_obj = instr_module.create_instr(instr_conf_map)
+    geometry = None
     try:
         geometry = instr_obj.get_geometry(shape, scan, **instr_conf_map)
     except Exception as ex:
@@ -399,19 +400,22 @@ def handle_visualization(experiment_dir, **kwargs):
         separate = main_conf_map.get('separate_scans', False) or main_conf_map.get('separate_scan_ranges', False)
         # get parameters from config files
         conf_map = disp_conf_map
-        # conf_map['binning'] = data_conf_map.get('binning', [1,1,1])
         conf_map['beamline'] = main_conf_map.get('beamline')
 
         rec_id = kwargs.get('rec_id', None)
-        if separate:
-            results_dir = experiment_dir
-        elif rec_id is not None:
-            results_dir = ut.join(experiment_dir, f'results_phasing_{kwargs["rec_id"]}')
-        elif 'results_dir' in disp_conf_map:
+        if 'results_dir' in disp_conf_map:
             results_dir = disp_conf_map['results_dir'].replace(os.sep, '/')
+            if rec_id is not None and not results_dir.endswith(rec_id):
+                print(f'Verify the results directory, Currently set to {results_dir}')
+            if separate and results_dir != experiment_dir:
+                print(f'Verify the results directory, Currently set to {results_dir}')
             if not os.path.isdir(results_dir):
                 print(f'the configured results_dir: {results_dir} does not exist')
                 return(f'the configured results_dir: {results_dir} does not exist')
+        elif separate:
+            results_dir = experiment_dir
+        elif rec_id is not None:
+            results_dir = ut.join(experiment_dir, f'results_phasing_{kwargs["rec_id"]}')
         else:
             results_dir = ut.join(experiment_dir, 'results_phasing')
 

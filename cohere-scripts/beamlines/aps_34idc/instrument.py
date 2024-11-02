@@ -1,3 +1,5 @@
+import os.path
+
 import beamlines.aps_34idc.diffractometers as diff
 import beamlines.aps_34idc.detectors as det
 from xrayutilities.io import spec
@@ -74,13 +76,15 @@ class Instrument:
        # the detector is parsed from specfile, and therefore scan number must be given
         # parse the frame size (roi) at the same time
         (scan,) = args
-        det_pars = parse_spec4roi(self.specfile, scan)
-
+        if self.specfile is not None:
+            det_pars = parse_spec4roi(self.specfile, scan)
+        else:
+            det_pars = {}
         det_pars.update(kwargs)
 
         det_name = det_pars.pop('detector', None)
         if det_name is None:
-            return 'detector name unknown'
+            print('detector name unknown, using default')
 
         self.det_obj = det.create_detector(det_name, **det_pars)
         if self.det_obj is None:
@@ -106,7 +110,7 @@ class Instrument:
         return self.det_obj.get_scan_array(scan_dir)
 
 
-    def get_geometry(self, shape, scan, xtal=False, **kwargs):
+    def get_geometry(self, shape, scan, **kwargs):
         """
         Calculates geometry based on diffractometer's and detctor's attributes and experiment parameters.
 
@@ -130,11 +134,7 @@ class Instrument:
         tuple
             (Trecip, Tdir)
         """
-        if self.diff_obj is None:
-            raise RuntimeError
-
-        kwargs.pop('specfile', None)
-        return self.diff_obj.get_geometry(shape, scan, self.specfile, xtal, self.det_obj, **kwargs)
+        return self.diff_obj.get_geometry(shape, scan, self.det_obj, **kwargs)
 
 
 def create_instr(params):
@@ -153,12 +153,14 @@ def create_instr(params):
     """
     specfile = params.get('specfile', None)
     if specfile is None:
-        print ('spec file must be provided to create Instrument for aps-34idc beamline')
-        return None
+        print ('spec file does not exist. Will use configuration parameters.')
+    elif not os.path.isfile(specfile):
+        print (f'spec file {specfile} does not exist. Will use configuration parameters.')
+        specfile = None
     diffractometer = params.get('diffractometer', None)
     if diffractometer is None:
-        print ('diffractometer must be provided to create Instrument for aps-34idc beamline')
-        return None
+        print ('diffractometer not defined. Will use configuration parameters.')
+
     instr = Instrument(specfile, diffractometer)
 
     if 'scan' in params:

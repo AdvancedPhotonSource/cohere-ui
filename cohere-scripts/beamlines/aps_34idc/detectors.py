@@ -404,11 +404,214 @@ class Detector_34idcTIM2(Detector):
         return arr
 
 
+class default(Detector):
+    """
+    Subclass of Detector. Encapsulates any detector. Based on "34idcTIM2" detector.
+    """
+    name = "default"
+    dims = (512, 512)
+    roi = (0, 512, 0, 512)
+    pixel = (55.0e-6, 55e-6)
+    pixelorientation = ('x+', 'y-')  # in xrayutilities notation
+    whitefield_filename = None
+    darkfield_filename = None
+    whitefield = None
+    darkfield = None
+    raw_frame = None
+    min_files = None  # defines minimum frame scans in scan directory
+    Imult = None
+
+    def __init__(self, **kwargs):
+        super(default, self).__init__()
+        # The detector attributes for background/whitefield/etc need to be set to read frames
+        # this will capture things like data directory, whitefield_filename, etc.
+        for key, val in kwargs.items():
+            setattr(self, key, val)
+
+    def load_whitefield(self):
+        """
+        Reads whitefield file and save the frame as class member.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        try:
+            self.whitefield = ut.read_tif(self.whitefield_filename)
+        except:
+            print("Whitefield filename not set for TIM2")
+            raise
+        try:
+            self.whitefield[255:257,
+            0:255] = 0  # wierd pixels on edge of seam (TL/TR). Kill in WF kills in returned frame as well.
+            self.wfavg = np.average(self.whitefield)
+            self.wfstd = np.std(self.whitefield)
+            self.whitefield = np.where(self.whitefield < self.wfavg - 3 * self.wfstd, 0, self.whitefield)
+        except:
+            print("Corrections to the TIM2 whitefield image failed in detector module.")
+
+    def load_darkfield(self):
+        """
+        Reads darkfield file and save the frame as class member.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        try:
+            self.darkfield = ut.read_tif(self.darkfield_filename)
+        except:
+            print("Darkfield filename not set for TIM2")
+            raise
+        if type(self.whitefield) == np.ndarray:
+            self.whitefield = np.where(self.darkfield > 1, 0, self.whitefield)  # kill known bad pixel
+
+    def get_frame(self, filename):
+        """
+        Reads raw frame from a file, and applies correction for 34idcTIM2 detector, i.e. darkfield, whitefield,
+        and seam.
+
+        Parameters
+        ----------
+        filename : str
+            data file name
+        Returns
+        -------
+        frame : ndarray
+            frame after correction
+        """
+        if self.darkfield is None:
+            if not self.darkfield_filename is None:
+                self.load_darkfield()
+            else:
+                print("darkfield filename not configured for TIM2, will not correct")
+        if self.whitefield is None:
+            if not self.whitefield_filename is None:
+                self.load_whitefield()
+            else:
+                print("whitefield filename not configured for TIM2, will not correct")
+        # roi is start,size,start,size
+        # will be in imageJ coords, so might need to transpose,or just switch x-y
+        # divide whitefield
+        # blank out pixels identified in darkfield
+        # insert 4 cols 5 rows if roi crosses asic boundary
+        if self.roi is None:
+            self.roi = Detector_34idcTIM2.roi
+        if not type(self.darkfield) == np.ndarray:
+            self.load_darkfield()
+        if not type(self.whitefield) == np.ndarray:
+            self.load_whitefield()
+        if self.Imult is None:
+            self.Imult = self.wfavg
+
+        roislice1 = slice(self.roi[0], self.roi[0] + self.roi[1])
+        roislice2 = slice(self.roi[2], self.roi[2] + self.roi[3])
+
+        # some of this should probably be in try blocks
+        raw_frame = self.get_raw_frame(filename)
+        normframe = raw_frame / self.whitefield[roislice1, roislice2] * self.Imult
+        normframe = np.where(self.darkfield[roislice1, roislice2] > 1, 0.0, normframe)
+        normframe = np.where(np.isfinite(normframe), normframe, 0)
+
+        frame, seam_added = self.insert_seam(normframe)
+        frame = np.where(np.isnan(frame), 0, frame)
+
+        if seam_added:
+            frame = self.clear_seam(frame)
+        return frame
+
+    # frame here can also be a 3D array.
+    def insert_seam(self, arr):
+        """
+        Inserts rows/columns correction in a frame for 34idcTIM2 detector.
+        Parameters
+        ----------
+        arr : ndarray
+            raw frame
+        Returns
+        -------
+        frame : ndarray
+            frame after insering rows/columns
+        """
+        # Need to break this out.  When aligning multi scans the insert will mess up the aligns
+        # or maybe we just need to re-blank the seams after the aligns?
+        # I can't decide if the seams are a detriment to the alignment.  might need to try some.
+        s1range = range(self.roi[0], self.roi[0] + self.roi[1])
+        s2range = range(self.roi[2], self.roi[2] + self.roi[3])
+        dims = arr.shape
+        seam_added = False
+
+        # get the col that start at det col 256 in the roi
+        try:
+            i1 = s1range.index(256)  # if not in range try will except
+            if i1 != 0:
+                frame = np.insert(arr, i1, np.zeros((4, dims[0])), axis=0)
+                seam_added = True
+            # frame=np.insert(normframe, i1, np.zeros((5,dims[0])),axis=0)
+            else:
+                frame = arr
+        except:
+            frame = arr  # if there's no insert on dim1 need to copy to frame
+
+        try:
+            i2 = s2range.index(256)
+            if i2 != 0:
+                frame = np.insert(frame, i2, np.zeros((5, dims[0] + 4)), axis=1)
+                seam_added = True
+        except:
+            # if there's no insert on dim2 thre's nothing to do
+            pass
+
+        return frame, seam_added
+
+    # This is needed if the seam has already been inserted and shifts have moved intensity
+    # into the seam.  Found that alignment of data sets was best done with the seam inserted.
+    def clear_seam(self, arr):
+        """
+        Removes rows/columns correction from a frame for 34idcTIM2 detector.
+        Parameters
+        ----------
+        arr : ndarray
+            frame to remove seam
+        roi : list
+            detector area used to take image. If None the entire detector area will be used.
+        Returns
+        -------
+        arr : ndarray
+            frame after removing rows/columns
+        """
+        # modify the slices if 256 is in roi
+        s1range = range(self.roi[0], self.roi[0] + self.roi[1])
+        s2range = range(self.roi[2], self.roi[2] + self.roi[3])
+        try:
+            i1 = s1range.index(256)  # if not in range try will except
+            if i1 != 0:
+                s1range[0] = slice(i1, i1 + 4)
+                arr[tuple(s1range)] = 0
+        except:
+            pass
+        try:
+            i2 = s2range.index(256)
+            if i2 != 0:
+                s2range[1] = slice(i2, i2 + 5)
+                arr[tuple(s2range)] = 0
+        except:
+            pass
+
+        return arr
+
+
 def create_detector(det_name, **kwargs):
     if det_name == '34idcTIM1':
         return Detector_34idcTIM1(**kwargs)
     elif det_name == '34idcTIM2':
         return Detector_34idcTIM2(**kwargs)
+    elif det_name is None:
+        return default(**kwargs)
     else:
         print(f'detector {det_name} not defined.')
         return None
