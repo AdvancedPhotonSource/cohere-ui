@@ -39,9 +39,11 @@ class Detector(ABC):
         for scandir in sorted(os.listdir(self.data_dir)):
             scandir_full = ut.join(self.data_dir, scandir)
             if os.path.isdir(scandir_full):
-                last_digits = re.search(r'\d+$', scandir_full)
+                last_digits = re.search(r'\d+$', scandir)
                 if last_digits is not None:
                     scan = int(last_digits.group())
+                else:
+                    continue
                 if scan < scan_range[0]:
                     continue
                 elif scan <= scan_range[-1]:
@@ -51,12 +53,10 @@ class Detector(ABC):
                         if len(glob.glob1(scandir, "*.tif")) < self.min_files:
                             continue
                     scans_dirs.append((scan, scandir_full))
-                else:
-                    # The scan exceeded range
-                    # move to the next scan range
-                    sr_idx += 1
-                    if sr_idx > len(scans) - 1:
-                        break
+                    if scan == scan_range[-1]:
+                        sr_idx += 1
+                        if sr_idx > len(scans) - 1:
+                            break
                     scan_range = scans[sr_idx]
                     scans_dirs = scans_dirs_ranges[sr_idx]
 
