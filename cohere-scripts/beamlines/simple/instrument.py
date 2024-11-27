@@ -33,23 +33,22 @@ class Instrument:
         that contain the data, or other info specific to a beamline.
 
         :param scans : list
-            list of lists defining scan ranges, ordered. For single scan a range is formed with the same scan
-            (in example scan 2834).
+            list of sub-lists defining scan ranges, ordered. For single scan a range has the same scan as beginning and end.
             one scan example:
             scans : [[2834, 2834]]
             returns : [[(2834, f'{path}/data_S2834)]]
 
+            separate ranges example:
             ex1: [[2825, 2831], [2834, 2834], [2840, 2876]]
-
-        :return:
-        list of the input scans, or scans ranges with the corresponding info
-        In the example below the info is a directory.
-        ex1: [[(2825, f'{path}/data_S2825'), (2828, f'{path}/data_S2828'), (2831, f'{path}/data_S2831')],
+            returns: [[(2825, f'{path}/data_S2825'), (2828, f'{path}/data_S2828'), (2831, f'{path}/data_S2831')],
              [(2834, f'{path}/data_S2834)],
              [(2840, f'{path}/data_S2840'), (2843, f'{path}/data_S2843'), (2846, f'{path}/data_S2846'), (2849, f'{path}/data_S2849'),
               (2852, f'{path}/data_S2852'), (2855, f'{path}/data_S2855'), (2858, f'{path}/data_S2858'), (2861, f'{path}/data_S2861'),
               (2864, f'{path}/data_S2864'), (2867, f'{path}/data_S2867'), (2870, f'{path}/data_S2870'), (2873, f'{path}/data_S2873'),
               (2876, f'{path}/data_S2876')]]
+
+        :return:
+        list of sub-lists the input scans, or scans ranges with the corresponding info
         """
         # The detector function is typically renamed to reflect the info.
         # if the info is directory, the function name would be dirs4scans
@@ -106,12 +105,14 @@ def create_instr(params):
     Object or None
         Instrument object or None
     """
-    det_name = params.pop('detector', None)
+    det_obj = None
+    diff_obj = None
+    det_name = params.get('detector', None)
     if det_name is not None:
         det_obj = det.create_detector(det_name, **params)
         if det_obj is None:
             return None
-    diff_name = params.pop('diffractometer', None)
+    diff_name = params.get('diffractometer', None)
     if diff_name is not None:
         diff_obj = diff.create_diffractometer(diff_name)
         if diff_obj is None:

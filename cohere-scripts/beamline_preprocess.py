@@ -65,7 +65,7 @@ def handle_prep(experiment_dir, **kwargs):
     beamline = main_conf_map['beamline']
     try:
         instr_module = importlib.import_module(f'beamlines.{beamline}.instrument')
-        ph = importlib.import_module(f'beamlines.{beamline}.preprocessor')
+        preprocessor = importlib.import_module(f'beamlines.{beamline}.preprocessor')
     except Exception as e:
         print(e)
         print(f'cannot import beamlines.{beamline} module.')
@@ -104,8 +104,12 @@ def handle_prep(experiment_dir, **kwargs):
         else:
             scan_ranges.append([int(u), int(u)])
 
-    # get tuples of (scan, data info) for the scan ranges.
+    # get tuples of (scan, data info) for for each scan in the scan ranges.
+    # The scan_datainfo is a list of sub-lists, each sub-list reflects scan range.
+    # If there is a single scan, the output will be: [[(scan, data info)]].
+    #
     # Note: For aps_34idc the data info is a directory path to the data.
+    # For esrf_id01 the data info is a node in hdf5 file.
     scans_datainfo = instr_obj.datainfo4scans(scan_ranges)
 
     # remove exclude_scans from the scans_dirs
@@ -135,19 +139,19 @@ def handle_prep(experiment_dir, **kwargs):
             indx = str(batch[0][0])
             indx = f'{indx}-{str(batch[-1][0])}'
             save_file = ut.join(experiment_dir, f'scan_{indx}', 'preprocessed_data', 'prep_data.tif')
-            p = Process(target=ph.process_batch,
+            p = Process(target=preprocessor.process_batch,
                         args=(instr_obj.get_scan_array, batch, save_file, experiment_dir))
             p.start()
             processes.append(p)
         for p in processes:
             p.join()
     elif multipeak:
-        mp.preprocess(ph, instr_obj, scans_datainfo, experiment_dir, conf_maps['config_mp'])
+        mp.preprocess(preprocessor, instr_obj, scans_datainfo, experiment_dir, conf_maps['config_mp'])
     else:
         # combine all scans
         scans_datainfo = [e for batch in scans_datainfo for e in batch]
         save_file = ut.join(experiment_dir, 'preprocessed_data', 'prep_data.tif')
-        ph.process_batch(instr_obj.get_scan_array, scans_datainfo, save_file, experiment_dir)
+        preprocessor.process_batch(instr_obj.get_scan_array, scans_datainfo, save_file, experiment_dir)
 
     print('finished beamline preprocessing')
     return ''
