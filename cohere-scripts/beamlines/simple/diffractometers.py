@@ -47,7 +47,7 @@ class Default(Diffractometer):
         super(Default, self).__init__('default')
 
 
-    def get_geometry(self, shape, scan, det_obj, **kwargs):
+    def get_geometry(self, shape, scan, **kwargs):
         """
         Calculates geometry based on diffractometer and detector attributes and experiment parameters.
 
@@ -72,10 +72,9 @@ class Default(Diffractometer):
         params.update(kwargs)
 
         binning = params.get('binning', [1, 1, 1])
-        if det_obj is None:
-            det_obj = det.create_detector(params['detector'])
-        px = det_obj.pixel[0] * binning[0]
-        py = det_obj.pixel[1] * binning[1]
+        pixel = det.get_pixel(params['detector'])
+        px = pixel[0] * binning[0]
+        py = pixel[1] * binning[1]
 
         detdist = params['detdist'] / 1000.0  # convert to meters
         scanmot = params['scanmot'].strip()
@@ -93,7 +92,8 @@ class Default(Diffractometer):
         qc = xuexp.QConversion(self.sampleaxes, self.detectoraxes, self.incidentaxis, en=scanen)
 
         # compute for 4pixel (2x2) detector
-        qc.init_area(det_obj.pixelorientation[0], det_obj.pixelorientation[1], shape[0], shape[1], 2, 2,
+        pixelorientation = det.get_pixel_orientation(params['detector'])
+        qc.init_area(pixelorientation[0], pixelorientation[1], shape[0], shape[1], 2, 2,
                      distance=detdist, pwidth1=px, pwidth2=py)
 
         # I think q2 will always be (3,2,2,2) (vec, scanarr, px, py)

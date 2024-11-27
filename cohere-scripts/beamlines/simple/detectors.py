@@ -182,3 +182,12 @@ def create_detector(det_name, **kwargs):
         return None
 
 
+dets = {'default' : Default}
+
+def get_pixel(det_name):
+    return dets[det_name].pixel
+
+
+def get_pixel_orientation(det_name):
+    return dets[det_name].pixelorientation
+

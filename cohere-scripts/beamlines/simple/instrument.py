@@ -90,7 +90,7 @@ class Instrument:
         :return: tuple of arrays containing geometry in reciprocal space and direct space
             (Trecip, Tdir)
         """
-        return self.diff_obj.get_geometry(shape, scan, self.det_obj, **kwargs)
+        return self.diff_obj.get_geometry(shape, scan, **kwargs)
 
 
 def create_instr(params):
