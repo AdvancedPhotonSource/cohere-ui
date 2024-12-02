@@ -72,19 +72,6 @@ class Detector(ABC):
         # I think the rdata already is corrected
 
         return data
-    
-
-    def get_pixel(self):
-        """
-        Returns detector pixel size.  Concrete function in subclass returns value applicable to the detector.
-
-        Returns
-        -------
-        tuple
-            size of pixel
-
-        """
-        pass
 
 
 class Detector_mpxgaas(Detector):
@@ -112,3 +99,13 @@ def create_detector(det_name, **kwargs):
     else:
         print (f'detector {det_name} not defined.')
         return None
+
+
+dets = {'mpxgaas' : Detector_mpxgaas}
+
+def get_pixel(det_name):
+    return dets[det_name].pixel
+
+
+def get_pixel_orientation(det_name):
+    return dets[det_name].pixelorientation
