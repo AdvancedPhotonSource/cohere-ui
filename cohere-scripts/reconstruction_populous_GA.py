@@ -24,6 +24,7 @@ from multiprocessing.pool import ThreadPool as Pool
 from multiprocessing import Process
 from functools import partial
 import threading
+import argparse
 
 
 __author__ = "Barbara Frosik"
@@ -370,3 +371,22 @@ def reconstruction(pkg, conf_file, datafile, dir, devices):
     tracing.save(save_dir)
 
     print('done gen')
+
+
+def main():
+    import ast
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("lib", help="lib")
+    parser.add_argument("conf_file", help="conf_file")
+    parser.add_argument("datafile", help="datafile")
+    parser.add_argument('dir', help='dir')
+    parser.add_argument('dev', help='dev')
+
+    args = parser.parse_args()
+    dev = ast.literal_eval(args.dev)
+    reconstruction(args.lib, args.conf_file, args.datafile, args.dir, dev)
+
+
+if __name__ == "__main__":
+    exit(main())

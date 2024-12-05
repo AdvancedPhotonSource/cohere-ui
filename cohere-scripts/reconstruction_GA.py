@@ -80,19 +80,19 @@ def cull(lst, no_left):
         return lst[0:no_left]
 
 
-def write_log(rank, msg):
+def write_log(logfile, msg):
     """
     Use this to force writes for debugging. PBS sometimes doesn't flush
     std* outputs. MPI faults clobber greedy flushing of default python
     logs.
     Currently used to log start of generation.
     """
-    with open(f'{rank}.log', 'a') as log_f:
+    with open(logfile, 'a') as log_f:
         log_f.write(f'{msg}\n')
         #log_f.write(f'{datetime.datetime.now()} | {msg}\n')
 
 
-def reconstruction(pkg, conf_file, datafile, dir, devices, **kwargs):
+def reconstruction(pkg, conf_file, datafile, dir, devices, log_file):
     """
     Controls reconstruction that employs genetic algorith (GA).
 
@@ -166,7 +166,7 @@ def reconstruction(pkg, conf_file, datafile, dir, devices, **kwargs):
         if rank == 0:
             # write log file when new generation starts
             #
-            write_log('ga', f'starting generation {g}')
+            write_log(log_file, f'starting generation {g}')
         was_active = active
         if g == 0:
             ret = worker.init_dev(devices[rank])
@@ -304,10 +304,11 @@ def main():
     parser.add_argument("datafile", help="datafile")
     parser.add_argument('dir', help='dir')
     parser.add_argument('dev', help='dev')
+    parser.add_argument('log_file', help='log file')
 
     args = parser.parse_args()
     dev = ast.literal_eval(args.dev)
-    reconstruction(args.lib, args.conf_file, args.datafile, args.dir, dev)
+    reconstruction(args.lib, args.conf_file, args.datafile, args.dir, dev, args.log_file)
 
 
 if __name__ == "__main__":

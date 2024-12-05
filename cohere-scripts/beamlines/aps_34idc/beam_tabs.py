@@ -790,16 +790,15 @@ class SubInstrTab():
             return
 
         import beamlines.aps_34idc.diffractometers as diff
-        import beamlines.aps_34idc.instrument as instr
 
         try:
-            diff_obj = diff.create_diffractometer(diffractometer)
+            diff_obj = diff.create_diffractometer(diffractometer, specfile=specfile)
         except:
             msg_window ('cannot create diffractometer', diffractometer)
             return
 
         last_scan = int(scan.split('-')[-1].split(',')[-1])
-        spec_dict = diff_obj.parse_spec(specfile, last_scan)
+        spec_dict = diff_obj.parse_spec(last_scan)
         if spec_dict is None:
             return
         if 'energy' in spec_dict:

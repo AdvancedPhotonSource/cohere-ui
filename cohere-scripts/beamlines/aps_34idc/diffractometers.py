@@ -3,8 +3,7 @@ import math as m
 import xrayutilities.experiment as xuexp
 from xrayutilities.io import spec as spec
 import beamlines.aps_34idc.detectors as det
-from abc import ABC, abstractmethod
-
+from abc import ABC
 
 
 class Diffractometer(ABC):
@@ -45,23 +44,19 @@ class Diffractometer_34idc(Diffractometer):
     detectordist_name = 'camdist'
     detectordist_mne = 'detdist'
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         super(Diffractometer_34idc, self).__init__('34idc')
+        self.specfile = kwargs.get('specfile')
 
-    def parse_spec(self, specfile, scan):
+
+    def parse_spec(self, scan):
         """
         Reads parameters from spec file for given scan.
 
         Parameters
         ----------
-        specfile : str
-            spec file name
-
         scan : int
             scan number to use to recover the saved measurements
-
-        diff : object
-            diffractometer object
 
         Returns
         -------
@@ -71,10 +66,10 @@ class Diffractometer_34idc(Diffractometer):
 
         # Scan numbers start at one but the list is 0 indexed
         try:
-            ss = spec.SPECFile(specfile)[scan - 1]
+            ss = spec.SPECFile(self.specfile)[scan - 1]
         except Exception as ex:
             print(str(ex))
-            print('Could not parse ' + specfile)
+            print('Could not parse ' + self.specfile)
             return None
 
         try:
@@ -113,81 +108,68 @@ class Diffractometer_34idc(Diffractometer):
         return spec_dict
 
 
-    def get_geometry(self, shape, scan, det_obj, xtal=False, **kwargs):
+    def get_geometry(self, shape, scan, **kwargs):
         """
-        Calculates geometry based on diffractometer's and detctor's attributes and experiment parameters.
+        Calculates geometry based on diffractometer and detector attributes and experiment parameters.
 
-        For the aps_34idc typically the delta, gamma, theta, phi, chi, scanmot, scanmot_del,
-        detdist, detector_name, energy values are parsed from spec file.
+        Typically, the delta, gamma, theta, phi, chi, scanmot, scanmot_del, detdist, detector_name,
+        energy values are retrieved from experiment spec file.
         They can be overridden by configuration.
 
-        Parameters
-        ----------
-        shape : tuple
-            shape of reconstructed array
-        scan : int
-            scan number the geometry is calculated for
-        specfile : str
-            specfile name
-        xtal : boolean
-            a switch
-        det_obj : Object
-            detector object
-        The **kwargs reflect configuration, and could contain delta, gamma, theta, phi, chi, scanmot, scanmot_del,
-        detdist, detector_name, energy.
-
-        Returns
-        -------
-        tuple
+        :param shape: tuple, shape of array
+        :param scan: scan the geometry is calculated for
+        :param kwargs: The **kwargs reflect configuration, and could contain delta, gamma, theta, phi, chi, scanmot,
+            scanmot_del, detdist, detector_name, energy.
+        :return: tuple
             (Trecip, Tdir)
         """
-        attrs = self.parse_spec(kwargs.pop('specfile'), scan)
-        attrs.update(kwargs)
-        binning = kwargs.get('binning', [1, 1, 1])
+        params = {}
+        # parse spec
+        if self.specfile is not None and scan is not None:
+            params.update(self.parse_spec(scan))
+        # override with config params
+        params.update(kwargs)
 
-        # set the attributes with values parsed from spec and then possibly overridden by configuration
-        for attr in attrs:
-            setattr(self, attr, attrs[attr])
+        binning = params.get('binning', [1, 1, 1])
+        pixel = det.get_pixel(params['detector'])
+        px = pixel[0] * binning[0]
+        py = pixel[1] * binning[1]
 
-        if det_obj is None:
-            det_obj = det.create_detector(attrs.get('detector'))
-        px = det_obj.pixel[0] * binning[0]
-        py = det_obj.pixel[1] * binning[1]
-
-        detdist = attrs.get('detdist') / 1000.0  # convert to meters
-        scanmot = attrs.get('scanmot').strip()
+        detdist = params['detdist'] / 1000.0  # convert to meters
+        scanmot = params['scanmot'].strip()
         enfix = 1
         # if energy is given in kev convert to ev for xrayutilities
-        if m.floor(m.log10(attrs.get('energy'))) < 3:
+        energy = params['energy']
+        if m.floor(m.log10(energy)) < 3:
             enfix = 1000
-        energy = attrs.get('energy') * enfix  # x-ray energy in eV
+        energy = energy * enfix  # x-ray energy in eV
 
         if scanmot == 'en':
-            scanen = np.array((energy, energy + attrs.get('scanmot_del') * enfix))
+            scanen = np.array((energy, energy + params['scanmot_del'] * enfix))
         else:
             scanen = np.array((energy,))
         qc = xuexp.QConversion(self.sampleaxes, self.detectoraxes, self.incidentaxis, en=scanen)
 
         # compute for 4pixel (2x2) detector
-        qc.init_area(det_obj.pixelorientation[0], det_obj.pixelorientation[1], shape[0], shape[1], 2, 2,
+        pixelorientation = det.get_pixel_orientation(params['detector'])
+        qc.init_area(pixelorientation[0], pixelorientation[1], shape[0], shape[1], 2, 2,
                      distance=detdist, pwidth1=px, pwidth2=py)
 
         # I think q2 will always be (3,2,2,2) (vec, scanarr, px, py)
         # should put some try except around this in case something goes wrong.
         if scanmot == 'en':  # seems en scans always have to be treated differently since init is unique
-            q2 = np.array(qc.area(attrs.get('th'), attrs.get('chi'), attrs.get('phi'), attrs.get('delta'),
-                                  attrs.get('gamma'), deg=True))
+            q2 = np.array(qc.area(params['th'], params['chi'], params['phi'], params['delta'], params['gamma'], deg=True))
         elif scanmot in self.sampleaxes_mne:  # based on scanmot args are made for qc.area
             args = []
-            axisindex = self.sampleaxes_mne.index(scanmot)
-            for n in range(len(self.sampleaxes_mne)):
-                if n == axisindex:
-                    scanstart = getattr(self, scanmot)
-                    args.append(np.array((scanstart, scanstart + attrs.get('scanmot_del') * binning[2])))
+            for sampleax in self.sampleaxes_mne:
+                if scanmot == sampleax:
+                    scanstart = params[scanmot]
+                    args.append(np.array((scanstart, scanstart + params['scanmot_del'] * binning[2])))
                 else:
-                    args.append(self.__dict__[self.sampleaxes_mne[n]])
+                    args.append(params[sampleax])
             for axis in self.detectoraxes_mne:
-                args.append(getattr(self, axis))
+                args.append(params[axis])
+
             q2 = np.array(qc.area(*args, deg=True))
         else:
             print("scanmot not in sample axes or energy, exiting")
@@ -198,6 +180,7 @@ class Diffractometer_34idc(Diffractometer):
         Bstar = q2[:, 0, 0, 1] - q2[:, 0, 0, 0]
         Cstar = q2[:, 1, 0, 0] - q2[:, 0, 0, 0]
 
+        xtal = kwargs.get('xtal', False)
         if xtal:
             Trecip_cryst = np.zeros(9)
             Trecip_cryst.shape = (3, 3)
@@ -207,9 +190,9 @@ class Diffractometer_34idc(Diffractometer):
             return Trecip_cryst, None
 
         # transform to lab coords from sample reference frame
-        Astar = qc.transformSample2Lab(Astar, self.th, self.chi, self.phi) * 10.0  # convert to inverse nm.
-        Bstar = qc.transformSample2Lab(Bstar, self.th, self.chi, self.phi) * 10.0
-        Cstar = qc.transformSample2Lab(Cstar, self.th, self.chi, self.phi) * 10.0
+        Astar = qc.transformSample2Lab(Astar, params['th'], params['chi'], params['phi']) * 10.0  # convert to inverse nm.
+        Bstar = qc.transformSample2Lab(Bstar, params['th'], params['chi'], params['phi']) * 10.0
+        Cstar = qc.transformSample2Lab(Cstar, params['th'], params['chi'], params['phi']) * 10.0
 
         denom = np.dot(Astar, np.cross(Bstar, Cstar))
         A = 2 * m.pi * np.cross(Bstar, Cstar) / denom
@@ -229,7 +212,7 @@ class Diffractometer_34idc(Diffractometer):
         return (Trecip, Tdir)
 
 
-class Default_det(Diffractometer):
+class Default_diff(Diffractometer):
     """
     Subclass of Diffractometer. Encapsulates any diffractometer. is based on 34-idc.
     """
@@ -245,23 +228,16 @@ class Default_det(Diffractometer):
     detectordist_mne = 'detdist'
 
     def __init__(self):
-        super(Default_det, self).__init__('default')
+        super(Default_diff, self).__init__('default')
 
-    def parse_spec(self, specfile, scan):
+    def parse_spec(self, scan):
         """
         Reads parameters from spec file for given scan.
 
         Parameters
         ----------
-        specfile : str
-            spec file name
-
         scan : int
             scan number to use to recover the saved measurements
-
-        diff : object
-            diffractometer object
-
         Returns
         -------
         dict with delta, gamma, theta, phi, chi, scanmot, scanmot_del, detdist, detector_name, energy
@@ -270,10 +246,10 @@ class Default_det(Diffractometer):
 
         # Scan numbers start at one but the list is 0 indexed
         try:
-            ss = spec.SPECFile(specfile)[scan - 1]
+            ss = spec.SPECFile(self.specfile)[scan - 1]
         except Exception as ex:
             print(str(ex))
-            print('Could not parse ' + specfile)
+            print('Could not parse ' + self.specfile)
             return None
 
         try:
@@ -312,85 +288,68 @@ class Default_det(Diffractometer):
         return spec_dict
 
 
-    def get_geometry(self, shape, scan, det_obj, xtal=False, **kwargs):
+    def get_geometry(self, shape, scan, **kwargs):
         """
-        Calculates geometry based on diffractometer's and detctor's attributes and experiment parameters.
+        Calculates geometry based on diffractometer and detector attributes and experiment parameters.
 
-        For the aps_34idc typically the delta, gamma, theta, phi, chi, scanmot, scanmot_del,
-        detdist, detector_name, energy values are parsed from spec file.
+        Typically, the delta, gamma, theta, phi, chi, scanmot, scanmot_del, detdist, detector_name,
+        energy values are retrieved from experiment spec file.
         They can be overridden by configuration.
 
-        Parameters
-        ----------
-        shape : tuple
-            shape of reconstructed array
-        scan : int
-            scan number the geometry is calculated for
-        specfile : str
-            specfile name
-        xtal : boolean
-            a switch
-        det_obj : Object
-            detector object
-        The **kwargs reflect configuration, and could contain delta, gamma, theta, phi, chi, scanmot, scanmot_del,
-        detdist, detector_name, energy.
-
-        Returns
-        -------
-        tuple
+        :param shape: tuple, shape of array
+        :param scan: scan the geometry is calculated for
+        :param kwargs: The **kwargs reflect configuration, and could contain delta, gamma, theta, phi, chi, scanmot,
+            scanmot_del, detdist, detector_name, energy.
+        :return: tuple
             (Trecip, Tdir)
         """
-        specfile = kwargs.get('specfile', None)
-        if specfile is not None:
-            attrs = self.parse_spec(specfile, scan)
-            attrs.update(kwargs)
-        else:
-            attrs = kwargs
-        binning = kwargs.get('binning', [1, 1, 1])
+        params = {}
+        # parse spec
+        if self.specfile is not None and scan is not None:
+            params.update(self.parse_spec(scan))
+        # override with config params
+        params.update(kwargs)
 
-        # set the attributes with values parsed from spec and then possibly overridden by configuration
-        for attr in attrs:
-            setattr(self, attr, attrs[attr])
+        binning = params.get('binning', [1, 1, 1])
+        pixel = det.get_pixel(params['detector'])
+        px = pixel[0] * binning[0]
+        py = pixel[1] * binning[1]
 
-        if det_obj is None:
-            det_obj = det.create_detector(attrs.get('detector'))
-        px = det_obj.pixel[0] * binning[0]
-        py = det_obj.pixel[1] * binning[1]
-
-        detdist = attrs.get('detdist') / 1000.0  # convert to meters
-        scanmot = attrs.get('scanmot').strip()
+        detdist = params['detdist'] / 1000.0  # convert to meters
+        scanmot = params['scanmot'].strip()
         enfix = 1
         # if energy is given in kev convert to ev for xrayutilities
-        if m.floor(m.log10(attrs.get('energy'))) < 3:
+        energy = params['energy']
+        if m.floor(m.log10(energy)) < 3:
             enfix = 1000
-        energy = attrs.get('energy') * enfix  # x-ray energy in eV
+        energy = energy * enfix  # x-ray energy in eV
 
         if scanmot == 'en':
-            scanen = np.array((energy, energy + attrs.get('scanmot_del') * enfix))
+            scanen = np.array((energy, energy + params['scanmot_del'] * enfix))
         else:
             scanen = np.array((energy,))
         qc = xuexp.QConversion(self.sampleaxes, self.detectoraxes, self.incidentaxis, en=scanen)
 
         # compute for 4pixel (2x2) detector
-        qc.init_area(det_obj.pixelorientation[0], det_obj.pixelorientation[1], shape[0], shape[1], 2, 2,
+        pixelorientation = det.get_pixel_orientation(params['detector'])
+        qc.init_area(pixelorientation[0], pixelorientation[1], shape[0], shape[1], 2, 2,
                      distance=detdist, pwidth1=px, pwidth2=py)
 
         # I think q2 will always be (3,2,2,2) (vec, scanarr, px, py)
         # should put some try except around this in case something goes wrong.
         if scanmot == 'en':  # seems en scans always have to be treated differently since init is unique
-            q2 = np.array(qc.area(attrs.get('th'), attrs.get('chi'), attrs.get('phi'), attrs.get('delta'),
-                                  attrs.get('gamma'), deg=True))
+            q2 = np.array(qc.area(params['th'], params['chi'], params['phi'], params['delta'], params['gamma'], deg=True))
         elif scanmot in self.sampleaxes_mne:  # based on scanmot args are made for qc.area
             args = []
-            axisindex = self.sampleaxes_mne.index(scanmot)
-            for n in range(len(self.sampleaxes_mne)):
-                if n == axisindex:
-                    scanstart = getattr(self, scanmot)
-                    args.append(np.array((scanstart, scanstart + attrs.get('scanmot_del') * binning[2])))
+            for sampleax in self.sampleaxes_mne:
+                if scanmot == sampleax:
+                    scanstart = params[scanmot]
+                    args.append(np.array((scanstart, scanstart + params['scanmot_del'] * binning[2])))
                 else:
-                    args.append(self.__dict__[self.sampleaxes_mne[n]])
+                    args.append(params[sampleax])
             for axis in self.detectoraxes_mne:
-                args.append(getattr(self, axis))
+                args.append(params[axis])
+
             q2 = np.array(qc.area(*args, deg=True))
         else:
             print("scanmot not in sample axes or energy, exiting")
@@ -401,6 +360,7 @@ class Default_det(Diffractometer):
         Bstar = q2[:, 0, 0, 1] - q2[:, 0, 0, 0]
         Cstar = q2[:, 1, 0, 0] - q2[:, 0, 0, 0]
 
+        xtal = kwargs.get('xtal', False)
         if xtal:
             Trecip_cryst = np.zeros(9)
             Trecip_cryst.shape = (3, 3)
@@ -410,9 +370,9 @@ class Default_det(Diffractometer):
             return Trecip_cryst, None
 
         # transform to lab coords from sample reference frame
-        Astar = qc.transformSample2Lab(Astar, self.th, self.chi, self.phi) * 10.0  # convert to inverse nm.
-        Bstar = qc.transformSample2Lab(Bstar, self.th, self.chi, self.phi) * 10.0
-        Cstar = qc.transformSample2Lab(Cstar, self.th, self.chi, self.phi) * 10.0
+        Astar = qc.transformSample2Lab(Astar, params['th'], params['chi'], params['phi']) * 10.0  # convert to inverse nm.
+        Bstar = qc.transformSample2Lab(Bstar, params['th'], params['chi'], params['phi']) * 10.0
+        Cstar = qc.transformSample2Lab(Cstar, params['th'], params['chi'], params['phi']) * 10.0
 
         denom = np.dot(Astar, np.cross(Bstar, Cstar))
         A = 2 * m.pi * np.cross(Bstar, Cstar) / denom
@@ -432,12 +392,12 @@ class Default_det(Diffractometer):
         return (Trecip, Tdir)
 
 
-def create_diffractometer(diff_name):
+def create_diffractometer(diff_name, **kwargs):
     if diff_name == '34idc':
-        d = Diffractometer_34idc()
+        d = Diffractometer_34idc(**kwargs)
         return d
-    elif diff_name is None:
-        d = Default_det()
+    elif diff_name is None or diff_name == 'default':
+        d = Default_diff(**kwargs)
         return d
     else:
         print (f'diffractometer {diff_name} not defined.')

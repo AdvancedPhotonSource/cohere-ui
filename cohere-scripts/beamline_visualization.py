@@ -431,11 +431,18 @@ def handle_visualization(experiment_dir, **kwargs):
 
         scans_dirs = []
         if separate:
-            scans = []
             # the scan that will be used to derive geometry is determined from the scan directory
+            # the code below finds the last scan
             for dir in scandirs:
-                scan_sub = dir.split('/')[-2]
-                scans_dirs.append((int(scan_sub.split('_')[-1].split('-')[-1]), dir))
+                # go up dir until reaching scan dir
+                scandir_path = dir.split('/')
+                i = -1
+                temp = scandir_path[i]
+                while not temp.startswith('scan'):
+                    i -= 1
+                    temp = scandir_path[i]
+                scan_subdir = temp
+                scans_dirs.append((int(scan_subdir.split('_')[-1].split('-')[-1]), dir))
         else:
             last_scan = int(main_conf_map['scan'].split(',')[-1].split('-')[-1])
             scans_dirs = [[last_scan, dir] for dir in scandirs]

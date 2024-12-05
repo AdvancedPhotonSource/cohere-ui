@@ -1,5 +1,3 @@
-import os.path
-
 import beamlines.aps_34idc.diffractometers as diff
 import beamlines.aps_34idc.detectors as det
 from xrayutilities.io import spec
@@ -23,28 +21,28 @@ def parse_spec4roi(specfile, scan):
     dict
         dictionary of parameters; name : value
     """
-    params_values = {}
+    params = {}
     # Scan numbers start at one but the list is 0 indexed, so we subtract 1
     try:
         ss = spec.SPECFile(specfile)[scan - 1]
     except Exception as ex:
         print(str(ex))
         print('Could not parse ' + specfile)
-        return params_values
+        return params
 
     try:
-        params_values['detector'] = str(ss.getheader_element('UIMDET'))
-        if params_values['detector'].endswith(':'):
-            params_values['detector'] = params_values['detector'][:-1]
+        params['detector'] = str(ss.getheader_element('UIMDET'))
+        if params['detector'].endswith(':'):
+            params['detector'] = params['detector'][:-1]
     except Exception as ex:
         print(str(ex))
 
     try:
-        params_values['roi'] = [int(n) for n in ss.getheader_element('UIMR5').split()]
+        params['roi'] = [int(n) for n in ss.getheader_element('UIMR5').split()]
     except Exception as ex:
         print (str(ex))
 
-    return params_values
+    return params
 
 
 class Instrument:
@@ -53,42 +51,15 @@ class Instrument:
       It provides interface to get the classes encapsulating the diffractometer and detector.
     """
 
-    def __init__(self, *args):
+    def __init__(self, det_obj, diff_obj):
         """
-        The constructor.
+        Constructor
 
-        Parameters
-        ----------
-        params : dict
-            <param name> : <param value>
-
-        Returns
-        -------
-        str
-            a string containing error message or empty
+        :param det_obj: detector object, can be None
+        :param diff_obj: diffractometer object, can be None
         """
-        (self.specfile, diffractometer) = args
-        self.diff_obj = diff.create_diffractometer(diffractometer)
-        self.det_obj = None
-
-
-    def init_detector(self, *args, **kwargs):
-       # the detector is parsed from specfile, and therefore scan number must be given
-        # parse the frame size (roi) at the same time
-        (scan,) = args
-        if self.specfile is not None:
-            det_pars = parse_spec4roi(self.specfile, scan)
-        else:
-            det_pars = {}
-        det_pars.update(kwargs)
-
-        det_name = det_pars.pop('detector', None)
-        if det_name is None:
-            print('detector name unknown, using default')
-
-        self.det_obj = det.create_detector(det_name, **det_pars)
-        if self.det_obj is None:
-            raise RuntimeError
+        self.det_obj = det_obj
+        self.diff_obj = diff_obj
 
 
     def datainfo4scans(self, scans):
@@ -134,7 +105,7 @@ class Instrument:
         tuple
             (Trecip, Tdir)
         """
-        return self.diff_obj.get_geometry(shape, scan, self.det_obj, **kwargs)
+        return self.diff_obj.get_geometry(shape, scan, **kwargs)
 
 
 def create_instr(params):
@@ -151,22 +122,27 @@ def create_instr(params):
     (str, Object)
         error msg, Instrument object or None
     """
-    specfile = params.get('specfile', None)
-    if specfile is None:
-        print ('spec file does not exist. Will use configuration parameters.')
-    elif not os.path.isfile(specfile):
-        print (f'spec file {specfile} does not exist. Will use configuration parameters.')
-        specfile = None
-    diffractometer = params.get('diffractometer', None)
-    if diffractometer is None:
-        print ('diffractometer not defined. Will use configuration parameters.')
-
-    instr = Instrument(specfile, diffractometer)
-
-    if 'scan' in params:
-        # This is executed when preprocessing
-        # Find first scan to set detector. Pass preprocessor configuration (conf_prep) parameters to init the detector.
+    det_obj = None
+    diff_obj = None
+    det_params = {}
+    if 'specfile' in params and 'scan' in params:
+        # detector name and roi is parsed from specfile if one exists
+        # Find the first scan to parse detector params.
         first_scan = int(re.search(r'\d+', params.get('scan')).group())
-        instr.init_detector(first_scan, **params)
+        det_params = parse_spec4roi(params.get('specfile'), first_scan)
+    # override det_params with configured values in params
+    det_params.update(params)
+    det_name = det_params.get('detector', None)
+    if det_name is not None:
+        det_obj = det.create_detector(det_name, **det_params)
+        if det_obj is None:
+            return None
+    diff_name = params.get('diffractometer', None)
+    if diff_name is not None:
+        diff_obj = diff.create_diffractometer(diff_name, specfile=params.get('specfile', None))
+        if diff_obj is None:
+            return None
+
+    instr = Instrument(det_obj, diff_obj)
 
     return instr

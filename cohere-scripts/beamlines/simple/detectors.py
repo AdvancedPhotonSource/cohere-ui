@@ -82,7 +82,7 @@ class Detector(ABC):
         frames. The frames are read, corrected and stocked into 3D data
         This implementation is based on aps_34idc beamline.
 
-        :param scan_info: info allowing detector to retrieve data for a scan, a directory fir this detector
+        :param scan_info: info allowing detector to retrieve data for a scan
         :return: corrected data array
         """
         slices_files = {}
@@ -145,6 +145,8 @@ class Default(Detector):
             self.Imult = kwargs.get('Imult', self.wfavg)
         if 'darkfield_filename' in kwargs:
             self.darkfield = ut.read_tif(kwargs.get('darkfield_filename'))
+            if self.whitefield is not None:
+                self.whitefield = np.where(self.darkfield > 1, 0, self.whitefield)  # kill known bad pixel
 
 
     def correct_frame(self, frame_filename):

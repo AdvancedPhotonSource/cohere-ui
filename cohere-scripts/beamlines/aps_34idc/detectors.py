@@ -11,31 +11,42 @@ class Detector(ABC):
     Abstract class representing detector.
     """
 
-    def __init__(self, name="default"):
+    def __init__(self, name):
         self.name = name
 
     def dirs4scans(self, scans):
         """
-        Finds existing sub-directories in data_dir that correspond to given scans and scan ranges.
-        This function is the same for aps_34idc detectors as the naming scheme is consistent for this beamline.
+        Finds info allowing to read data that correspond to given scans or scan ranges.
+        The info can be directories where the data related to scans is stored.
 
-        Parameters
-        ----------
-        scans : list
-            list of tuples defining scan(s) and scan range(s), ordered
+        :param scans : list
+            list of sub-lists defining scan ranges, ordered. For single scan a range has the same scan as beginning and end.
+            one scan example:
+            scans : [[2834, 2834]]
+            returns : [[(2834, f'{path}/data_S2834)]]
 
-        Returns
-        -------
-        list
-            a list of sublist, the sublist reflecting scan ranges or scans and containing tuples of existing scans
-            and directory where the data for this scan is located
+            separate ranges example:
+            ex1: [[2825, 2831], [2834, 2834], [2840, 2876]]
+            returns: [[(2825, f'{path}/data_S2825'), (2828, f'{path}/data_S2828'), (2831, f'{path}/data_S2831')],
+             [(2834, f'{path}/data_S2834)],
+             [(2840, f'{path}/data_S2840'), (2843, f'{path}/data_S2843'), (2846, f'{path}/data_S2846'), (2849, f'{path}/data_S2849'),
+              (2852, f'{path}/data_S2852'), (2855, f'{path}/data_S2855'), (2858, f'{path}/data_S2858'), (2861, f'{path}/data_S2861'),
+              (2864, f'{path}/data_S2864'), (2867, f'{path}/data_S2867'), (2870, f'{path}/data_S2870'), (2873, f'{path}/data_S2873'),
+              (2876, f'{path}/data_S2876')]]
+
+        :return:
+        list of sub-lists the input scans, or scans ranges with the corresponding directories
         """
+        # Below is an implementation from aps_34idc beamline. Look at the implementation for the esrf_id01 beamline
+        # if using hdf5 file.
+
         # create empty results list that allocates a sub-list for each scan range
         scans_dirs_ranges = [[] for _ in range(len(scans))]
         sr_idx = 0
         scan_range = scans[sr_idx]
         scans_dirs = scans_dirs_ranges[sr_idx]
 
+        # check for directories
         for scandir in sorted(os.listdir(self.data_dir)):
             scandir_full = ut.join(self.data_dir, scandir)
             if os.path.isdir(scandir_full):
@@ -48,10 +59,6 @@ class Detector(ABC):
                     continue
                 elif scan <= scan_range[-1]:
                     # scan within range
-                    if self.min_files is not None:
-                        # exclude directories with fewer tif files than min_files
-                        if len(glob.glob1(scandir, "*.tif")) < self.min_files:
-                            continue
                     scans_dirs.append((scan, scandir_full))
                     if scan == scan_range[-1]:
                         sr_idx += 1
@@ -64,21 +71,19 @@ class Detector(ABC):
         scans_dirs_ranges = [e for e in scans_dirs_ranges if len(e) > 0]
         return scans_dirs_ranges
 
-    def get_scan_array(self, dir):
+
+    def get_scan_array(self, scan_info):
         """
-        Reads raw data files from scan directory, applies correction, and returns 3D corrected data for a single scan directory.
-        The correction is detector dependent. It can be darkfield and/or whitefield correction.
-        Parameters
-        ----------
-        dir : str
-            directory of scan to read the raw files from
-        Returns
-        -------
-        arr : ndarray
-            3D array containing corrected data for one scan.
+        Reads/loads raw data file and applies correction.
+
+        Reads raw data from a directory. The directory name is scan_info. The raw data is in form of 2D
+        frames. The frames are read, corrected and stocked into 3D data
+
+        :param scan_info: directory where the detector to retrieve data for a scan
+        :return: corrected data array
         """
         slices_files = {}
-        for file_name in os.listdir(dir):
+        for file_name in os.listdir(scan_info):
             if file_name.endswith('tif'):
                 fnbase = file_name[:-4]
             else:
@@ -87,54 +92,22 @@ class Detector(ABC):
             last_digits = re.search(r'\d+$', fnbase)
             if last_digits is not None:
                 key = int(last_digits.group())
-                slices_files[key] = ut.join(dir, file_name)
+                slices_files[key] = ut.join(scan_info, file_name)
 
         ordered_keys = sorted(list(slices_files.keys()))
-        ordered_slices = [self.get_frame(slices_files[k]) for k in ordered_keys]
+        ordered_slices = [self.correct_frame(slices_files[k]) for k in ordered_keys]
 
         return np.stack(ordered_slices, axis=-1)
 
-    def get_raw_frame(self, filename):
-        return ut.read_tif(filename)
-        # try:
-        #     self.raw_frame = ut.read_tif(filename)
-        # except:
-        #     print("problem reading raw file ", filename)
-        #     raise
 
     @abstractmethod
-    def get_frame(self, filename):
+    def correct_frame(self, frame):
         """
-        Reads raw 2D frame from a file. Concrete function in subclass applies correction for the specific detector. For example it could be darkfield correction or whitefield correction.
+        Applies the correction for detector.
 
-        Parameters
-        ----------
-        filename : str
-            data file name
-        roi : list
-            detector area used to take image. If None the entire detector area will be used.
-        Imult : int
-            multiplier
-
-        Returns
-        -------
-        ndarray
-            frame after instrument correction
-
+        :param frame: 2D raw data file representing a frame
+        :return: corrected frame
         """
-        pass
-
-    def get_pixel(self):
-        """
-        Returns detector pixel size.  Concrete function in subclass returns value applicable to the detector.
-
-        Returns
-        -------
-        tuple
-            size of pixel
-
-        """
-        return self.pixel
 
 
 class Detector_34idcTIM1(Detector):
@@ -146,36 +119,24 @@ class Detector_34idcTIM1(Detector):
     roi = (0, 256, 0, 256)
     pixel = (55.0e-6, 55e-6)
     pixelorientation = ('x+', 'y-')  # in xrayutilities notation
-    darkfield_filename = None
     darkfield = None
     data_dir = None
     min_files = None  # defines minimum frame scans in scan directory
     Imult = 1.0
 
     def __init__(self, **kwargs):
-        super(Detector_34idcTIM1, self).__init__()
+        super(Detector_34idcTIM1, self).__init__(self.name)
         # The detector attributes for background/whitefield/etc need to be set to read frames
         # this will capture things like data directory, darkfield_filename, etc.
-        for key, val in kwargs.items():
-            setattr(self, key, val)
+        self.data_dir = kwargs.get('data_dir') # mandatory
+        if 'roi' in kwargs:
+            self.roi = kwargs.get('roi')
+        if 'darkfield_filename' in kwargs:
+            self.darkfield = ut.read_tif(kwargs.get('darkfield_filename'))
 
-    def load_darkfield(self):
-        """
-        Reads darkfield file and save the frame as class member.
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        nothing
-        """
-        try:
-            self.darkfield = ut.read_tif(self.darkfield_filename)
-        except:
-            print("Darkfield filename not set for TIM1, will not correct")
 
     # TIM1 only needs bad pixels deleted.  Even that is optional.
-    def get_frame(self, filename):
+    def correct_frame(self, filename):
         """
         Reads raw frame from a file, and applies correction for 34idcTIM1 detector, i.e. darkfield.
         Parameters
@@ -187,18 +148,17 @@ class Detector_34idcTIM1(Detector):
         frame : ndarray
             frame after correction
         """
-        if self.darkfield is None:
-            if not self.darkfield_filename is None:
-                self.load_darkfield()
-            else:
-                print("Darkfield filename not configured for TIM1, will not correct")
         roislice1 = slice(self.roi[0], self.roi[0] + self.roi[1])
         roislice2 = slice(self.roi[2], self.roi[2] + self.roi[3])
         raw_frame = self.get_raw_frame(filename)
-        try:
-            frame = np.where(self.darkfield[roislice1, roislice2] > 1, 0.0, raw_frame)
-        except:
+        if self.darkfield is None:
+            print("Darkfield filename not configured for TIM1, will not correct")
             frame = raw_frame
+        else:
+            try:
+                frame = np.where(self.darkfield[roislice1, roislice2] > 1, 0.0, raw_frame)
+            except:
+                frame = raw_frame
 
         return frame
 
@@ -212,8 +172,6 @@ class Detector_34idcTIM2(Detector):
     roi = (0, 512, 0, 512)
     pixel = (55.0e-6, 55e-6)
     pixelorientation = ('x+', 'y-')  # in xrayutilities notation
-    whitefield_filename = None
-    darkfield_filename = None
     whitefield = None
     darkfield = None
     raw_frame = None
@@ -221,55 +179,30 @@ class Detector_34idcTIM2(Detector):
     Imult = None
 
     def __init__(self, **kwargs):
-        super(Detector_34idcTIM2, self).__init__()
+        super(Detector_34idcTIM2, self).__init__(self.name)
         # The detector attributes for background/whitefield/etc need to be set to read frames
         # this will capture things like data directory, whitefield_filename, etc.
-        for key, val in kwargs.items():
-            setattr(self, key, val)
-
-    def load_whitefield(self):
-        """
-        Reads whitefield file and save the frame as class member.
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        nothing
-        """
-        try:
-            self.whitefield = ut.read_tif(self.whitefield_filename)
-        except:
-            print("Whitefield filename not set for TIM2")
-            raise
-        try:
-            self.whitefield[255:257,
-            0:255] = 0  # wierd pixels on edge of seam (TL/TR). Kill in WF kills in returned frame as well.
+        # keep parameters that are relevant to the detector
+        self.data_dir = kwargs.get('data_dir')
+        if 'roi' in kwargs:
+            self.roi = kwargs.get('roi')
+        if 'whitefield_filename' in kwargs:
+            self.whitefield = ut.read_tif(kwargs.get('whitefield_filename'))
+            # the code below is specific to TIM2 detector, excluding the correction of the weird pixels
+            self.whitefield[255:257, 0:255] = 0  # wierd pixels on edge of seam (TL/TR). Kill in WF kills in returned frame as well.
             self.wfavg = np.average(self.whitefield)
             self.wfstd = np.std(self.whitefield)
             self.whitefield = np.where(self.whitefield < self.wfavg - 3 * self.wfstd, 0, self.whitefield)
-        except:
-            print("Corrections to the TIM2 whitefield image failed in detector module.")
+            self.Imult = kwargs.get('Imult', self.wfavg)
+        if 'darkfield_filename' in kwargs:
+            self.darkfield = ut.read_tif(kwargs.get('darkfield_filename'))
+            if self.whitefield is not None:
+                self.whitefield = np.where(self.darkfield > 1, 0, self.whitefield)  # kill known bad pixel
 
-    def load_darkfield(self):
-        """
-        Reads darkfield file and save the frame as class member.
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        nothing
-        """
-        try:
-            self.darkfield = ut.read_tif(self.darkfield_filename)
-        except:
-            print("Darkfield filename not set for TIM2")
-            raise
-        if type(self.whitefield) == np.ndarray:
-            self.whitefield = np.where(self.darkfield > 1, 0, self.whitefield)  # kill known bad pixel
+        self.min_files = kwargs.get('min_files', None)
 
-    def get_frame(self, filename):
+
+    def correct_frame(self, filename):
         """
         Reads raw frame from a file, and applies correction for 34idcTIM2 detector, i.e. darkfield, whitefield,
         and seam.
@@ -283,40 +216,26 @@ class Detector_34idcTIM2(Detector):
         frame : ndarray
             frame after correction
         """
-        if self.darkfield is None:
-            if not self.darkfield_filename is None:
-                self.load_darkfield()
-            else:
-                print("darkfield filename not configured for TIM2, will not correct")
-        if self.whitefield is None:
-            if not self.whitefield_filename is None:
-                self.load_whitefield()
-            else:
-                print("whitefield filename not configured for TIM2, will not correct")
         # roi is start,size,start,size
         # will be in imageJ coords, so might need to transpose,or just switch x-y
         # divide whitefield
         # blank out pixels identified in darkfield
         # insert 4 cols 5 rows if roi crosses asic boundary
-        if self.roi is None:
-            self.roi = Detector_34idcTIM2.roi
-        if not type(self.darkfield) == np.ndarray:
-            self.load_darkfield()
-        if not type(self.whitefield) == np.ndarray:
-            self.load_whitefield()
-        if self.Imult is None:
-            self.Imult = self.wfavg
-
         roislice1 = slice(self.roi[0], self.roi[0] + self.roi[1])
         roislice2 = slice(self.roi[2], self.roi[2] + self.roi[3])
 
-        # some of this should probably be in try blocks
-        raw_frame = self.get_raw_frame(filename)
-        normframe = raw_frame / self.whitefield[roislice1, roislice2] * self.Imult
-        normframe = np.where(self.darkfield[roislice1, roislice2] > 1, 0.0, normframe)
-        normframe = np.where(np.isfinite(normframe), normframe, 0)
+        frame = ut.read_tif(filename)
+        if self.whitefield is not None:
+            frame = frame / self.whitefield[roislice1, roislice2] * self.Imult
+        else:
+            print('whitefield_filename not given, not correcting')
+        if self.darkfield is not None:
+            frame = np.where(self.darkfield[roislice1, roislice2] > 1, 0.0, frame)
+        else:
+            print('darkfield_filename not given, not correcting')
 
-        frame, seam_added = self.insert_seam(normframe)
+        frame = np.where(np.isfinite(frame), frame, 0)
+        frame, seam_added = self.insert_seam(frame)
         frame = np.where(np.isnan(frame), 0, frame)
 
         if seam_added:
@@ -404,205 +323,40 @@ class Detector_34idcTIM2(Detector):
         return arr
 
 
-class default(Detector):
+class Default(Detector):
     """
-    Subclass of Detector. Encapsulates any detector. Based on "34idcTIM2" detector.
+    Subclass of Detector. Encapsulates any detector. Values are based on "34idcTIM2" detector.
     """
     name = "default"
     dims = (512, 512)
     roi = (0, 512, 0, 512)
     pixel = (55.0e-6, 55e-6)
     pixelorientation = ('x+', 'y-')  # in xrayutilities notation
-    whitefield_filename = None
-    darkfield_filename = None
     whitefield = None
     darkfield = None
-    raw_frame = None
-    min_files = None  # defines minimum frame scans in scan directory
-    Imult = None
 
     def __init__(self, **kwargs):
-        super(default, self).__init__()
-        # The detector attributes for background/whitefield/etc need to be set to read frames
-        # this will capture things like data directory, whitefield_filename, etc.
-        for key, val in kwargs.items():
-            setattr(self, key, val)
+        super(Default, self).__init__(self.name)
+        # The detector attributes specific for the detector.
+        # Can include data directory, whitefield_filename, roi, etc.
 
-    def load_whitefield(self):
-        """
-        Reads whitefield file and save the frame as class member.
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        nothing
-        """
-        try:
-            self.whitefield = ut.read_tif(self.whitefield_filename)
-        except:
-            print("Whitefield filename not set for TIM2")
-            raise
-        try:
-            self.whitefield[255:257,
-            0:255] = 0  # wierd pixels on edge of seam (TL/TR). Kill in WF kills in returned frame as well.
+        # keep parameters that are relevant to the detector
+        if 'roi' in kwargs:
+            self.roi = kwargs.get('roi')
+        if 'data_dir' in kwargs:
+            self.data_dir = kwargs.get('data_dir')
+        if 'whitefield_filename' in kwargs:
+            self.whitefield = ut.read_tif(kwargs.get('whitefield_filename'))
+            # the code below is specific to TIM2 detector, excluding the correction of the weird pixels
+            # self.whitefield[255:257, 0:255] = 0  # wierd pixels on edge of seam (TL/TR). Kill in WF kills in returned frame as well.
             self.wfavg = np.average(self.whitefield)
             self.wfstd = np.std(self.whitefield)
             self.whitefield = np.where(self.whitefield < self.wfavg - 3 * self.wfstd, 0, self.whitefield)
-        except:
-            print("Corrections to the TIM2 whitefield image failed in detector module.")
-
-    def load_darkfield(self):
-        """
-        Reads darkfield file and save the frame as class member.
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        nothing
-        """
-        try:
-            self.darkfield = ut.read_tif(self.darkfield_filename)
-        except:
-            print("Darkfield filename not set for TIM2")
-            raise
-        if type(self.whitefield) == np.ndarray:
-            self.whitefield = np.where(self.darkfield > 1, 0, self.whitefield)  # kill known bad pixel
-
-    def get_frame(self, filename):
-        """
-        Reads raw frame from a file, and applies correction for 34idcTIM2 detector, i.e. darkfield, whitefield,
-        and seam.
-
-        Parameters
-        ----------
-        filename : str
-            data file name
-        Returns
-        -------
-        frame : ndarray
-            frame after correction
-        """
-        if self.darkfield is None:
-            if not self.darkfield_filename is None:
-                self.load_darkfield()
-            else:
-                print("darkfield filename not configured for TIM2, will not correct")
-        if self.whitefield is None:
-            if not self.whitefield_filename is None:
-                self.load_whitefield()
-            else:
-                print("whitefield filename not configured for TIM2, will not correct")
-        # roi is start,size,start,size
-        # will be in imageJ coords, so might need to transpose,or just switch x-y
-        # divide whitefield
-        # blank out pixels identified in darkfield
-        # insert 4 cols 5 rows if roi crosses asic boundary
-        if self.roi is None:
-            self.roi = Detector_34idcTIM2.roi
-        if not type(self.darkfield) == np.ndarray:
-            self.load_darkfield()
-        if not type(self.whitefield) == np.ndarray:
-            self.load_whitefield()
-        if self.Imult is None:
-            self.Imult = self.wfavg
-
-        roislice1 = slice(self.roi[0], self.roi[0] + self.roi[1])
-        roislice2 = slice(self.roi[2], self.roi[2] + self.roi[3])
-
-        # some of this should probably be in try blocks
-        raw_frame = self.get_raw_frame(filename)
-        normframe = raw_frame / self.whitefield[roislice1, roislice2] * self.Imult
-        normframe = np.where(self.darkfield[roislice1, roislice2] > 1, 0.0, normframe)
-        normframe = np.where(np.isfinite(normframe), normframe, 0)
-
-        frame, seam_added = self.insert_seam(normframe)
-        frame = np.where(np.isnan(frame), 0, frame)
-
-        if seam_added:
-            frame = self.clear_seam(frame)
-        return frame
-
-    # frame here can also be a 3D array.
-    def insert_seam(self, arr):
-        """
-        Inserts rows/columns correction in a frame for 34idcTIM2 detector.
-        Parameters
-        ----------
-        arr : ndarray
-            raw frame
-        Returns
-        -------
-        frame : ndarray
-            frame after insering rows/columns
-        """
-        # Need to break this out.  When aligning multi scans the insert will mess up the aligns
-        # or maybe we just need to re-blank the seams after the aligns?
-        # I can't decide if the seams are a detriment to the alignment.  might need to try some.
-        s1range = range(self.roi[0], self.roi[0] + self.roi[1])
-        s2range = range(self.roi[2], self.roi[2] + self.roi[3])
-        dims = arr.shape
-        seam_added = False
-
-        # get the col that start at det col 256 in the roi
-        try:
-            i1 = s1range.index(256)  # if not in range try will except
-            if i1 != 0:
-                frame = np.insert(arr, i1, np.zeros((4, dims[0])), axis=0)
-                seam_added = True
-            # frame=np.insert(normframe, i1, np.zeros((5,dims[0])),axis=0)
-            else:
-                frame = arr
-        except:
-            frame = arr  # if there's no insert on dim1 need to copy to frame
-
-        try:
-            i2 = s2range.index(256)
-            if i2 != 0:
-                frame = np.insert(frame, i2, np.zeros((5, dims[0] + 4)), axis=1)
-                seam_added = True
-        except:
-            # if there's no insert on dim2 thre's nothing to do
-            pass
-
-        return frame, seam_added
-
-    # This is needed if the seam has already been inserted and shifts have moved intensity
-    # into the seam.  Found that alignment of data sets was best done with the seam inserted.
-    def clear_seam(self, arr):
-        """
-        Removes rows/columns correction from a frame for 34idcTIM2 detector.
-        Parameters
-        ----------
-        arr : ndarray
-            frame to remove seam
-        roi : list
-            detector area used to take image. If None the entire detector area will be used.
-        Returns
-        -------
-        arr : ndarray
-            frame after removing rows/columns
-        """
-        # modify the slices if 256 is in roi
-        s1range = range(self.roi[0], self.roi[0] + self.roi[1])
-        s2range = range(self.roi[2], self.roi[2] + self.roi[3])
-        try:
-            i1 = s1range.index(256)  # if not in range try will except
-            if i1 != 0:
-                s1range[0] = slice(i1, i1 + 4)
-                arr[tuple(s1range)] = 0
-        except:
-            pass
-        try:
-            i2 = s2range.index(256)
-            if i2 != 0:
-                s2range[1] = slice(i2, i2 + 5)
-                arr[tuple(s2range)] = 0
-        except:
-            pass
-
-        return arr
+            self.Imult = kwargs.get('Imult', self.wfavg)
+        if 'darkfield_filename' in kwargs:
+            self.darkfield = ut.read_tif(kwargs.get('darkfield_filename'))
+            if self.whitefield is not None:
+                self.whitefield = np.where(self.darkfield > 1, 0, self.whitefield)  # kill known bad pixel
 
 
 def create_detector(det_name, **kwargs):
@@ -610,10 +364,18 @@ def create_detector(det_name, **kwargs):
         return Detector_34idcTIM1(**kwargs)
     elif det_name == '34idcTIM2':
         return Detector_34idcTIM2(**kwargs)
-    elif det_name is None:
-        return default(**kwargs)
+    elif det_name == 'default' or det_name is None:
+        return Default(**kwargs)
     else:
         print(f'detector {det_name} not defined.')
         return None
 
 
+dets = {'34idcTIM1' : Detector_34idcTIM1, '34idcTIM2' : Detector_34idcTIM2, 'default' : Default}
+
+def get_pixel(det_name):
+    return dets[det_name].pixel
+
+
+def get_pixel_orientation(det_name):
+    return dets[det_name].pixelorientation
