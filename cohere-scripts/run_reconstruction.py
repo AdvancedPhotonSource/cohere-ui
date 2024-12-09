@@ -6,7 +6,7 @@
 
 """
 This user script manages reconstruction(s).
-Depending on configuration it starts either single reconstruction, GA, or multiple reconstructions. In multiple reconstruction scenario or split scans the script runs concurrent reconstructions.
+Depending on configuration it starts either single reconstruction, GA, or multiple reconstructions. In multiple reconstruction scenario or split scans the script runs parallel reconstructions.
 """
 
 __author__ = "Barbara Frosik"
@@ -27,6 +27,7 @@ import cohere_core.utilities as ut
 import common as com
 import mpi_cmd
 import reconstruction_populous_GA
+import multipeak
 
 
 def get_job_size(size, method, pc_in_use=False):
@@ -78,6 +79,61 @@ def split_resources(hostfile, devs, no_scans):
     return hostfiles
 
 
+def reconstruction_single(pkg, conf_file, datafile, dir, dev, **kwargs):
+    """
+    Controls single reconstruction according to parameters and conf_file.
+
+    :param pkg:  str
+        library acronym to use for reconstruction. Supported:
+        'np' - to use numpy,
+        'cp' - to use cupy,
+        'torch' - to use torch
+    :param conf_file: str
+        configuration file name
+    :param datafile: str
+        data file name
+    :param dir: str
+        a parent directory that holds the reconstructions. For example experiment directory or scan directory.
+    :param dev: int
+        id defining GPU the this reconstruction will be utilizing, or -1 if running cpu
+    :param kwargs: var parameters
+        may contain:
+        debug : if True the exceptions are not handled
+    :return:
+    """
+    pars = ut.read_config(conf_file)
+
+    pars['init_guess'] = pars.get('init_guess', 'random')
+    if pars['init_guess'] == 'AI_guess':
+        import cohere_core.controller.AI_guess as ai
+        ai_dir = ai.start_AI(pars, datafile, dir)
+        if ai_dir is None:
+            return
+        pars['continue_dir'] = ai_dir
+
+    if 'save_dir' in pars:
+        save_dir = pars['save_dir']
+    else:
+        filename = conf_file.split('/')[-1]
+        save_dir = ut.join(dir, filename.replace('config_rec', 'results_phasing'))
+
+    if dev is None:
+        device = pars.get('device', -1)
+    else:
+        device = dev[0]
+
+    worker = rec.create_rec(pars, datafile, pkg, device, **kwargs)
+    if worker is None:
+        return
+
+    ret_code = worker.iterate()
+    if ret_code < 0:
+        print ('reconstruction failed during iterations')
+        return
+
+    worker.save_res(save_dir)
+
+
 def process_scan_range(ga_method, pkg, conf_file, datafile, dir, picked_devs, hostfile=None, q=None, debug=None):
     """
     Calls the reconstruction function in a module identified by parameter. After the reconstruction is finished, it enqueues th eprocess id wit associated list of gpus.
@@ -103,7 +159,7 @@ def process_scan_range(ga_method, pkg, conf_file, datafile, dir, picked_devs, ho
     nothing
     """
     if len(picked_devs) == 1:
-        rec.reconstruction_single.reconstruction(pkg, conf_file, datafile, dir, picked_devs, debug=debug)
+        reconstruction_single(pkg, conf_file, datafile, dir, picked_devs, debug=debug)
     elif ga_method == 'ga_fast':
         mpi_cmd.run_with_mpi(pkg, conf_file, datafile, dir, picked_devs, hostfile)
     else:
@@ -117,7 +173,7 @@ def manage_reconstruction(experiment_dir, **kwargs):
     """
     This function starts the interruption discovery process and continues the recontruction processing.
     It reads configuration file defined as <experiment_dir>/conf/config_rec.
-    If multiple generations are configured, or separate scans are discovered, it will start concurrent reconstructions.
+    If multiple generations are configured, or separate scans are discovered, it will start parallel reconstructions.
     It creates image.npy file for each successful reconstruction.
     Parameters
     ----------
@@ -171,7 +227,7 @@ def manage_reconstruction(experiment_dir, **kwargs):
         for dir in os.listdir(experiment_dir):
             if dir.startswith('mp'):
                 peak_dirs.append(ut.join(experiment_dir, dir))
-        return rec.reconstruction_coupled.reconstruction(pkg, config_map, peak_dirs, devices, **kwargs)
+        return multipeak.reconstruction(pkg, config_map, peak_dirs, devices, **kwargs)
 
     # exp_dirs_data list hold pairs of data and directory, where the directory is the root of phasing_data/data.tif file, and
     # data is the data.tif file in this directory.
@@ -216,7 +272,7 @@ def manage_reconstruction(experiment_dir, **kwargs):
     # number of wanted devices to accommodate all reconstructions is a product of no_scan_ranges and reconstructions
     want_dev_no = no_scan_ranges * reconstructions
 
-    # This is the simplest case, i.e. single reconstruction, no GA
+    # This is the simplest case, i.e. one scan range, single reconstruction, no GA
     if want_dev_no == 1:
         datafile, dir = exp_dirs_data[0]
         dev = [-1]
@@ -224,7 +280,7 @@ def manage_reconstruction(experiment_dir, **kwargs):
             dev = [rec_config_map['device'][0]]
         except:
             print('configure device as list of int(s) for simple case')
-        rec.reconstruction_single.reconstruction(pkg, conf_file, datafile, dir, dev, **kwargs)
+        reconstruction_single(pkg, conf_file, datafile, dir, dev, **kwargs)
         print('finished reconstruction')
         return
 
@@ -250,19 +306,19 @@ def manage_reconstruction(experiment_dir, **kwargs):
     else: # multiple scans or scan ranges
         q = None
         if avail_jobs >= want_dev_no:
-            # there is enough resources to run all reconstructions simultanuesly
+            # there is enough resources to run all reconstructions in parallel
             # assign the resources to scans
-            no_concurrent_scans = no_scan_ranges
+            parallel_scan_ranges = no_scan_ranges
         else:
-            # not enough resources to run all reconstructions simultaneously, recycle devices
-            no_concurrent_scans = int(avail_jobs // reconstructions)
-            if no_concurrent_scans == 0:
+            # not enough resources to run all reconstructions in parallel, recycle devices
+            parallel_scan_ranges = int(avail_jobs // reconstructions)
+            if parallel_scan_ranges == 0:
                 # there is not enough devices to run reconstruction for one scan range
                 # try to run one scan range with all picked devices
-                no_concurrent_scans = 1
+                parallel_scan_ranges = 1
             else:
                 # otherwise pick the devices
-                picked_devs = picked_devs[: no_concurrent_scans * reconstructions]
+                picked_devs = picked_devs[: parallel_scan_ranges * reconstructions]
 
             # create queue to reuse devices/hostfiles
             q = Queue()
@@ -271,12 +327,12 @@ def manage_reconstruction(experiment_dir, **kwargs):
         if hostfile is None:
             hostfiles = [None] * no_scan_ranges
         else:
-            hostfiles = split_resources(hostfile, reconstructions, no_concurrent_scans)
+            hostfiles = split_resources(hostfile, reconstructions, parallel_scan_ranges)
 
         pr = {}
-        for i in range(no_concurrent_scans):
+        for i in range(parallel_scan_ranges):
             datafile, dir = exp_dirs_data[i]
-            # run concurrently
+            # run parallel
             p = Process(target=process_scan_range,
                         args=(ga_method, pkg, conf_file, datafile, dir, scan_picked_devs[i], hostfiles[i], q))
             p.start()

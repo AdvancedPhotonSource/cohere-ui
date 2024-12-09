@@ -48,7 +48,7 @@ def get_config_maps(experiment_dir, configs, **kwargs):
 
     maps['config'] = main_config_map
 
-    if 'config_instr' in configs:
+    if 'config_instr' in configs or 'config_mp' in configs:
         # the configuration file applies to specific beamline and needs to be imported
         beamline = main_config_map.get('beamline', None)
         if beamline is None:
