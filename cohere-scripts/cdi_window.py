@@ -2272,6 +2272,76 @@ class progress(Feature):
         conf_map['progress_trigger'] = ast.literal_eval(str(self.progress_triggers.text()).replace(os.linesep,''))
 
 
+class live(Feature):
+    """
+    This class encapsulates live feature.
+    """
+    def __init__(self):
+        super(live, self).__init__()
+        self.id = 'live'
+
+
+    def init_config(self, conf_map):
+        """
+        This function sets live feature's parameters to parameters in dictionary and displays in the window.
+        Parameters
+        ----------
+        conf_map : dict
+            contains parameters for reconstruction
+        Returns
+        -------
+        nothing
+        """
+        if 'live_trigger' in conf_map:
+            self.active.setChecked(True)
+            self.live_triggers.setText(str(conf_map['live_trigger']).replace(" ", ""))
+        else:
+            self.active.setChecked(False)
+            return
+
+
+    def fill_active(self, layout):
+        """
+        This function displays the feature's parameters when the feature becomes active.
+        Parameters
+        ----------
+        layout : Layout widget
+            a layout with the feature
+        Returns
+        -------
+        nothing
+        """
+        self.live_triggers = QLineEdit()
+        layout.addRow("live triggers", self.live_triggers)
+
+
+    def rec_default(self):
+        """
+        This function sets live feature's parameters to hardcoded default values.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        self.live_triggers.setText('[0,5]')
+
+
+    def add_feat_conf(self, conf_map):
+        """
+        This function adds live feature's parameters to dictionary.
+        Parameters
+        ----------
+        conf_map : dict
+            contains parameters for reconstruction
+        Returns
+        -------
+        nothing
+        """
+        conf_map['live_trigger'] = ast.literal_eval(str(self.live_triggers.text()).replace(os.linesep,''))
+
+
 class Features(QWidget):
     """
     This class is composition of all feature classes.
@@ -2281,7 +2351,7 @@ class Features(QWidget):
         Constructor, creates all concrete feature objects, and displays in window.
         """
         super(Features, self).__init__()
-        feature_ids = ['GA', 'low resolution', 'shrink wrap', 'phase constrain', 'pcdi', 'twin', 'average', 'progress']
+        feature_ids = ['GA', 'low resolution', 'shrink wrap', 'phase constrain', 'pcdi', 'twin', 'average', 'progress', 'live']
         self.leftlist = QListWidget()
         self.feature_dir = {'GA' : GA(),
                             'low resolution' : low_resolution(),
@@ -2290,7 +2360,9 @@ class Features(QWidget):
                             'pcdi' : pcdi(),
                             'twin' : twin(),
                             'average' : average(),
-                            'progress' : progress()}
+                            'progress' : progress(),
+                            'live' : live()
+                            }
         self.Stack = QStackedWidget(self)
         for i in range(len(feature_ids)):
             id = feature_ids[i]
@@ -2333,6 +2405,10 @@ class MpTab(QWidget):
         self.main_win = main_window
 
         layout = QFormLayout()
+        self.switch_peak_trigger = QLineEdit()
+        layout.addRow("switch peak trigger", self.switch_peak_trigger)
+        self.adapt_trigger = QLineEdit()
+        layout.addRow("adapt trigger", self.adapt_trigger)
         self.scan = QLineEdit()
         layout.addRow("scan(s)", self.scan)
         self.orientations = QLineEdit()
@@ -2345,18 +2421,28 @@ class MpTab(QWidget):
         layout.addRow("twin plane", self.twin_plane)
         self.sample_axis = QLineEdit()
         layout.addRow("sample axis", self.sample_axis)
-        self.final_size = QLineEdit()
-        layout.addRow("final size", self.final_size)
-        self.mp_max_weight = QLineEdit()
-        layout.addRow("mp max weight", self.mp_max_weight)
-        self.mp_taper = QLineEdit()
-        layout.addRow("mp taper", self.mp_taper)
         self.lattice_size = QLineEdit()
         layout.addRow("lattice size", self.lattice_size)
-        self.ds_voxel_size = QLineEdit()
-        layout.addRow("ds voxel size", self.ds_voxel_size)
-        self.switch_peak_trigger = QLineEdit()
-        layout.addRow("switch peak trigger", self.switch_peak_trigger)
+        self.final_size = QLineEdit()
+        layout.addRow("final size", self.final_size)
+        self.adapt_threshold_init = QLineEdit()
+        layout.addRow("adapt threshold init", self.adapt_threshold_init)
+        self.adapt_threshold_iters = QLineEdit()
+        layout.addRow("adapt threshold iters", self.adapt_threshold_iters)
+        self.adapt_threshold_vals = QLineEdit()
+        layout.addRow("adapt threshold vals", self.adapt_threshold_vals)
+        self.weight_init = QLineEdit()
+        layout.addRow("initial weight", self.weight_init)
+        self.weight_iters = QLineEdit()
+        layout.addRow("weight iters", self.weight_iters)
+        self.weight_vals = QLineEdit()
+        layout.addRow("weight vals", self.weight_vals)
+        self.adapt_alien_start = QLineEdit()
+        layout.addRow("adapt alien start", self.adapt_alien_start)
+        self.adapt_alien_threshold = QLineEdit()
+        layout.addRow("adapt alien threshold", self.adapt_alien_threshold)
+        self.adapt_power = QLineEdit()
+        layout.addRow("adapt power", self.adapt_power)
 
         cmd_layout = QHBoxLayout()
         self.set_mp_conf_from_button = QPushButton("Load conf from")
@@ -2377,18 +2463,25 @@ class MpTab(QWidget):
 
 
     def clear_conf(self):
+        self.switch_peak_trigger.setText('')
+        self.adapt_trigger.setText('')
         self.scan.setText('')
         self.orientations.setText('')
         self.hkl_in.setText('')
         self.hkl_out.setText('')
         self.twin_plane.setText('')
         self.sample_axis.setText('')
-        self.final_size.setText('')
-        self.mp_max_weight.setText('')
-        self.mp_taper.setText('')
         self.lattice_size.setText('')
-        self.ds_voxel_size.setText('')
-        self.switch_peak_trigger.setText('')
+        self.final_size.setText('')
+        self.adapt_threshold_init.setText('')
+        self.adapt_threshold_iters.setText('')
+        self.adapt_threshold_vals.setText('')
+        self.weight_init.setText('')
+        self.weight_iters.setText('')
+        self.weight_vals.setText('')
+        self.adapt_alien_start.setText('')
+        self.adapt_alien_threshold.setText('')
+        self.adapt_power.setText('')
 
 
     def load_tab(self, conf_map):
@@ -2402,6 +2495,10 @@ class MpTab(QWidget):
         -------
         nothing
         """
+        if 'switch_peak_trigger' in conf_map:
+            self.switch_peak_trigger.setText(str(conf_map['switch_peak_trigger']))
+        if 'adapt_trigger' in conf_map:
+            self.adapt_trigger.setText(str(conf_map['adapt_trigger']))
         if 'scan' in conf_map:
             self.scan.setText(str(conf_map['scan']).replace(" ", ""))
         if 'orientations' in conf_map:
@@ -2414,18 +2511,28 @@ class MpTab(QWidget):
             self.twin_plane.setText(str(conf_map['twin_plane']))
         if 'sample_axis' in conf_map:
             self.sample_axis.setText(str(conf_map['sample_axis']))
-        if 'final_size' in conf_map:
-            self.final_size.setText(str(conf_map['final_size']))
-        if 'mp_max_weight' in conf_map:
-            self.mp_max_weight.setText(str(conf_map['mp_max_weight']))
-        if 'mp_taper' in conf_map:
-            self.mp_taper.setText(str(conf_map['mp_taper']))
         if 'lattice_size' in conf_map:
             self.lattice_size.setText(str(conf_map['lattice_size']))
-        if 'ds_voxel_size' in conf_map:
-            self.ds_voxel_size.setText(str(conf_map['ds_voxel_size']))
-        if 'switch_peak_trigger' in conf_map:
-            self.switch_peak_trigger.setText(str(conf_map['switch_peak_trigger']))
+        if 'final_size' in conf_map:
+            self.final_size.setText(str(conf_map['final_size']))
+        if 'adapt_threshold_init' in conf_map:
+            self.adapt_threshold_init.setText(str(conf_map['adapt_threshold_init']))
+        if 'adapt_threshold_iters' in conf_map:
+            self.adapt_threshold_iters.setText(str(conf_map['adapt_threshold_iters']))
+        if 'adapt_threshold_vals' in conf_map:
+            self.adapt_threshold_vals.setText(str(conf_map['adapt_threshold_vals']))
+        if 'weight_init' in conf_map:
+            self.weight_init.setText(str(conf_map['weight_init']))
+        if 'weight_iters' in conf_map:
+            self.weight_iters.setText(str(conf_map['weight_iters']))
+        if 'weight_vals' in conf_map:
+            self.weight_vals.setText(str(conf_map['weight_vals']))
+        if 'adapt_alien_start' in conf_map:
+            self.adapt_alien_start.setText(str(conf_map['adapt_alien_start']))
+        if 'adapt_alien_threshold' in conf_map:
+            self.adapt_alien_threshold.setText(str(conf_map['adapt_alien_threshold']))
+        if 'adapt_power' in conf_map:
+            self.adapt_power.setText(str(conf_map['adapt_power']))
 
 
     def save_conf(self):
@@ -2441,6 +2548,10 @@ class MpTab(QWidget):
         """
         conf_map = {}
 
+        if len(self.switch_peak_trigger.text()) > 0:
+            conf_map['switch_peak_trigger'] = ast.literal_eval(str(self.switch_peak_trigger.text()))
+        if len(self.adapt_trigger.text()) > 0:
+            conf_map['adapt_trigger'] = ast.literal_eval(str(self.adapt_trigger.text()))
         if len(self.scan.text()) > 0:
             conf_map['scan'] = str(self.scan.text())
         if len(self.orientations.text()) > 0:
@@ -2453,18 +2564,28 @@ class MpTab(QWidget):
             conf_map['twin_plane'] = ast.literal_eval(str(self.twin_plane.text()))
         if len(self.sample_axis.text()) > 0:
             conf_map['sample_axis'] = ast.literal_eval(str(self.sample_axis.text()))
-        if len(self.final_size.text()) > 0:
-            conf_map['final_size'] = ast.literal_eval(str(self.final_size.text()))
-        if len(self.mp_max_weight.text()) > 0:
-            conf_map['mp_max_weight'] = ast.literal_eval(str(self.mp_max_weight.text()))
-        if len(self.mp_taper.text()) > 0:
-            conf_map['mp_taper'] = ast.literal_eval(str(self.mp_taper.text()))
         if len(self.lattice_size.text()) > 0:
             conf_map['lattice_size'] = ast.literal_eval(str(self.lattice_size.text()))
-        if len(self.ds_voxel_size.text()) > 0:
-            conf_map['ds_voxel_size'] = ast.literal_eval(str(self.ds_voxel_size.text()))
-        if len(self.switch_peak_trigger.text()) > 0:
-            conf_map['switch_peak_trigger'] = ast.literal_eval(str(self.switch_peak_trigger.text()))
+        if len(self.final_size.text()) > 0:
+            conf_map['final_size'] = ast.literal_eval(str(self.final_size.text()))
+        if len(self.adapt_threshold_init.text()) > 0:
+            conf_map['adapt_threshold_init'] = ast.literal_eval(str(self.adapt_threshold_init.text()))
+        if len(self.adapt_threshold_iters.text()) > 0:
+            conf_map['adapt_threshold_iters'] = ast.literal_eval(str(self.adapt_threshold_iters.text()))
+        if len(self.adapt_threshold_vals.text()) > 0:
+            conf_map['adapt_threshold_vals'] = ast.literal_eval(str(self.adapt_threshold_vals.text()))
+        if len(self.adapt_threshold_init.text()) > 0:
+            conf_map['weight_init'] = ast.literal_eval(str(self.weight_init.text()))
+        if len(self.weight_iters.text()) > 0:
+            conf_map['weight_iters'] = ast.literal_eval(str(self.weight_iters.text()))
+        if len(self.weight_vals.text()) > 0:
+            conf_map['weight_vals'] = ast.literal_eval(str(self.weight_vals.text()))
+        if len(self.adapt_alien_start.text()) > 0:
+            conf_map['adapt_alien_start'] = ast.literal_eval(str(self.adapt_alien_start.text()))
+        if len(self.adapt_alien_threshold.text()) > 0:
+            conf_map['adapt_alien_threshold'] = ast.literal_eval(str(self.adapt_alien_threshold.text()))
+        if len(self.adapt_power.text()) > 0:
+            conf_map['adapt_power'] = ast.literal_eval(str(self.adapt_power.text()))
 
         ut.write_config(conf_map, self.main_win.experiment_dir + '/conf/config_mp')
 

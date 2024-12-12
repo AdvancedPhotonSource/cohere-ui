@@ -322,6 +322,7 @@ def reconstruction(lib, pars, peak_dirs, dev, **kwargs):
         may contain:
         debug : if True the exceptions are not handled
     """
+    print('peak_dirs', peak_dirs)
     if 'init_guess' not in pars:
         pars['init_guess'] = 'random'
     elif pars['init_guess'] == 'AI_guess':
