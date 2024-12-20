@@ -1,0 +1,199 @@
+import numpy as np
+import math as m
+import xrayutilities.experiment as xuexp
+import beamlines.Petra3_P10.detectors as det
+import beamlines.Petra3_P10.p10_scan_reader as p10sr
+
+
+class Diffractometer():
+    """
+    Parent class representing diffractometer. It keeps fields related to the specific diffractometer represented by
+    a subclass.
+
+    diff_name : str
+        diffractometer name
+    """
+    name = None
+
+    def __init__(self, diff_name):
+        """
+        Constructor.
+
+        Parameters
+        ----------
+        diff_name : str
+            diffractometer name
+
+        """
+        self.diff_name = diff_name
+
+
+class Diffractometer_P10sixc(Diffractometer):
+    """
+    Subclass of Diffractometer. Encapsulates "34idc" diffractometer.
+    """
+    name = "P10sixc"
+    sampleaxes = ('y+', 'x-', 'z+', 'y-')  # in xrayutilities notation
+    detectoraxes = ('y+', 'x-')
+    incidentaxis = (0, 0, 1)
+    sampleaxes_name = ('mu', 'om', 'chi', 'phi')
+    sampleaxes_mne = ('mu', 'om', 'chi', 'phi')
+    detectoraxes_name = ('Gamma', 'Delta')
+    detectoraxes_mne = ('gam','del')
+
+    def __init__(self, data_dir, sample):
+        super(Diffractometer_P10sixc, self).__init__(self.name)
+        self.data_dir = data_dir
+        self.sample = sample
+
+
+    #Here the fiofile is the P10 fio object.  So no need to read a file.
+    def parse_fio(self, scan):
+        """
+        Reads parameters from fio file for given scan. The fio file is derived from data_dir sample and scan.
+        :param data_dir: directory where data along with fio file are saved
+        :param sample: sample name that is used as subdirectory where the fio file is saved
+        :param scan: scan defines the subdirectory
+        :return: dict with optional params: scanmot, scanmot_del, detdist, detector, energy
+        """
+        fio_dict = {}
+        scanmeta=p10sr.P10Scan(self.data_dir, self.sample, scan, pathsave='', creat_save_folder=False)
+        command = scanmeta.command.split()
+        fio_dict['scanmot'] = command[1]
+        fio_dict['scanmot_del'] = (float(command[3]) - float(command[2])) / int(command[4])
+
+        for mot_mne, mot_name in zip(self.sampleaxes_mne + self.detectoraxes_mne,
+                                     self.sampleaxes_name + self.detectoraxes_name):
+            fio_dict[mot_mne] = scanmeta.get_motor_pos(mot_mne)
+
+        fio_dict['detdist'] = scanmeta.get_motor_pos('_distance')
+
+
+        fio_dict['energy'] = scanmeta.get_motor_pos('fmbenergy')
+
+        try:
+            fio_dict['detector'] = scanmeta.get_motor_pos('_ccd')
+        except Exception as ex:
+            print(str(ex))
+
+        return fio_dict
+
+
+    def get_geometry(self, shape, scan, **kwargs):
+        """
+        Calculates geometry based on diffractometer's and detctor's attributes and experiment parameters.
+
+        For the Petra3_P10 scanmot, scanmot_del, detdist, detector_name, energy values are parsed from fio file.
+        They can be overridden by configuration.
+
+        Parameters
+        ----------
+        shape : tuple
+            shape of reconstructed array
+        scan : int
+            scan number the geometry is calculated for
+        The **kwargs reflect configuration, and could contain del, gam, theta, phi, chi, scanmot, scanmot_del,
+        detdist, detector_name, energy.
+
+        Returns
+        -------
+        tuple
+            (Trecip, Tdir)
+        """
+        params = {}
+        # parse fiofile
+        if scan is not None:
+            params.update(self.parse_fio(scan))
+        # override with config params
+        params.update(kwargs)
+
+        binning = params.get('binning', [1, 1, 1])
+        pixel = det.get_pixel(params['detector'])
+        px = pixel[0] * binning[0]
+        py = pixel[1] * binning[1]
+
+        detdist = params.get('detdist') / 1000.0  # convert to meters
+        scanmot = params.get('scanmot').strip()
+        enfix = 1
+        # if energy is given in kev convert to ev for xrayutilities
+        energy = params['energy']
+        if m.floor(m.log10(energy)) < 3:
+            enfix = 1000
+        energy = energy * enfix  # x-ray energy in eV
+
+        if scanmot == 'en':
+            scanen = np.array((energy, energy + params['scanmot_del'] * enfix))
+        else:
+            scanen = np.array((energy,))
+        qc = xuexp.QConversion(self.sampleaxes, self.detectoraxes, self.incidentaxis, en=scanen)
+
+        # compute for 4pixel (2x2) detector
+        pixelorientation = det.get_pixel_orientation(params['detector'])
+        qc.init_area(pixelorientation[0], pixelorientation[1], shape[0], shape[1], 2, 2,
+                     distance=detdist, pwidth1=px, pwidth2=py)
+
+        if scanmot == 'en':  # seems en scans always have to be treated differently since init is unique
+            q2 = np.array(qc.area(params['mu'], params['om'], params['chi'], params['phi'], params['del'],
+            params['gam'], deg=True))
+        elif scanmot in self.sampleaxes_mne:  # based on scanmot args are made for qc.area
+            args = []
+            for sampleax in self.sampleaxes_mne:
+                if scanmot == sampleax:
+                    scanstart = params[scanmot]
+                    args.append(np.array((scanstart, scanstart + params['scanmot_del'] * binning[2])))
+                else:
+                    args.append(params[sampleax])
+            for axis in self.detectoraxes_mne:
+                args.append(params[axis])
+
+            q2 = np.array(qc.area(*args, deg=True))
+        else:
+            print("scanmot not in sample axes or energy, exiting")
+            raise RuntimeError
+
+        Astar = q2[:, 0, 1, 0] - q2[:, 0, 0, 0]
+        Bstar = q2[:, 0, 0, 1] - q2[:, 0, 0, 0]
+        Cstar = q2[:, 1, 0, 0] - q2[:, 0, 0, 0]
+
+        xtal = kwargs.get('xtal', False)
+        if xtal:
+            Trecip_cryst = np.zeros(9)
+            Trecip_cryst.shape = (3, 3)
+            Trecip_cryst[:, 0] = Astar * 10
+            Trecip_cryst[:, 1] = Bstar * 10
+            Trecip_cryst[:, 2] = Cstar * 10
+            return Trecip_cryst, None
+
+        # transform to lab coords from sample reference frame
+        Astar = qc.transformSample2Lab(Astar, params['mu'], params['om'], params['chi'], params['phi']) * 10.0  # convert to inverse nm.
+        Bstar = qc.transformSample2Lab(Bstar, params['mu'], params['om'], params['chi'], params['phi']) * 10.0
+        Cstar = qc.transformSample2Lab(Cstar, params['mu'], params['om'], params['chi'], params['phi']) * 10.0
+
+        denom = np.dot(Astar, np.cross(Bstar, Cstar))
+        A = 2 * m.pi * np.cross(Bstar, Cstar) / denom
+        B = 2 * m.pi * np.cross(Cstar, Astar) / denom
+        C = 2 * m.pi * np.cross(Astar, Bstar) / denom
+
+        Trecip = np.zeros(9)
+        Trecip.shape = (3, 3)
+        Trecip[:, 0] = Astar
+        Trecip[:, 1] = Bstar
+        Trecip[:, 2] = Cstar
+
+        Tdir = np.zeros(9)
+        Tdir.shape = (3, 3)
+        Tdir = np.array((A, B, C)).transpose()
+
+        return (Trecip, Tdir)
+
+
+def create_diffractometer(diff_name, **kwargs):
+    if diff_name is None:
+        print('diffractometer name not provided')
+        return None
+    if diff_name == 'P10sixc':
+        d = Diffractometer_P10sixc(kwargs['data_dir'], kwargs['sample'])
+        return d
+    else:
+        print (f'diffractometer {diff_name} not defined.')
+        return None
