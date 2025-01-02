@@ -43,7 +43,7 @@ class Detector(ABC):
         for sr_idx in range(len(scans)):
             scan_range = scans[sr_idx]
             scans_dirs = scans_dirs_ranges[sr_idx]
-            for scan in scan_range:
+            for scan in range(scan_range[0], scan_range[1] + 1):
                 scandir = ut.join(ut.join(self.data_dir, self.sample + '_{:05d}'.format(scan)))
                 if not os.path.isdir(scandir):
                     continue
@@ -69,11 +69,9 @@ class Detector(ABC):
         :param scan_dir: directory where the detector to retrieve data for a scan
         :return: corrected data array
         """
-        # here dir is the h5 file name and path.
-        data_dir = os.path.join(scan_dir, self.name)  # needs to be updated with the detector name at some point.
+        data_dir = os.path.join(scan_dir, self.name)
         for hfile in os.listdir(data_dir):
             if '_data_' in hfile:
-                # it is the data file
                 with h5py.File(ut.join(data_dir, hfile), "r") as f:
                     data = np.array(f['entry/data/data'][self.slice], dtype=float)
                 break
@@ -146,8 +144,6 @@ class Detector_e4m(Detector):
                     self.darkfield[np.s_[c + 256 - 2:c + 256 + 2], :] = np.nan
 
         self.min_files = kwargs.get('min_files', None)
-        # if self.min_files is not None:
-        #     self.fiofile = kwargs.get('fiofile')
         r=self.ROIS[kwargs.get('detector_module', 0)]
         self.slice=np.s_[:,r[1]:r[3],r[0]:r[2]]
 

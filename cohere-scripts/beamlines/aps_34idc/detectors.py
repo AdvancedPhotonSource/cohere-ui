@@ -35,7 +35,7 @@ class Detector(ABC):
               (2876, f'{path}/data_S2876')]]
 
         :return:
-        list of sub-lists the input scans, or scans ranges with the corresponding directories
+        list of sub-lists containing the input scans, or scans ranges with the corresponding directories
         """
         # Below is an implementation from aps_34idc beamline. Look at the implementation for the esrf_id01 beamline
         # if using hdf5 file.
