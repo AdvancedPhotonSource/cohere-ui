@@ -39,7 +39,7 @@ config_disp_error = {'File':['No configuration file',
 
 config_instr_error = { 'Diffractometer':['missing mandatory diffractometer parameter',
                                          'diffractometer parameter should be string'],
-                       'Specfile': ['missing mandatory specfile parameter',
+                       'Specfile': ['missing specfile parameter. The program will use detector configured in config_instr and roi in config_prep',
                                     'specfile parameter should be string',
                                     'specfile parameter parsing error'],
                        'Detector':['detector parameter should be string'],
@@ -376,7 +376,7 @@ def ver_config_instr(config_map):
     else:
         config_error = 0
         error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
-        print('missing mandatory specfile parameter')
+        print(error_message)
         return ''
 
     config_parameter = 'Detector'

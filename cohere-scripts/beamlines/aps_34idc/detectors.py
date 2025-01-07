@@ -323,55 +323,17 @@ class Detector_34idcTIM2(Detector):
         return arr
 
 
-class Default(Detector):
-    """
-    Subclass of Detector. Encapsulates any detector. Values are based on "34idcTIM2" detector.
-    """
-    name = "default"
-    dims = (512, 512)
-    roi = (0, 512, 0, 512)
-    pixel = (55.0e-6, 55e-6)
-    pixelorientation = ('x+', 'y-')  # in xrayutilities notation
-    whitefield = None
-    darkfield = None
-
-    def __init__(self, **kwargs):
-        super(Default, self).__init__(self.name)
-        # The detector attributes specific for the detector.
-        # Can include data directory, whitefield_filename, roi, etc.
-
-        # keep parameters that are relevant to the detector
-        if 'roi' in kwargs:
-            self.roi = kwargs.get('roi')
-        if 'data_dir' in kwargs:
-            self.data_dir = kwargs.get('data_dir')
-        if 'whitefield_filename' in kwargs:
-            self.whitefield = ut.read_tif(kwargs.get('whitefield_filename'))
-            # the code below is specific to TIM2 detector, excluding the correction of the weird pixels
-            # self.whitefield[255:257, 0:255] = 0  # wierd pixels on edge of seam (TL/TR). Kill in WF kills in returned frame as well.
-            self.wfavg = np.average(self.whitefield)
-            self.wfstd = np.std(self.whitefield)
-            self.whitefield = np.where(self.whitefield < self.wfavg - 3 * self.wfstd, 0, self.whitefield)
-            self.Imult = kwargs.get('Imult', self.wfavg)
-        if 'darkfield_filename' in kwargs:
-            self.darkfield = ut.read_tif(kwargs.get('darkfield_filename'))
-            if self.whitefield is not None:
-                self.whitefield = np.where(self.darkfield > 1, 0, self.whitefield)  # kill known bad pixel
-
-
 def create_detector(det_name, **kwargs):
     if det_name == '34idcTIM1':
         return Detector_34idcTIM1(**kwargs)
     elif det_name == '34idcTIM2':
         return Detector_34idcTIM2(**kwargs)
-    elif det_name == 'default' or det_name is None:
-        return Default(**kwargs)
     else:
         print(f'detector {det_name} not defined.')
         return None
 
 
-dets = {'34idcTIM1' : Detector_34idcTIM1, '34idcTIM2' : Detector_34idcTIM2, 'default' : Default}
+dets = {'34idcTIM1' : Detector_34idcTIM1, '34idcTIM2' : Detector_34idcTIM2}
 
 def get_pixel(det_name):
     return dets[det_name].pixel

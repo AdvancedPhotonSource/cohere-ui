@@ -21,11 +21,12 @@ __all__ = ['get_job_size',
 import os
 import sys
 import argparse
-from multiprocessing import Process, Queue
+from multiprocessing import Process, Queue, Pool
 import cohere_core.controller as rec
 import cohere_core.utilities as ut
 import common as com
 import mpi_cmd
+import reconstruction_populous
 import reconstruction_populous_GA
 import multipeak
 
@@ -160,6 +161,8 @@ def process_scan_range(ga_method, pkg, conf_file, datafile, dir, picked_devs, ho
     """
     if len(picked_devs) == 1:
         reconstruction_single(pkg, conf_file, datafile, dir, picked_devs, debug=debug)
+    elif ga_method is None:
+        reconstruction_populous.reconstruction(pkg, conf_file, datafile, dir, picked_devs)
     elif ga_method == 'ga_fast':
         mpi_cmd.run_with_mpi(pkg, conf_file, datafile, dir, picked_devs, hostfile)
     else:
@@ -264,10 +267,7 @@ def manage_reconstruction(experiment_dir, **kwargs):
             ga_method = 'ga_fast'
         else:
             ga_method = 'populous'
-        reconstructions = rec_config_map.get('reconstructions', 1)
-    else:
-        # multiple reconstructions applicable only in GA
-        reconstructions = 1
+    reconstructions = rec_config_map.get('reconstructions', 1)
 
     # number of wanted devices to accommodate all reconstructions is a product of no_scan_ranges and reconstructions
     want_dev_no = no_scan_ranges * reconstructions
