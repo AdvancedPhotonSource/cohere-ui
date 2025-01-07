@@ -28,11 +28,11 @@ class Diffractometer(ABC):
         self.diff_name = diff_name
 
 
-class Default(Diffractometer):
+class Diffractometer_34idc(Diffractometer):
     """
     Subclass of Diffractometer. Encapsulates any diffractometer. Based on aps_34idc beamline.
     """
-    name = "default"
+    name = "34idc"
     sampleaxes = ('y+', 'z-', 'y+')  # in xrayutilities notation
     detectoraxes = ('y+', 'x-')
     incidentaxis = (0, 0, 1)
@@ -44,7 +44,7 @@ class Default(Diffractometer):
     detectordist_mne = 'detdist'
 
     def __init__(self):
-        super(Default, self).__init__('default')
+        super(Diffractometer_34idc, self).__init__('34idc')
 
 
     def get_geometry(self, shape, scan, **kwargs):
@@ -66,7 +66,7 @@ class Default(Diffractometer):
         """
         # At the beginning the parameters would be parsed either from spec file or read from hdf5 file, or
         # can be read from some database depending on the beamline. The params dictionary holds the parsed
-        # parameters. It is assumed here that all parameters are from kwargs for the default diffractometer,
+        # parameters. It is assumed here that all parameters are from kwargs for the diffractometer,
         # so the dictionary is empty.
         params = {}
         params.update(kwargs)
@@ -145,8 +145,8 @@ class Default(Diffractometer):
 
 
 def create_diffractometer(diff_name):
-    if diff_name == 'default':
-        d = Default()
+    if diff_name == '34idc':
+        d = Diffractometer_34idc()
         return d
     else:
         print (f'diffractometer {diff_name} not defined.')

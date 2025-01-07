@@ -113,11 +113,11 @@ class Detector(ABC):
         """
 
 
-class Default(Detector):
+class Detector_34idcTIM2(Detector):
     """
     Subclass of Detector. Encapsulates any detector. Values are based on "34idcTIM2" detector.
     """
-    name = "default"
+    name = "34idcTIM2"
     dims = (512, 512)
     roi = (0, 512, 0, 512)
     pixel = (55.0e-6, 55e-6)
@@ -126,7 +126,7 @@ class Default(Detector):
     darkfield = None
 
     def __init__(self, **kwargs):
-        super(Default, self).__init__(self.name)
+        super(Detector_34idcTIM2, self).__init__(self.name)
         # The detector attributes specific for the detector.
         # Can include data directory, whitefield_filename, roi, etc.
 
@@ -177,14 +177,14 @@ class Default(Detector):
 
 
 def create_detector(det_name, **kwargs):
-    if det_name == 'default':
-        return Default(**kwargs)
+    if det_name == '34idcTIM2':
+        return Detector_34idcTIM2(**kwargs)
     else:
         print(f'detector {det_name} not defined.')
         return None
 
 
-dets = {'default' : Default}
+dets = {'34idcTIM2' : Detector_34idcTIM2}
 
 def get_pixel(det_name):
     return dets[det_name].pixel
