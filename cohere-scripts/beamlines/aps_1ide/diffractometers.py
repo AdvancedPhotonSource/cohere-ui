@@ -34,10 +34,8 @@ class Diffractometer_1ide(Diffractometer):
     Subclass of Diffractometer. Encapsulates "34idc" diffractometer.
     """
     name = "1ide"
-    #sampleaxes = ('y+', 'z-', 'y+')  # in xrayutilities notation
     sampleaxes=('y-')  #omega is postive down
     detectoraxes=('z+','ty','tx')
-    #detectoraxes = ('y+', 'x-')
     incidentaxis = (0, 0, 1)
     #motors from spec file.
     sampleaxes_name = ('AeroTech',)
@@ -161,7 +159,7 @@ class Diffractometer_1ide(Diffractometer):
                 else:
                     args.append(params[sampleax])
             args.append(params['vff_eta'])
-            args.append(params['vff_r']/1000+params['vff_r_offset'])
+            args.append(params['vff_r'] / 1000 + params['vff_r_offset'])
             args.append(params['vff_eta_offset'])
 
             q2 = np.array(qc.area(*args, deg=True))

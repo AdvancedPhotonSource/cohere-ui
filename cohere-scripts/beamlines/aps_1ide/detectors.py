@@ -103,9 +103,7 @@ class Detector(ABC):
         ordered_slices = [self.correct_frame(slices_files[k]) for k in ordered_keys]
 
         arr= np.stack(ordered_slices, axis=-1)
-        if self.maxcrop:
-            
-            maxcrop=self.maxcrop
+        if self.maxcrop is not None:
             maxindx= np.unravel_index(arr.argmax(), arr.shape)
             mc0=int(self.maxcrop[0]/2)
             mc1=int(self.maxcrop[1]/2)
@@ -135,6 +133,7 @@ class ASI(Detector):
     pixel = (55.0e-6, 55e-6)
     pixelorientation = ('x+', 'y-')  # in xrayutilities notation
     whitefield = None
+    maxcrop = None
 
     def __init__(self, **kwargs):
         super(ASI, self).__init__(self.name)
