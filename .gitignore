@@ -1,12 +1,13 @@
-example_workspace/*
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
 
 # C extensions
+core
 *.so
+*.o
+*.swp
 
 # Distribution / packaging
 .Python
@@ -66,4 +67,4 @@ env.bak/
 venv.bak/
 
 .idea
-
+.DS_Store
