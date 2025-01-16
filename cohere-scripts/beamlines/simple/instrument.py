@@ -26,7 +26,7 @@ class Instrument:
         self.diff_obj = diff_obj
 
 
-    def datainfo4scans(self, scans):
+    def datainfo4scans(self):
         """
         Finds info allowing to read data that correspond to given scans or scan ranges.
         The info can be directories where the data related to scans is stored or nodes in hd5 file
@@ -53,17 +53,17 @@ class Instrument:
         # The detector function is typically renamed to reflect the info.
         # if the info is directory, the function name would be dirs4scans
         # if the info is hdf5 file node, the function name would be nodes4scans
-        return self.det_obj.datainfo4scans(scans)
+        return self.det_obj.datainfo4scans(self.scan_ranges)
 
 
-    def get_scan_array(self, scan_info):
+    def get_scan_array(self, scan):
         """
         Gets the data for the scan. The data is corrected for the detector.
 
         :param scan_info: info allowing detector to retrieve data for a scan
         :return: corrected data array
         """
-        return self.det_obj.get_scan_array(scan_info)
+        return self.det_obj.get_scan_array(scan)
 
 
     def get_geometry(self, shape, scan, **kwargs):
@@ -119,5 +119,7 @@ def create_instr(params):
             return None
 
     instr = Instrument(det_obj, diff_obj)
+    if 'scan' in params:
+        instr.scan_ranges = [[int(params['scan']), int(params['scan'])]]
 
     return instr

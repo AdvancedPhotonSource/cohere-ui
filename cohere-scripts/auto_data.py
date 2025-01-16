@@ -16,7 +16,6 @@ __author__ = "Paul Frosik"
 __docformat__ = 'restructuredtext en'
 __all__ = ['get_ref_correlation_err',
            'find_outliers_in_batch',
-           'process_separate_scans',
            'find_outlier_scans']
 
 import os
@@ -110,16 +109,7 @@ def find_outliers_in_batch(experiment_dir, scans, q, no_processes):
     q.put(outlier_scans)
 
 
-def process_separate_scans(read_scan_func, scans_datainfo, save_dir):
-    for (scan, dinfo) in scans_datainfo:
-        arr = read_scan_func(dinfo)
-        scan_save_dir = ut.join(save_dir, f'scan_{scan}', 'preprocessed_data')
-        if not os.path.exists(scan_save_dir):
-            os.makedirs(scan_save_dir)
-        ut.save_tif(arr, ut.join(scan_save_dir, 'prep_data.tif'))
-
-
-def find_outlier_scans(experiment_dir, read_scan_func, scans_datainfo, separate_ranges):
+def find_outlier_scans(experiment_dir, scans_datainfo, separate_ranges):
     """
     This function finds batches of scans with number of scans greater than 3 and follows to find outliers in those batches.
     Scans data are read and saved in scan directories.
@@ -146,10 +136,10 @@ def find_outlier_scans(experiment_dir, read_scan_func, scans_datainfo, separate_
 
     print('finding outliers')
 
-    # find all (scan, directory) tuples in auto_batches and save them
+    # find all (scan, directory) tuples in auto_batches
     single_scans_dinfo = [s_d for batch in auto_batches for s_d in batch]
-    process_separate_scans(read_scan_func, single_scans_dinfo, experiment_dir)
-
+    # process_separate_scans(read_scan_func, single_scans_dinfo, experiment_dir)
+    #
     # this code determines which library to use and how many scans can be processed concurrently
     try:
         import cupy

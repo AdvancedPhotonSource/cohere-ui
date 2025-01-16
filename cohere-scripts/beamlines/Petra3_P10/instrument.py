@@ -21,19 +21,16 @@ class Instrument:
         self.diff_obj = diff_obj
 
 
-    def datainfo4scans(self, scans):
+    def datainfo4scans(self):
         """
         Finds existing sub-directories in data_dir that correspond to given scans and scan ranges.
         Parameters
         ----------
-        scans : list
-            list of tuples defining scan(s) and scan range(s), ordered
-
         Returns
         -------
         list
         """
-        return self.det_obj.dirs4scans(scans)
+        return self.det_obj.dirs4scans(self.scan_ranges)
 
 
     def get_scan_array(self, scan_dir):
@@ -82,11 +79,27 @@ def create_instr(params):
     """
     det_obj = None
     diff_obj = None
+    scan_ranges = None
+
+    scan = params.get('scan', None)
+    if scan is not None:
+        # 'scan' is configured as string. It can be a single scan, range, or combination separated by comma.
+        # Parse the scan into list of scan ranges, defined by starting scan, and ending scan, inclusive.
+        # The single scan has range defined as the same starting and ending scan.
+        scan_ranges = []
+        scan_units = [u for u in scan.replace(' ','').split(',')]
+        for u in scan_units:
+            if '-' in u:
+                r = u.split('-')
+                scan_ranges.append([int(r[0]), int(r[1])])
+            else:
+                scan_ranges.append([int(u), int(u)])
+
     det_name = params.pop('detector', None)
     if det_name is None and 'scan' in params.keys():
         # try to parse detector name
         # Find the first scan to parse detector params.
-        first_scan = int(re.search(r'\d+', params.get('scan')).group())
+        first_scan = scan_ranges[0][0]
         scanmeta = p10sr.P10Scan(params.get('data_dir'), params.get('sample'), first_scan, pathsave='', creat_save_folder=True)
         det_name = scanmeta.get_motor_pos('_ccd')
     if det_name is not None:
@@ -98,5 +111,6 @@ def create_instr(params):
         if diff_obj is None:
             return None
     instr = Instrument(det_obj, diff_obj)
+    instr.scan_ranges = scan_ranges
 
     return instr

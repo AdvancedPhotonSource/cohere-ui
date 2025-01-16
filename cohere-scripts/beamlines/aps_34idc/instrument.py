@@ -62,19 +62,16 @@ class Instrument:
         self.diff_obj = diff_obj
 
 
-    def datainfo4scans(self, scans):
+    def datainfo4scans(self):
         """
         Finds existing sub-directories in data_dir that correspond to given scans and scan ranges.
         Parameters
         ----------
-        scans : list
-            list of tuples defining scan(s) and scan range(s), ordered
-
         Returns
         -------
         list
         """
-        return self.det_obj.dirs4scans(scans)
+        return self.det_obj.dirs4scans(self.scan_ranges)
 
 
     def get_scan_array(self, scan_dir):
@@ -125,11 +122,28 @@ def create_instr(params):
     det_obj = None
     diff_obj = None
     det_params = {}
-    if 'specfile' in params and 'scan' in params:
-        # detector name and roi is parsed from specfile if one exists
-        # Find the first scan to parse detector params.
-        first_scan = int(re.search(r'\d+', params.get('scan')).group())
-        det_params = parse_spec4roi(params.get('specfile'), first_scan)
+    scan_ranges = None
+
+    scan = params.get('scan', None)
+    if scan is not None:
+        # 'scan' is configured as string. It can be a single scan, range, or combination separated by comma.
+        # Parse the scan into list of scan ranges, defined by starting scan, and ending scan, inclusive.
+        # The single scan has range defined as the same starting and ending scan.
+        scan_ranges = []
+        scan_units = [u for u in scan.replace(' ', '').split(',')]
+        for u in scan_units:
+            if '-' in u:
+                r = u.split('-')
+                scan_ranges.append([int(r[0]), int(r[1])])
+            else:
+                scan_ranges.append([int(u), int(u)])
+
+        if 'specfile' in params:
+            # detector name and roi is parsed from specfile if one exists
+            # Find the first scan to parse detector params.
+            first_scan = scan_ranges[0][0]
+            det_params = parse_spec4roi(params.get('specfile'), first_scan)
+
     # override det_params with configured values in params
     det_params.update(params)
     det_name = det_params.get('detector', None)
@@ -144,5 +158,6 @@ def create_instr(params):
             return None
 
     instr = Instrument(det_obj, diff_obj)
+    instr.scan_ranges = scan_ranges
 
     return instr

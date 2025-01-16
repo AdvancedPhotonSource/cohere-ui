@@ -99,16 +99,30 @@ def combine_scans(get_scan_func, scans_dirs, experiment_dir):
     return sumarr
 
 
-def process_batch(get_scan_func, scans_dirs, save_file, experiment_dir):
+def process_batch(get_scan_func, scans_dirs, experiment_dir, separate_scan_ranges):
+    if separate_scan_ranges:
+        indx = str(scans_dirs[0][0])
+        indx = f'{indx}-{str(scans_dirs[-1][0])}'
+        save_dir = ut.join(experiment_dir, f'scan_{indx}', 'preprocessed_data')
+    else:
+        save_dir = ut.join(experiment_dir, 'preprocessed_data')
+    save_file = ut.join(save_dir, 'prep_data.tif')
+
     if len(scans_dirs) == 1:
         arr = get_scan_func(scans_dirs[0][1])
     else:
         arr = combine_scans(get_scan_func, scans_dirs, experiment_dir)
     # save the file
-    save_dir = os.path.dirname(save_file)
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     # print(f"Saving array (max={int(arr.max())}) as {save_dir + '/' + filename}")
     ut.save_tif(arr, save_file)
 
 
+def process_separate_scans(read_scan_func, scans_datainfo, save_dir):
+    for (scan, dinfo) in scans_datainfo:
+        arr = read_scan_func(dinfo)
+        scan_save_dir = ut.join(save_dir, f'scan_{scan}', 'preprocessed_data')
+        if not os.path.exists(scan_save_dir):
+            os.makedirs(scan_save_dir)
+        ut.save_tif(arr, ut.join(scan_save_dir, 'prep_data.tif'))

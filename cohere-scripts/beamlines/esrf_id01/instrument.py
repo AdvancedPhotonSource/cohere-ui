@@ -28,19 +28,16 @@ class Instrument:
         self.detector = detector
 
 
-    def datainfo4scans(self, scans):
+    def datainfo4scans(self):
         """
         Finds nodes in hdf5 file that correspond to given scans and scan ranges.
         Parameters
         ----------
-        scans : list
-            list of tuples defining scan(s) and scan range(s), ordered
-
         Returns
         -------
         list
         """
-        return self.det_obj.nodes4scans(scans)
+        return self.det_obj.nodes4scans(self.scan_ranges)
 
 
     def get_scan_array(self, scan_node):
@@ -69,6 +66,7 @@ class Instrument:
         """
         if self.diff_obj is None:
             raise RuntimeError
+
 
         return self.diff_obj.get_geometry(shape, scan, **kwargs)
 
@@ -101,5 +99,20 @@ def create_instr(params):
         return None
     roi = params.get('roi', None)
     instr = Instrument(h5file, diffractometer, detector, roi)
+
+    scan = params.get('scan', None)
+    if scan is not None:
+        # 'scan' is configured as string. It can be a single scan, range, or combination separated by comma.
+        # Parse the scan into list of scan ranges, defined by starting scan, and ending scan, inclusive.
+        # The single scan has range defined as the same starting and ending scan.
+        scan_ranges = []
+        scan_units = [u for u in scan.replace(' ','').split(',')]
+        for u in scan_units:
+            if '-' in u:
+                r = u.split('-')
+                scan_ranges.append([int(r[0]), int(r[1])])
+            else:
+                scan_ranges.append([int(u), int(u)])
+        instr.scan_ranges = scan_ranges
 
     return instr

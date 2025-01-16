@@ -81,10 +81,10 @@ def handle_prep(experiment_dir, **kwargs):
     if instr_obj is None:
         return 'cannot create instrument, check configuration'
 
-    scan = all_params.get('scan', None)
-    if scan is None:
-        print('scan not defined in configuration')
-        return ('scan not defined in configuration')
+    # scan = all_params.get('scan', None)
+    # if scan is None:
+    #     print('scan not defined in configuration')
+    #     return ('scan not defined in configuration')
 
     # get the settings from main config
     auto_data = main_conf_map.get('auto_data', False)
@@ -92,25 +92,17 @@ def handle_prep(experiment_dir, **kwargs):
     separate_scan_ranges = main_conf_map.get('separate_scan_ranges', False)
     multipeak = main_conf_map.get('multipeak', False)
 
-    # 'scan' is configured as string. It can be a single scan, range, or combination separated by comma.
-    # Parse the scan into list of scan ranges, defined by starting scan, and ending scan, inclusive.
-    # The single scan has range defined as the same starting and ending scan.
-    scan_ranges = []
-    scan_units = [u for u in scan.replace(' ','').split(',')]
-    for u in scan_units:
-        if '-' in u:
-            r = u.split('-')
-            scan_ranges.append([int(r[0]), int(r[1])])
-        else:
-            scan_ranges.append([int(u), int(u)])
-
     # get tuples of (scan, data info) for for each scan in the scan ranges.
     # The scan_datainfo is a list of sub-lists, each sub-list reflects scan range.
     # If there is a single scan, the output will be: [[(scan, data info)]].
     #
     # Note: For aps_34idc the data info is a directory path to the data.
     # For esrf_id01 the data info is a node in hdf5 file.
-    scans_datainfo = instr_obj.datainfo4scans(scan_ranges)
+    #
+    # Note: Typically scans are represented by integer values. If a beamline defines scan in
+    # another way, the parsing and creating scans_datainfo is encapsulated in the beamline instrument
+    # object. The following logic still applies.
+    scans_datainfo = instr_obj.datainfo4scans()
 
     # remove exclude_scans from the scans_dirs
     remove_scans = prep_conf_map.get('remove_scans', None)
@@ -119,7 +111,12 @@ def handle_prep(experiment_dir, **kwargs):
 
     # auto_data should not be configured for separate scans
     if auto_data and not separate_scans:
-        outliers_scans = ad.find_outlier_scans(experiment_dir, instr_obj.get_scan_array, scans_datainfo, separate_scan_ranges or multipeak)
+        # get all (scan, data info) tuples, process each scan and save the data in scans directories.
+        single_scans_datainfo = [s_d for batch in scans_datainfo for s_d in batch]
+        # passing in lambda: instr_obj.get_scan_array as the function is instrument dependent
+        preprocessor.process_separate_scans(instr_obj.get_scan_array, single_scans_datainfo, experiment_dir)
+
+        outliers_scans = ad.find_outlier_scans(experiment_dir, scans_datainfo, separate_scan_ranges or multipeak)
         if len(outliers_scans) > 0:
             # remove outliers_scans from the scans_dirs
             scans_datainfo = [[s_d for s_d in batch if s_d[0] not in outliers_scans] for batch in scans_datainfo]
@@ -131,16 +128,13 @@ def handle_prep(experiment_dir, **kwargs):
         # get all (scan, data info) tuples, process each scan and save the data in scans directories.
         single_scans_datainfo = [s_d for batch in scans_datainfo for s_d in batch]
         # passing in lambda: instr_obj.get_scan_array as the function is instrument dependent
-        ad.process_separate_scans(instr_obj.get_scan_array, single_scans_datainfo, experiment_dir)
+        preprocessor.process_separate_scans(instr_obj.get_scan_array, single_scans_datainfo, experiment_dir)
     elif separate_scan_ranges:
         # combine scans within ranges, save the data in scan ranges directories.
         processes = []
         for batch in scans_datainfo:
-            indx = str(batch[0][0])
-            indx = f'{indx}-{str(batch[-1][0])}'
-            save_file = ut.join(experiment_dir, f'scan_{indx}', 'preprocessed_data', 'prep_data.tif')
             p = Process(target=preprocessor.process_batch,
-                        args=(instr_obj.get_scan_array, batch, save_file, experiment_dir))
+                        args=(instr_obj.get_scan_array, batch, experiment_dir, separate_scan_ranges))
             p.start()
             processes.append(p)
         for p in processes:
@@ -150,8 +144,7 @@ def handle_prep(experiment_dir, **kwargs):
     else:
         # combine all scans
         scans_datainfo = [e for batch in scans_datainfo for e in batch]
-        save_file = ut.join(experiment_dir, 'preprocessed_data', 'prep_data.tif')
-        preprocessor.process_batch(instr_obj.get_scan_array, scans_datainfo, save_file, experiment_dir)
+        preprocessor.process_batch(instr_obj.get_scan_array, scans_datainfo, experiment_dir, separate_scan_ranges)
 
     print('finished beamline preprocessing')
     return ''
