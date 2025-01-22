@@ -1,3 +1,3 @@
-whitefield_filename = "/net/s34data/export/34idc-data/2024/APS1ID/cohere-ui/cohere-scripts/beamlines/aps_1ide/detector_corrections/ASI/oldwf.tif"
+whitefield_filename = "cohere-scripts/beamlines/aps_1ide/detector_corrections/ASI/oldwf.tif"
 maxcrop = [100, 100]
 roi = [0, 256, 256, 256]
