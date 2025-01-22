@@ -94,11 +94,6 @@ class Diffractometer_1ide(Diffractometer):
             pass
 
         try:
-            spec_dict['energy'] = ss.init_motor_pos['INIT_MOPO_Energy']
-        except:
-            pass
-
-        try:
             spec_dict['detector'] = str(ss.getheader_element('UIMDET'))
             if spec_dict['detector'].endswith(':'):
                 spec_dict['detector'] = spec_dict['detector'][:-1]

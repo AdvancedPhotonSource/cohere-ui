@@ -24,7 +24,7 @@ def get_config_maps(experiment_dir, configs, **kwargs):
         configuration dictionaries
         boolean value telling if conversion happened
     """
-    no_verify = kwargs.pop('no_verify')
+    no_verify = kwargs.pop('no_verify', False)
     maps = {}
     # always get main config
     conf_dir = ut.join(experiment_dir, 'conf')
