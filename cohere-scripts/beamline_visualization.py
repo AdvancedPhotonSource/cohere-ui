@@ -25,8 +25,8 @@ import importlib
 import traceback
 import cohere_core.utilities as ut
 from tvtk.api import tvtk
-import multipeak as mp
-import common as com
+import inner_scripts.multipeak as mp
+import inner_scripts.common as com
 
 
 class CXDViz:

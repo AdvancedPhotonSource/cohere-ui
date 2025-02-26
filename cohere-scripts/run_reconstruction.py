@@ -24,11 +24,11 @@ import argparse
 from multiprocessing import Process, Queue, Pool
 import cohere_core.controller as rec
 import cohere_core.utilities as ut
-import common as com
-import mpi_cmd
-import reconstruction_populous
-import reconstruction_populous_GA
-import multipeak
+import inner_scripts.common as com
+import inner_scripts.mpi_cmd as mpi_cmd
+import inner_scripts.reconstruction_populous as reconstruction_populous
+import inner_scripts.reconstruction_populous_GA as reconstruction_populous_GA
+import inner_scripts.multipeak as multipeak
 
 
 def get_job_size(size, method, pc_in_use=False):

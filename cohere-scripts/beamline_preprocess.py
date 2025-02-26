@@ -21,10 +21,10 @@ __all__ = ['handle_prep',
 import argparse
 import importlib
 import cohere_core.utilities as ut
-import auto_data as ad
+import inner_scripts.auto_data as ad
 from multiprocessing import Process
-import common as com
-import multipeak as mp
+import inner_scripts.common as com
+import inner_scripts.multipeak as mp
 
 
 def handle_prep(experiment_dir, **kwargs):

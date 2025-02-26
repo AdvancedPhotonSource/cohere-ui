@@ -1,6 +1,6 @@
 import sys
 import os
-import convertconfig as conv
+import inner_scripts.convertconfig as conv
 import cohere_core.utilities as ut
 
 

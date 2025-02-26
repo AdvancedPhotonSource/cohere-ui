@@ -24,10 +24,10 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 import importlib
-import convertconfig as conv
+import inner_scripts.convertconfig as conv
 import ast
 import cohere_core.utilities as ut
-import common as com
+import inner_scripts.common as com
 
 
 def select_file(start_dir):

@@ -20,7 +20,7 @@ from multiprocessing import Queue
 import shutil
 from multiprocessing import Process
 import argparse
-from reconstruction_populous import multi_rec
+from inner_scripts.reconstruction_populous import multi_rec
 
 
 __author__ = "Barbara Frosik"
