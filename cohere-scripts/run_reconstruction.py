@@ -300,6 +300,11 @@ def manage_reconstruction(experiment_dir, **kwargs):
         picked_devs = sum(picked_devs, [])
     kwargs['hostfile'] = hostfile
 
+    # if fast_ga and there is not enough available devices, exit
+    if ga_method == 'ga_fast' and avail_jobs < want_dev_no:
+        print(f'requested {want_dev_no} reconstructions but only {avail_jobs} is available')
+        return f'requested {want_dev_no} reconstructions but only {avail_jobs} is available'
+
     if no_scan_ranges == 1:
         datafile, dir = exp_dirs_data[0]
         process_scan_range(ga_method, pkg, conf_file, datafile, dir, picked_devs, hostfile, None, debug)
