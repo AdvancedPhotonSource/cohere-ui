@@ -63,7 +63,10 @@ intensity_threshold = 2.0
                              // min data threshold.  Values below this are set to 0. The 
                              // threshold is applied after removing aliens.
 
-adjust_dimensions = [-65, -65, -65, -65, -13, -13]
+no_adjust_dims = False       // optional, defaults to False
+                             // if set to True the dimensions won't change during standard_preprocessing
+
+crop_pad = [-65, -65, -65, -65, -13, -13]
                              // optional
                              // enter adjust dimensions list
                              // If number is positive, the array will be padded. If negative, cropped.
@@ -71,11 +74,13 @@ adjust_dimensions = [-65, -65, -65, -65, -13, -13]
                              // The final dimensions will be adjusted up to the good number for the FFT which
                              // also is compatible with opencl supported dimensions
                              // powers of 2 or a*2^n, where a is 3, 5, or 9
-
-// center_shift = [0,0,0)]
+no_center_max = False
+                             // optional, defaults to False
+                             // if False the array maximum is centered, otherwise max is not moved
+// shift = [0,0,0]
                              // optional
                              // enter center shift list
-                             // the array maximum is centered before binning, and moved according to center_shift,
+                             // the array is shifted according to center_shift,
                              // [0,0,0] has no effect
 
 binning = [1,1,1]

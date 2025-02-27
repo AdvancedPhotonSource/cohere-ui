@@ -652,12 +652,18 @@ class DataTab(QWidget):
         layout.addRow(sub_layout)
         self.intensity_threshold = QLineEdit()
         layout.addRow("Intensity Threshold", self.intensity_threshold)
-        self.center_shift = QLineEdit()
-        layout.addRow("center_shift", self.center_shift)
-        self.adjust_dimensions = QLineEdit()
-        layout.addRow("pad, crop", self.adjust_dimensions)
+        self.shift = QLineEdit()
+        layout.addRow("shift", self.shift)
+        self.crop_pad = QLineEdit()
+        layout.addRow("crop, pad", self.crop_pad)
         self.binning = QLineEdit()
         layout.addRow("binning", self.binning)
+        self.no_adjust_dims = QCheckBox('not adjust dims')
+        self.no_adjust_dims.setChecked(False)
+        layout.addWidget(self.no_adjust_dims)
+        self.no_center_max = QCheckBox('not center max')
+        self.no_center_max.setChecked(False)
+        layout.addWidget(self.no_center_max)
         cmd_layout = QHBoxLayout()
         self.set_data_conf_from_button = QPushButton("Load data conf from")
         self.set_data_conf_from_button.setStyleSheet("background-color:rgb(205,178,102)")
@@ -679,8 +685,10 @@ class DataTab(QWidget):
         self.alien_alg.setCurrentIndex(0)
         self.intensity_threshold.setText('')
         self.binning.setText('')
-        self.center_shift.setText('')
-        self.adjust_dimensions.setText('')
+        self.shift.setText('')
+        self.crop_pad.setText('')
+        self.no_adjust_dims.setChecked(False)
+        self.no_center_max.setChecked(False)
 
 
     def load_tab(self, conf_map):
@@ -728,10 +736,18 @@ class DataTab(QWidget):
             self.intensity_threshold.setText(str(conf_map['intensity_threshold']).replace(" ", ""))
         if 'binning' in conf_map:
             self.binning.setText(str(conf_map['binning']).replace(" ", ""))
-        if 'center_shift' in conf_map:
-            self.center_shift.setText(str(conf_map['center_shift']).replace(" ", ""))
-        if 'adjust_dimensions' in conf_map:
-            self.adjust_dimensions.setText(str(conf_map['adjust_dimensions']).replace(" ", ""))
+        if 'shift' in conf_map:
+            self.shift.setText(str(conf_map['shift']).replace(" ", ""))
+        if 'crop_pad' in conf_map:
+            self.crop_pad.setText(str(conf_map['crop_pad']).replace(" ", ""))
+        if 'no_adjust_dims' in conf_map and conf_map['no_adjust_dims']:
+            self.no_adjust_dims.setChecked(True)
+        else:
+            self.no_adjust_dims.setChecked(False)
+        if 'no_center_max' in conf_map and conf_map['no_center_max']:
+            self.no_center_max.setChecked(True)
+        else:
+            self.no_center_max.setChecked(False)
 
 
     def get_data_config(self):
@@ -776,10 +792,14 @@ class DataTab(QWidget):
             conf_map['intensity_threshold'] = ast.literal_eval(str(self.intensity_threshold.text()))
         if len(self.binning.text()) > 0:
             conf_map['binning'] = ast.literal_eval(str(self.binning.text()).replace(os.linesep, ''))
-        if len(self.center_shift.text()) > 0:
-            conf_map['center_shift'] = ast.literal_eval(str(self.center_shift.text()).replace(os.linesep, ''))
-        if len(self.adjust_dimensions.text()) > 0:
-            conf_map['adjust_dimensions'] = ast.literal_eval(str(self.adjust_dimensions.text()).replace(os.linesep, ''))
+        if len(self.shift.text()) > 0:
+            conf_map['shift'] = ast.literal_eval(str(self.shift.text()).replace(os.linesep, ''))
+        if len(self.crop_pad.text()) > 0:
+            conf_map['crop_pad'] = ast.literal_eval(str(self.crop_pad.text()).replace(os.linesep, ''))
+        if self.no_adjust_dims.isChecked():
+            conf_map['no_adjust_dims'] = True
+        if self.no_center_max.isChecked():
+            conf_map['no_center_max'] = True
 
         return conf_map
 
@@ -1532,14 +1552,7 @@ class GA(Feature):
         else:
             self.active.setChecked(False)
             return
-        if 'ga_fast' in conf_map:
-            ga_fast = conf_map['ga_fast']
-            if ga_fast:
-                self.ga_fast.setChecked(True)
-            else:
-                self.ga_fast.setChecked(False)
-        else:
-            self.ga_fast.setChecked(False)
+        self.ga_fast.setChecked(conf_map.get('ga_fast', False))
         if 'ga_metrics' in conf_map:
             self.metrics.setText(str(conf_map['ga_metrics']).replace(" ", ""))
         else:

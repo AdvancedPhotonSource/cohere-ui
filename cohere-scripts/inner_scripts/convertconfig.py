@@ -5,7 +5,7 @@ import cohere_core.utilities as ut
 
 
 # version must be increased after each modification of configuration file(s)
-version = 1
+version = 2
 
 # Map file of before/after keys to remap
 config_map = {}
@@ -37,7 +37,9 @@ config_rec_map = {'samples': 'reconstructions',
 config_disp_map = {'arm': 'detdist',
                    'dth': 'scanmot_del'}
 config_data_map = {'aliens': 'aliens',
-                   'amp_threshold' : 'intensity_threshold'}
+                   'amp_threshold' : 'intensity_threshold',
+                   'adjust_dimensions' : 'crop_pad',
+                   'center_shift' : 'shift'}
 config_instr_map = {}
 config_mp_map = {}
 
