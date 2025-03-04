@@ -112,6 +112,7 @@ class Diffractometer_id01(Diffractometer):
         params.update(kwargs)
 
         binning = params.get('binning', [1, 1, 1])
+        print('binning', binning)
         pixel = det.get_pixel(params['detector'])
         px = pixel[0] * binning[0]
         py = pixel[1] * binning[1]
@@ -152,7 +153,7 @@ class Diffractometer_id01(Diffractometer):
                         scanstart = params[scanmot]
                         args.append(np.array((scanstart, scanstart + params.get('scanmot_del') * binning[2])))
                     else:
-                        args.append(scaninfo * binning[2])
+                        args.append(scaninfo[::binning[2]])
                         params[scanmot] = params[scanmot][0]
                 else:
                     args.append(params[sampleax])
