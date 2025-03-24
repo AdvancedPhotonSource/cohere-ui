@@ -14,7 +14,10 @@ import os
 import numpy as np
 import cohere_core.data as fd
 import cohere_core.utilities as ut
-import inner_scripts.common as com
+try:
+    import inner_scripts.common as com
+except:
+    import cohere_scripts.inner_scripts.common as com
 
 
 __author__ = "Barbara Frosik"
@@ -62,15 +65,12 @@ def format_data(experiment_dir, **kwargs):
     data_conf_map['no_center_max'] = True
     dfiles = []
     for scan_dir in os.listdir(experiment_dir):
-        print('scan dir', scan_dir)
         if scan_dir.startswith('scan'):
-            print('starts with scan', scan_dir)
             file_name = (ut.join(experiment_dir, scan_dir, 'preprocessed_data', 'prep_data.tif'))
             # the fd.prep function returns data_conf_map, as it can be updated if auto_data is True
             data_conf_map = fd.prep(file_name, auto_data, **data_conf_map)
             preprocessed_file_name = (ut.join(experiment_dir, scan_dir, 'phasing_data', 'data.tif'))
             dfiles.append(preprocessed_file_name)
-            print('scan, size', scan_dir, os.path.getsize(ut.join(experiment_dir, scan_dir, 'preprocessed_data', 'prep_data.tif')))
     # assuming the first scan is full, followed by n low density scan, and so on.
     full_shape = ut.read_tif(dfiles[0]).shape
     small_shape = ut.read_tif(dfiles[1]).shape
@@ -78,7 +78,6 @@ def format_data(experiment_dir, **kwargs):
 
     # find fill_ratio, which means the pattern: full_size, (r - 1) small_size
     fill_ratio = int(full_shape[-1] / small_shape[-1] + .5)
-    print('fill ratio', fill_ratio)
 
     # # find dimensions adjustment; it applies to all
     # pads = [((ut.get_good_dim(d) - d) // 2, ut.get_good_dim(d) - d - (ut.get_good_dim(d) - d) // 2) for d in full_shape]
@@ -90,7 +89,6 @@ def format_data(experiment_dir, **kwargs):
             full_data = np.full(full_shape, -1.0)
             no_frames = small_shape[-1]
             for i in range(no_frames):
-                #print('filling slice', i * fill_ratio)
                 full_data[:,:,i * fill_ratio] = data[:,:,i]
             data = full_data
 

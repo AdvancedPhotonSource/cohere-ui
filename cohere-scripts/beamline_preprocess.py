@@ -81,11 +81,6 @@ def handle_prep(experiment_dir, **kwargs):
     if instr_obj is None:
         return 'cannot create instrument, check configuration'
 
-    # scan = all_params.get('scan', None)
-    # if scan is None:
-    #     print('scan not defined in configuration')
-    #     return ('scan not defined in configuration')
-
     # get the settings from main config
     auto_data = main_conf_map.get('auto_data', False)
     separate_scans = main_conf_map.get('separate_scans', False)

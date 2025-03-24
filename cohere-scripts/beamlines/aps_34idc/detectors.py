@@ -150,15 +150,11 @@ class Detector_34idcTIM1(Detector):
         """
         roislice1 = slice(self.roi[0], self.roi[0] + self.roi[1])
         roislice2 = slice(self.roi[2], self.roi[2] + self.roi[3])
-        raw_frame = self.get_raw_frame(filename)
-        if self.darkfield is None:
-            print("Darkfield filename not configured for TIM1, will not correct")
-            frame = raw_frame
-        else:
-            try:
-                frame = np.where(self.darkfield[roislice1, roislice2] > 1, 0.0, raw_frame)
-            except:
-                frame = raw_frame
+
+        frame = ut.read_tif(filename)
+
+        if self.darkfield is not None:
+            frame = np.where(self.darkfield[roislice1, roislice2] > 1, 0.0, frame)
 
         return frame
 

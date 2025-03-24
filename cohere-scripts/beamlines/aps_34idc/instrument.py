@@ -1,7 +1,6 @@
 import beamlines.aps_34idc.diffractometers as diff
 import beamlines.aps_34idc.detectors as det
 from xrayutilities.io import spec
-import re
 
 
 def parse_spec4roi(specfile, scan):

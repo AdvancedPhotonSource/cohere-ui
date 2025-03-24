@@ -20,7 +20,10 @@ from multiprocessing import Queue
 import shutil
 from multiprocessing import Process
 import argparse
-from inner_scripts.reconstruction_populous import multi_rec
+try:
+    import inner_scripts.reconstruction_populous as multi_rec
+except:
+    import cohere_scripts.inner_scripts.reconstruction_populous as multi_rec
 
 
 __author__ = "Barbara Frosik"

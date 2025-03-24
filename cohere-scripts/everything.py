@@ -5,8 +5,8 @@
 # #########################################################################
 
 """
-This user script invokes all cohere-scripts needed to present reconstructed data from raw data: run_prep_34idc, format_data, run_rec, run_disp.
-This script is written for specific beamline, as it invokes targetted cohere-scripts.
+This user script invokes all cohere_scripts needed to present reconstructed data from raw data:
+beamline_preprocess, standard_preprocess, run_reconstruction, beamline_visualization.
 This script uses configuration parameters from the experiment configuration files.
 """
 

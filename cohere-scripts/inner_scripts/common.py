@@ -1,7 +1,10 @@
 import sys
 import os
-import inner_scripts.convertconfig as conv
 import cohere_core.utilities as ut
+try:
+    import inner_scripts.convertconfig as conv
+except:
+    import cohere_scripts.inner_scripts.convertconfig as conv
 
 
 def get_config_maps(experiment_dir, configs, **kwargs):

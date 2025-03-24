@@ -43,6 +43,6 @@ auto_data = False
                                             // preprocess phase, and determining threshold value during standard
                                             // preprocess
 
-converter_ver = 1
+converter_ver = 2
                                             // mandatory after converter_ver 0, if current, the configuration files
                                             // won't be converted
