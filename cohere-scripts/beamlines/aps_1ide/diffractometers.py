@@ -102,6 +102,34 @@ class Diffractometer_1ide(Diffractometer):
 
         return spec_dict
 
+    def check_params(self, params):
+        if 'detector' not in params:
+            print('detector name not parsed from spec file and not configured')
+            raise KeyError('detector name not parsed from spec file and not configured')
+        if 'detdist' not in params:
+            print('detdist not parsed from spec file and not configured')
+            raise KeyError('detdist not parsed from spec file and not configured')
+        if 'scanmot' not in params:
+            print('scanmot not parsed from spec file and not configured')
+            raise KeyError('scanmot not parsed from spec file and not configured')
+        if 'energy' not in params:
+            print('energy not parsed from spec file and not configured')
+            raise KeyError('energy not parsed from spec file and not configured')
+        if 'scanmot_del' not in params:
+            print('scanmot_del not parsed from spec file and not configured')
+            raise KeyError('scanmot_del not parsed from spec file and not configured')
+        for ax in self.sampleaxes_mne:
+            if ax not in params:
+                print(f'{ax} not parsed from spec file and not configured')
+                raise KeyError (f'{ax} not parsed from spec file and not configured')
+        for ax in self.detectoraxes_mne:
+            if ax not in params:
+                print(f'{ax} not parsed from spec file and not configured')
+                raise KeyError (f'{ax} not parsed from spec file and not configured')
+            if f'{ax}_offset' not in params:
+                print(f'{ax}_offset not configured')
+                raise KeyError (f'{ax}_offset not configured')
+
 
     def get_geometry(self, shape, scan, **kwargs):
         """
@@ -124,6 +152,8 @@ class Diffractometer_1ide(Diffractometer):
             params.update(self.parse_spec(scan))
         # override with config params
         params.update(kwargs)
+        self.check_params(params)
+
         binning = params.get('binning', [1, 1, 1])
         pixel = det.get_pixel(params['detector'])
         px = pixel[0] * binning[0]

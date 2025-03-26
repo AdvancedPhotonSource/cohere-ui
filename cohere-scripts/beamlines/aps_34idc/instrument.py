@@ -77,7 +77,7 @@ class Instrument:
         return self.det_obj.get_scan_array(scan_dir)
 
 
-    def get_geometry(self, shape, scan, **kwargs):
+    def get_geometry(self, shape, scan, conf_params, **kwargs):
         """
         Calculates geometry based on diffractometer's and detctor's attributes and experiment parameters.
 
@@ -93,7 +93,7 @@ class Instrument:
             scan to use to parse experiment parameters
         xtal : boolean
             request only reciprocal space geometry when True
-        The **kwargs reflect configuration, and could contain delta, gamma, theta, phi, chi, scanmot, scanmot_del,
+        conf_params : configuration parameters, can contain delta, gamma, theta, phi, chi, scanmot, scanmot_del,
         detdist, detector_name, energy.
 
         Returns
@@ -101,7 +101,7 @@ class Instrument:
         tuple
             (Trecip, Tdir)
         """
-        return self.diff_obj.get_geometry(shape, scan, **kwargs)
+        return self.diff_obj.get_geometry(shape, scan, conf_params, **kwargs)
 
 
 def create_instr(params):

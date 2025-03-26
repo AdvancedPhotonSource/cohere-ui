@@ -326,9 +326,9 @@ def process_dir(instr_conf_map, config_map, res_scans_dirs):
     instr_obj = instr_module.create_instr(instr_conf_map)
     geometry = None
     try:
-        geometry = instr_obj.get_geometry(shape, scan, **instr_conf_map)
-    except Exception as ex:
-        traceback.print_exception(type(ex), ex, ex.__traceback__)
+        geometry = instr_obj.get_geometry(shape, scan, instr_conf_map)
+    except:
+        raise
 
     cohfile = ut.join(res_dir, 'coherence.npy')
     if os.path.isfile(cohfile):
