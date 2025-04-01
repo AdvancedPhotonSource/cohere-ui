@@ -12,7 +12,6 @@ This script formats data for reconstruction according to configuration.
 import argparse
 import os
 import numpy as np
-import cohere_core.data as fd
 import cohere_core.utilities as ut
 try:
     import inner_scripts.common as com
@@ -29,7 +28,15 @@ __all__ = ['format_data',
 
 def format_data(experiment_dir, **kwargs):
     """
-    For each prepared data in an experiment directory structure formats the data according to configured parameters and saves in the experiment space.
+    This script does standard preprocessing for series of data files collected during time evolving experiment.
+
+    It does the intensity thresholding, and replacing data by it's square root (steps in standard preprocessing).
+    Following is special operation for the time evolving case, i.e. filling the missing frames with -1.
+    This will only affect the data files that collected the partial data. This is for the reconstruction
+    process to distinguish between full and partial data.
+    After the insertion the preprocessing continues with centering max and adjusting dimensions,
+    and then binning.
+    The data is saved in npy file, instead of tif file, so the negative values are preserved.
 
     Parameters
     ----------
@@ -44,6 +51,18 @@ def format_data(experiment_dir, **kwargs):
     -------
     nothing
     """
+    def pre_format(ar, auto_data, intensity_threshold):
+        if auto_data:
+            # the formula for auto threshold was found empirically, may be
+            # modified in the future if more tests are done
+            auto_threshold_value = 0.141 * ar[np.nonzero(ar)].mean().item() - 3.062
+            intensity_threshold = max(2.0, auto_threshold_value)
+            print(f'auto intensity threshold: {intensity_threshold}')
+        # zero out the noise
+        ar = np.where(ar <= intensity_threshold, 0.0, ar)
+        # square root data
+        return np.sqrt(ar)
+
     print('formatting data')
 
     conf_list = ['config_data']
@@ -51,48 +70,68 @@ def format_data(experiment_dir, **kwargs):
     if len(err_msg) > 0:
         return err_msg
 
-    # check the maps
-    if 'config_data' not in conf_maps.keys():
-        return 'missing config_data file'
-
-    # verify that config files are correct
     main_conf_map = conf_maps['config']
-    data_conf_map = conf_maps['config_data']
-
-    no_center_max = data_conf_map.get('no_center_max', False)
     auto_data = main_conf_map.get('auto_data', False)
-    data_conf_map['no_adjust_dims'] = True
-    data_conf_map['no_center_max'] = True
+
+    # check the config data
+    if 'config_data' not in conf_maps.keys():
+        # it can still process if auto_data is set
+        if auto_data:
+            intensity_threshold = None
+            no_center_max = False
+        else:
+            return 'missing config_data file'
+    else:
+        data_conf_map = conf_maps['config_data']
+        intensity_threshold = data_conf_map.get('intensity_threshold', None)
+        no_center_max = data_conf_map.get('no_center_max', None)
+
+    # Find scan directories, read the data, and apply pre-format, i.e. threshold and sqroot
+    # Store the data in a list, each scan data as tuple (data, scan dir, scan number)
     dfiles = []
-    for scan_dir in os.listdir(experiment_dir):
-        if scan_dir.startswith('scan'):
-            file_name = (ut.join(experiment_dir, scan_dir, 'preprocessed_data', 'prep_data.tif'))
-            # the fd.prep function returns data_conf_map, as it can be updated if auto_data is True
-            data_conf_map = fd.prep(file_name, auto_data, **data_conf_map)
-            preprocessed_file_name = (ut.join(experiment_dir, scan_dir, 'phasing_data', 'data.tif'))
-            dfiles.append(preprocessed_file_name)
-    # assuming the first scan is full, followed by n low density scan, and so on.
-    full_shape = ut.read_tif(dfiles[0]).shape
-    small_shape = ut.read_tif(dfiles[1]).shape
-    full_size = os.path.getsize(dfiles[0])
+    for dir in os.listdir(experiment_dir):
+        if dir.startswith('scan'):
+            scan_dir = ut.join(experiment_dir, dir)
+            prep_data = ut.read_tif(ut.join(scan_dir, 'preprocessed_data', 'prep_data.tif'))
+            data = pre_format(prep_data, auto_data, intensity_threshold)
+            # add the tuple of (data, scan dir, scan number) to dfiles list
+            dfiles.append((data, scan_dir, int(dir.split('_')[-1])))
 
-    # find fill_ratio, which means the pattern: full_size, (r - 1) small_size
-    fill_ratio = int(full_shape[-1] / small_shape[-1] + .5)
+            # create directory where the preprocessed data will be saved
+            data_dir = ut.join(scan_dir, 'phasing_data')
+            if not os.path.exists(data_dir):
+                os.makedirs(data_dir)
 
-    # # find dimensions adjustment; it applies to all
-    # pads = [((ut.get_good_dim(d) - d) // 2, ut.get_good_dim(d) - d - (ut.get_good_dim(d) - d) // 2) for d in full_shape]
-    # c_vals = [(0.0, 0.0) for _ in range(len(full_shape))]
+    # order data files by scan number
+    dfiles = sorted(dfiles, key=lambda x: x[2])
 
+    # The last dimension will be different in full data and partial data
+    # find the last dimensions of two different arrays and calculate ratio of frames.
+    # assuming the first scan is full.
+    full_shape = dfiles[0][0].shape
+    full_no_frames = dfiles[0][0].shape[-1]
+    idx = 1
+    while dfiles[idx][0].shape[-1] == full_no_frames:
+        idx += 1
+    partial_no_frames = dfiles[idx][0].shape[-1]
+
+    # find fill_ratio
+    fill_ratio = int(full_no_frames / partial_no_frames + .5)
+    print('fill ratio', fill_ratio)
+
+    # add slices filled with -1.0 in place of not collected frames in data files with partial data
     for dfile in dfiles:
-        data = ut.read_tif(dfile)
-        if os.path.getsize(dfile) != full_size:
+        if dfile[0].shape[-1] != full_no_frames:
             full_data = np.full(full_shape, -1.0)
-            no_frames = small_shape[-1]
-            for i in range(no_frames):
+            for i in range(partial_no_frames):
                 full_data[:,:,i * fill_ratio] = data[:,:,i]
             data = full_data
+        else:
+            data = dfile[0]
 
-        # the size still has to be adjusted to the optimal dimension
+        print('dfile full', dfile[1],(data < 0).sum() == 0)
+
+        # even with crops_pads not given the size still has to be adjusted to the optimal dimension
         crops_pads = kwargs.get('crop_pad', (0, 0, 0, 0, 0, 0))
         # adjust the size, either pad with 0s or crop array
         pairs = [crops_pads[2 * i:2 * i + 2] for i in range(int(len(crops_pads) / 2))]
@@ -102,10 +141,9 @@ def format_data(experiment_dir, **kwargs):
         if not no_center_max:
             data, shift = ut.center_max(data)
 
-        # remove temp tif file
-        os.remove(dfile)
-        # save the data
-        np.save(dfile.split('.')[0], data)
+        # save in npy format to keep -1
+        scan_dir = dfile[1]
+        np.save(ut.join(scan_dir, 'phasing_data', 'data.npy'), data)
 
 
 def main():

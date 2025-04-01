@@ -7,8 +7,15 @@
 """
 This script formats data for reconstruction according to configuration.
 """
+
 import argparse
-import cohere_scripts.inner_scripts.te_preprocess as te_preprocess
+from cohere_scripts.inner_scripts import te_preprocess as tp
+
+__author__ = "Barbara Frosik"
+__copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
+__docformat__ = 'restructuredtext en'
+__all__ = [#'format_data',
+           'main']
 
 
 def main():
@@ -19,7 +26,7 @@ def main():
     parser.add_argument("--debug", action="store_true",
                         help="not used currently, available to developer for debugging")
     args = parser.parse_args()
-    te_preprocess.format_data(args.experiment_dir, no_verify=args.no_verify, debug=args.debug)
+    tp.format_data(args.experiment_dir, no_verify=args.no_verify, debug=args.debug)
 
 
 if __name__ == "__main__":

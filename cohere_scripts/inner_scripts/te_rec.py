@@ -6,7 +6,7 @@ from mpi4py import MPI
 import time
 
 
-def time_evolving_rec():
+def time_evolving_rec(hpc=False):
     import ast
     parser = argparse.ArgumentParser()
 #    parser.add_argument("conf", help="conf")
@@ -30,17 +30,22 @@ def time_evolving_rec():
     datafile = dfiles[rank]
     worker = TeRec(params, datafile, 'cp', comm)
 
-    ret_code = worker.init_dev(rank % 2)  # when running on Polaris no args, otherwise pass dev id
-                                          # two GPU on machine that is used now
+    # when running on Polaris no args, otherwise pass dev id
+    if hpc:
+        ret_code = worker.init_dev()
+    else:
+        ret_code = worker.init_dev(rank % 2)
+
     if ret_code < 0:
-        print ('reconstruction failed, check algorithm sequence and triggers in configuration', rank)
+        print ('init_dev failed, check algorithm sequence and triggers in configuration', rank)
         return
 
     worker.exchange_data_info()
+    print('rank, is full data', rank, worker.is_full_data)
 
     ret_code = worker.init_iter_loop()
     if ret_code < 0:
-        print ('reconstruction failed, check algorithm sequence and triggers in configuration')
+        print ('init_iter_loop failed, check algorithm sequence and triggers in configuration')
         return
 
     ret_code = worker.iterate()
@@ -59,7 +64,7 @@ if __name__ == "__main__":
     st = time.time()
     exit_code = time_evolving_rec()
     en = time.time()
-    print(f'reconstruction took {st - en} seconds.')
+    print(f'reconstruction took {en - st} seconds.')
     exit(exit_code)
 
-# mpiexec -n 18 python cohere_scripts/te_rec.py <experiment_dir>
+# mpiexec -n 16 python cohere_scripts/te_rec.py <experiment_dir>

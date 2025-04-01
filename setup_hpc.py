@@ -8,11 +8,11 @@ setuptools.setup(
       version='4.2.0',
       packages=['cohere_scripts', 'cohere_scripts.inner_scripts'],
       install_requires=[
-                        'mayavi',
-                        'scikit-image',
-                        'xrayutilities',
-                        'vtk==9.3.1',
-                        'scipy==1.14.1',
+                        # 'mayavi',
+                        # 'scikit-image',
+                        # 'xrayutilities',
+                        # 'vtk==9.3.1',
+                        # 'scipy==1.14.1',
                         ],
       classifiers=[
             'Intended Audience :: Science/Research',
