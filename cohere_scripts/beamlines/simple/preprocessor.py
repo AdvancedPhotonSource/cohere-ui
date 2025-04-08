@@ -11,11 +11,7 @@ def process_batch(get_scan_array_function, scans_datainfo, experiment_dir, separ
         scans. Not used in this simple example.
     :return:
     """
-    if len(scans_datainfo) == 1:
-        arr = get_scan_array_function(scans_datainfo[0][1])
-    else:
-        print("This example is writiten for a simple case of a single scan.")
-        raise RuntimeError
+    arr = get_scan_array_function(scans_datainfo[1])
     # save the file
     save_dir = ut.join(experiment_dir, 'preprocessed_data')
     if not os.path.exists(save_dir):

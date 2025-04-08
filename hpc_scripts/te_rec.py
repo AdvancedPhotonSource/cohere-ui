@@ -5,7 +5,7 @@ import time
 if __name__ == "__main__":
     st = time.time()
     # running on hpc
-    hpc = True
+    hpc = False
     exit_code = te_rec.time_evolving_rec(hpc)
     en = time.time()
     print(f'reconstruction took {en - st} seconds.')
