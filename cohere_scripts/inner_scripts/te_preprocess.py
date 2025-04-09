@@ -105,6 +105,11 @@ def format_data(experiment_dir, **kwargs):
     # order data files by scan number
     dfiles = sorted(dfiles, key=lambda x: x[2])
 
+    # save a list of scan directories with phasing data
+    phasing_dirs = ut.join(experiment_dir, 'phasing_dirs')
+    with open(phasing_dirs, 'w+') as pd:
+        pd.write(str([dfile[1] for dfile in dfiles]))
+
     # The last dimension will be different in full data and partial data
     # find the last dimensions of two different arrays and calculate ratio of frames.
     # assuming the first scan is full.
@@ -117,7 +122,6 @@ def format_data(experiment_dir, **kwargs):
 
     # find fill_ratio
     fill_ratio = int(full_no_frames / partial_no_frames + .5)
-    print('fill ratio', fill_ratio)
 
     # add slices filled with -1.0 in place of not collected frames in data files with partial data
     for dfile in dfiles:
