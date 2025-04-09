@@ -3,7 +3,6 @@ import numpy as np
 import cohere_core.utilities as ut
 from abc import ABC, abstractmethod
 import re
-import glob
 
 class Detector(ABC):
     """
@@ -135,25 +134,25 @@ class ASI(Detector):
     whitefield = None
     maxcrop = None
 
-    def __init__(self, **kwargs):
+    def __init__(self, params):
         super(ASI, self).__init__(self.name)
         # The detector attributes specific for the detector.
         # Can include data directory, whitefield_filename, roi, etc.
 
-        if 'maxcrop' in kwargs:
-            self.maxcrop=kwargs['maxcrop']
+        if 'maxcrop' in params:
+            self.maxcrop=params['maxcrop']
         # keep parameters that are relevant to the detector
-        if 'roi' in kwargs:
-            self.roi = kwargs.get('roi')
-        if 'data_dir' in kwargs:
-            self.data_dir = kwargs.get('data_dir')
-        if 'whitefield_filename' in kwargs:
-            self.whitefield = ut.read_tif(kwargs.get('whitefield_filename'))
+        if 'roi' in params:
+            self.roi = params.get('roi')
+        if 'data_dir' in params:
+            self.data_dir = params.get('data_dir')
+        if 'whitefield_filename' in params:
+            self.whitefield = ut.read_tif(params.get('whitefield_filename'))
             # the code below is specific to ASI detector
             self.wfavg = np.average(self.whitefield)
             self.wfstd = np.std(self.whitefield)
             self.whitefield = np.where(self.whitefield < self.wfavg - 3 * self.wfstd, 0, self.whitefield)
-            self.Imult = kwargs.get('Imult', self.wfavg)
+            self.Imult = params.get('Imult', self.wfavg)
 
     def correct_frame(self, frame_filename):
         """
@@ -179,9 +178,9 @@ class ASI(Detector):
         return frame
 
 
-def create_detector(det_name, **kwargs):
+def create_detector(det_name, kwargs):
     if det_name == 'ASI':
-        return ASI(**kwargs)
+        return ASI(kwargs)
     else:
         print(f'detector {det_name} not defined.')
         return None

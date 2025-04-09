@@ -34,7 +34,8 @@ import cohere_core.controller.phasing as calc
 
 def calc_geometry(instr_obj, shape, scan, o_twin):
     """Calculates the rotation matrix and voxel size for a given peak"""
-    B_recip, _ = instr_obj.get_geometry(shape, scan, xtal=True)
+    params = {}
+    B_recip, _ = instr_obj.get_geometry(shape, scan, params, xtal=True)
     B_recip = np.stack([B_recip[1, :], B_recip[0, :], B_recip[2, :]])
     rs_voxel_size = np.max([np.linalg.norm(B_recip[:, i]) for i in range(3)])  # Units are inverse nanometers
     B_recip = o_twin @ B_recip

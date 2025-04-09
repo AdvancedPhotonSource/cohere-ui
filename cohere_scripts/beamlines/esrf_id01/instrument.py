@@ -44,20 +44,16 @@ class Instrument:
         return self.det_obj.get_scan_array(scan_node, self.h5file)
 
 
-    def get_geometry(self, shape, scan, **kwargs):
+    def get_geometry(self, shape, scan, params):
         """
         Calculates geometry based on diffractometer's and detctor's attributes and experiment parameters.
-
-        For the aps_34idc typically the delta, gamma, theta, phi, chi, scanmot, scanmot_del,
-        detdist, detector_name, energy values are parsed from spec file.
-        They can be overridden by configuration.
 
         Parameters
         ----------
         shape : tuple
             shape of reconstructed array
         scan : scan number for which the geometry is calculated
-        The **kwargs reflect configuration
+        params : reflect configuration
 
         Returns
         -------
@@ -67,8 +63,7 @@ class Instrument:
         if self.diff_obj is None:
             raise RuntimeError
 
-
-        return self.diff_obj.get_geometry(shape, scan, **kwargs)
+        return self.diff_obj.get_geometry(shape, scan, params)
 
 
 def create_instr(params):

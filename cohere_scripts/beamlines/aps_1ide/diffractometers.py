@@ -44,9 +44,9 @@ class Diffractometer_1ide(Diffractometer):
     detectoraxes_mne = ('vff_eta', 'vff_r')
     #det dist will be in the config file.  Combination of dist to eta and x95 offset to back.
 
-    def __init__(self, **kwargs):
+    def __init__(self, params):
         super(Diffractometer_1ide, self).__init__('1ide')
-        self.specfile = kwargs.get('specfile')
+        self.specfile = params.get('specfile', None)
 
 
     def parse_spec(self, scan):
@@ -131,7 +131,7 @@ class Diffractometer_1ide(Diffractometer):
                 raise KeyError (f'{ax}_offset not configured')
 
 
-    def get_geometry(self, shape, scan, **kwargs):
+    def get_geometry(self, shape, scan, conf_params):
         """
         Calculates geometry based on diffractometer and detector attributes and experiment parameters.
 
@@ -141,7 +141,7 @@ class Diffractometer_1ide(Diffractometer):
 
         :param shape: tuple, shape of array
         :param scan: scan the geometry is calculated for
-        :param kwargs: The **kwargs reflect configuration, and could contain delta, gamma, theta, phi, chi, scanmot,
+        :param conf_params: reflect configuration, and could contain delta, gamma, theta, phi, chi, scanmot,
             scanmot_del, detdist, detector_name, energy.
         :return: tuple
             (Trecip, Tdir)
@@ -151,7 +151,7 @@ class Diffractometer_1ide(Diffractometer):
         if self.specfile is not None and scan is not None:
             params.update(self.parse_spec(scan))
         # override with config params
-        params.update(kwargs)
+        params.update(conf_params)
         self.check_params(params)
 
         binning = params.get('binning', [1, 1, 1])
@@ -197,15 +197,6 @@ class Diffractometer_1ide(Diffractometer):
         Bstar = q2[:, 0, 0, 1] - q2[:, 0, 0, 0]
         Cstar = q2[:, 1, 0, 0] - q2[:, 0, 0, 0]
 
-        xtal = kwargs.get('xtal', False)
-        if xtal:
-            Trecip_cryst = np.zeros(9)
-            Trecip_cryst.shape = (3, 3)
-            Trecip_cryst[:, 0] = Astar * 10
-            Trecip_cryst[:, 1] = Bstar * 10
-            Trecip_cryst[:, 2] = Cstar * 10
-            return Trecip_cryst, None
-
         # transform to lab coords from sample reference frame
         Astar = qc.transformSample2Lab(Astar, params['aero']) * 10.0  # convert to inverse nm.
         Bstar = qc.transformSample2Lab(Bstar, params['aero']) * 10.0
@@ -229,9 +220,9 @@ class Diffractometer_1ide(Diffractometer):
         return (Trecip, Tdir)
 
 
-def create_diffractometer(diff_name, **kwargs):
+def create_diffractometer(diff_name, params):
     if diff_name == '1ide':
-        d = Diffractometer_1ide(**kwargs)
+        d = Diffractometer_1ide(params)
         return d
     else:
         print (f'diffractometer {diff_name} not defined.')

@@ -85,17 +85,17 @@ class Detector_mpxgaas(Detector):
     pixelorientation = ('x-', 'y-')  # in xrayutilities notation
 
 
-    def __init__(self, **kwargs):
+    def __init__(self, conf_params):
         super(Detector_mpxgaas, self).__init__(self.name)
-        for key, val in kwargs.items():
+        for key, val in conf_params.items():
             if val is None:
                 continue
             setattr(self, key, val)
 
 
-def create_detector(det_name, **kwargs):
+def create_detector(det_name, **conf_params):
     if det_name == 'mpxgaas':
-        return Detector_mpxgaas(**kwargs)
+        return Detector_mpxgaas(conf_params)
     else:
         print (f'detector {det_name} not defined.')
         return None

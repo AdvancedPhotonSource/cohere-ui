@@ -107,6 +107,7 @@ class Diffractometer_34idc(Diffractometer):
 
         return spec_dict
 
+
     def check_params(self, params):
         if 'detector' not in params:
             print('detector name not parsed from spec file and not configured')

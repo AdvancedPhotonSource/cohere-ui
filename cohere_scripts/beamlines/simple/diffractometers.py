@@ -47,7 +47,33 @@ class Diffractometer_34idc(Diffractometer):
         super(Diffractometer_34idc, self).__init__('34idc')
 
 
-    def get_geometry(self, shape, scan, **kwargs):
+    def check_params(self, params):
+        if 'detector' not in params:
+            print('detector name not parsed from spec file and not configured')
+            raise KeyError('detector name not parsed from spec file and not configured')
+        if 'detdist' not in params:
+            print('detdist not parsed from spec file and not configured')
+            raise KeyError('detdist not parsed from spec file and not configured')
+        if 'scanmot' not in params:
+            print('scanmot not parsed from spec file and not configured')
+            raise KeyError('scanmot not parsed from spec file and not configured')
+        if 'energy' not in params:
+            print('energy not parsed from spec file and not configured')
+            raise KeyError('energy not parsed from spec file and not configured')
+        if 'scanmot_del' not in params:
+            print('scanmot_del not parsed from spec file and not configured')
+            raise KeyError('scanmot_del not parsed from spec file and not configured')
+        for ax in self.sampleaxes_mne:
+            if ax not in params:
+                print(f'{ax} not parsed from spec file and not configured')
+                raise KeyError (f'{ax} not parsed from spec file and not configured')
+        for ax in self.detectoraxes_mne:
+            if ax not in params:
+                print(f'{ax} not parsed from spec file and not configured')
+                raise KeyError (f'{ax} not parsed from spec file and not configured')
+
+
+    def get_geometry(self, shape, scan, conf_params):
         """
         Calculates geometry based on diffractometer and detector attributes and experiment parameters.
 
@@ -59,7 +85,7 @@ class Diffractometer_34idc(Diffractometer):
         :param shape: tuple, shape of array
         :param scan: scan the geometry is calculated for
         :param det_obj: detector object, can be None
-        :param kwargs: The **kwargs reflect configuration, and could contain delta, gamma, theta, phi, chi, scanmot,
+        :param conf_params: reflect configuration, and could contain delta, gamma, theta, phi, chi, scanmot,
             scanmot_del, detdist, detector_name, energy.
         :return: tuple
             (Trecip, Tdir)
@@ -69,7 +95,8 @@ class Diffractometer_34idc(Diffractometer):
         # parameters. It is assumed here that all parameters are from kwargs for the diffractometer,
         # so the dictionary is empty.
         params = {}
-        params.update(kwargs)
+        params.update(conf_params)
+        self.check_params(params)
 
         binning = params.get('binning', [1, 1, 1])
         pixel = det.get_pixel(params['detector'])

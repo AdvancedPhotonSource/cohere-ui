@@ -37,7 +37,7 @@ class Instrument:
         return self.det_obj.get_scan_array(scan_dir)
 
 
-    def get_geometry(self, shape, scan, **kwargs):
+    def get_geometry(self, shape, scan, conf_params):
         """
         Calculates geometry based on diffractometer's and detctor's attributes and experiment parameters.
 
@@ -51,7 +51,7 @@ class Instrument:
             shape of reconstructed array
         :param  : int
             scan for which the geometry applies
-        :param  : kwargs
+        :param  : conf_params
             parameters typically parsed from config file, other
 
         :return: tuple of arrays containing geometry in reciprocal space and direct space
@@ -60,7 +60,7 @@ class Instrument:
         if self.diff_obj is None:
             raise RuntimeError
 
-        return self.diff_obj.get_geometry(shape, scan, **kwargs)
+        return self.diff_obj.get_geometry(shape, scan, conf_params)
 
 
 def create_instr(params):
@@ -103,11 +103,11 @@ def create_instr(params):
         scanmeta = p10sr.P10Scan(params.get('data_dir'), params.get('sample'), first_scan, pathsave='', creat_save_folder=True)
         det_name = scanmeta.get_motor_pos('_ccd')
     if det_name is not None:
-        det_obj = det.create_detector(det_name, **params)
+        det_obj = det.create_detector(det_name, params)
 
     diff_name = params.get('diffractometer', None)
     if diff_name is not None:
-        diff_obj = diff.create_diffractometer(diff_name, data_dir=params.get('data_dir', None), sample=params.get('sample', None))
+        diff_obj = diff.create_diffractometer(diff_name, params)
         if diff_obj is None:
             return None
     instr = Instrument(det_obj, diff_obj)

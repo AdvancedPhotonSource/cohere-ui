@@ -89,12 +89,13 @@ class Instrument:
         ----------
         shape : tuple
             shape of reconstructed array
-        scan : int
+        scan : int or None
             scan to use to parse experiment parameters
-        xtal : boolean
-            request only reciprocal space geometry when True
         conf_params : configuration parameters, can contain delta, gamma, theta, phi, chi, scanmot, scanmot_del,
         detdist, detector_name, energy.
+        kwargs:
+            xtal : boolean
+                request only reciprocal space geometry when True
 
         Returns
         -------
@@ -147,7 +148,7 @@ def create_instr(params):
     det_params.update(params)
     det_name = det_params.get('detector', None)
     if det_name is not None:
-        det_obj = det.create_detector(det_name, **det_params)
+        det_obj = det.create_detector(det_name, det_params)
         if det_obj is None:
             return None
     diff_name = params.get('diffractometer', None)

@@ -100,19 +100,18 @@ class Diffractometer_id01(Diffractometer):
         return h5_dict
 
 
-    def get_geometry(self, shape, scan, **kwargs):
+    def get_geometry(self, shape, scan, conf_params):
         """
         Calculates geometry for given scan based on diffractometer's attributes and experiment parameters.
         :param shape: shape of the array
         :param scan: scan
-        :param kwargs: Parameters reflecting configuration
+        :param conf_params: Parameters reflecting configuration
         :return: tuple, geometry in reciprocal, geometry in direct space
         """
-        params = self.parse_h5(kwargs['h5file'], scan, kwargs['detector'])
-        params.update(kwargs)
+        params = self.parse_h5(conf_params['h5file'], scan, conf_params['detector'])
+        params.update(conf_params)
 
         binning = params.get('binning', [1, 1, 1])
-        print('binning', binning)
         pixel = det.get_pixel(params['detector'])
         px = pixel[0] * binning[0]
         py = pixel[1] * binning[1]
@@ -167,15 +166,6 @@ class Diffractometer_id01(Diffractometer):
         Astar = q2[:, 0, 1, 0] - q2[:, 0, 0, 0]
         Bstar = q2[:, 0, 0, 1] - q2[:, 0, 0, 0]
         Cstar = q2[:, 1, 0, 0] - q2[:, 0, 0, 0]
-
-        xtal = params.get('xtal', False)
-        if xtal:
-            Trecip_cryst = np.zeros(9)
-            Trecip_cryst.shape = (3, 3)
-            Trecip_cryst[:, 0] = Astar * 10
-            Trecip_cryst[:, 1] = Bstar * 10
-            Trecip_cryst[:, 2] = Cstar * 10
-            return Trecip_cryst, None
 
         # transform to lab coords from sample reference frame
         Astar = qc.transformSample2Lab(Astar, params['mu'], params['eta'], params['phi']) * 10.0  # convert to inverse nm.

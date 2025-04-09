@@ -124,15 +124,15 @@ class Detector_34idcTIM1(Detector):
     min_files = None  # defines minimum frame scans in scan directory
     Imult = 1.0
 
-    def __init__(self, **kwargs):
+    def __init__(self, params):
         super(Detector_34idcTIM1, self).__init__(self.name)
         # The detector attributes for background/whitefield/etc need to be set to read frames
         # this will capture things like data directory, darkfield_filename, etc.
-        self.data_dir = kwargs.get('data_dir') # mandatory
-        if 'roi' in kwargs:
-            self.roi = kwargs.get('roi')
-        if 'darkfield_filename' in kwargs:
-            self.darkfield = ut.read_tif(kwargs.get('darkfield_filename'))
+        self.data_dir = params.get('data_dir') # mandatory
+        if 'roi' in params:
+            self.roi = params.get('roi')
+        if 'darkfield_filename' in params:
+            self.darkfield = ut.read_tif(params.get('darkfield_filename'))
 
 
     # TIM1 only needs bad pixels deleted.  Even that is optional.
@@ -174,28 +174,28 @@ class Detector_34idcTIM2(Detector):
     min_files = None  # defines minimum frame scans in scan directory
     Imult = None
 
-    def __init__(self, **kwargs):
+    def __init__(self, params):
         super(Detector_34idcTIM2, self).__init__(self.name)
         # The detector attributes for background/whitefield/etc need to be set to read frames
         # this will capture things like data directory, whitefield_filename, etc.
         # keep parameters that are relevant to the detector
-        self.data_dir = kwargs.get('data_dir')
-        if 'roi' in kwargs:
-            self.roi = kwargs.get('roi')
-        if 'whitefield_filename' in kwargs:
-            self.whitefield = ut.read_tif(kwargs.get('whitefield_filename'))
+        self.data_dir = params.get('data_dir')
+        if 'roi' in params:
+            self.roi = params.get('roi')
+        if 'whitefield_filename' in params:
+            self.whitefield = ut.read_tif(params.get('whitefield_filename'))
             # the code below is specific to TIM2 detector, excluding the correction of the weird pixels
             self.whitefield[255:257, 0:255] = 0  # wierd pixels on edge of seam (TL/TR). Kill in WF kills in returned frame as well.
             self.wfavg = np.average(self.whitefield)
             self.wfstd = np.std(self.whitefield)
             self.whitefield = np.where(self.whitefield < self.wfavg - 3 * self.wfstd, 0, self.whitefield)
-            self.Imult = kwargs.get('Imult', self.wfavg)
-        if 'darkfield_filename' in kwargs:
-            self.darkfield = ut.read_tif(kwargs.get('darkfield_filename'))
+            self.Imult = params.get('Imult', self.wfavg)
+        if 'darkfield_filename' in params:
+            self.darkfield = ut.read_tif(params.get('darkfield_filename'))
             if self.whitefield is not None:
                 self.whitefield = np.where(self.darkfield > 1, 0, self.whitefield)  # kill known bad pixel
 
-        self.min_files = kwargs.get('min_files', None)
+        self.min_files = params.get('min_files', None)
 
 
     def correct_frame(self, filename):
@@ -319,11 +319,11 @@ class Detector_34idcTIM2(Detector):
         return arr
 
 
-def create_detector(det_name, **kwargs):
+def create_detector(det_name, params):
     if det_name == '34idcTIM1':
-        return Detector_34idcTIM1(**kwargs)
+        return Detector_34idcTIM1(params)
     elif det_name == '34idcTIM2':
-        return Detector_34idcTIM2(**kwargs)
+        return Detector_34idcTIM2(params)
     else:
         print(f'detector {det_name} not defined.')
         return None

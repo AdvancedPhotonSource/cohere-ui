@@ -35,7 +35,7 @@ class Instrument:
         return self.det_obj.get_scan_array(scan_dir)
 
 
-    def get_geometry(self, shape, scan, **kwargs):
+    def get_geometry(self, shape, scan, conf_params):
         """
         Calculates geometry based on diffractometer's and detctor's attributes and experiment parameters.
 
@@ -49,17 +49,15 @@ class Instrument:
             shape of reconstructed array
         scan : int
             scan to use to parse experiment parameters
-        xtal : boolean
-            request only reciprocal space geometry when True
-        The **kwargs reflect configuration, and could contain delta, gamma, theta, phi, chi, scanmot, scanmot_del,
-        detdist, detector_name, energy.
+        conf_params : dict
+            reflect configuration, and can contain values of diffractometer parameters at the specific scan.
 
         Returns
         -------
         tuple
             (Trecip, Tdir)
         """
-        return self.diff_obj.get_geometry(shape, scan, **kwargs)
+        return self.diff_obj.get_geometry(shape, scan, conf_params)
 
 
 def create_instr(params):
@@ -99,12 +97,12 @@ def create_instr(params):
     det_params.update(params)
     det_name = det_params.get('detector', None)
     if det_name is not None:
-        det_obj = det.create_detector(det_name, **det_params)
+        det_obj = det.create_detector(det_name, det_params)
         if det_obj is None:
             return None
     diff_name = params.get('diffractometer', None)
     if diff_name is not None:
-        diff_obj = diff.create_diffractometer(diff_name, specfile=params.get('specfile', None))
+        diff_obj = diff.create_diffractometer(diff_name, params)
         if diff_obj is None:
             return None
 

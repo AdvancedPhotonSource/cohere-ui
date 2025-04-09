@@ -79,7 +79,7 @@ class Diffractometer_P10sixc(Diffractometer):
         return fio_dict
 
 
-    def get_geometry(self, shape, scan, **kwargs):
+    def get_geometry(self, shape, scan, conf_params):
         """
         Calculates geometry based on diffractometer's and detctor's attributes and experiment parameters.
 
@@ -92,7 +92,7 @@ class Diffractometer_P10sixc(Diffractometer):
             shape of reconstructed array
         scan : int
             scan number the geometry is calculated for
-        The **kwargs reflect configuration, and could contain del, gam, theta, phi, chi, scanmot, scanmot_del,
+        conf_params : reflect configuration, and could contain del, gam, theta, phi, chi, scanmot, scanmot_del,
         detdist, detector_name, energy.
 
         Returns
@@ -105,7 +105,7 @@ class Diffractometer_P10sixc(Diffractometer):
         if scan is not None:
             params.update(self.parse_fio(scan))
         # override with config params
-        params.update(kwargs)
+        params.update(conf_params)
 
         binning = params.get('binning', [1, 1, 1])
         pixel = det.get_pixel(params['detector'])
@@ -155,15 +155,6 @@ class Diffractometer_P10sixc(Diffractometer):
         Bstar = q2[:, 0, 0, 1] - q2[:, 0, 0, 0]
         Cstar = q2[:, 1, 0, 0] - q2[:, 0, 0, 0]
 
-        xtal = kwargs.get('xtal', False)
-        if xtal:
-            Trecip_cryst = np.zeros(9)
-            Trecip_cryst.shape = (3, 3)
-            Trecip_cryst[:, 0] = Astar * 10
-            Trecip_cryst[:, 1] = Bstar * 10
-            Trecip_cryst[:, 2] = Cstar * 10
-            return Trecip_cryst, None
-
         # transform to lab coords from sample reference frame
         Astar = qc.transformSample2Lab(Astar, params['mu'], params['om'], params['chi'], params['phi']) * 10.0  # convert to inverse nm.
         Bstar = qc.transformSample2Lab(Bstar, params['mu'], params['om'], params['chi'], params['phi']) * 10.0
@@ -187,12 +178,14 @@ class Diffractometer_P10sixc(Diffractometer):
         return (Trecip, Tdir)
 
 
-def create_diffractometer(diff_name, **kwargs):
+def create_diffractometer(diff_name, params):
     if diff_name is None:
         print('diffractometer name not provided')
         return None
     if diff_name == 'P10sixc':
-        d = Diffractometer_P10sixc(kwargs['data_dir'], kwargs['sample'])
+        data_dir = params.get('data_dir', None)
+        sample = params.get('sample', None)
+        d = Diffractometer_P10sixc(data_dir, sample)
         return d
     else:
         print (f'diffractometer {diff_name} not defined.')

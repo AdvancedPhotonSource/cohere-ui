@@ -119,32 +119,26 @@ class Detector_e4m(Detector):
     module_y = (0,554,1105,1656)
     asic_x = (256, 515, 773)
     
-    def __init__(self, **kwargs):
+    def __init__(self, params):
         super(Detector_e4m, self).__init__(self.name)
         # The detector attributes for background/whitefield/etc need to be set to read frames
         # this will capture things like data directory, whitefield_filename, etc.
         # keep parameters that are relevant to the detector
-        self.data_dir = kwargs.get('data_dir')
-        self.sample = kwargs.get('sample')
-        if 'darkfield_filename' in kwargs:
-            try:
-                mask = np.load(kwargs['darkfield_filename'])
-                mask[mask > 0] = np.nan
-                mask[~np.isnan(mask)] = 1
-                self.darkfield = mask
-            except:
-                print("Darkfield filename not set for e4m, will not correct")
-                raise
+        self.data_dir = params.get('data_dir')
+        self.sample = params.get('sample')
+        mask = np.load(params['darkfield_filename'])
+        mask[mask > 0] = np.nan
+        mask[~np.isnan(mask)] = 1
+        self.darkfield = mask
+        if params.get('clear_asicbounds', True):
+            for c in self.module_x:
+                for x in self.asic_x:
+                    self.darkfield[:, np.s_[c + x - 2:c + x + 2]] = np.nan
+            for c in self.module_y:
+                self.darkfield[np.s_[c + 256 - 2:c + 256 + 2], :] = np.nan
 
-            if kwargs.get('clear_asicbounds', True):
-                for c in self.module_x:
-                    for x in self.asic_x:
-                        self.darkfield[:, np.s_[c + x - 2:c + x + 2]] = np.nan
-                for c in self.module_y:
-                    self.darkfield[np.s_[c + 256 - 2:c + 256 + 2], :] = np.nan
-
-        self.min_files = kwargs.get('min_files', None)
-        r=self.ROIS[kwargs.get('detector_module', 0)]
+        self.min_files = params.get('min_files', None)
+        r=self.ROIS[params.get('detector_module', 0)]
         self.slice=np.s_[:,r[1]:r[3],r[0]:r[2]]
 
 
@@ -162,9 +156,19 @@ class Detector_e4m(Detector):
         return data
 
 
-def create_detector(det_name, **kwargs):
+def create_detector(det_name, params):
     if det_name == 'e4m':
-        return Detector_e4m(**kwargs)
+        if 'data_dir' not in params:
+            print('missing mandatory parameter data_dir')
+            return None
+        if 'sample' not in params:
+            print('missing mandatory parameter sample')
+            return None
+        if 'darkfield_filename' not in params:
+            print('missing mandatory parameter darkfield_filename')
+            return None
+
+        return Detector_e4m(params)
     else:
         print(f'detector {det_name} not defined.')
         return None

@@ -53,6 +53,8 @@ class Instrument:
         # The detector function is typically renamed to reflect the info.
         # if the info is directory, the function name would be dirs4scans
         # if the info is hdf5 file node, the function name would be nodes4scans
+        if self.det_obj is None:
+            print('detector object not created, check config parameters')
         return self.det_obj.datainfo4scans(self.scan_ranges)
 
 
@@ -66,7 +68,7 @@ class Instrument:
         return self.det_obj.get_scan_array(scan)
 
 
-    def get_geometry(self, shape, scan, **kwargs):
+    def get_geometry(self, shape, scan, conf_params):
         """
         Calculates geometry based on diffractometer's and detctor's attributes and experiment parameters.
 
@@ -84,13 +86,13 @@ class Instrument:
             shape of reconstructed array
         :param  : int
             scan for which the geometry applies
-        :param  : kwargs
-            parameters typically parsed from config file, other
+        :param  : conf_params
+            parameters parsed from config file
 
         :return: tuple of arrays containing geometry in reciprocal space and direct space
             (Trecip, Tdir)
         """
-        return self.diff_obj.get_geometry(shape, scan, **kwargs)
+        return self.diff_obj.get_geometry(shape, scan, conf_params)
 
 
 def create_instr(params):
@@ -109,9 +111,11 @@ def create_instr(params):
     diff_obj = None
     det_name = params.get('detector', None)
     if det_name is not None:
-        det_obj = det.create_detector(det_name, **params)
+        det_obj = det.create_detector(det_name, params)
         if det_obj is None:
             return None
+    else:
+        print('missing "detector" in config_instr')
     diff_name = params.get('diffractometer', None)
     if diff_name is not None:
         diff_obj = diff.create_diffractometer(diff_name)
