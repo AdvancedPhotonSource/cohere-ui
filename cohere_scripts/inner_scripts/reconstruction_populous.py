@@ -18,7 +18,7 @@ class Devices:
         self.index = self.index + 1
 
 
-def single_rec_process(pkg, pars, datafile, gen, alpha_dir, rec_attrs):
+def single_rec_process(pkg, pars, datafile, gen, alpha_dir, rec_attrs, hpc=False):
     """
     Performs a single reconstruction.
 
@@ -43,7 +43,11 @@ def single_rec_process(pkg, pars, datafile, gen, alpha_dir, rec_attrs):
     prev_dir, save_dir = rec_attrs
     worker = calc.Rec(pars, datafile, pkg)
     thr = threading.current_thread()
-    if worker.init_dev(thr.gpu) < 0:
+    if hpc:
+        dev = -1
+    else:
+        dev = thr.gpu
+    if worker.init_dev(dev) < 0:
         print(f'reconstruction failed, device not initialized to {thr.gpu}')
         metric = None
     else:
