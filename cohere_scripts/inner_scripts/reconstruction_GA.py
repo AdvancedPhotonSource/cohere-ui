@@ -91,7 +91,7 @@ def write_log(logfile, msg):
         #log_f.write(f'{datetime.datetime.now()} | {msg}\n')
 
 
-def reconstruction(pkg, conf_file, datafile, dir, devices, log_file):
+def reconstruction(pkg, conf_file, datafile, dir, devices, log_file, hpc=False):
     """
     Controls reconstruction that employs genetic algorith (GA).
 
@@ -162,15 +162,19 @@ def reconstruction(pkg, conf_file, datafile, dir, devices, log_file):
     success = True
 
     for g in range(pars['ga_generations']):
-        if rank == 0:
+        if rank == 0 and not hpc:
             # write log file when new generation starts
             #
             write_log(log_file, f'starting generation {g}')
         was_active = active
         if g == 0:
-            ret = worker.init_dev(devices[rank])
+            if hpc:
+                dev = -1
+            else:
+                dev = devices[rank]
+            ret = worker.init_dev(dev)
             if ret < 0:
-                print(f'rank {rank} failed initializing device {devices[rank]}')
+                print(f'rank {rank} failed initializing device {dev}')
                 active = False
             if active:
                 if pars['init_guess'] == 'AI_guess' and rank == 0:
