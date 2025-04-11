@@ -10,7 +10,7 @@
 This script is a wrapper calling cohere_scripts module controlling reconstructions using genetic algorithm (GA).
 """
 import argparse
-from cohere_scripts.inner_scripts.reconstruction_GA import reconstruction
+from cohere_scripts.inner_scripts.reconstruction_ga import reconstruction
 import cohere_core.utilities.utils as ut
 
 __author__ = "Barbara Frosik"

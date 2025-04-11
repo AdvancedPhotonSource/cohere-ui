@@ -27,7 +27,7 @@ import cohere_core.utilities as ut
 import inner_scripts.common as com
 import inner_scripts.mpi_cmd as mpi_cmd
 import inner_scripts.reconstruction_populous as reconstruction_populous
-import inner_scripts.reconstruction_populous_GA as reconstruction_populous_GA
+import inner_scripts.reconstruction_populous_ga as ga
 import inner_scripts.multipeak as multipeak
 
 
@@ -166,7 +166,8 @@ def process_scan_range(ga_method, pkg, conf_file, datafile, dir, picked_devs, ho
     elif ga_method == 'ga_fast':
         mpi_cmd.run_with_mpi(pkg, conf_file, datafile, dir, picked_devs, hostfile)
     else:
-        reconstruction_populous_GA.reconstruction(pkg, conf_file, datafile, dir, picked_devs)
+        # populous ga reconstruction
+        ga.reconstruction(pkg, conf_file, datafile, dir, picked_devs)
 
     if q is not None:
         q.put((os.getpid(), picked_devs, hostfile))

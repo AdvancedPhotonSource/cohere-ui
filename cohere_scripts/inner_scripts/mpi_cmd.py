@@ -34,7 +34,7 @@ def run_with_mpi(lib, conf_file, datafile, dir, devices, hostfile=None):
     p = None
     start_time = time.time()
 
-    script = '/reconstruction_GA.py'
+    script = '/reconstruction_ga.py'
     # start process that will monitor log file and print progress
     log_file = f'ga_{os.getpid()}.log'
     open(log_file, 'w')
