@@ -98,6 +98,9 @@ def handle_prep(experiment_dir, **kwargs):
     # another way, the parsing and creating scans_datainfo is encapsulated in the beamline instrument
     # object. The following logic still applies.
     scans_datainfo = instr_obj.datainfo4scans()
+    if len(scans_datainfo) == 0:
+        print('no data found')
+        return ''
 
     # remove exclude_scans from the scans_dirs
     remove_scans = prep_conf_map.get('remove_scans', None)

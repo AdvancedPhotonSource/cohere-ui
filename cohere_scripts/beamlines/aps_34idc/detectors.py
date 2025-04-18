@@ -59,7 +59,9 @@ class Detector(ABC):
                     continue
                 elif scan <= scan_range[-1]:
                     # scan within range
-                    scans_dirs.append((scan, scandir_full))
+                    # before adding scan check if there is enough data files
+                    if len(os.listdir(scandir_full)) >= self.min_files:
+                        scans_dirs.append((scan, scandir_full))
                     if scan == scan_range[-1]:
                         sr_idx += 1
                         if sr_idx > len(scans) - 1:
@@ -133,6 +135,7 @@ class Detector_34idcTIM1(Detector):
             self.roi = params.get('roi')
         if 'darkfield_filename' in params:
             self.darkfield = ut.read_tif(params.get('darkfield_filename'))
+        self.min_files = params.get('min_files', 0)
 
 
     # TIM1 only needs bad pixels deleted.  Even that is optional.
@@ -195,8 +198,7 @@ class Detector_34idcTIM2(Detector):
             if self.whitefield is not None:
                 self.whitefield = np.where(self.darkfield > 1, 0, self.whitefield)  # kill known bad pixel
 
-        self.min_files = params.get('min_files', None)
-
+        self.min_files = params.get('min_files', 0)
 
     def correct_frame(self, filename):
         """
