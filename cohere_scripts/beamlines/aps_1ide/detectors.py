@@ -52,8 +52,12 @@ class Detector(ABC):
         for scandir in sorted(os.listdir(self.data_dir)):
             scandir_full = ut.join(self.data_dir, scandir)
             if os.path.isdir(scandir_full):
-                last_digits = re.search(r'\d+$', scandir)
-                if last_digits is not None:
+                # test the directory name if it ends with patten "_Sdddd", where d is a digit
+                scan_dir_pattern = r'_S[0-9]{4}$'
+                dir_end = re.search(scan_dir_pattern, scandir)
+                if dir_end is not None:
+                    # find last digits, which is scan
+                    last_digits = re.search(r'\d+$', dir_end)
                     scan = int(last_digits.group())
                 else:
                     continue

@@ -13,8 +13,7 @@ After the script is executed the experiment directory will contain "conf" subdir
 __author__ = "Ross Harder"
 __copyright__ = "Copyright (c), UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['copy_conf',
-           'setup_rundirs',
+__all__ = ['setup_rundirs',
            'main']
 
 import argparse
@@ -22,54 +21,6 @@ import os
 import shutil
 import glob
 import cohere_core.utilities as ut
-
-
-######################################################################
-def copy_conf(src, dest, specfile):
-    """
-    Copies configuration files from src directory to dest directory.
-
-    Parameters
-    ----------
-    src : str
-        source directory containing configuration files
-    dest : str
-        directory where the files will be saved
-    
-    Returns
-    -------
-    nothing
-    """
-    try:
-        conf_prep = ut.join(src, 'config_prep')
-        shutil.copy(conf_prep, dest)
-    except:
-        pass
-    try:
-        conf_data = ut.join(src, 'config_data')
-        shutil.copy(conf_data, dest)
-    except:
-        pass
-    try:
-        conf_rec = ut.join(src, 'config_rec')
-        shutil.copy(conf_rec, dest)
-    except:
-        pass
-    try:
-        conf_disp = ut.join(src, 'config_disp')
-        shutil.copy(conf_disp, dest)
-    except:
-        pass
-    try:
-        conf_instr = ut.join(src, 'config_instr')
-        if specfile is None:
-            shutil.copy(conf_instr, dest)
-        else:
-            instr_config_map = ut.read_config(conf_instr)
-            instr_config_map['specfile'] = specfile
-            ut.write_config(instr_config_map, conf_instr)
-    except:
-        pass
 
 
 ######################################################################
@@ -108,34 +59,36 @@ def setup_rundirs(prefix, scan, conf_dir, **kwargs):
     else:
         working_dir = os.getcwd().replace(os.sep, '/')
 
-    experiment_dir = ut.join(working_dir, id)
-    if not os.path.exists(experiment_dir):
-        os.makedirs(experiment_dir)
+    new_experiment_conf_dir = ut.join(working_dir, id, 'conf')
+    # copy configuration directory, it will fail if directory already exists
+    shutil.copytree(conf_dir, new_experiment_conf_dir)
 
-    experiment_conf_dir = ut.join(experiment_dir, 'conf')
-    if not os.path.exists(experiment_conf_dir):
-        os.makedirs(experiment_conf_dir)
-
-    # override the config_map with values for new experiment
-    config_map['working_dir'] = working_dir
+    # fix main config file
+    config_map = ut.read_config(ut.join(new_experiment_conf_dir, 'config'))
     config_map['experiment_id'] = prefix
     config_map['scan'] = scan
-    ut.write_config(config_map, ut.join(experiment_conf_dir, 'config'))
+    config_map['working_dir'] = working_dir
+    ut.write_config(config_map, ut.join(new_experiment_conf_dir, 'config'))
 
-    # here we want the command line to be used if present
-    if 'specfile' in kwargs and kwargs['specfile'] is not None:
-        specfile = kwargs['specfile']
-    else:
-        specfile = None
+    # delete results_dir as it points to the original results directory
+    disp_config_map = ut.read_config(ut.join(new_experiment_conf_dir, 'config_disp'))
+    if 'results_dir' in disp_config_map:
+        disp_config_map.pop('results_dir')
+        ut.write_config(disp_config_map, ut.join(new_experiment_conf_dir, 'config_disp'))
 
-    copy_conf(conf_dir, experiment_conf_dir, specfile)
+    # include specfile in config_instr if given
+    specfile = kwargs.get('specfile')
+    if specfile is not None:
+        instr_config_map = ut.read_config(ut.join(new_experiment_conf_dir, 'config_instr'))
+        instr_config_map['specfile'] = specfile
+        ut.write_config(instr_config_map, ut.join(new_experiment_conf_dir, 'config_instr'))
 
     if 'copy_prep' in kwargs:
         copy_prep = kwargs['copy_prep']
     if copy_prep:
         # use abspath to get rid of trailing dir sep if it is there
         other_exp_dir = os.path.split(os.path.abspath(conf_dir))[0]
-        new_exp_dir = os.path.split(os.path.abspath(experiment_conf_dir))[0]
+        new_exp_dir = os.path.split(os.path.abspath(new_experiment_conf_dir))[0]
 
         # get case of single scan or summed
         prep_dir_list = glob.glob(ut.join(other_exp_dir, 'preprocessed_data'), recursive=True)
@@ -147,7 +100,8 @@ def setup_rundirs(prefix, scan, conf_dir, **kwargs):
         for dir in prep_dir_list:
             scandir = os.path.basename(os.path.split(dir.replace(os.sep, '/'))[0]).replace(os.sep, '/')
             shutil.copytree(dir.replace(os.sep, '/'), ut.join(new_exp_dir, scandir, 'preprocessed_data'))
-    return experiment_dir
+
+    return ut.join(working_dir, id)
         #################################################################################
 
 
