@@ -1,0 +1,3 @@
+diffractometer = "P10sixc"
+sample = "MC811_BETI_insitu_1"
+data_dir = "example_data"

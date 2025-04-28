@@ -1,0 +1,5 @@
+working_dir = "/home/phoebus3/BFROSIK/coh-dev/cohere-ui/example_workspace"
+experiment_id = "P"
+scan = "63"
+beamline = "Petra3_P10"
+converter_ver = 2

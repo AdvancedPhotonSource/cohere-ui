@@ -1,0 +1,2 @@
+intensity_threshold = 30
+crop_pad = [0, 0, 0, 0, 0, 0]
