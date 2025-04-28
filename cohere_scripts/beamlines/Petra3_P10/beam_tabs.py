@@ -708,7 +708,8 @@ class SubInstrTab():
         import beamlines.Petra3_P10.diffractometers as diff
 
         try:
-            diff_obj = diff.create_diffractometer(diffractometer, data_dir=data_dir, sample=sample)
+            params = {'data_dir' : data_dir, 'sample' : sample}
+            diff_obj = diff.create_diffractometer(diffractometer, params)
         except:
             msg_window ('cannot create diffractometer', diffractometer)
             return
