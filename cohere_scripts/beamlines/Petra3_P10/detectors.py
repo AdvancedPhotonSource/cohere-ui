@@ -97,7 +97,6 @@ class Detector_e4m(Detector):
     """
     name = "e4m"
     dims = (2167, 2070)
-    roi = (0, 256, 0, 256)
     pixel = (75.0e-6, 75e-6)
     pixelorientation = ('x+', 'y-')  # in xrayutilities notation
     darkfield_filename = None

@@ -10,7 +10,8 @@ version = 2
 # Map file of before/after keys to remap
 config_map = {}
 config_prep_map = {'darkfile': 'darkfield_filename',
-                   'whitefile': 'whitefield_filename'}
+                   'whitefile': 'whitefield_filename',
+                   'min_files': 'min_frames'}
 config_rec_map = {'samples': 'reconstructions',
                   'beta': 'hio_beta',
                   'amp_support_trigger': 'shrink_wrap_trigger',

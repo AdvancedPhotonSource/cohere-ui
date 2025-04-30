@@ -9,8 +9,9 @@ import pandas as pd
 from scipy.optimize import curve_fit
 from scipy.signal import savgol_filter
 import matplotlib.pyplot as plt
-import sys
 import datetime
+import hdf5plugin
+os.environ['HDF5_PLUGIN_PATH']=hdf5plugin.PLUGIN_PATH
 
 
 class P10Scan:

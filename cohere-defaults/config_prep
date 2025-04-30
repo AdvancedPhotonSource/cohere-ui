@@ -14,8 +14,8 @@ whitefield_filename = "WHITEFIELD"
 //roi = [0,256,0,256]
                                             // Region of interest, an area covered by detector.
                                             // Read from specfile.
-//min_files = 80
-                                            // Only scans containing minimum of .tif files will be included.
+//min_frames = 80
+                                            // Only scans containing minimum of defined number of frames will be included.
 
 //exclude_scans = [78,81]
                                             // A list containing scan indexes that will be excluded when adding scans.
