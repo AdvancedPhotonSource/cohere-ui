@@ -46,12 +46,14 @@ class Detector(ABC):
             for scan in range(scan_range[0], scan_range[1] + 1):
                 scandir = ut.join(ut.join(self.data_dir, self.sample + '_{:05d}'.format(scan)))
                 if not os.path.isdir(scandir):
+                    print(f'scan directory {scandir} does not exist.')
                     continue
                 if self.min_files is not None:
                     # exclude directories with fewer files than min_files
                     scanmeta = p10sr.P10Scan(self.data_dir, self.sample, scan, pathsave='', creat_save_folder=False)
                     nframes = int(scanmeta.get_command_infor()['motor1_step_num'])
                     if nframes < self.min_files:
+                        print(f'directory for scan {scan} contains fewer than {self.min_files} files.')
                         continue
                 scans_dirs.append((scan, scandir))
         # remove empty sub-lists
@@ -140,6 +142,7 @@ class Detector_e4m(Detector):
         self.min_files = params.get('min_files', None)
         r=self.ROIS[params.get('detector_module', 0)]
         self.slice=np.s_[:,r[1]:r[3],r[0]:r[2]]
+        self.max_crop = params.get('max_crop', None)
 
 
     def correct(self, data):
@@ -160,6 +163,10 @@ def create_detector(det_name, params):
     if det_name == 'e4m':
         if 'data_dir' not in params:
             print('missing mandatory parameter data_dir')
+            return None
+        data_dir = params['data_dir']
+        if not os.path.isdir(data_dir):
+            print(f'configured data_dir {data_dir} does not exist.')
             return None
         if 'sample' not in params:
             print('missing mandatory parameter sample')

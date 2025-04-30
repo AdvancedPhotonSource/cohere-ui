@@ -1,3 +1,5 @@
+import os.path
+import cohere_core.utilities as ut
 import numpy as np
 import math as m
 import xrayutilities.experiment as xuexp
@@ -56,6 +58,15 @@ class Diffractometer_P10sixc(Diffractometer):
         :param scan: scan defines the subdirectory
         :return: dict with optional params: scanmot, scanmot_del, detdist, detector, energy
         """
+        # check if the values are meaningful
+        if self.data_dir is None or self.sample is None:
+            return {}
+        if not os.path.isdir(self.data_dir):
+            print (f"the data path {self.data_dir} does not exist, will use configured parameters instead of parsing." )
+            return {}
+        if not os.path.isdir(ut.join(self.data_dir, self.sample + '_{:05d}'.format(scan))):
+            print (f"the data/sample path {self.data_dir}/{self.sample + '_{:05d}'.format(scan)} does not exist, will use configured parameters instead of parsing." )
+            return {}
         fio_dict = {}
         scanmeta=p10sr.P10Scan(self.data_dir, self.sample, scan, pathsave='', creat_save_folder=False)
         command = scanmeta.command.split()
@@ -77,6 +88,32 @@ class Diffractometer_P10sixc(Diffractometer):
             print(str(ex))
 
         return fio_dict
+
+
+    def check_params(self, params):
+        if 'detector' not in params:
+            print('detector name not parsed from spec file and not configured')
+            raise KeyError('detector name not parsed from spec file and not configured')
+        if 'detdist' not in params:
+            print('detdist not parsed from spec file and not configured')
+            raise KeyError('detdist not parsed from spec file and not configured')
+        if 'scanmot' not in params:
+            print('scanmot not parsed from spec file and not configured')
+            raise KeyError('scanmot not parsed from spec file and not configured')
+        if 'energy' not in params:
+            print('energy not parsed from spec file and not configured')
+            raise KeyError('energy not parsed from spec file and not configured')
+        if 'scanmot_del' not in params:
+            print('scanmot_del not parsed from spec file and not configured')
+            raise KeyError('scanmot_del not parsed from spec file and not configured')
+        for ax in self.sampleaxes_mne:
+            if ax not in params:
+                print(f'{ax} not parsed from spec file and not configured')
+                raise KeyError (f'{ax} not parsed from spec file and not configured')
+        for ax in self.detectoraxes_mne:
+            if ax not in params:
+                print(f'{ax} not parsed from spec file and not configured')
+                raise KeyError (f'{ax} not parsed from spec file and not configured')
 
 
     def get_geometry(self, shape, scan, conf_params):
