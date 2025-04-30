@@ -48,12 +48,12 @@ class Detector(ABC):
                 if not os.path.isdir(scandir):
                     print(f'scan directory {scandir} does not exist.')
                     continue
-                if self.min_files is not None:
-                    # exclude directories with fewer files than min_files
+                if self.min_frames is not None:
+                    # exclude directories with fewer files than min_frames
                     scanmeta = p10sr.P10Scan(self.data_dir, self.sample, scan, pathsave='', creat_save_folder=False)
                     nframes = int(scanmeta.get_command_infor()['motor1_step_num'])
-                    if nframes < self.min_files:
-                        print(f'directory for scan {scan} contains fewer than {self.min_files} files.')
+                    if nframes < self.min_frames:
+                        print(f'directory for scan {scan} contains fewer than {self.min_frames} files.')
                         continue
                 scans_dirs.append((scan, scandir))
         # remove empty sub-lists
@@ -102,7 +102,7 @@ class Detector_e4m(Detector):
     darkfield_filename = None
     darkfield = None
     data_dir = None
-    min_files= None  # defines minimum frame scans in scan directory
+    min_frames= None  # defines minimum frame scans in scan directory
     Imult = 1.0
     max_crop=None
     
@@ -138,7 +138,7 @@ class Detector_e4m(Detector):
             for c in self.module_y:
                 self.darkfield[np.s_[c + 256 - 2:c + 256 + 2], :] = np.nan
 
-        self.min_files = params.get('min_files', None)
+        self.min_frames = params.get('min_frames', None)
         r=self.ROIS[params.get('detector_module', 0)]
         self.slice=np.s_[:,r[1]:r[3],r[0]:r[2]]
         self.max_crop = params.get('max_crop', None)

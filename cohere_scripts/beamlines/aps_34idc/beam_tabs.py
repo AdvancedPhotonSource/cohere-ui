@@ -113,8 +113,8 @@ class PrepTab(QWidget):
         layout.addRow("detector area (roi)", self.roi)
         self.Imult = QLineEdit()
         layout.addRow("Imult", self.Imult)
-        self.min_files = QLineEdit()
-        layout.addRow("min files in scan", self.min_files)
+        self.min_frames = QLineEdit()
+        layout.addRow("min files in scan", self.min_frames)
         self.exclude_scans = QLineEdit()
         layout.addRow("exclude scans", self.exclude_scans)
         self.outliers_scans = QLineEdit()
@@ -176,8 +176,8 @@ class PrepTab(QWidget):
             self.white_file_button.setText('')
         if 'Imult' in conf_map:
             self.Imult.setText(str(conf_map['Imult']).replace(" ", ""))
-        if 'min_files' in conf_map:
-            self.min_files.setText(str(conf_map['min_files']).replace(" ", ""))
+        if 'min_frames' in conf_map:
+            self.min_frames.setText(str(conf_map['min_frames']).replace(" ", ""))
         if 'exclude_scans' in conf_map:
             self.exclude_scans.setText(str(conf_map['exclude_scans']).replace(" ", ""))
         if 'outliers_scans' in conf_map:
@@ -192,7 +192,7 @@ class PrepTab(QWidget):
         self.dark_file_button.setText('')
         self.white_file_button.setText('')
         self.Imult.setText('')
-        self.min_files.setText('')
+        self.min_frames.setText('')
         self.exclude_scans.setText('')
         self.outliers_scans.setText('')
         self.roi.setText('')
@@ -237,9 +237,9 @@ class PrepTab(QWidget):
             conf_map['whitefield_filename'] = str(self.white_file_button.text().strip())
         if len(self.Imult.text()) > 0:
             conf_map['Imult'] = ast.literal_eval(str(self.Imult.text()).replace(os.linesep,''))
-        if len(self.min_files.text()) > 0:
-            min_files = ast.literal_eval(str(self.min_files.text()))
-            conf_map['min_files'] = min_files
+        if len(self.min_frames.text()) > 0:
+            min_frames = ast.literal_eval(str(self.min_frames.text()))
+            conf_map['min_frames'] = min_frames
         if len(self.exclude_scans.text()) > 0:
             conf_map['exclude_scans'] = ast.literal_eval(str(self.exclude_scans.text()).replace(os.linesep,''))
         if len(self.roi.text()) > 0:

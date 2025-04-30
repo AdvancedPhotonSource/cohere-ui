@@ -107,8 +107,8 @@ class PrepTab(QWidget):
         layout.addRow("darkfield file", self.dark_file_button)
         self.detector_module = QLineEdit()
         layout.addRow("detector module", self.detector_module)
-        self.min_files = QLineEdit()
-        layout.addRow("min files in scan", self.min_files)
+        self.min_frames = QLineEdit()
+        layout.addRow("min files in scan", self.min_frames)
         self.exclude_scans = QLineEdit()
         layout.addRow("exclude scans", self.exclude_scans)
         self.max_crop = QLineEdit()
@@ -153,8 +153,8 @@ class PrepTab(QWidget):
             self.dark_file_button.setText('')
         if 'detector_module' in conf_map:
             self.detector_module.setText(str(conf_map['detector_module']).replace(" ", ""))
-        if 'min_files' in conf_map:
-            self.min_files.setText(str(conf_map['min_files']).replace(" ", ""))
+        if 'min_frames' in conf_map:
+            self.min_frames.setText(str(conf_map['min_frames']).replace(" ", ""))
         if 'exclude_scans' in conf_map:
             self.exclude_scans.setText(str(conf_map['exclude_scans']).replace(" ", ""))
         if 'max_crop' in conf_map:
@@ -166,7 +166,7 @@ class PrepTab(QWidget):
     def clear_conf(self):
         self.dark_file_button.setText('')
         self.detector_module.setText('')
-        self.min_files.setText('')
+        self.min_frames.setText('')
         self.exclude_scans.setText('')
         self.max_crop.setText('')
         self.outliers_scans.setText('')
@@ -207,9 +207,9 @@ class PrepTab(QWidget):
             conf_map['darkfield_filename'] = str(self.dark_file_button.text().strip())
         if len(self.detector_module.text()) > 0:
             conf_map['detector_module'] = ast.literal_eval(str(self.detector_module.text()))
-        if len(self.min_files.text()) > 0:
-            min_files = ast.literal_eval(str(self.min_files.text()))
-            conf_map['min_files'] = min_files
+        if len(self.min_frames.text()) > 0:
+            min_frames = ast.literal_eval(str(self.min_frames.text()))
+            conf_map['min_frames'] = min_frames
         if len(self.exclude_scans.text()) > 0:
             conf_map['exclude_scans'] = ast.literal_eval(str(self.exclude_scans.text()).replace(os.linesep,''))
         if len(self.max_crop.text()) > 0:

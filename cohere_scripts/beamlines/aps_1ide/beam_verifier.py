@@ -27,8 +27,8 @@ config_prep_error = {'File':['No configuration file',
                      'Whitefield':['whitefield_filename parameter should be string',
                                    'whitefield_filename parameter parsing error'],
                      'Excludescans':['exclude scans should be a list'],
-                     'MinFiles':['min_files should be int',
-                                 'min_files parameter parsing error']}
+                     'MinFiles':['min_frames should be int',
+                                 'min_frames parameter parsing error']}
 config_disp_error = {'File':['No configuration file',
                              'Cannot read configuration file',
                              'Parsing error, check parenthesis,quotation syntax'],
@@ -198,9 +198,9 @@ def ver_config_prep(config_map):
             return (error_message)
 
     config_parameter = 'MinFiles'
-    if 'min_files' in config_map:
-        min_files = config_map['min_files']
-        if type(min_files) != int:
+    if 'min_frames' in config_map:
+        min_frames = config_map['min_frames']
+        if type(min_frames) != int:
             config_error = 0
             error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
             print(error_message)

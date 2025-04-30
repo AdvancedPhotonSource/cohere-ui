@@ -24,8 +24,8 @@ config_prep_error = {'File':['No configuration file',
                      'Detectormodule':['detector_module parameter should be int',
                                    'detector_module parameter parsing error'],
                      'Excludescans':['exclude scans should be a list'],
-                     'MinFiles':['min_files should be int',
-                                 'min_files parameter parsing error'],
+                     'MinFiles':['min_frames should be int',
+                                 'min_frames parameter parsing error'],
                      'Maxcrop':['max_crop should be a list of two int'],
                      }
 config_disp_error = {'File':['No configuration file',
@@ -162,10 +162,10 @@ def ver_config_prep(config_map):
             print(error_message)
             return (error_message)
 
-    config_parameter = 'MinFiles'
+    config_parameter = 'Minframes'
     if 'min_frames' in config_map:
-        min_files = config_map['min_frames']
-        if type(min_files) != int:
+        min_frames = config_map['min_frames']
+        if type(min_frames) != int:
             config_error = 0
             error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
             print(error_message)
