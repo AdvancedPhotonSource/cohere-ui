@@ -21,9 +21,9 @@ import shutil
 from multiprocessing import Process
 import argparse
 try:
-    import inner_scripts.reconstruction_populous as multi_rec
+    from inner_scripts.reconstruction_populous import multi_rec
 except:
-    import cohere_scripts.inner_scripts.reconstruction_populous as multi_rec
+    from cohere_scripts.inner_scripts.reconstruction_populous import multi_rec
 
 
 __author__ = "Barbara Frosik"
