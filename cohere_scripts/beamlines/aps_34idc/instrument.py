@@ -105,7 +105,7 @@ class Instrument:
         return self.diff_obj.get_geometry(shape, scan, conf_params, **kwargs)
 
 
-def create_instr(params):
+def create_instr(params, **kwargs):
     """
     Build factory for the Instrument class.
 
@@ -120,7 +120,6 @@ def create_instr(params):
         error msg, Instrument object or None
     """
     det_obj = None
-    diff_obj = None
     det_params = {}
     scan_ranges = None
 
@@ -147,15 +146,25 @@ def create_instr(params):
     # override det_params with configured values in params
     det_params.update(params)
     det_name = det_params.get('detector', None)
-    if det_name is not None:
+    if det_name is None:
+        raise ValueError('detector name not configured and could not be parsed')
+    if 'need_detector' in kwargs and kwargs['need_detector']:
+        # check for parameters
+        err_msg = det.check_mandatory_params(det_name, det_params)
+        if len(err_msg) > 0:
+            raise ValueError(err_msg)
+
         det_obj = det.create_detector(det_name, det_params)
         if det_obj is None:
-            return None
+            raise ValueError(f'failed create detector {det_name}')
+
     diff_name = params.get('diffractometer', None)
-    if diff_name is not None:
+    if diff_name is None:
+        raise ValueError(f'diffractometer parameter not defined')
+    else:
         diff_obj = diff.create_diffractometer(diff_name, specfile=params.get('specfile', None))
         if diff_obj is None:
-            return None
+            raise ValueError(f'failed create diffractometer {diff_name}')
 
     instr = Instrument(det_obj, diff_obj)
     instr.scan_ranges = scan_ranges

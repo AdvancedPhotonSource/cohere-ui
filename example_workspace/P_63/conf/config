@@ -1,4 +1,4 @@
-working_dir = "/home/phoebus3/BFROSIK/coh-dev/cohere-ui/example_workspace"
+working_dir = "example_workspace"
 experiment_id = "P"
 scan = "63"
 beamline = "Petra3_P10"

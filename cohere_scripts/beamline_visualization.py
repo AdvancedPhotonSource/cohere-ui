@@ -22,7 +22,6 @@ import numpy as np
 from functools import partial
 from multiprocessing import Pool, cpu_count
 import importlib
-import traceback
 import cohere_core.utilities as ut
 from tvtk.api import tvtk
 import inner_scripts.multipeak as mp
@@ -39,8 +38,6 @@ class CXDViz:
     geometry : tuple of arrays
         arrays containing geometry in reciprocal and direct space
     """
-    __all__ = ['visualize']
-
     dir_arrs = {}
     recip_arrs = {}
 
@@ -63,7 +60,7 @@ class CXDViz:
         self.recipspace_uptodate = 0
 
 
-    def visualize(self, image, support, coh, save_dir, unwrap=False, is_twin=False):
+    def visualize(self, image, support, coh, viz_save_dir, unwrap=False, is_twin=False):
         """
         Manages visualization process. Saves the results in a given directory in files: image.vts, support.vts, and coherence.vts. If is_twin then the saved files have twin prefix.
         Parameters
@@ -74,14 +71,14 @@ class CXDViz:
             support array or None
         coh : ndarray
             coherence array or None
-        save_dir : str
+        viz_save_dir : str
             a directory to save the results
         unwrap : boolean
             If True it will unwrap phase
         is_twin : boolean
             True if the image array is result of reconstruction, False if is_twin of reconstructed array.
         """
-        save_dir = save_dir.replace(os.sep, '/')
+        viz_save_dir = viz_save_dir.replace(os.sep, '/')
         arrays = {"imAmp": abs(image), "imPh": np.angle(image)}
 
         # unwrap phase here
@@ -91,17 +88,17 @@ class CXDViz:
 
         self.add_ds_arrays(arrays)
         if is_twin:
-            self.write_directspace(ut.join(save_dir, 'twin_image'))
+            self.write_directspace(ut.join(viz_save_dir, 'twin_image'))
         else:
-            self.write_directspace(ut.join(save_dir, 'image'))
+            self.write_directspace(ut.join(viz_save_dir, 'image'))
         self.clear_direct_arrays()
         if support is not None:
             arrays = {"support": support}
             self.add_ds_arrays(arrays)
             if is_twin:
-                self.write_directspace(ut.join(save_dir, 'twin_support'))
+                self.write_directspace(ut.join(viz_save_dir, 'twin_support'))
             else:
-                self.write_directspace(ut.join(save_dir, 'support'))
+                self.write_directspace(ut.join(viz_save_dir, 'support'))
             self.clear_direct_arrays()
 
         if coh is not None:
@@ -109,7 +106,7 @@ class CXDViz:
             coh = ut.pad_center(coh, image.shape)
             arrays = {"cohAmp": np.abs(coh), "cohPh": np.angle(coh)}
             self.add_ds_arrays(arrays)
-            self.write_directspace(ut.join(save_dir, 'coherence'))
+            self.write_directspace(ut.join(viz_save_dir, 'coherence'))
             self.clear_direct_arrays()
 
 
@@ -270,7 +267,7 @@ def voxel_size(geometry, shape):
     print('ds voxel size', ds_voxel_size)
 
 
-def process_dir(instr_conf_map, config_map, res_scans_dirs):
+def process_dir(all_config_map, res_scans_dirs):
     """
     Creates and saves file in vts format that represents the phasing results found in the giving directory applying
     the parameters from configuration files.
@@ -284,18 +281,18 @@ def process_dir(instr_conf_map, config_map, res_scans_dirs):
     :return:
     """
     [scan, res_dir] = res_scans_dirs
-    if 'save_dir' in config_map:
-        save_dir = config_map['save_dir']
+    if 'viz_save_dir' in all_config_map:
+        viz_save_dir = all_config_map['viz_save_dir']
     else:
-        save_dir = res_dir.replace('_phasing', '_viz')
+        viz_save_dir = res_dir.replace('_phasing', '_viz')
     # create dir if it does not exist
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
+    if not os.path.exists(viz_save_dir):
+        os.makedirs(viz_save_dir)
     # image file was checked in calling function
     imagefile = ut.join(res_dir, 'image.npy')
     try:
         image = np.load(imagefile)
-        ut.save_tif(image, ut.join(save_dir, 'image.tif'))
+        ut.save_tif(image, ut.join(viz_save_dir, 'image.tif'))
     except:
         print(f'cannot load file {imagefile}')
         return
@@ -309,13 +306,13 @@ def process_dir(instr_conf_map, config_map, res_scans_dirs):
     if os.path.isfile(supportfile):
         try:
             support = np.load(supportfile)
-            ut.save_tif(support, ut.join(save_dir, 'support.tif'))
+            ut.save_tif(support, ut.join(viz_save_dir, 'support.tif'))
         except:
             print(f'cannot load file {supportfile}')
     else:
         print(f'support file is missing in {res_dir} directory')
 
-    beamline = config_map["beamline"]
+    beamline = all_config_map["beamline"]
     try:
         instr_module = importlib.import_module(f'beamlines.{beamline}.instrument')
     except Exception as e:
@@ -323,10 +320,10 @@ def process_dir(instr_conf_map, config_map, res_scans_dirs):
         print(f'cannot import beamlines.{beamline}.instrument module.')
         return (f'cannot import beamlines.{beamline}.instrument module.')
 
-    instr_obj = instr_module.create_instr(instr_conf_map)
+    instr_obj = instr_module.create_instr(all_config_map)
     geometry = None
     try:
-        geometry = instr_obj.get_geometry(shape, scan, instr_conf_map)
+        geometry = instr_obj.get_geometry(shape, scan, all_config_map)
     except:
         raise
 
@@ -337,24 +334,24 @@ def process_dir(instr_conf_map, config_map, res_scans_dirs):
         except:
             print(f'cannot load file {cohfile}')
 
-    if config_map.get('rampups', 1) > 1:
+    if all_config_map.get('rampups', 1) > 1:
         import cohere_core.utilities.dvc_utils as dvut
 
         dvut.set_lib_from_pkg('np')
-        rampups = config_map.get('rampups', 1)
+        rampups = all_config_map.get('rampups', 1)
         image = dvut.remove_ramp(image, ups=rampups)
 
-    unwrap = config_map.get('unwrap', False)
-    crop = config_map.get('crop', [1., 1., 1.])
+    unwrap = all_config_map.get('unwrap', False)
+    crop = all_config_map.get('crop', [1., 1., 1.])
     crop = crop + [1.0] * (len(image.shape) - len(crop))
     viz = CXDViz(crop, geometry)
-    viz.visualize(image, support, coh, save_dir, unwrap)
+    viz.visualize(image, support, coh, viz_save_dir, unwrap)
 
-    if config_map.get('make_twin', False):
+    if all_config_map.get('make_twin', False):
         image = np.conjugate(np.flip(image))
         if support is not None:
             support = np.flip(support)
-        viz.visualize(image, support, coh, save_dir, unwrap, True)
+        viz.visualize(image, support, coh, viz_save_dir, unwrap, True)
 
 
 def handle_visualization(experiment_dir, **kwargs):
@@ -376,9 +373,9 @@ def handle_visualization(experiment_dir, **kwargs):
     print ('starting visualization process')
 
     conf_list = ['config_disp', 'config_instr', 'config_data']
-    err_msg, conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, **kwargs)
-    if len(err_msg) > 0:
-        return err_msg
+    conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, **kwargs)
+    # if len(err_msg) > 0:
+    #     return err_msg
     # check the maps
     if 'config_disp' not in conf_maps.keys():
         print('missing config_disp file')
@@ -387,28 +384,20 @@ def handle_visualization(experiment_dir, **kwargs):
     if 'config_data' not in conf_maps.keys():
         print('no config_data file')
 
+    all_params = {k:v for d in conf_maps.values() for k,v in d.items()}
     main_conf_map = conf_maps['config']
-    instr_conf_map = conf_maps['config_instr']
-    data_conf_map = conf_maps.get('config_data', {})
-    # add binning to instrument configuration, as this affects instrument processing
-    instr_conf_map['binning'] = data_conf_map.get('binning', [1, 1, 1])
-    disp_conf_map = conf_maps.get('config_disp', {})
 
     if 'multipeak' in main_conf_map and main_conf_map['multipeak']:
         mp.process_dir(experiment_dir, make_twin=False)
     else:
         separate = main_conf_map.get('separate_scans', False) or main_conf_map.get('separate_scan_ranges', False)
-        # get parameters from config files
-        conf_map = disp_conf_map
-        conf_map['beamline'] = main_conf_map.get('beamline')
-
         rec_id = kwargs.get('rec_id', None)
-        if 'results_dir' in disp_conf_map:
-            results_dir = disp_conf_map['results_dir'].replace(os.sep, '/')
+        if 'results_dir' in all_params:
+            results_dir = all_params['results_dir'].replace(os.sep, '/')
             if rec_id is not None and not results_dir.endswith(rec_id):
-                print(f'Verify the results directory, Currently set to {results_dir}')
+                print(f'Verify the results_directory. Currently set to {results_dir}')
             if separate and results_dir != experiment_dir:
-                print(f'Verify the results directory, Currently set to {results_dir}')
+                print(f'Verify the results_directory. Currently set to {results_dir}')
             if not os.path.isdir(results_dir):
                 print(f'the configured results_dir: {results_dir} does not exist')
                 return(f'the configured results_dir: {results_dir} does not exist')
@@ -448,9 +437,9 @@ def handle_visualization(experiment_dir, **kwargs):
             scans_dirs = [[last_scan, dir] for dir in scandirs]
 
         if len(scans_dirs) == 1:
-            process_dir(instr_conf_map, conf_map, scans_dirs[0])
+            process_dir(all_params, scans_dirs[0])
         else:
-            func = partial(process_dir, instr_conf_map, conf_map)
+            func = partial(process_dir, all_params)
             # TODO account for available memory when calculating number of processes
             # Currently the code will hung if not enough memory
             # Work around is to lower no_proc

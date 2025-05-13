@@ -99,7 +99,7 @@ def combine_scans(get_scan_func, scans_dirs, experiment_dir):
     return sumarr
 
 
-def process_batch(get_scan_func, scans_dirs, experiment_dir, separate_scan_ranges):
+def process_batch(get_scan_func, scans_dirs, experiment_dir, separate_scan_ranges, **kwargs):
     if separate_scan_ranges:
         indx = str(scans_dirs[0][0])
         indx = f'{indx}-{str(scans_dirs[-1][0])}'

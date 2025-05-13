@@ -22,7 +22,8 @@ config_prep_error = {'File':['No configuration file',
                      'Darkfield':['darkfield_filename parameter should be string',
                                   'darkfield_filename parameter parsing error'],
                      'Detectormodule':['detector_module parameter should be int',
-                                   'detector_module parameter parsing error'],
+                                   'detector_module should be smaller or equal 8',
+                                    'missing mandatory detector_module parameter'],
                      'Excludescans':['exclude scans should be a list'],
                      'MinFiles':['min_frames should be int',
                                  'min_frames parameter parsing error'],
@@ -178,6 +179,24 @@ def ver_config_prep(config_map):
             error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
             print (error_message)
             return (error_message)
+
+    config_parameter = 'Detectormodule'
+    if 'detector_module' in config_map:
+        if type(config_map['detector_module']) != int:
+            config_error = 0
+            error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
+            print (error_message)
+            return (error_message)
+        elif int(config_map['detector_module']) > 8:
+            config_error = 1
+            error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
+            print (error_message)
+            return (error_message)
+    else:
+        config_error = 2
+        error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
+        print(error_message)
+        return ''
 
     return ("")
 

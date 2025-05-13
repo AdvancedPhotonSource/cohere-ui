@@ -109,7 +109,7 @@ def reconstruction_single(pkg, conf_file, datafile, dir, dev, **kwargs):
         import cohere_core.controller.AI_guess as ai
         ai_dir = ai.start_AI(pars, datafile, dir)
         if ai_dir is None:
-            return
+            return 'failed AI guess'
         pars['continue_dir'] = ai_dir
 
     if 'save_dir' in pars:
@@ -125,12 +125,13 @@ def reconstruction_single(pkg, conf_file, datafile, dir, dev, **kwargs):
 
     worker = rec.create_rec(pars, datafile, pkg, device, **kwargs)
     if worker is None:
-        return
+        print('Could not create Rec object, check config_rec parameters.')
+        return 'Could not create Rec object, check config_rec parameters.'
 
     ret_code = worker.iterate()
     if ret_code < 0:
         print ('reconstruction failed during iterations')
-        return
+        return 'reconstruction failed during iterations'
 
     worker.save_res(save_dir)
 
@@ -160,7 +161,9 @@ def process_scan_range(ga_method, pkg, conf_file, datafile, dir, picked_devs, ho
     nothing
     """
     if len(picked_devs) == 1:
-        reconstruction_single(pkg, conf_file, datafile, dir, picked_devs, debug=debug)
+        err_msg = reconstruction_single(pkg, conf_file, datafile, dir, picked_devs, debug=debug)
+        if len(err_msg) > 0:
+            return err_msg
     elif ga_method is None:
         reconstruction_populous.reconstruction(pkg, conf_file, datafile, dir, picked_devs)
     elif ga_method == 'ga_fast':
@@ -171,6 +174,8 @@ def process_scan_range(ga_method, pkg, conf_file, datafile, dir, picked_devs, ho
 
     if q is not None:
         q.put((os.getpid(), picked_devs, hostfile))
+
+    return ''
 
 
 def manage_reconstruction(experiment_dir, **kwargs):
@@ -195,15 +200,15 @@ def manage_reconstruction(experiment_dir, **kwargs):
     print('started reconstruction')
 
     conf_list = ['config_rec', 'config_mp']
-    err_msg, conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, **kwargs)
-    if len(err_msg) > 0:
-        return err_msg
+    conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, **kwargs)
 
     # check the maps
     rec_id = kwargs.pop('rec_id', None)
     if 'config_rec' not in conf_maps.keys():
-        print(f'missing config_rec_{rec_id} file, exiting')
-        return f'missing config_rec_{rec_id} file, exiting'
+        con = 'config_rec'
+        if rec_id is not None:
+            con = f'{con}_{rec_id}'
+        raise ValueError (f'missing {con} file, exiting')
     main_config_map = conf_maps['config']
     rec_config_map = conf_maps['config_rec']
 
@@ -214,9 +219,7 @@ def manage_reconstruction(experiment_dir, **kwargs):
     debug = kwargs.get('debug', False)
 
     # find which library to run it on, default is numpy ('np')
-    err_msg, pkg = com.get_pkg(proc, devices)
-    if len(err_msg) > 0:
-        return err_msg
+    pkg = com.get_pkg(proc, devices)
 
     if sys.platform == 'darwin' or pkg == 'np':
         devices = [-1]
@@ -245,17 +248,16 @@ def manage_reconstruction(experiment_dir, **kwargs):
                 if os.path.isfile(datafile):
                     exp_dirs_data.append((datafile, ut.join(experiment_dir, dir)))
     else:
-        # in typical scenario data_dir is not configured, and it is defaulted to <experiment_dir>/data
-        # the data_dir is ignored in multi-scan scenario
-        data_dir = rec_config_map.get('data_dir', ut.join(experiment_dir, 'phasing_data'))
-        datafile = ut.join(data_dir, 'data.tif')
+        # in typical scenario phasing_data_dir is not configured, and it is defaulted to <experiment_dir>/data
+        # the phasing_data_dir is ignored in multi-scan scenario
+        phasing_data_dir = rec_config_map.get('phasing_data_dir', ut.join(experiment_dir, 'phasing_data'))
+        datafile = ut.join(phasing_data_dir, 'data.tif')
         if os.path.isfile(datafile):
             exp_dirs_data.append((datafile, experiment_dir))
 
     no_scan_ranges = len(exp_dirs_data)
     if no_scan_ranges == 0:
-        print('did not find data.tif file(s). ')
-        return 'did not find data.tif file(s). '
+        raise ValueError('did not find data.tif file(s) for phasing. ')
 
     if rec_id is None:
         conf_file = ut.join(experiment_dir, 'conf', 'config_rec')
@@ -281,7 +283,10 @@ def manage_reconstruction(experiment_dir, **kwargs):
             dev = [rec_config_map['device'][0]]
         except:
             print('configure device as list of int(s) for simple case')
-        reconstruction_single(pkg, conf_file, datafile, dir, dev, **kwargs)
+            return
+        err_msg = reconstruction_single(pkg, conf_file, datafile, dir, dev, **kwargs)
+        if len(err_msg) > 0:
+            return err_msg
         print('finished reconstruction')
         return
 
@@ -303,8 +308,7 @@ def manage_reconstruction(experiment_dir, **kwargs):
 
     # if fast_ga and there is not enough available devices, exit
     if ga_method == 'ga_fast' and avail_jobs < want_dev_no:
-        print(f'requested {want_dev_no} reconstructions but only {avail_jobs} is available')
-        return f'requested {want_dev_no} reconstructions but only {avail_jobs} is available'
+        raise ValueError(f'requested {want_dev_no} reconstructions but only {avail_jobs} is available')
 
     if no_scan_ranges == 1:
         datafile, dir = exp_dirs_data[0]

@@ -1,4 +1,3 @@
-darkfield_filename = "example_data/MC811_BETI_insitu_1_00063/p10_e4m_mask.npy"
+darkfield_filename = "cohere-test/data/MC811_BETI_insitu_1_00063/p10_e4m_mask.npy"
 detector_module = 6
-min_files = 90
 max_crop = [144, 144]

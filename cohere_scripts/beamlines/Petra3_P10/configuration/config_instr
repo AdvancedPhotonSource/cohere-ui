@@ -1,7 +1,7 @@
 diffractometer = "P10sixc"
                           // A diffractometer name that was used in the experiment. This diffractometer has
                           // to be supported in this beamline diffractometers.py script
-sample = "MC811_BETI_insitu_1"
+sample = "MC7_insitu"
                           // Defines sample name that matches directory structure.
 data_dir = "example_data"
                           // Directory where experiment data is stored. This will contain subdirectories

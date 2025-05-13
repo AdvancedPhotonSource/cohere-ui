@@ -14,6 +14,7 @@ class Detector(ABC):
     def __init__(self, name):
         self.name = name
 
+
     def dirs4scans(self, scans):
         """
         Finds info allowing to read data that correspond to given scans or scan ranges.
@@ -103,6 +104,16 @@ class Detector(ABC):
 
 
     @abstractmethod
+    def check_mandatory_params(self, params):
+        """
+        checks if all mandatory parameters are in params.
+
+        :params: parameters needed to create detector
+        :return: message indicating problem or empty message if all is ok
+        """
+
+
+    @abstractmethod
     def correct_frame(self, frame):
         """
         Applies the correction for detector.
@@ -160,6 +171,20 @@ class Detector_34idcTIM1(Detector):
             frame = np.where(self.darkfield[roislice1, roislice2] > 1, 0.0, frame)
 
         return frame
+
+
+    @staticmethod
+    def check_mandatory_params(params):
+        """
+        For the 34idcTIM1 detector the data directory is mandatory. The darkfield file is optional.
+
+        :return: message indicating problem or empty message if all is ok
+        """
+        if  'data_dir' not in params:
+            return 'data_dir parameter not configured, mandatory for 34idcTIM1 detector.'
+        data_dir = params['data_dir']
+        if not os.path.isdir(data_dir):
+            return f'data_dir directory{data_dir} does not exist.'
 
 
 class Detector_34idcTIM2(Detector):
@@ -225,12 +250,8 @@ class Detector_34idcTIM2(Detector):
         frame = ut.read_tif(filename)
         if self.whitefield is not None:
             frame = frame / self.whitefield[roislice1, roislice2] * self.Imult
-        else:
-            print('whitefield_filename not given, not correcting')
         if self.darkfield is not None:
             frame = np.where(self.darkfield[roislice1, roislice2] > 1, 0.0, frame)
-        else:
-            print('darkfield_filename not given, not correcting')
 
         frame = np.where(np.isfinite(frame), frame, 0)
         frame, seam_added = self.insert_seam(frame)
@@ -320,6 +341,35 @@ class Detector_34idcTIM2(Detector):
 
         return arr
 
+    @staticmethod
+    def check_mandatory_params(params):
+        """
+        For the 34idcTIM2 detector the data directory, whitefiled_filename, darkfield_ilename
+        are mandatory parameters.
+
+        :params: parameters needed to create detector
+        :return: message indicating problem or empty message if all is ok
+        """
+        if  'data_dir' not in params:
+            return 'data_dir parameter not configured, mandatory for 34idcTIM2 detector.'
+        data_dir = params['data_dir']
+        if not os.path.isdir(data_dir):
+            return f'data_dir directory{data_dir} does not exist.'
+
+        if 'whitefield_filename' not in params:
+            return 'whitefield_filename parameter not configured, mandatory for 34idcTIM2 detector.'
+        whitefield = params['whitefield_filename']
+        if not os.path.isfile(whitefield):
+            return f'whitefield_filename file {whitefield} does not exist.'
+
+        if 'darkfield_filename' not in params:
+            return 'darkfield_filename parameter not configured, mandatory for 34idcTIM2 detector.'
+        darkfield = params['darkfield_filename']
+        if not os.path.isfile(darkfield):
+            return f'darkfield_filename file {darkfield} does not exist.'
+
+        return ''
+
 
 def create_detector(det_name, params):
     if det_name == '34idcTIM1':
@@ -339,3 +389,7 @@ def get_pixel(det_name):
 
 def get_pixel_orientation(det_name):
     return dets[det_name].pixelorientation
+
+
+def check_mandatory_params(det_name, params):
+    return dets[det_name].check_mandatory_params(params)

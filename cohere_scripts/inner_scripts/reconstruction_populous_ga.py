@@ -21,9 +21,9 @@ import shutil
 from multiprocessing import Process
 import argparse
 try:
-    import inner_scripts.reconstruction_populous as multi_rec
+    from inner_scripts.reconstruction_populous import multi_rec
 except:
-    import cohere_scripts.inner_scripts.reconstruction_populous as multi_rec
+    from cohere_scripts.inner_scripts.reconstruction_populous import multi_rec
 
 
 __author__ = "Barbara Frosik"
@@ -158,8 +158,7 @@ def reconstruction(pkg, conf_file, datafile, dir, devices):
     if 'ga_cullings' in pars:
         cull_sum = sum(pars['ga_cullings'])
         if reconstructions - cull_sum < 2:
-            print("At least two reconstructions should be left after culling. Number of starting reconstructions is", reconstructions, "but ga_cullings adds to", cull_sum)
-            return
+            raise ValueError ("At least two reconstructions should be left after culling. Number of starting reconstructions is", reconstructions, "but ga_cullings adds to", cull_sum)
 
     if pars['init_guess'] == 'AI_guess':
         # run AI part first

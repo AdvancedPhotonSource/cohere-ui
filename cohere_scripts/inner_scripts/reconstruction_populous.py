@@ -148,7 +148,6 @@ def reconstruction(pkg, conf_file, datafile, dir, dev):
         list of devices available for reconstruction
     :return:
     """
-    print('dev', dev)
     pars = ut.read_config(conf_file)
     no_rec = pars['reconstructions']
     prev_dirs = [None] * no_rec

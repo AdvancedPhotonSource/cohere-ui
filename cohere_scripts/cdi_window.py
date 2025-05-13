@@ -233,7 +233,6 @@ class cdi_gui(QWidget):
         else:
             self.set_work_dir_button.setText('')
             msg_window('please select valid working directory')
-            return
 
 
     def is_exp_exists(self):
@@ -304,10 +303,11 @@ class cdi_gui(QWidget):
         conf_list = ['config_prep', 'config_data', 'config_rec', 'config_disp', 'config_instr', 'config_mp']
         # set no_verify to True so the configuration is loaded even it's wrong. The user will be able to fix it
         # it is loading the main configuration, so that rec_id is not passed in
-        err_msg, conf_dicts, converted = com.get_config_maps(load_dir, conf_list, no_verify=True)
-        if len(err_msg) > 0:
-            print('err', err_msg)
-            msg_window(err_msg)
+        try:
+            conf_dicts, converted = com.get_config_maps(load_dir, conf_list, no_verify=True)
+        except ValueError as e:
+            msg_window(str(e))
+            return
 
         self.load_main(conf_dicts['config'])
 
@@ -569,8 +569,9 @@ class Tabs(QTabWidget):
 
 
     def run_all(self):
-        for tab in self.tabs:
-            tab.run_tab()
+        import everything
+
+        everything.run_all(self.main_win.experiment_dir, no_verify=self.main_win.no_verify)
 
     def run_prep(self):
         import beamline_preprocess as prep
@@ -578,8 +579,7 @@ class Tabs(QTabWidget):
         # this line is passing all parameters from command line to prep script. 
         # if there are other parameters, one can add some code here
         msg = prep.handle_prep(self.main_win.experiment_dir, no_verify=self.main_win.no_verify)
-        if len(msg) > 0:
-            msg_window(msg)
+        return msg
 
     def run_viz(self):
         import beamline_visualization as dp
@@ -874,10 +874,10 @@ class DataTab(QWidget):
 
         if not self.main_win.is_exp_exists():
             msg_window('the experiment has not been created yet')
+            return
         elif not self.main_win.is_exp_set():
-            msg_window('the experiment has changed, pres "set experiment" button')
-        elif len(self.intensity_threshold.text()) == 0 and not self.main_win.auto_data:
-            msg_window('Please, enter Intensity Threshold parameter')
+            msg_window('the experiment has changed, press "set experiment" button')
+            return
         else:
             found_file = False
             for p, d, f in os.walk(self.main_win.experiment_dir):
@@ -893,9 +893,14 @@ class DataTab(QWidget):
                     if not self.main_win.no_verify:
                         return
                 ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_data'))
-                run_dt.format_data(self.main_win.experiment_dir, no_verify=self.main_win.no_verify)
+                try:
+                    run_dt.format_data(self.main_win.experiment_dir, no_verify=self.main_win.no_verify)
+                except ValueError as e:
+                    msg_window(str(e))
+                    return
             else:
-                msg_window('Please, run data preparation in previous tab to activate this function')
+                msg_window('Run data preparation in previous tab to activate this function')
+                return
 
         # reload the window if auto_data as the intensity_threshold and binning could change
         main_conf_map = ut.read_config(ut.join(self.main_win.experiment_dir, 'conf', 'config'))
@@ -1146,6 +1151,11 @@ class RecTab(QWidget):
         conf_map = self.get_rec_config()
         if len(conf_map) == 0:
             return
+        er_msg = ut.verify('config_rec', conf_map)
+        if len(er_msg) > 0:
+            msg_window(er_msg)
+            if not self.main_win.no_verify:
+                return
 
         ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_rec'))
 
@@ -1294,44 +1304,51 @@ class RecTab(QWidget):
 
         if not self.main_win.is_exp_exists():
             msg_window('the experiment has not been created yet')
-        elif not self.main_win.is_exp_set():
+            return
+
+        if not self.main_win.is_exp_set():
             msg_window('the experiment has changed, pres "set experiment" button')
-        else:
-            found_file = False
-            for p, d, f in os.walk(self.main_win.experiment_dir):
-                if 'data.tif' in f:
-                    found_file = True
-                    break
-                if 'data.npy' in f:
-                    found_file = True
-                    break
-            if found_file:
-                # find out which configuration should be saved
-                if self.old_rec_id == '':
-                    conf_file = 'config_rec'
-                    rec_id = None
-                else:
-                    conf_file =  'config_rec_' + self.old_rec_id
-                    rec_id = self.old_rec_id
+            return
 
-                conf_map = self.get_rec_config()
-                if len(conf_map) == 0:
-                    return
-
-                # verify that reconstruction configuration is ok
-                er_msg = ut.verify('config_rec', conf_map)
-                if len(er_msg) > 0:
-                    msg_window(er_msg)
-                    if not self.main_win.no_verify:
-                        return
-                ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', conf_file))
-                run_rc.manage_reconstruction(self.main_win.experiment_dir,
-                                             rec_id=rec_id,
-                                             no_verify=self.main_win.no_verify,
-                                             debug=self.main_win.debug)
-                self.notify()
+        found_file = False
+        for p, d, f in os.walk(self.main_win.experiment_dir):
+            if 'data.tif' in f:
+                found_file = True
+                break
+            if 'data.npy' in f:
+                found_file = True
+                break
+        if found_file:
+            # find out which configuration should be saved
+            if self.old_rec_id == '':
+                conf_file = 'config_rec'
+                rec_id = None
             else:
-                msg_window('Please, run format data in previous tab to activate this function')
+                conf_file =  'config_rec_' + self.old_rec_id
+                rec_id = self.old_rec_id
+
+            conf_map = self.get_rec_config()
+            if len(conf_map) == 0:
+                return
+
+            # verify that reconstruction configuration is ok
+            er_msg = ut.verify('config_rec', conf_map)
+            if len(er_msg) > 0:
+                msg_window(er_msg)
+                if not self.main_win.no_verify:
+                    return
+            ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', conf_file))
+            try:
+                run_rc.manage_reconstruction(self.main_win.experiment_dir,
+                                         rec_id=rec_id,
+                                         no_verify=self.main_win.no_verify,
+                                         debug=self.main_win.debug)
+            except ValueError as e:
+                msg_window(str(e))
+                return
+            self.notify()
+        else:
+            msg_window('Please, run format data in previous tab to activate this function')
 
 
     def set_defaults(self):

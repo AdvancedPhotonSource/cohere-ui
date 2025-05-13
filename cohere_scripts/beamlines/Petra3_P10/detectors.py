@@ -22,21 +22,22 @@ class Detector(ABC):
 
         :param scans : list
             list of sub-lists defining scan ranges, ordered. For single scan a range has the same scan as beginning and end.
-            one scan example:
-            scans : [[2834, 2834]]
-            returns : [[(2834, f'{path}/data_S2834)]]
-
-            separate ranges example:
-            ex1: [[2825, 2831], [2834, 2834], [2840, 2876]]
-            returns: [[(2825, f'{path}/data_S2825'), (2828, f'{path}/data_S2828'), (2831, f'{path}/data_S2831')],
-             [(2834, f'{path}/data_S2834)],
-             [(2840, f'{path}/data_S2840'), (2843, f'{path}/data_S2843'), (2846, f'{path}/data_S2846'), (2849, f'{path}/data_S2849'),
-              (2852, f'{path}/data_S2852'), (2855, f'{path}/data_S2855'), (2858, f'{path}/data_S2858'), (2861, f'{path}/data_S2861'),
-              (2864, f'{path}/data_S2864'), (2867, f'{path}/data_S2867'), (2870, f'{path}/data_S2870'), (2873, f'{path}/data_S2873'),
-              (2876, f'{path}/data_S2876')]]
-
         :return:
         list of sub-lists the input scans, or scans ranges with the corresponding directories
+
+       examples:
+       one scan
+            scans : [[2834, 2834]]
+            returns : [[(2834, f'{path}/{prefix}2834)]]
+
+       separate ranges
+            ex1: [[2825, 2831], [2834, 2834], [2840, 2876]]
+            returns: [[(2825, f'{path}/{prefix}2825'), (2828, f'{path}/{prefix}2828'), (2831, f'{path}/{prefix}2831')],
+             [(2834, f'{path}/{prefix}2834)],
+             [(2840, f'{path}/{prefix}2840'), (2843, f'{path}/{prefix}2843'), (2846, f'{path}/{prefix}2846'), (2849, f'{path}/{prefix}2849'),
+              (2858, f'{path}/{prefix}2858'), (2861, f'{path}/{prefix}2861'), (2870, f'{path}/{prefix}2870'), (2873, f'{path}/{prefix}2873'),
+              (2876, f'{path}/{prefix}2876')]]
+
         """
         scans_dirs_ranges = [[] for _ in range(len(scans))]
 
@@ -139,7 +140,7 @@ class Detector_e4m(Detector):
                 self.darkfield[np.s_[c + 256 - 2:c + 256 + 2], :] = np.nan
 
         self.min_frames = params.get('min_frames', None)
-        r=self.ROIS[params.get('detector_module', 0)]
+        r=self.ROIS[params.get('detector_module')]
         self.slice=np.s_[:,r[1]:r[3],r[0]:r[2]]
         self.max_crop = params.get('max_crop', None)
 
@@ -156,6 +157,35 @@ class Detector_e4m(Detector):
                        maxpos[2] - int(self.max_crop[1] / 2):maxpos[2] + int(self.max_crop[1] / 2)]
             data = data[maxslice]
         return data
+
+
+    @staticmethod
+    def check_mandatory_params(params):
+        """
+        For the e4m detector the data_dir, sample, darkfield_ilename, detector_module
+        are mandatory parameters.
+
+        :params: parameters needed to create detector
+        :return: message indicating problem or empty message if all is ok
+        """
+        if  'data_dir' not in params:
+            return 'data_dir parameter not configured, mandatory for e4m detector.'
+        data_dir = params['data_dir']
+        if not os.path.isdir(data_dir):
+            return f'data_dir directory {data_dir} does not exist.'
+
+        if 'sample' not in params:
+            return 'sample parameter not configured, mandatory for e4m detector.'
+
+        if 'darkfield_filename' not in params:
+            return 'darkfield_filename parameter not configured, mandatory for e4m detector.'
+        darkfield = params['darkfield_filename']
+        if not os.path.isfile(darkfield):
+            return f'darkfield_filename file {darkfield} does not exist.'
+
+        if 'detector_module' not in params:
+            return 'detector_module parameter not configured, mandatory for e4m detector.'
+        return ''
 
 
 def create_detector(det_name, params):
@@ -188,4 +218,8 @@ def get_pixel(det_name):
 
 def get_pixel_orientation(det_name):
     return dets[det_name].pixelorientation
+
+
+def check_mandatory_params(det_name, params):
+    return dets[det_name].check_mandatory_params(params)
 

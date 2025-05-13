@@ -1,4 +1,4 @@
-working_dir = "CUR_DIR/example_workspace"
+working_dir = "example_workspace"
 experiment_id = "esrf_exp"
 scan = "4"
 beamline = "esrf_id01"

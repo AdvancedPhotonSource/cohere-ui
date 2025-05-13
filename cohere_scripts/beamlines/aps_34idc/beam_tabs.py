@@ -3,6 +3,7 @@ from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 import ast
 import cohere_core.utilities as ut
+import beamlines.aps_34idc.beam_verifier as ver
 
 
 def msg_window(text):
@@ -214,7 +215,7 @@ class PrepTab(QWidget):
             conf_map = ut.read_config(prep_file.replace(os.sep, '/'))
             self.load_tab(conf_map)
         else:
-            msg_window('please select valid prep config file')
+            msg_window('select valid prep config file')
 
 
     def get_prep_config(self):
@@ -268,16 +269,12 @@ class PrepTab(QWidget):
             return
         else:
             conf_map = self.get_prep_config()
-        # # verify that prep configuration is ok
-        # er_msg = ut.verify('config_prep', conf_map)
-        # if len(er_msg) > 0:
-        #     msg_window(er_msg)
-        #     if not self.main_win.no_verify:
-        #       return
-        # # for 34idc prep data directory is needed
-        # if len(self.data_dir_button.text().strip()) == 0:
-        #     msg_window('cannot prepare data for 34idc, need data directory')
-        #     return
+        # verify that prep configuration is ok
+        er_msg = ver.verify('config_prep', conf_map)
+        if len(er_msg) > 0:
+            msg_window(er_msg)
+            if not self.main_win.no_verify:
+              return
 
         main_config_map = ut.read_config(ut.join(self.main_win.experiment_dir, 'conf', 'config'))
         auto_data = 'auto_data' in main_config_map and main_config_map['auto_data']
@@ -289,7 +286,11 @@ class PrepTab(QWidget):
                 conf_map['outliers_scans'] = current_prep_map['outliers_scans']
         ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
 
-        self.tabs.run_prep()
+        try:
+            self.tabs.run_prep()
+        except ValueError as e:
+            msg_window(str(e))
+            return
 
         # reload the window if auto_data as the outliers_scans could change
         if auto_data:
@@ -345,7 +346,7 @@ class PrepTab(QWidget):
         -------
         nothing
         """
-        data_dir = select_dir(os.getcwd().replace(os.sep, '/')).replace(os.sep, '/')
+        data_dir = select_dir(os.getcwd().replace(os.sep, '/'))
         if data_dir is not None:
             self.data_dir_button.setStyleSheet("Text-align:left")
             self.data_dir_button.setText(data_dir)
@@ -359,13 +360,12 @@ class PrepTab(QWidget):
             return
 
         conf_map = self.get_prep_config()
+        er_msg = ver.verify('config_prep', conf_map)
+        if len(er_msg) > 0:
+            msg_window(er_msg)
+            if not self.main_win.no_verify:
+                return
         if len(conf_map) > 0:
-            # er_msg = ut.verify('config_prep', conf_map)
-            # if len(er_msg) > 0:
-            #     msg_window(er_msg)
-            #     if self.main_win.no_verify:
-            #         ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
-            # else:
             ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
 
 
@@ -537,9 +537,20 @@ class DispTab(QWidget):
             msg_window('the results directory is not set')
             return
 
-        self.save_conf()
+        conf_map = self.get_disp_config()
+        er_msg = ver.verify('config_disp', conf_map)
+        if len(er_msg) > 0:
+            msg_window(er_msg)
+            if not self.main_win.no_verify:
+                return
+        if len(conf_map) > 0:
+            ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
 
-        self.tabs.run_viz()
+        try:
+            self.tabs.run_viz()
+        except ValueError as e:
+            msg_window(str(e))
+            return
 
 
     def save_conf(self):
@@ -548,13 +559,12 @@ class DispTab(QWidget):
             return
 
         conf_map = self.get_disp_config()
+        er_msg = ver.verify('config_disp', conf_map)
+        if len(er_msg) > 0:
+            msg_window(er_msg)
+            if not self.main_win.no_verify:
+                return
         if len(conf_map) > 0:
-            # er_msg = ut.verify('config_disp', conf_map)
-            # if len(er_msg) > 0:
-            #     msg_window(er_msg)
-            #     if self.main_win.no_verify:
-            #         ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
-            # else:
             ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
 
 
@@ -1024,13 +1034,11 @@ class InstrTab(QWidget):
         if len(conf_map) == 0:
             return
 
-        # # verify that disp configuration is ok
-        # er_msg = ver.verify('config_instr', conf_map)
-        # print('er, conf', er_msg, conf_map)
-        # if len(er_msg) > 0:
-        #     msg_window(er_msg)
-        #     if not self.main_win.no_verify:
-        #         return
+        er_msg = ver.verify('config_instr', conf_map)
+        if len(er_msg) > 0:
+            msg_window(er_msg)
+            if not self.main_win.no_verify:
+                return
 
         ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_instr'))
 

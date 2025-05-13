@@ -206,14 +206,6 @@ def ver_config_prep(config_map):
             print(error_message)
             return (error_message)
 
-    config_parameter = 'Excludescans'
-    if 'exclude_scans' in config_map:
-        if not ver_list_int('exclude_scans', config_map['exclude_scans']):
-            config_error = 0
-            error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
-            print (error_message)
-            return (error_message)
-
     return ("")
 
 
@@ -243,24 +235,6 @@ def ver_config_disp(config_map):
             print('results_dir parameter should be string')
             return (error_message)
 
-    config_parameter = 'Diffractometer'
-    if 'diffractometer' in config_map:
-        diffractometer = config_map['diffractometer']
-        if type(diffractometer) != str:
-            config_error = 0
-            error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
-            print('diffractometer parameter should be string')
-            return (error_message)
-
-    config_parameter = 'Detector'
-    if 'detector' in config_map:
-        detector = config_map['detector']
-        if type(detector) != str:
-            config_error = 0
-            error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
-            print('detector parameter should be string')
-            return (error_message)
-
     config_parameter = 'Crop'
     if 'crop' in config_map:
         crop = config_map['crop']
@@ -285,53 +259,7 @@ def ver_config_disp(config_map):
             print('rampups should be float')
             return (error_message)
 
-    config_parameter = 'Energy'
-    if 'energy' in config_map:
-        energy = config_map['energy']
-        if type(energy) != float:
-            config_error = 0
-            error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
-            print('energy should be float')
-            return (error_message)
-
-    config_parameter = 'Delta'
-    if 'delta' in config_map:
-        delta = config_map['delta']
-        if type(delta) != float:
-            config_error = 0
-            error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
-            print('delta should be float')
-            return (error_message)
-
-    config_parameter = 'Gamma'
-    if 'gamma' in config_map:
-        gamma = config_map['gamma']
-        if type(gamma) != float:
-            config_error = 0
-            error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
-            print('gamma should be float')
-            return (error_message)
-
-    config_parameter = 'Detdist'
-    if 'detdist' in config_map:
-        detdist = config_map['detdist']
-        if type(detdist) != float:
-            config_error = 0
-            error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
-            print('detdist should be float')
-            return (error_message)
-
-    config_parameter = 'Dth'
-    if 'dth' in config_map:
-        dth = config_map['dth']
-        if type(dth) != float:
-            config_error = 0
-            error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
-            print('dth should be float')
-            return (error_message)
-
     return ("")
-
 
 
 def ver_config_instr(config_map):
@@ -357,13 +285,13 @@ def ver_config_instr(config_map):
         if type(diffractometer) != str:
             config_error = 1
             error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
-            print('diffractometer parameter should be string')
+            print(error_message)
             return (error_message)
     else:
         config_error = 0
         error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
-        print('missing mandatory diffractometer parameter')
-        return ''
+        print(error_message)
+        return ''  # in some cases the parameters might be given
 
     config_parameter = 'Specfile'
     if 'specfile' in config_map:
@@ -385,7 +313,7 @@ def ver_config_instr(config_map):
         if type(detector) != str:
             config_error = 0
             error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
-            print('detector parameter should be string')
+            print(error_message)
             return (error_message)
 
     config_parameter = 'Crop'
@@ -394,23 +322,14 @@ def ver_config_instr(config_map):
         if not issubclass(type(crop), list):
             config_error = 0
             error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
-            print('crop should be list')
+            print(error_message)
             return (error_message)
         for e in crop:
             if type(e) != int and type(e) != float:
                 config_error = 1
                 error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
-                print('crop should be a list of int or float')
+                print(error_message)
                 return (error_message)
-
-    config_parameter = 'Rampups'
-    if 'rampups' in config_map:
-        rampups = config_map['rampups']
-        if type(rampups) != int:
-            config_error = 0
-            error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
-            print('rampups should be float')
-            return (error_message)
 
     config_parameter = 'Energy'
     if 'energy' in config_map:
@@ -418,7 +337,7 @@ def ver_config_instr(config_map):
         if type(energy) != float:
             config_error = 0
             error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
-            print('energy should be float')
+            print(error_message)
             return (error_message)
 
     config_parameter = 'Delta'
@@ -427,7 +346,7 @@ def ver_config_instr(config_map):
         if type(delta) != float:
             config_error = 0
             error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
-            print('delta should be float')
+            print(error_message)
             return (error_message)
 
     config_parameter = 'Gamma'
@@ -436,7 +355,7 @@ def ver_config_instr(config_map):
         if type(gamma) != float:
             config_error = 0
             error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
-            print('gamma should be float')
+            print(error_message)
             return (error_message)
 
     config_parameter = 'Detdist'
@@ -445,7 +364,7 @@ def ver_config_instr(config_map):
         if type(detdist) != float:
             config_error = 0
             error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
-            print('detdist should be float')
+            print(error_message)
             return (error_message)
 
     config_parameter = 'Dth'
@@ -454,7 +373,7 @@ def ver_config_instr(config_map):
         if type(dth) != float:
             config_error = 0
             error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
-            print('dth should be float')
+            print(error_message)
             return (error_message)
 
     return ("")

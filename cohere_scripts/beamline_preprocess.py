@@ -49,9 +49,9 @@ def handle_prep(experiment_dir, **kwargs):
 
     # requesting the configuration files that provide parameters for preprocessing
     conf_list = ['config_prep', 'config_instr', 'config_mp']
-    err_msg, conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, **kwargs)
-    if len(err_msg) > 0:
-        return err_msg
+    conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, **kwargs)
+    # if len(err_msg) > 0:
+    #     return err_msg
 
     # check the maps
     if 'config_instr' not in conf_maps.keys():
@@ -63,23 +63,14 @@ def handle_prep(experiment_dir, **kwargs):
 
     # checked already if beamline is configured
     beamline = main_conf_map['beamline']
-    try:
-        instr_module = importlib.import_module(f'beamlines.{beamline}.instrument')
-        preprocessor = importlib.import_module(f'beamlines.{beamline}.preprocessor')
-    except Exception as e:
-        print(e)
-        print(f'cannot import beamlines.{beamline} module.')
-        return f'cannot import beamlines.{beamline} module.'
+    instr_module = importlib.import_module(f'beamlines.{beamline}.instrument')
+    preprocessor = importlib.import_module(f'beamlines.{beamline}.preprocessor')
 
-    prep_conf_map = conf_maps.get('config_prep', {})
-
-    # config_instr contain all parameters needed to create instrument object
-    # add main config and mutipeak config to parameters, as the beamline might need them
-    # example: beamline 34idc needs scan number to parse spec file
+    # combine parameters from the above configuration files into one dictionary
     all_params = {k:v for d in conf_maps.values() for k,v in d.items()}
-    instr_obj = instr_module.create_instr(all_params)
-    if instr_obj is None:
-        return 'cannot create instrument, check configuration'
+
+    need_detector = True # for preprocessing
+    instr_obj = instr_module.create_instr(all_params, need_detector=need_detector)
 
     # get the settings from main config
     auto_data = main_conf_map.get('auto_data', False)
@@ -87,7 +78,7 @@ def handle_prep(experiment_dir, **kwargs):
     separate_scan_ranges = main_conf_map.get('separate_scan_ranges', False)
     multipeak = main_conf_map.get('multipeak', False)
 
-    # get tuples of (scan, data info) for for each scan in the scan ranges.
+    # get tuples of (scan, data info) for each scan in the scan ranges.
     # The scan_datainfo is a list of sub-lists, each sub-list reflects scan range.
     # If there is a single scan, the output will be: [[(scan, data info)]].
     #
@@ -98,17 +89,23 @@ def handle_prep(experiment_dir, **kwargs):
     # another way, the parsing and creating scans_datainfo is encapsulated in the beamline instrument
     # object. The following logic still applies.
     scans_datainfo = instr_obj.datainfo4scans()
+
     if len(scans_datainfo) == 0:
-        print('no data found')
-        return ''
+        print('no data found for scans, exiting')
+        return
 
     # remove exclude_scans from the scans_dirs
-    remove_scans = prep_conf_map.get('remove_scans', None)
+    remove_scans = all_params.get('remove_scans', None)
     if remove_scans is not None:
         scans_datainfo = [[s_d for s_d in batch if s_d[0] not in remove_scans] for batch in scans_datainfo]
 
+    if len(scans_datainfo) == 0:
+        print('no data left after removing scans, exiting')
+        return
+
     # auto_data should not be configured for separate scans
     if auto_data and not separate_scans:
+        prep_conf_map = conf_maps.get('config_prep', {})
         # get all (scan, data info) tuples, process each scan and save the data in scans directories.
         single_scans_datainfo = [s_d for batch in scans_datainfo for s_d in batch]
         # passing in lambda: instr_obj.get_scan_array as the function is instrument dependent
@@ -138,7 +135,7 @@ def handle_prep(experiment_dir, **kwargs):
         for p in processes:
             p.join()
     elif multipeak:
-        mp.preprocess(preprocessor, instr_obj, scans_datainfo, experiment_dir, conf_maps['config_mp'])
+        mp.preprocess(preprocessor, instr_obj, scans_datainfo, experiment_dir, all_params)
     else:
         # combine all scans
         scans_datainfo = [e for batch in scans_datainfo for e in batch]
@@ -157,6 +154,7 @@ def main():
     parser.add_argument("--debug", action="store_true",
                         help="not used currently, available to developer for debugging")
     args = parser.parse_args()
+
     handle_prep(args.experiment_dir, no_verify=args.no_verify, debug=args.debug)
 
 

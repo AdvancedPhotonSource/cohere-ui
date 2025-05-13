@@ -3,6 +3,7 @@ from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 import ast
 import cohere_core.utilities as ut
+import beamlines.esrf_id01.beam_verifier as ver
 
 
 def msg_window(text):
@@ -209,6 +210,12 @@ class PrepTab(QWidget):
             return
         else:
             conf_map = self.get_prep_config()
+        # verify that prep configuration is ok
+        er_msg = ver.verify('config_prep', conf_map)
+        if len(er_msg) > 0:
+            msg_window(er_msg)
+            if not self.main_win.no_verify:
+              return
 
         # all parameters are optional, file can be empty
         if len(conf_map) > 0:
@@ -224,7 +231,10 @@ class PrepTab(QWidget):
                 conf_map['outliers_scans'] = current_prep_map['outliers_scans']
         ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
 
-        self.tabs.run_prep()
+        msg = self.tabs.run_prep()
+        if len(msg) > 0:
+            msg_window(msg)
+            return
 
         # reload the window if auto_data as the outliers_scans could change
         if auto_data:
@@ -238,6 +248,12 @@ class PrepTab(QWidget):
             return
 
         conf_map = self.get_prep_config()
+        # verify that prep configuration is ok
+        er_msg = ver.verify('config_prep', conf_map)
+        if len(er_msg) > 0:
+            msg_window(er_msg)
+            if not self.main_win.no_verify:
+              return
         if len(conf_map) > 0:
             ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
 
@@ -420,6 +436,11 @@ class DispTab(QWidget):
             return
 
         conf_map = self.get_disp_config()
+        er_msg = ver.verify('config_disp', conf_map)
+        if len(er_msg) > 0:
+            msg_window(er_msg)
+            if not self.main_win.no_verify:
+                return
         if len(conf_map) > 0:
             ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
 
@@ -641,6 +662,11 @@ class InstrTab(QWidget):
             return
 
         # verify here
+        er_msg = ver.verify('config_instr', conf_map)
+        if len(er_msg) > 0:
+            msg_window(er_msg)
+            if not self.main_win.no_verify:
+                return
 
         ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_instr'))
 

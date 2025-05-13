@@ -3,6 +3,7 @@ from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 import ast
 import cohere_core.utilities as ut
+import beamlines.Petra3_P10.beam_verifier as ver
 
 
 def msg_window(text):
@@ -239,6 +240,13 @@ class PrepTab(QWidget):
         else:
             conf_map = self.get_prep_config()
 
+        # verify that prep configuration is ok
+        er_msg = ver.verify('config_prep', conf_map)
+        if len(er_msg) > 0:
+            msg_window(er_msg)
+            if not self.main_win.no_verify:
+              return
+
         main_config_map = ut.read_config(ut.join(self.main_win.experiment_dir, 'conf', 'config'))
         auto_data = 'auto_data' in main_config_map and main_config_map['auto_data']
 
@@ -249,7 +257,10 @@ class PrepTab(QWidget):
                 conf_map['outliers_scans'] = current_prep_map['outliers_scans']
         ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
 
-        self.tabs.run_prep()
+        msg = self.tabs.run_prep()
+        if len(msg) > 0:
+            msg_window(msg)
+            return
 
         # reload the window if auto_data as the outliers_scans could change
         if auto_data:
@@ -454,7 +465,17 @@ class DispTab(QWidget):
             msg_window('the results directory is not set')
             return
 
-        self.save_conf()
+        conf_map = self.get_disp_config()
+
+        # verify that prep configuration is ok
+        er_msg = ver.verify('config_disp', conf_map)
+        if len(er_msg) > 0:
+            msg_window(er_msg)
+            if not self.main_win.no_verify:
+                return
+
+        if len(conf_map) > 0:
+            ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
 
         self.tabs.run_viz()
 
@@ -465,6 +486,11 @@ class DispTab(QWidget):
             return
 
         conf_map = self.get_disp_config()
+        er_msg = ver.verify('config_disp', conf_map)
+        if len(er_msg) > 0:
+            msg_window(er_msg)
+            if not self.main_win.no_verify:
+                return
         if len(conf_map) > 0:
             ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
 
@@ -695,6 +721,12 @@ class SubInstrTab():
             msg_window ('cannot parse fio, diffractometer not defined')
             return
 
+        import beamlines.Petra3_P10.diffractometers as diff
+
+        if diffractometer not in diff.diffs.keys():
+            msg_window (f'diffractometer {diffractometer} not defined')
+            return
+
         data_dir = self.instr_tab.data_dir_button.text()
         if len(data_dir) == 0:
             msg_window ('data_dir not defined')
@@ -704,8 +736,6 @@ class SubInstrTab():
         if len(sample) == 0:
             msg_window ('sample not defined')
             return
-
-        import beamlines.Petra3_P10.diffractometers as diff
 
         try:
             params = {'data_dir' : data_dir, 'sample' : sample}
@@ -869,7 +899,7 @@ class InstrTab(QWidget):
         -------
         nothing
         """
-        data_dir = select_dir(os.getcwd().replace(os.sep, '/')).replace(os.sep, '/')
+        data_dir = select_dir(os.getcwd().replace(os.sep, '/'))
         if data_dir is not None:
             self.data_dir_button.setStyleSheet("Text-align:left")
             self.data_dir_button.setText(data_dir)
@@ -943,6 +973,12 @@ class InstrTab(QWidget):
             return
 
         conf_map = self.get_instr_config()
+        er_msg = ver.verify('config_instr', conf_map)
+        if len(er_msg) > 0:
+            msg_window(er_msg)
+            if not self.main_win.no_verify:
+                return
+
         if len(conf_map) == 0:
             return
 

@@ -60,7 +60,7 @@ class Instrument:
         return self.diff_obj.get_geometry(shape, scan, conf_params)
 
 
-def create_instr(params):
+def create_instr(params, **kwargs):
     """
     Build factory for the Instrument class.
 

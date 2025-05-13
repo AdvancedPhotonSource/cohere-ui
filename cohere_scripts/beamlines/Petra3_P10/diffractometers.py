@@ -62,13 +62,13 @@ class Diffractometer_P10sixc(Diffractometer):
         if self.data_dir is None or self.sample is None:
             return {}
         if not os.path.isdir(self.data_dir):
-            print (f"the data path {self.data_dir} does not exist, will use configured parameters instead of parsing." )
+            print (f"the data path {self.data_dir} does not exist, parsing not possible." )
             return {}
         if not os.path.isdir(ut.join(self.data_dir, self.sample + '_{:05d}'.format(scan))):
-            print (f"the data/sample path {self.data_dir}/{self.sample + '_{:05d}'.format(scan)} does not exist, will use configured parameters instead of parsing." )
+            print (f"the data/sample path {self.data_dir}/{self.sample + '_{:05d}'.format(scan)} does not exist, parsing not possible." )
             return {}
         fio_dict = {}
-        scanmeta=p10sr.P10Scan(self.data_dir, self.sample, scan, pathsave='', creat_save_folder=False)
+        scanmeta = p10sr.P10Scan(self.data_dir, self.sample, scan, pathsave='', creat_save_folder=False)
         command = scanmeta.command.split()
         fio_dict['scanmot'] = command[1]
         fio_dict['scanmot_del'] = (float(command[3]) - float(command[2])) / int(command[4])
@@ -215,6 +215,26 @@ class Diffractometer_P10sixc(Diffractometer):
         return (Trecip, Tdir)
 
 
+    @staticmethod
+    def check_mandatory_params(params):
+        """
+        For the P10sixc diffractometer the data_dir, sample are mandatory parameters.
+
+        :params: parameters needed to create detector
+        :return: message indicating problem or empty message if all is ok
+        """
+        if  'data_dir' not in params:
+            return 'data_dir parameter not configured, mandatory for P10sixc diffractometer.'
+        data_dir = params['data_dir']
+        if not os.path.isdir(data_dir):
+            return f'data_dir directory {data_dir} does not exist.'
+
+        if 'sample' not in params:
+            return 'sample parameter not configured, mandatory for e4m detector.'
+
+        return ''
+
+
 def create_diffractometer(diff_name, params):
     if diff_name is None:
         print('diffractometer name not provided')
@@ -227,3 +247,9 @@ def create_diffractometer(diff_name, params):
     else:
         print (f'diffractometer {diff_name} not defined.')
         return None
+
+
+diffs = {'P10sixc' : Diffractometer_P10sixc}
+
+def check_mandatory_params(diff_name, params):
+    return diffs[diff_name].check_mandatory_params(params)

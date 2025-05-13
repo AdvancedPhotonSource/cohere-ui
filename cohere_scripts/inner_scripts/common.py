@@ -33,13 +33,15 @@ def get_config_maps(experiment_dir, configs, **kwargs):
     conf_dir = ut.join(experiment_dir, 'conf')
     main_conf = ut.join(conf_dir, 'config')
     if not os.path.isfile(main_conf):
-        return 'no main config', maps, None
+        # return 'no main config, exiting.', maps, None
+        raise ValueError('no main config, exiting.')
     main_config_map = ut.read_config(main_conf)
 
     msg = ut.verify('config', main_config_map)
     if len(msg) > 0:
         if not no_verify:
-            return msg, maps, None
+            raise ValueError(msg)
+           # return msg, maps, None
 
     converted = False
 
@@ -55,7 +57,8 @@ def get_config_maps(experiment_dir, configs, **kwargs):
         # the configuration file applies to specific beamline and needs to be imported
         beamline = main_config_map.get('beamline', None)
         if beamline is None:
-            return f'cannot import beamlines.{beamline} module.', maps, None
+            raise ValueError(f'cannot import beamlines.{beamline} module, exiting.')
+            # return f'cannot import beamlines.{beamline} module, exiting.', maps, None
         import importlib
         beam_ver = importlib.import_module(f'beamlines.{beamline}.beam_verifier')
     else:
@@ -77,13 +80,12 @@ def get_config_maps(experiment_dir, configs, **kwargs):
         # verify the config map, for beamline specific conf file the verifier has to be imported
         msg = verifier_map[conf].verify(conf, config_map)
         if len(msg) > 0:
-            print(msg)
             if not no_verify:
-                return msg, maps, None
+                raise ValueError(msg)
 
         maps[conf] = config_map
 
-    return '', maps, converted
+    return maps, converted
 
 
 def get_pkg(proc, dev):
@@ -123,4 +125,7 @@ def get_pkg(proc, dev):
     else:
         err_msg = f'invalid "processing" value, {proc} is not supported'
 
-    return err_msg, pkg
+    if len(err_msg) > 0:
+        raise ValueError(err_msg)
+
+    return pkg

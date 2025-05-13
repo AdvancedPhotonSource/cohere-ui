@@ -1,3 +1,2 @@
-results_dir = "/home/phoebus3/BFROSIK/coh-dev/cohere-ui/example_workspace/P_63/results_phasing"
 crop = [0.5, 0.5, 0.5]
 rampups = 1

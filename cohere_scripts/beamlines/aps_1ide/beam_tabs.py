@@ -722,9 +722,9 @@ class SubInstrTab():
         import beamlines.aps_1ide.diffractometers as diff
 
         try:
-            diff_obj = diff.create_diffractometer(diffractometer, specfile=specfile)
+            diff_obj = diff.create_diffractometer(diffractometer, {'specfile':specfile})
         except:
-            msg_window ('cannot create diffractometer', diffractometer)
+            msg_window (f'cannot create diffractometer {diffractometer}', diffractometer)
             return
 
         last_scan = int(scan.split('-')[-1].split(',')[-1])

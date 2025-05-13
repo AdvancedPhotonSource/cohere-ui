@@ -1,5 +1,4 @@
 diffractometer = "1ide"
-specfile = "specfile"
 vff_r_offset = -0.107
 vff_eta_offset = 0.232
 energy = 52.0

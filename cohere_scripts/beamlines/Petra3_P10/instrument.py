@@ -1,7 +1,9 @@
 import beamlines.Petra3_P10.diffractometers as diff
 import beamlines.Petra3_P10.detectors as det
 import re
+import os
 import beamlines.Petra3_P10.p10_scan_reader as p10sr
+import cohere_core.utilities as ut
 
 
 class Instrument:
@@ -63,7 +65,7 @@ class Instrument:
         return self.diff_obj.get_geometry(shape, scan, conf_params)
 
 
-def create_instr(params):
+def create_instr(params, **kwargs):
     """
     Build factory for the Instrument class.
 
@@ -81,6 +83,17 @@ def create_instr(params):
     diff_obj = None
     scan_ranges = None
 
+    diff_name = params.get('diffractometer', None)
+    if diff_name is None:
+        raise ValueError(f'diffractometer parameter not defined')
+    else:
+        err_msg = diff.check_mandatory_params(diff_name, params)
+        if len(err_msg) > 0:
+            raise ValueError(err_msg)
+        diff_obj = diff.create_diffractometer(diff_name, params)
+        if diff_obj is None:
+            raise ValueError(f'failed create diffractometer {diff_name}')
+
     scan = params.get('scan', None)
     if scan is not None:
         # 'scan' is configured as string. It can be a single scan, range, or combination separated by comma.
@@ -96,20 +109,32 @@ def create_instr(params):
                 scan_ranges.append([int(u), int(u)])
 
     det_name = params.pop('detector', None)
-    if det_name is None and 'scan' in params.keys():
+    if det_name is None and scan is not None:
         # try to parse detector name
         # Find the first scan to parse detector params.
         first_scan = scan_ranges[0][0]
+        # the directories for Petra are structured as follows: <data_dir>/<sample>scan
+        # check here if that directory exist
+        data_dir = params['data_dir']
+        scan_subdir = params['sample'] + '_{:05d}'.format(int(scan))
+        if not os.path.isdir(ut.join(data_dir, scan_subdir)):
+            raise ValueError (f"cannot parse det_name, the data/sample path {data_dir}/{scan_subdir} does not exist." )
+
         scanmeta = p10sr.P10Scan(params.get('data_dir'), params.get('sample'), first_scan, pathsave='', creat_save_folder=True)
         det_name = scanmeta.get_motor_pos('_ccd')
-    if det_name is not None:
-        det_obj = det.create_detector(det_name, params)
 
-    diff_name = params.get('diffractometer', None)
-    if diff_name is not None:
-        diff_obj = diff.create_diffractometer(diff_name, params)
-        if diff_obj is None:
-            return None
+    if det_name is None:
+        raise ValueError('detector name not configured and could not be parsed')
+    if 'need_detector' in kwargs and kwargs['need_detector']:
+        # check for parameters
+        err_msg = det.check_mandatory_params(det_name, params)
+        if len(err_msg) > 0:
+            raise ValueError(err_msg)
+
+        det_obj = det.create_detector(det_name, params)
+        if det_obj is None:
+            raise ValueError(f'failed create detector {det_name}')
+
     instr = Instrument(det_obj, diff_obj)
     instr.scan_ranges = scan_ranges
 

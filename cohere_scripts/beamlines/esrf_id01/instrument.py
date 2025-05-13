@@ -1,5 +1,7 @@
 import beamlines.esrf_id01.diffractometers as diff
 import beamlines.esrf_id01.detectors as det
+import os
+import cohere_core.utilities as ut
 
 
 class Instrument:
@@ -8,7 +10,7 @@ class Instrument:
       It provides interface to get the classes encapsulating the diffractometer and detector.
     """
 
-    def __init__(self, *args):
+    def __init__(self, h5file, diff_obj, det_obj, detector):
         """
         The constructor.
 
@@ -22,9 +24,9 @@ class Instrument:
         str
             a string containing error message or empty
         """
-        (self.h5file, diffractometer, detector, roi) = args
-        self.diff_obj = diff.create_diffractometer(diffractometer)
-        self.det_obj = det.create_detector(detector, roi=roi)
+        self.h5file = h5file
+        self.diff_obj = diff_obj
+        self.det_obj = det_obj
         self.detector = detector
 
 
@@ -66,7 +68,7 @@ class Instrument:
         return self.diff_obj.get_geometry(shape, scan, params)
 
 
-def create_instr(params):
+def create_instr(params, **kwargs):
     """
     Build factory for the Instrument class.
 
@@ -80,20 +82,34 @@ def create_instr(params):
     (str, Object)
         error msg, Instrument object or None
     """
+    det_obj = None
+
     h5file = params.get('h5file', None)
     if h5file is None:
-        print ('h5file file must be provided to create Instrument for esrf_id01 beamline')
-        return None
+        raise ValueError('h5file file must be provided to create Instrument for esrf_id01 beamline')
+    # check if the file exist
+    if not os.path.isfile(h5file):
+        raise ValueError(f'h5file {h5file} does not exist.')
+
     diffractometer = params.get('diffractometer', None)
     if diffractometer is None:
-        print ('diffractometer must be provided to create Instrument for esrf_id01 beamline')
-        return None
+        raise ValueError('diffractometer must be provided to create Instrument for esrf_id01 beamline')
+
     detector = params.get('detector', None)
     if detector is None:
-        print ('detector must be provided to create Instrument for esrf_id01 beamline')
-        return None
-    roi = params.get('roi', None)
-    instr = Instrument(h5file, diffractometer, detector, roi)
+        raise ValueError('detector must be provided to create Instrument for esrf_id01 beamline')
+
+    diff_obj = diff.create_diffractometer(diffractometer)
+    if diff_obj is None:
+        raise ValueError(f'failed create diffractometer {diffractometer}')
+
+    if 'need_detector' in kwargs:
+        roi = params.get('roi', None)
+        det_obj = det.create_detector(detector, roi=roi)
+        if det_obj is None:
+            raise ValueError(f'failed create detector {detector}')
+
+    instr = Instrument(h5file, diff_obj, det_obj, detector)
 
     scan = params.get('scan', None)
     if scan is not None:
