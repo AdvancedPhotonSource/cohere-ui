@@ -48,11 +48,12 @@ def format_data(experiment_dir, **kwargs):
     main_conf_map = conf_maps['config']
     auto_data = main_conf_map.get('auto_data', False)
 
-    # check the maps
-    data_conf_map = conf_maps.get('config_data', {})
-    if 'config_data' not in conf_maps.keys() and not auto_data: # not possible to get intensity threshold
+    if 'config_data' not in conf_maps and not auto_data: # not possible to get intensity threshold
         raise ValueError('Missing config_data file and not auto_data, cannot determine intensity threshold.')
         #return 'Missing config_data file and not auto_data, cannot determine intensity threshold.'
+
+    # check the maps
+    data_conf_map = conf_maps.get('config_data', {})
 
     dirs = os.listdir(experiment_dir)
     for dir in dirs:

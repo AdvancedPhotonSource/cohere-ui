@@ -231,10 +231,7 @@ class PrepTab(QWidget):
                 conf_map['outliers_scans'] = current_prep_map['outliers_scans']
         ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
 
-        msg = self.tabs.run_prep()
-        if len(msg) > 0:
-            msg_window(msg)
-            return
+        self.tabs.run_prep()
 
         # reload the window if auto_data as the outliers_scans could change
         if auto_data:

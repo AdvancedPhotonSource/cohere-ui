@@ -284,9 +284,8 @@ def manage_reconstruction(experiment_dir, **kwargs):
         except:
             print('configure device as list of int(s) for simple case')
             return
-        err_msg = reconstruction_single(pkg, conf_file, datafile, dir, dev, **kwargs)
-        if len(err_msg) > 0:
-            return err_msg
+        reconstruction_single(pkg, conf_file, datafile, dir, dev, **kwargs)
+
         print('finished reconstruction')
         return
 

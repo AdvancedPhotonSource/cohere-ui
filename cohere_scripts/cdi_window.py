@@ -569,24 +569,28 @@ class Tabs(QTabWidget):
 
 
     def run_all(self):
-        import everything
+        for tab in self.tabs:
+            tab.run_tab()
 
-        everything.run_all(self.main_win.experiment_dir, no_verify=self.main_win.no_verify)
 
     def run_prep(self):
         import beamline_preprocess as prep
 
         # this line is passing all parameters from command line to prep script. 
-        # if there are other parameters, one can add some code here
-        msg = prep.handle_prep(self.main_win.experiment_dir, no_verify=self.main_win.no_verify)
-        return msg
+        # if there are other parameters, one can add some code here        
+        try:
+            prep.handle_prep(self.main_win.experiment_dir, no_verify=self.main_win.no_verify)
+        except ValueError as e:
+            msg_window(str(e))
+
 
     def run_viz(self):
         import beamline_visualization as dp
-
-        msg = dp.handle_visualization(self.main_win.experiment_dir, no_verify=self.main_win.no_verify)
-        if len(msg) > 0:
-            msg_window(msg)
+       
+        try:
+            dp.handle_visualization(self.main_win.experiment_dir, no_verify=self.main_win.no_verify)
+        except ValueError as e:
+            msg_window(str(e))
 
 
     def load_conf(self, conf_dirs):
@@ -886,13 +890,14 @@ class DataTab(QWidget):
                     break
             if found_file:
                 conf_map = self.get_data_config()
-                # verify that data configuration is ok
-                er_msg = ut.verify('config_data', conf_map)
-                if len(er_msg) > 0:
-                    msg_window(er_msg)
-                    if not self.main_win.no_verify:
-                        return
-                ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_data'))
+                if len(conf_map) > 0:
+                    # verify that data configuration is ok
+                    er_msg = ut.verify('config_data', conf_map)
+                    if len(er_msg) > 0:
+                        msg_window(er_msg)
+                        if not self.main_win.no_verify:
+                            return
+                    ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_data'))
                 try:
                     run_dt.format_data(self.main_win.experiment_dir, no_verify=self.main_win.no_verify)
                 except ValueError as e:
