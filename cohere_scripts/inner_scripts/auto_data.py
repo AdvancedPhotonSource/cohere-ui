@@ -122,13 +122,21 @@ def find_outlier_scans(experiment_dir, scans_datainfo, separate_ranges):
     :return: list of int
         list of outliers scans
     """
+    def remove_scan_dirs():
+        # remove individual scan directories
+        for scan_dir in os.listdir(experiment_dir):
+            if scan_dir.startswith('scan'):
+                shutil.rmtree(ut.join(experiment_dir, scan_dir))
+
     if separate_ranges:
         auto_batches = [batch for batch in scans_datainfo if len(batch) > 3]
         if len(auto_batches) == 0:
+            remove_scan_dirs()
             return []
     else:
         auto_batches = [s_d for batch in scans_datainfo for s_d in batch]
         if len(auto_batches) <= 3:
+            remove_scan_dirs()
             return []
         else:
             # make it a single sub-list
@@ -185,9 +193,8 @@ def find_outlier_scans(experiment_dir, scans_datainfo, separate_ranges):
             p.join()
 
     # remove individual scan directories
-    for scan_dir in os.listdir(experiment_dir):
-        if scan_dir.startswith('scan'):
-            shutil.rmtree(ut.join(experiment_dir, scan_dir))
+    remove_scan_dirs()
+
     outliers.sort()
     return outliers
 
