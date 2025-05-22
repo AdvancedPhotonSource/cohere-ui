@@ -22,3 +22,60 @@ make_twin = False
 save_dir = "results_viz"
                            // Optional, a directory where the results of visualization will be saved.
                            // Defaults to <experiment_dir>/results_viz
+
+write_recip = True
+                           // If True the reciprocal_space.vts file will be saved with arrays of
+                           // phasing data and inverse fourier of that data
+
+complex_mode = "AmpPhase"
+                           // This mode determines arrays that will be saved in the direct space images file.
+                           // If mode is "AmpPhase" the "imAmp" and "imPh" arrays will be saved that hold
+                           // image amplitudes and image phases.
+                           // if mode is "ReIm" the "imRe" and "imImag" arrays will be saved that hold real
+                           // values and imaginary values.
+
+#crops based on extent of imAmp
+imcrop = "tight"
+                           // Defines how crop is determined. Supported values: "fraction' and "tight".
+                           // If defined as fraction, the defined fraction of each dimension is cropped
+                           // around maximum value.
+                           // The "tight" defines crop being determined by imcrop_margin and imcrop_thresh
+                           // parameters applied to the image. The extend subarray will be derived from image array
+                           // by finding points greater than threshold multiplied by maximum value.
+                           // A margin will be added to each side of the extend array.
+
+imcrop_margin = 10
+                           // Required parameter when imcrop is configured "tight". The margin will be added
+                           // to each side of the extend array.
+
+imcrop_thresh = 0.5
+                           // Required parameter when imcrop is configured "tight". The threshold will
+                           // determine the extend of the array.
+
+
+#imcrop = "fraction"
+imcrop_fraction = [0.3, 0.25, 1]
+                           // Required parameter when imcrop is configured "fraction". Defines size of the
+                           // cropped array relative to the full image array. The full array is cropped around
+                           // maximum value.
+
+interpolation_mode = "AmpPhase"
+                           // Defines how the image is interpolated. Supported values: "AmpPhase" and "Complex".
+                           // If defined as "AmpPhase" the image amplitudes and image phases are interpolated.
+                           // If defined as "Complex" the image real values and imaginary are interpolated, and
+                           // then the interpolated image amplitudes and image phases are calculated.
+
+interpolation_resolution = "min-deconv_res"
+                           // Required parameter for interpolatiion. Supported values: "min-deconv_res", int value, list.
+                           // If set to "min-deconv_res" the resolution will be determined by including the
+                           // deconvolution resolution.
+                           // If defined as integer value the resolution will be set to this value in each dimension.
+                           // If defined as list, the list will define resolution in corresponding dimension.
+
+
+determine_resolution = "deconv"
+                           // If present, the resolution in direct and reciprocal spaces will be found.
+                           // Supported value: "deconv".
+
+resolution_deconv_contrast=0.25
+#determine_resolution="prtf"  #needs many reconstructions isn't done yet
