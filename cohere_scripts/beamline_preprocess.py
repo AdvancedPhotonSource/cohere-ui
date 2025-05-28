@@ -50,14 +50,15 @@ def handle_prep(experiment_dir, **kwargs):
     # requesting the configuration files that provide parameters for preprocessing
     conf_list = ['config_prep', 'config_instr', 'config_mp']
     conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, **kwargs)
-    # if len(err_msg) > 0:
-    #     return err_msg
 
     # check the maps
     if 'config_instr' not in conf_maps.keys():
         return 'missing config_instr file, exiting'
     if 'config_prep' not in conf_maps.keys():
-        print('info: no config_prep file, continue with no parameters')
+        print('info: no config_prep file, continuing')
+        remove_scans = None
+    else:
+        remove_scans = conf_maps['config_prep'].get('remove_scans', None)
 
     main_conf_map = conf_maps['config']
 
@@ -66,11 +67,11 @@ def handle_prep(experiment_dir, **kwargs):
     instr_module = importlib.import_module(f'beamlines.{beamline}.instrument')
     preprocessor = importlib.import_module(f'beamlines.{beamline}.preprocessor')
 
-    # combine parameters from the above configuration files into one dictionary
-    all_params = {k:v for d in conf_maps.values() for k,v in d.items()}
+    # # combine parameters from the above configuration files into one dictionary
+    # all_params = {k:v for d in conf_maps.values() for k,v in d.items()}
 
-    need_detector = True # for preprocessing
-    instr_obj = instr_module.create_instr(all_params, need_detector=need_detector)
+    need_detector = True # need to create for preprocessing
+    instr_obj = instr_module.create_instr(conf_maps, need_detector=need_detector)
 
     # get the settings from main config
     auto_data = main_conf_map.get('auto_data', False)
@@ -95,7 +96,6 @@ def handle_prep(experiment_dir, **kwargs):
         return
 
     # remove exclude_scans from the scans_dirs
-    remove_scans = all_params.get('remove_scans', None)
     if remove_scans is not None:
         scans_datainfo = [[s_d for s_d in batch if s_d[0] not in remove_scans] for batch in scans_datainfo]
 
@@ -135,7 +135,7 @@ def handle_prep(experiment_dir, **kwargs):
         for p in processes:
             p.join()
     elif multipeak:
-        mp.preprocess(preprocessor, instr_obj, scans_datainfo, experiment_dir, all_params)
+        mp.preprocess(preprocessor, instr_obj, scans_datainfo, experiment_dir, conf_maps)
     else:
         # combine all scans
         scans_datainfo = [e for batch in scans_datainfo for e in batch]

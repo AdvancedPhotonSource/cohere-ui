@@ -17,27 +17,23 @@ class Detector(ABC):
 
     def dirs4scans(self, scans):
         """
-        Finds info allowing to read data that correspond to given scans or scan ranges.
-        The info can be directories where the data related to scans is stored.
+        Finds directories with data that correspond to given scans or scan ranges.
 
         :param scans : list
             list of sub-lists defining scan ranges, ordered. For single scan a range has the same scan as beginning and end.
-        :return:
-        list of sub-lists the input scans, or scans ranges with the corresponding directories
-
-       examples:
-       one scan
+            one scan example:
             scans : [[2834, 2834]]
-            returns : [[(2834, f'{path}/{prefix}2834)]]
+            returns : [[(2834, f'{path}/data_S2834)]]
 
-       separate ranges
-            ex1: [[2825, 2831], [2834, 2834], [2840, 2876]]
-            returns: [[(2825, f'{path}/{prefix}2825'), (2828, f'{path}/{prefix}2828'), (2831, f'{path}/{prefix}2831')],
-             [(2834, f'{path}/{prefix}2834)],
-             [(2840, f'{path}/{prefix}2840'), (2843, f'{path}/{prefix}2843'), (2846, f'{path}/{prefix}2846'), (2849, f'{path}/{prefix}2849'),
-              (2858, f'{path}/{prefix}2858'), (2861, f'{path}/{prefix}2861'), (2870, f'{path}/{prefix}2870'), (2873, f'{path}/{prefix}2873'),
-              (2876, f'{path}/{prefix}2876')]]
+            separate ranges example:
+            scans: [[2825, 2831], [2834, 2834], [2840, 2846]]
+            returns: [[(2825, f'{path}/data_S2825'), (2828, f'{path}/data_S2828'), (2831, f'{path}/data_S2831')],
+             [(2834, f'{path}/data_S2834)],
+             [(2840, f'{path}/data_S2840'), (2843, f'{path}/data_S2843'), (2846, f'{path}/data_S2846')]]
 
+        :return:
+        list of sub-lists, each sublist containing tuples with the input scans and corresponding data directories
+         within scan ranges.
         """
         scans_dirs_ranges = [[] for _ in range(len(scans))]
 
@@ -87,14 +83,14 @@ class Detector(ABC):
         """
         Applies the correction for detector.
 
-        :param frame: 2D raw data file representing a frame
+        :param data: 2D raw data file representing a frame
         :return: corrected frame
         """
 
 
 class Detector_e4m(Detector):
     """
-    Subclass of Detector. Encapsulates "34idcTIM1" detector.
+    Subclass of Detector. Encapsulates "e4m" detector.
     """
     name = "e4m"
     dims = (2167, 2070)

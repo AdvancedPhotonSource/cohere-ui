@@ -19,17 +19,18 @@ class Detector(ABC):
         Parameters
         ----------
         scans : list
-            list of tuples defining scan(s) and scan range(s), ordered
+            list of lists defining scan(s) and scan range(s), ordered
         h5file : str
             h5file containing the data
         Returns
         -------
         list
             a list of sublist, the sublist reflecting scan ranges or scans and containing tuples of existing scans
-            and node where the data for this scan is located
+            and nodes where the data for this scan is located
         """
         scans_nodes_ranges = []
         for (start, stop) in scans:
+            # todo add check
             scans_nodes_ranges.append([(i, f"{i}.1/measurement/{self.name}") for i in range(start, stop+1)])
 
         return scans_nodes_ranges
@@ -69,7 +70,7 @@ class Detector(ABC):
             print('scan, shape, max coordinates, max value', s, d.shape, np.unravel_index(np.argmax(d), d.shape), np.max(d))
 
         # apply correction if needed
-        # I think the rdata already is corrected
+        # the rdata already is corrected
 
         return data
 

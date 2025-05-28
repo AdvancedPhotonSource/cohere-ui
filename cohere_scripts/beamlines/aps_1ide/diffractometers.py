@@ -31,7 +31,7 @@ class Diffractometer(ABC):
 
 class Diffractometer_1ide(Diffractometer):
     """
-    Subclass of Diffractometer. Encapsulates "34idc" diffractometer.
+    Subclass of Diffractometer. Encapsulates "1ide" diffractometer.
     """
     name = "1ide"
     sampleaxes=('y-')  #omega is postive down
@@ -101,6 +101,7 @@ class Diffractometer_1ide(Diffractometer):
             print(str(ex))
 
         return spec_dict
+
 
     def check_params(self, params):
         if 'detector' not in params:

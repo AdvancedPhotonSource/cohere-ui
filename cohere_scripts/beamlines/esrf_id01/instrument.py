@@ -65,16 +65,19 @@ class Instrument:
         if self.diff_obj is None:
             raise RuntimeError
 
+        # get needed parameters into one flat dict
+        conf_params = conf_maps['config_instr']
+        conf_params['binning'] = conf_maps['config_data'].get('binning', [1,1,1])
         return self.diff_obj.get_geometry(shape, scan, params)
 
 
-def create_instr(params, **kwargs):
+def create_instr(configs, **kwargs):
     """
     Build factory for the Instrument class.
 
     Parameters
     ----------
-    params : dict
+    configs : dict
         the parameters parsed from config file
 
     Returns
@@ -84,34 +87,34 @@ def create_instr(params, **kwargs):
     """
     det_obj = None
 
-    h5file = params.get('h5file', None)
+    h5file = configs['config_instr'].get('h5file', None)
     if h5file is None:
         raise ValueError('h5file file must be provided to create Instrument for esrf_id01 beamline')
     # check if the file exist
     if not os.path.isfile(h5file):
-        raise ValueError(f'h5file {h5file} does not exist.')
+        raise ValueError("h5file does not exist", h5file)
 
-    diffractometer = params.get('diffractometer', None)
+    diffractometer = configs['config_instr'].get('diffractometer', None)
     if diffractometer is None:
         raise ValueError('diffractometer must be provided to create Instrument for esrf_id01 beamline')
 
-    detector = params.get('detector', None)
+    detector = configs['config_instr'].get('detector', None)
     if detector is None:
         raise ValueError('detector must be provided to create Instrument for esrf_id01 beamline')
 
     diff_obj = diff.create_diffractometer(diffractometer)
     if diff_obj is None:
-        raise ValueError(f'failed create diffractometer {diffractometer}')
+        raise ValueError('failed create diffractometer', diffractometer)
 
     if 'need_detector' in kwargs:
-        roi = params.get('roi', None)
+        roi = configs['config_prep'].get('roi', None)
         det_obj = det.create_detector(detector, roi=roi)
         if det_obj is None:
-            raise ValueError(f'failed create detector {detector}')
+            raise ValueError('failed create detector', detector)
 
     instr = Instrument(h5file, diff_obj, det_obj, detector)
 
-    scan = params.get('scan', None)
+    scan = configs['config'].get('scan', None)
     if scan is not None:
         # 'scan' is configured as string. It can be a single scan, range, or combination separated by comma.
         # Parse the scan into list of scan ranges, defined by starting scan, and ending scan, inclusive.

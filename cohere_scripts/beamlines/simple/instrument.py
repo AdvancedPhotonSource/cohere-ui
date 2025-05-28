@@ -39,16 +39,14 @@ class Instrument:
             returns : [[(2834, f'{path}/data_S2834)]]
 
             separate ranges example:
-            ex1: [[2825, 2831], [2834, 2834], [2840, 2876]]
+            scans: [[2825, 2831], [2834, 2834], [2840, 2846]]
             returns: [[(2825, f'{path}/data_S2825'), (2828, f'{path}/data_S2828'), (2831, f'{path}/data_S2831')],
              [(2834, f'{path}/data_S2834)],
-             [(2840, f'{path}/data_S2840'), (2843, f'{path}/data_S2843'), (2846, f'{path}/data_S2846'), (2849, f'{path}/data_S2849'),
-              (2852, f'{path}/data_S2852'), (2855, f'{path}/data_S2855'), (2858, f'{path}/data_S2858'), (2861, f'{path}/data_S2861'),
-              (2864, f'{path}/data_S2864'), (2867, f'{path}/data_S2867'), (2870, f'{path}/data_S2870'), (2873, f'{path}/data_S2873'),
-              (2876, f'{path}/data_S2876')]]
+             [(2840, f'{path}/data_S2840'), (2843, f'{path}/data_S2843'), (2846, f'{path}/data_S2846')]]
 
         :return:
-        list of sub-lists the input scans, or scans ranges with the corresponding info
+        list of sub-lists, each sublist containing tuples with the input scans and corresponding data info
+         within scan ranges.
         """
         # The detector function is typically renamed to reflect the info.
         # if the info is directory, the function name would be dirs4scans
@@ -95,7 +93,7 @@ class Instrument:
         return self.diff_obj.get_geometry(shape, scan, conf_params)
 
 
-def create_instr(params):
+def create_instr(configs, **kwargs):
     """
     Build factory for the Instrument class.
 
@@ -109,18 +107,28 @@ def create_instr(params):
     """
     det_obj = None
     diff_obj = None
-    det_name = params.get('detector', None)
-    if det_name is not None:
-        det_obj = det.create_detector(det_name, params)
+    instr_config_params = configs['config_instr']
+    det_name = instr_config_params.get('detector', None)
+    if det_name is None:
+        raise ValueError('detector name not configured in config_instr')
+
+    if 'need_detector' in kwargs and kwargs['need_detector']:
+        if 'config_prep' not in configs:
+            raise ValueError('missing config_prep')
+        det_params = instr_config_params
+        det_params.update(configs['config_prep'])
+
+        det_obj = det.create_detector(det_name, det_params)
         if det_obj is None:
-            return None
-    else:
-        print('missing "detector" in config_instr')
-    diff_name = params.get('diffractometer', None)
-    if diff_name is not None:
-        diff_obj = diff.create_diffractometer(diff_name)
-        if diff_obj is None:
-            return None
+            raise ValueError('failed create detector', det_name)
+
+    diff_name = instr_config_params.get('diffractometer', None)
+    if diff_name is None:
+        raise ValueError('detector name not configured in config_instr')
+
+    diff_obj = diff.create_diffractometer(diff_name)
+    if diff_obj is None:
+        raise ValueError('failed create diffractometer', diff_name)
 
     instr = Instrument(det_obj, diff_obj)
     if 'scan' in params:

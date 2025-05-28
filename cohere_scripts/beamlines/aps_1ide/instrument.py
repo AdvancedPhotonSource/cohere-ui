@@ -57,16 +57,19 @@ class Instrument:
         tuple
             (Trecip, Tdir)
         """
+        # get needed parameters into one flat dict
+        conf_params = conf_maps['config_instr']
+        conf_params['binning'] = conf_maps['config_data'].get('binning', [1,1,1])
         return self.diff_obj.get_geometry(shape, scan, conf_params)
 
 
-def create_instr(params, **kwargs):
+def create_instr(configs, **kwargs):
     """
     Build factory for the Instrument class.
 
     Parameters
     ----------
-    params : dict
+    configs : dict
         the parameters parsed from config file
 
     Returns
@@ -76,10 +79,36 @@ def create_instr(params, **kwargs):
     """
     det_obj = None
     diff_obj = None
-    det_params = {}
-    scan_ranges = None
+    main_config_params = configs['config']
 
-    scan = params.get('scan', None)
+    det_name = configs['config_instr'].get('detector', None)
+    if det_name is None:
+        raise ValueError('detector name not configured and could not be parsed')
+
+    if  'need_detector' in kwargs and kwargs['need_detector']:
+        if 'config_prep' not in configs:
+            raise ValueError('missing config_prep, required for beamline aps34-idc')
+        # set detector parameters to configured parameters in config_prep
+        det_params = configs['config_prep']
+        # check for parameters
+        err_msg = det.check_mandatory_params(det_name, det_params)
+        if len(err_msg) > 0:
+            raise ValueError(err_msg)
+
+        det_obj = det.create_detector(det_name, det_params)
+
+    diff_name = configs['config_instr'].get('diffractometer', None)
+    if diff_name is None:
+        raise ValueError('diffractometer parameter not defined')
+    else:
+        diff_obj = diff.create_diffractometer(diff_name, configs['config_instr'])
+        if diff_obj is None:
+            raise ValueError('failed create diffractometer', diff_name)
+
+    instr = Instrument(det_obj, diff_obj)
+    # set scan ranges in instrument class
+    scan_ranges = None
+    scan = main_config_params.get('scan', None)
     if scan is not None:
         # 'scan' is configured as string. It can be a single scan, range, or combination separated by comma.
         # Parse the scan into list of scan ranges, defined by starting scan, and ending scan, inclusive.
@@ -92,21 +121,6 @@ def create_instr(params, **kwargs):
                 scan_ranges.append([int(r[0]), int(r[1])])
             else:
                 scan_ranges.append([int(u), int(u)])
-
-   # override det_params with configured values in params
-    det_params.update(params)
-    det_name = det_params.get('detector', None)
-    if det_name is not None:
-        det_obj = det.create_detector(det_name, det_params)
-        if det_obj is None:
-            return None
-    diff_name = params.get('diffractometer', None)
-    if diff_name is not None:
-        diff_obj = diff.create_diffractometer(diff_name, params)
-        if diff_obj is None:
-            return None
-
-    instr = Instrument(det_obj, diff_obj)
     instr.scan_ranges = scan_ranges
 
     return instr

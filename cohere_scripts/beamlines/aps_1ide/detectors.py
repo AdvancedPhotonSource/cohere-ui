@@ -16,9 +16,7 @@ class Detector(ABC):
 
     def dirs4scans(self, scans):
         """
-        Finds info allowing to read data that correspond to given scans or scan ranges.
-        The info can be directories where the data related to scans is stored or nodes in hd5 file
-        that contain the data, or other info specific to a beamline.
+        Finds directories with data that correspond to given scans or scan ranges.
 
         :param scans : list
             list of sub-lists defining scan ranges, ordered. For single scan a range has the same scan as beginning and end.
@@ -27,20 +25,15 @@ class Detector(ABC):
             returns : [[(2834, f'{path}/data_S2834)]]
 
             separate ranges example:
-            ex1: [[2825, 2831], [2834, 2834], [2840, 2876]]
+            scans: [[2825, 2831], [2834, 2834], [2840, 2846]]
             returns: [[(2825, f'{path}/data_S2825'), (2828, f'{path}/data_S2828'), (2831, f'{path}/data_S2831')],
              [(2834, f'{path}/data_S2834)],
-             [(2840, f'{path}/data_S2840'), (2843, f'{path}/data_S2843'), (2846, f'{path}/data_S2846'), (2849, f'{path}/data_S2849'),
-              (2852, f'{path}/data_S2852'), (2855, f'{path}/data_S2855'), (2858, f'{path}/data_S2858'), (2861, f'{path}/data_S2861'),
-              (2864, f'{path}/data_S2864'), (2867, f'{path}/data_S2867'), (2870, f'{path}/data_S2870'), (2873, f'{path}/data_S2873'),
-              (2876, f'{path}/data_S2876')]]
+             [(2840, f'{path}/data_S2840'), (2843, f'{path}/data_S2843'), (2846, f'{path}/data_S2846')]]
 
         :return:
-        list of sub-lists the input scans, or scans ranges with the corresponding info
+        list of sub-lists, each sublist containing tuples with the input scans and corresponding data directories
+         within scan ranges.
         """
-        # Below is an implementation from aps_34idc beamline. Look at the implementation for the esrf_id01 beamline
-        # if using hdf5 file.
-
         # create empty results list that allocates a sub-list for each scan range
         scans_dirs_ranges = [[] for _ in range(len(scans))]
         sr_idx = 0
@@ -162,7 +155,7 @@ class ASI(Detector):
         """
         Applies correction for the detector.
 
-        This example is based on aps_34idc beamline, TIM2 detector and applies darkfield, whitefield.
+        For ASI detector apply whitefield.
 
         :param frame: 2D raw data file representing a frame
         :return: corrected frame
@@ -180,6 +173,22 @@ class ASI(Detector):
         frame = np.where(np.isfinite(frame), frame, 0)
 
         return frame
+
+    @staticmethod
+    def check_mandatory_params(params):
+        """
+        For the ASI detector the data directory is mandatory parameter.
+
+        :params: parameters needed to create detector
+        :return: message indicating problem or empty message if all is ok
+        """
+        if  'data_dir' not in params:
+            return 'data_dir parameter not configured, mandatory for 34idcTIM2 detector.'
+        data_dir = params['data_dir']
+        if not os.path.isdir(data_dir):
+            return f'data_dir directory{data_dir} does not exist.'
+
+        return ''
 
 
 def create_detector(det_name, kwargs):
@@ -199,3 +208,6 @@ def get_pixel(det_name):
 def get_pixel_orientation(det_name):
     return dets[det_name].pixelorientation
 
+
+def check_mandatory_params(det_name, params):
+    return dets[det_name].check_mandatory_params(params)

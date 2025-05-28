@@ -32,7 +32,7 @@ class Diffractometer():
 
 class Diffractometer_P10sixc(Diffractometer):
     """
-    Subclass of Diffractometer. Encapsulates "34idc" diffractometer.
+    Subclass of Diffractometer. Encapsulates "P10sixc" diffractometer.
     """
     name = "P10sixc"
     sampleaxes = ('y+', 'x-', 'z+', 'y-')  # in xrayutilities notation
@@ -118,7 +118,7 @@ class Diffractometer_P10sixc(Diffractometer):
 
     def get_geometry(self, shape, scan, conf_params):
         """
-        Calculates geometry based on diffractometer's and detctor's attributes and experiment parameters.
+        Calculates geometry based on diffractometer's and detector's attributes and experiment parameters.
 
         For the Petra3_P10 scanmot, scanmot_del, detdist, detector_name, energy values are parsed from fio file.
         They can be overridden by configuration.
