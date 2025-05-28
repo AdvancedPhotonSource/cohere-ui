@@ -1,2 +1,15 @@
-crop = [0.5, 0.5, 0.5]
 rampups = 1
+make_twin = False
+unwrap = False
+write_recip=True
+complex_mode = "ReIm"
+#crops based on extent of imAmp
+imcrop="tight"
+imcrop_margin=10
+imcrop_thresh=0.5
+#imcrop="fraction"
+#imcrop_fraction=[0.3, 0.25, 1]
+interpolation_mode = "AmpPhase"
+interpolation_resolution = 'min-deconv_res'  #Will automatically include the deconvolution resolution and draw from that.
+determine_resolution="deconv"
+resolution_deconv_contrast=0.25

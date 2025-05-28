@@ -248,10 +248,10 @@ def manage_reconstruction(experiment_dir, **kwargs):
                 if os.path.isfile(datafile):
                     exp_dirs_data.append((datafile, ut.join(experiment_dir, dir)))
     else:
-        # in typical scenario phasing_data_dir is not configured, and it is defaulted to <experiment_dir>/data
-        # the phasing_data_dir is ignored in multi-scan scenario
-        phasing_data_dir = rec_config_map.get('phasing_data_dir', ut.join(experiment_dir, 'phasing_data'))
-        datafile = ut.join(phasing_data_dir, 'data.tif')
+        # in typical scenario data_dir is not configured, and it is defaulted to <experiment_dir>/data
+        # the data_dir is ignored in multi-scan scenario
+        data_dir = rec_config_map.get('data_dir', ut.join(experiment_dir, 'phasing_data'))
+        datafile = ut.join(data_dir, 'data.tif')
         if os.path.isfile(datafile):
             exp_dirs_data.append((datafile, experiment_dir))
 

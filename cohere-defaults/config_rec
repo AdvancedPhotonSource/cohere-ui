@@ -12,7 +12,7 @@
 // (20, 5, 40) trigger starts at iteration 20, repeats every 5 iteration until iteration 40
 
 // GENERAL
-//phasing_data_dir = "phasing_data"
+//data_dir = "phasing_data"
                              // Defines directory from which data is read.
 
 //save_dir = "results_phasing"
