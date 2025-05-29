@@ -85,9 +85,8 @@ def create_instr(configs, **kwargs):
     det_obj = None
     diff_obj = None
     scan_ranges = None
-    # combine parameters from config_instr and config_prep
-    config_params = configs['config_prep']
-    config_params.update(configs['config_instr'])
+    # set parameters from config_instr
+    config_params = configs['config_instr']
 
     scan = configs['config'].get('scan', None)
     if scan is not None:
@@ -133,6 +132,8 @@ def create_instr(configs, **kwargs):
             raise ValueError('failed create diffractometer', diff_name)
 
     if 'need_detector' in kwargs and kwargs['need_detector']:
+        # add parameters from the config_prep
+        config_params.update(configs['config_prep'])
         # check for parameters
         err_msg = det.check_mandatory_params(det_name, config_params)
         if len(err_msg) > 0:
