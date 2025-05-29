@@ -39,7 +39,7 @@ class Instrument:
         return self.det_obj.get_scan_array(scan_dir)
 
 
-    def get_geometry(self, shape, scan, conf_params):
+    def get_geometry(self, shape, scan, conf_maps):
         """
         Calculates geometry based on diffractometer's and detctor's attributes and experiment parameters.
 
