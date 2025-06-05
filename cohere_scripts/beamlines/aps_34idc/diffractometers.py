@@ -4,6 +4,7 @@ import xrayutilities.experiment as xuexp
 from xrayutilities.io import spec as spec
 import beamlines.aps_34idc.detectors as det
 from abc import ABC
+from inner_scripts.exceptions import  CohereUiNotSupported
 
 
 class Diffractometer(ABC):
@@ -44,9 +45,9 @@ class Diffractometer_34idc(Diffractometer):
     detectordist_name = 'camdist'
     detectordist_mne = 'detdist'
 
-    def __init__(self, **kwargs):
+    def __init__(self, params):
         super(Diffractometer_34idc, self).__init__('34idc')
-        self.specfile = kwargs.get('specfile')
+        self.specfile = params.get('specfile')
 
 
     def parse_spec(self, scan):
@@ -239,10 +240,9 @@ class Diffractometer_34idc(Diffractometer):
         return (Trecip, Tdir)
 
 
-def create_diffractometer(diff_name, **kwargs):
-    if diff_name == '34idc':
-        d = Diffractometer_34idc(**kwargs)
-        return d
-    else:
-        print (f'diffractometer {diff_name} not defined.')
-        return None
+def create_diffractometer(diff_name, params):
+    for diff in Diffractometer.__subclasses__():
+        if diff.name == diff_name:
+            return diff(params)
+    msg = f'diffractometor {diff_name} not defined'
+    raise CohereUiNotSupported(msg)

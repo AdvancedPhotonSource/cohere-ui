@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 import h5py
 import beamlines.Petra3_P10.p10_scan_reader as p10sr
 import cohere_core.utilities as ut
+from inner_scripts.exceptions import CohereUiNotSupported, CohereUiMissingConfParam, CohereUiMissingFileDir
 
 
 class Detector(ABC):
@@ -165,45 +166,36 @@ class Detector_e4m(Detector):
         :return: message indicating problem or empty message if all is ok
         """
         if  'data_dir' not in params:
-            return 'data_dir parameter not configured, mandatory for e4m detector.'
+            msg = 'data_dir parameter not configured, mandatory for e4m detector.'
+            raise CohereUiMissingConfParam(msg)
         data_dir = params['data_dir']
         if not os.path.isdir(data_dir):
-            return f'data_dir directory {data_dir} does not exist.'
+            msg = f'data_dir directory {data_dir} does not exist.'
+            raise CohereUiMissingFileDir(msg)
 
         if 'sample' not in params:
-            return 'sample parameter not configured, mandatory for e4m detector.'
+            msg = 'sample parameter not configured, mandatory for e4m detector.'
+            raise CohereUiMissingConfParam(msg)
 
         if 'darkfield_filename' not in params:
-            return 'darkfield_filename parameter not configured, mandatory for e4m detector.'
+            msg = 'darkfield_filename parameter not configured, mandatory for e4m detector.'
+            raise CohereUiMissingConfParam(msg)
         darkfield = params['darkfield_filename']
         if not os.path.isfile(darkfield):
-            return f'darkfield_filename file {darkfield} does not exist.'
+            msg = f'darkfield_filename file {darkfield} does not exist.'
+            raise CohereUiMissingFileDir(msg)
 
         if 'detector_module' not in params:
-            return 'detector_module parameter not configured, mandatory for e4m detector.'
-        return ''
+            msg = 'detector_module parameter not configured, mandatory for e4m detector.'
+            raise CohereUiMissingConfParam(msg)
 
 
 def create_detector(det_name, params):
-    if det_name == 'e4m':
-        if 'data_dir' not in params:
-            print('missing mandatory parameter data_dir')
-            return None
-        data_dir = params['data_dir']
-        if not os.path.isdir(data_dir):
-            print(f'configured data_dir {data_dir} does not exist.')
-            return None
-        if 'sample' not in params:
-            print('missing mandatory parameter sample')
-            return None
-        if 'darkfield_filename' not in params:
-            print('missing mandatory parameter darkfield_filename')
-            return None
-
-        return Detector_e4m(params)
-    else:
-        print(f'detector {det_name} not defined.')
-        return None
+    for detector in Detector.__subclasses__():
+        if detector.name == det_name:
+            return  detector(params)
+    msg = f'detector {det_name} not defined'
+    raise CohereUiNotSupported(msg)
 
 
 dets = {'e4m' : Detector_e4m}
@@ -217,5 +209,9 @@ def get_pixel_orientation(det_name):
 
 
 def check_mandatory_params(det_name, params):
-    return dets[det_name].check_mandatory_params(params)
+    for detector in Detector.__subclasses__():
+        if detector.name == det_name:
+            return dets[det_name].check_mandatory_params(params)
+    msg = f'detector {det_name} not defined'
+    raise CohereUiNotSupported(msg)
 

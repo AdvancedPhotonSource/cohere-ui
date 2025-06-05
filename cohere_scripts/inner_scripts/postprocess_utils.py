@@ -247,10 +247,7 @@ def interpolate(sgrid, resolution):
 
 
 def get_interpolated_arrays(viz, resolution, **kwargs):
-    complex_mode = 'AmpPhase'
-    if kwargs['interpolation_mode'] == 'Complex':
-        complex_mode = 'ReIm'
-    sgrid = viz.get_structured_grid(complex_mode=complex_mode)
+    sgrid = viz.get_structured_grid(complex_mode=kwargs['interpolation_mode'])
     return interpolate(sgrid, resolution)
 
 
@@ -285,9 +282,9 @@ def get_resolution_deconv(arr, thresh, max_iter=50, deconvdiffbreak=0.1):
     return res
 
 
-def make_image_viz(geometry, image, support, viz_params):
+def make_image_viz(geometry, image, support, config_maps):
     # if it is important to log that some parameters are not configured, do it here
-
+    viz_params = config_maps['config_disp']
     # smooth the image if rampups parameter is greater than 1
     rampups = viz_params.get('rampups', 1)
     if rampups > 1:
@@ -318,7 +315,7 @@ def make_image_viz(geometry, image, support, viz_params):
                 viz.voi = get_centered_voisize(arr.shape[::-1], voisize[::-1])
             case 'fraction':
                 dims = image.shape
-                arrfrac = list(pad(viz_params['crop_fraction'], len(dims), dims[-1]))
+                arrfrac = list(pad(viz_params['imcrop_fraction'], len(dims), dims[-1]))
                 viz.voi = []
                 for d in enumerate(zip(dims, arrfrac)):
                     viz.voi.append(int(d[1][0] / 2) - int(d[1][0] * d[1][1] / 2))
@@ -336,18 +333,17 @@ def make_recip_viz(geometry, data, ftim):
     return viz
 
 
-def make_resolution_viz(geometry, arr, all_params, only_direct=False):
-    mode = all_params.get('determine_resolution')
+def make_resolution_viz(geometry, arr, config_maps):
+    viz_params = config_maps['config_disp']
+
+    mode = viz_params.get('determine_resolution')
     if mode == 'deconv':
         viz_d = Dir_viz(geometry)
-        thresh = all_params['resolution_deconv_contrast']
+        thresh = viz_params['resolution_deconv_contrast']
         dir_resolution = get_resolution_deconv(arr, thresh)
         viz_d.add_array("resolution", dir_resolution)
         res_ssg = viz_d.get_structured_grid()
-        res_arr = res_ssg.point_data["resolution"]
 
-        if only_direct:
-            return (viz_d, None)
         viz_r = Recip_viz(geometry)
         recip_resolution = ut.pad_center(dir_resolution, arr.shape)
         recip_resolution = np.fft.fftshift(np.fft.fftn(np.fft.fftshift(recip_resolution)))

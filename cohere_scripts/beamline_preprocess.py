@@ -18,6 +18,7 @@ __docformat__ = 'restructuredtext en'
 __all__ = ['handle_prep',
            'main']
 
+import sys
 import argparse
 import importlib
 import cohere_core.utilities as ut

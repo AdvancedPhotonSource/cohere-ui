@@ -28,6 +28,7 @@ import inner_scripts.convertconfig as conv
 import ast
 import cohere_core.utilities as ut
 import inner_scripts.common as com
+from inner_scripts.exceptions import CohereUiException
 
 
 def select_file(start_dir):
@@ -305,7 +306,7 @@ class cdi_gui(QWidget):
         # it is loading the main configuration, so that rec_id is not passed in
         try:
             conf_dicts, converted = com.get_config_maps(load_dir, conf_list, no_verify=True)
-        except ValueError as e:
+        except Exception as e:
             msg_window(str(e))
             return
 
@@ -459,7 +460,7 @@ class cdi_gui(QWidget):
                 self.t = Tabs(self, self.beamline_widget.text())
                 self.vbox.addWidget(self.t)
             except Exception as e:
-                print(e.text())
+                print(str(e))
                 pass
 
         if not loaded:
@@ -516,7 +517,7 @@ class Tabs(QTabWidget):
             self.prep_tab = self.beam.PrepTab()
             self.format_tab = DataTab()
             self.rec_tab = RecTab()
-            self.display_tab = self.beam.DispTab()
+            self.display_tab = DispTab()
             self.tabs = [self.instr_tab, self.prep_tab, self.format_tab, self.rec_tab, self.display_tab]
         else:
             self.format_tab = DataTab()
@@ -550,10 +551,7 @@ class Tabs(QTabWidget):
         self.prep_tab = self.beam.PrepTab()
         self.insertTab(1, self.prep_tab, self.prep_tab.name)
         self.prep_tab.init(self, self.main_win)
-        self.display_tab = self.beam.DispTab()
-        self.insertTab(4, self.display_tab, self.display_tab.name)
-        self.display_tab.init(self, self.main_win)
-        self.tabs = self.tabs + [self.instr_tab, self.prep_tab, self.display_tab]
+        self.tabs = self.tabs + [self.instr_tab, self.prep_tab]
 
     def notify(self, **args):
         try:
@@ -580,16 +578,16 @@ class Tabs(QTabWidget):
         # if there are other parameters, one can add some code here        
         try:
             prep.handle_prep(self.main_win.experiment_dir, no_verify=self.main_win.no_verify)
-        except ValueError as e:
+        except CohereUiException as e:
             msg_window(str(e))
 
 
     def run_viz(self):
         import beamline_visualization as dp
-       
+
         try:
             dp.handle_visualization(self.main_win.experiment_dir, no_verify=self.main_win.no_verify)
-        except ValueError as e:
+        except CohereUiException as e:
             msg_window(str(e))
 
 
@@ -900,7 +898,7 @@ class DataTab(QWidget):
                     ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_data'))
                 try:
                     run_dt.format_data(self.main_win.experiment_dir, no_verify=self.main_win.no_verify)
-                except ValueError as e:
+                except Exception as e:
                     msg_window(str(e))
                     return
             else:
@@ -1075,7 +1073,7 @@ class RecTab(QWidget):
         for feat_id in self.features.feature_dir:
             self.features.feature_dir[feat_id].init_config(conf_map)
 
-        self.notify()
+        # self.notify()
 
 
     def clear_conf(self):
@@ -1275,7 +1273,7 @@ class RecTab(QWidget):
 
     def load_rec_conf_dir(self):
         """
-        It display a select dialog for user to select a configuration file. When selected, the parameters from that file will be loaded to the window.
+        It displays a select dialog for user to select a configuration file. When selected, the parameters from that file will be loaded to the window.
         Parameters
         ----------
         none
@@ -1348,10 +1346,10 @@ class RecTab(QWidget):
                                          rec_id=rec_id,
                                          no_verify=self.main_win.no_verify,
                                          debug=self.main_win.debug)
-            except ValueError as e:
+            except Exception as e:
                 msg_window(str(e))
                 return
-            self.notify()
+            self.notify(rec_conf_map=conf_map)
         else:
             msg_window('Please, run format data in previous tab to activate this function')
 
@@ -1400,8 +1398,8 @@ class RecTab(QWidget):
             self.rec_id.show()
 
 
-    def notify(self):
-        self.tabs.notify(**{'rec_id':self.old_rec_id})
+    def notify(self, **kwargs):
+        self.tabs.display_tab.update_tab(**kwargs)
 
 
 class Feature(object):
@@ -2414,6 +2412,369 @@ class Features(QWidget):
 
     def display(self, i):
         self.Stack.setCurrentIndex(i)
+
+
+class DispTab(QWidget):
+    def __init__(self, parent=None):
+        """
+        Constructor, initializes the tabs.
+        """
+        super(DispTab, self).__init__(parent)
+        self.name = 'Display'
+        self.conf_name = 'config_disp'
+
+
+    def init(self, tabs, main_window):
+        """
+        Creates and initializes the 'disp' tab.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        self.tabs = tabs
+        self.main_win = main_window
+
+        layout = QFormLayout()
+        self.result_dir_button = QPushButton()
+        layout.addRow("phasing results directory", self.result_dir_button)
+        self.make_twin = QCheckBox('make twin')
+        self.make_twin.setChecked(False)
+        layout.addWidget(self.make_twin)
+        self.unwrap = QCheckBox('include unwrapped phase')
+        self.unwrap.setChecked(False)
+        layout.addWidget(self.unwrap)
+        self.imcrop = QComboBox()
+        self.imcrop.addItem("none")
+        self.imcrop.addItem("tight")
+        self.imcrop.addItem("fraction")
+        layout.addRow("image crop", self.imcrop)
+        sub_layout = QFormLayout()
+        self.set_imcrop_layout(sub_layout)
+        layout.addRow(sub_layout)
+        self.rampups = QLineEdit()
+        layout.addRow("ramp upscale", self.rampups)
+        self.complex_mode = QComboBox()
+        self.complex_mode.addItem("AmpPhase")
+        self.complex_mode.addItem("ReIm")
+        layout.addRow("complex mode", self.complex_mode)
+        self.interpolation_mode = QComboBox()
+        self.interpolation_mode.addItem("no interpolation")
+        self.interpolation_mode.addItem("AmpPhase")
+        self.interpolation_mode.addItem("ReIm")
+        layout.addRow("complex mode", self.interpolation_mode)
+        self.interpolation_resolution = QLineEdit()
+        layout.addRow("interpolation resolution", self.interpolation_resolution)
+        self.interpolation_resolution.setToolTip('Supported values: "min-deconv_res", int value, float value, list')
+        self.determine_resolution = QLineEdit()
+        layout.addRow("determine resolution", self.determine_resolution)
+        self.determine_resolution.setToolTip('If present, the resolution in direct and reciprocal spaces will be found. Supported value: "deconv"')
+        self.resolution_deconv_contrast = QLineEdit()
+        layout.addRow("determine resolution", self.resolution_deconv_contrast)
+        self.resolution_deconv_contrast.setToolTip('float number < 1.0')
+        self.write_recip = QCheckBox('write reciprocal')
+        self.write_recip.setChecked(False)
+        layout.addWidget(self.write_recip)
+        cmd_layout = QHBoxLayout()
+        self.set_disp_conf_from_button = QPushButton("Load disp conf from")
+        self.set_disp_conf_from_button.setStyleSheet("background-color:rgb(205,178,102)")
+        self.config_disp = QPushButton('process display', self)
+        self.config_disp.setStyleSheet("background-color:rgb(175,208,156)")
+        cmd_layout.addWidget(self.set_disp_conf_from_button)
+        cmd_layout.addWidget(self.config_disp)
+        layout.addRow(cmd_layout)
+        self.setLayout(layout)
+
+        self.imcrop.currentIndexChanged.connect(lambda: self.set_imcrop_layout(sub_layout))
+        self.result_dir_button.clicked.connect(self.set_res_dir)
+        self.config_disp.clicked.connect(self.run_tab)
+        self.set_disp_conf_from_button.clicked.connect(self.load_disp_conf)
+
+
+    def load_tab(self, conf_map):
+        """
+        It verifies given configuration file, reads the parameters, and fills out the window.
+        Parameters
+        ----------
+        conf : dict
+            configuration (config_disp)
+        Returns
+        -------
+        nothing
+        """
+        # Do not update results dir, as it may point to a wrong experiment if
+        # it's loaded from another
+
+        if 'make_twin' in conf_map:
+            make_twin = conf_map['make_twin']
+            if make_twin:
+                self.make_twin.setChecked(True)
+            else:
+                self.make_twin.setChecked(False)
+        else:
+            self.make_twin.setChecked(False)
+
+        if 'unwrap' in conf_map:
+            unwrap = conf_map['unwrap']
+            if unwrap:
+                self.unwrap.setChecked(True)
+            else:
+                self.unwrap.setChecked(False)
+        else:
+            self.unwrap.setChecked(False)
+
+        if 'imcrop' not in conf_map:
+            self.imcrop.setCurrentIndex(0)
+        elif conf_map['imcrop'] == 'tight':
+            self.imcrop.setCurrentIndex(1)
+            if 'imcrop_margin' in conf_map:
+                self.imcrop_margin.setText(str(conf_map['imcrop_margin']).replace(" ", ""))
+            if 'imcrop_thresh' in conf_map:
+                self.imcrop_thresh.setText(str(conf_map['imcrop_thresh']).replace(" ", ""))
+        elif conf_map['imcrop'] == 'fraction':
+            self.imcrop.setCurrentIndex(2)
+            if 'imcrop_fraction' in conf_map:
+                self.imcrop_fraction.setText(str(conf_map['imcrop_fraction']).replace(" ", ""))
+
+        if 'rampups' in conf_map:
+            self.rampups.setText(str(conf_map['rampups']).replace(" ", ""))
+
+        if 'complex_mode' in conf_map and conf_map['complex_mode'] == 'ReIm':
+            self.complex_mode.setCurrentIndex(1)
+        else:
+            self.complex_mode.setCurrentIndex(0)
+
+        if 'interpolation_mode' in conf_map:
+            if conf_map['interpolation_mode'] == 'ReIm':
+                self.interpolation_mode.setCurrentIndex(1)
+            elif conf_map['interpolation_mode'] == 'AmpPhase':
+                self.interpolation_mode.setCurrentIndex(1)
+            else:
+                self.interpolation_mode.setCurrentIndex(0)
+        else:
+            self.interpolation_mode.setCurrentIndex(0)
+
+        if 'interpolation_resolution' in conf_map:
+            self.interpolation_resolution.setText(str(conf_map['interpolation_resolution']).replace(" ", ""))
+
+        if 'determine_resolution' in conf_map:
+            self.determine_resolution.setText(str(conf_map['determine_resolution']).replace(" ", ""))
+        if 'resolution_deconv_contrast' in conf_map:
+            self.resolution_deconv_contrast.setText(str(conf_map['resolution_deconv_contrast']).replace(" ", ""))
+
+        if 'write_recip' in conf_map:
+            write_recip = conf_map['write_recip']
+            if write_recip:
+                self.write_recip.setChecked(True)
+            else:
+                self.write_recip.setChecked(False)
+        else:
+            self.write_recip.setChecked(False)
+
+
+    def clear_conf(self):
+        self.result_dir_button.setText('')
+        self.make_twin.setChecked(False)
+        self.unwrap.setChecked(False)
+        self.imcrop.setCurrentIndex(0)
+        self.rampups.setText('')
+        self.complex_mode.setCurrentIndex(0)
+        self.interpolation_mode.setCurrentIndex(0)
+        self.interpolation_resolution.setText('')
+        self.determine_resolution.setText('')
+        self.resolution_deconv_contrast.setText('')
+        self.write_recip.setChecked(False)
+
+
+    def load_disp_conf(self):
+        """
+        It display a select dialog for user to select a configuration file. When selected, the parameters
+        from that file will be loaded to the window.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        disp_file = select_file(os.getcwd())
+        if disp_file is not None:
+            conf_map = ut.read_config(disp_file.replace(os.sep, '/'))
+            self.load_tab(conf_map)
+        else:
+            msg_window('please select valid disp config file')
+
+
+    def get_disp_config(self):
+        """
+        It reads parameters related to visualization from the window and adds them to dictionary.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        conf_map : dict
+            contains parameters read from window
+        """
+        conf_map = {}
+        if len(self.result_dir_button.text()) > 0:
+            conf_map['results_dir'] = str(self.result_dir_button.text()).replace(os.sep, '/')
+        if self.make_twin.isChecked():
+            conf_map['make_twin'] = True
+        if self.unwrap.isChecked():
+            conf_map['unwrap'] = True
+
+        if self.imcrop.currentIndex() == 1:
+            conf_map['imcrop'] = 'tight'
+            if len(self.imcrop_margin.text()) > 0:
+                conf_map['imcrop_margin'] = ast.literal_eval(str(self.imcrop_margin.text()))
+            if len(self.imcrop_thresh.text()) > 0:
+                conf_map['imcrop_thresh'] = ast.literal_eval(str(self.imcrop_thresh.text()))
+        if self.imcrop.currentIndex() == 2:
+            conf_map['imcrop'] = 'fraction'
+            if len(self.imcrop_fraction.text()) > 0:
+                conf_map['imcrop_fraction'] = ast.literal_eval(str(self.imcrop_fraction.text()))
+
+        if len(self.rampups.text()) > 0:
+            conf_map['rampups'] = ast.literal_eval(str(self.rampups.text()).replace(os.linesep, ''))
+
+        if self.complex_mode.currentIndex() == 0:
+            conf_map['complex_mode'] = 'AmpPhase'
+        if self.complex_mode.currentIndex() == 1:
+            conf_map['complex_mode'] = 'ReIm'
+
+        if self.interpolation_mode.currentIndex() == 1:
+            conf_map['interpolation_mode'] = 'AmpPhase'
+        if self.interpolation_mode.currentIndex() == 2:
+            conf_map['interpolation_mode'] = 'ReIm'
+
+        if len(self.interpolation_resolution.text()) > 0:
+            try:
+                conf_map['interpolation_resolution'] = ast.literal_eval(str(self.interpolation_resolution.text()))
+            except ValueError:
+                conf_map['interpolation_resolution'] = str(self.interpolation_resolution.text())
+
+        if len(self.determine_resolution.text()) > 0:
+            conf_map['determine_resolution'] = str(self.determine_resolution.text())
+        if len(self.resolution_deconv_contrast.text()) > 0:
+            conf_map['resolution_deconv_contrast'] = ast.literal_eval(str(self.resolution_deconv_contrast.text()))
+
+        if self.write_recip.isChecked():
+            conf_map['write_recip'] = True
+
+        return conf_map
+
+
+    def set_imcrop_layout(self, layout):
+        for i in reversed(range(layout.count())):
+            layout.itemAt(i).widget().setParent(None)
+        if self.imcrop.currentIndex() == 1:
+            self.imcrop_margin = QLineEdit()
+            layout.addRow("margin added to extend", self.imcrop_margin)
+            self.imcrop_thresh = QLineEdit()
+            layout.addRow("threshold extend", self.imcrop_thresh)
+        elif self.imcrop.currentIndex() == 2:
+            self.imcrop_fraction = QLineEdit()
+            layout.addRow("image crop fractions", self.imcrop_fraction)
+
+
+    def run_tab(self):
+        """
+        Reads the parameters needed by format display script. Saves the config_disp configuration file with parameters from the window and runs the display script.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        if not self.main_win.is_exp_exists():
+            msg_window('the experiment has not been created yet')
+            return
+        if not self.main_win.is_exp_set():
+            msg_window('the experiment has changed, pres "set experiment" button')
+            return
+        if len(str(self.result_dir_button.text())) == 0:
+            msg_window('the results directory is not set')
+            return
+
+        conf_map = self.get_disp_config()
+        er_msg = ut.verify('config_disp', conf_map)
+        if len(er_msg) > 0:
+            msg_window(er_msg)
+            if not self.main_win.no_verify:
+                return
+        if len(conf_map) > 0:
+            ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
+
+        self.tabs.run_viz()
+
+
+    def save_conf(self):
+        if not self.main_win.is_exp_exists():
+            msg_window('the experiment does not exist, cannot save the config_disp file')
+            return
+
+        conf_map = self.get_disp_config()
+        er_msg = ut.verify('config_disp', conf_map)
+        if len(er_msg) > 0:
+            msg_window(er_msg)
+            if not self.main_win.no_verify:
+                return
+        if len(conf_map) > 0:
+            ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
+
+
+    def update_tab(self, **args):
+        """
+        Results directory is a parameter in display tab. It defines a directory tree that the display script will
+        search for reconstructed image files and will process them for visualization. This function initializes it in
+        typical situation to experiment directory. In case of active genetic algorithm it will be initialized to the
+        generation directory with best results, and in case of alternate reconstruction configuration, it will be
+        initialized to the last directory where the results were saved.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        # if separate scans, all scans will be processed
+        results_dir = self.main_win.experiment_dir
+        if not self.main_win.separate_scans.isChecked() and \
+                not self.main_win.separate_scan_ranges.isChecked():
+            if 'rec_id' in args:
+                rec_id = args['rec_id']
+                if len(rec_id) > 0:
+                    results_dir = ut.join(self.main_win.experiment_dir, f'results_phasing_{rec_id}')
+                else:
+                    results_dir = ut.join(self.main_win.experiment_dir, 'results_phasing')
+
+        self.result_dir_button.setText(results_dir)
+        self.result_dir_button.setStyleSheet("Text-align:left")
+
+
+    def set_res_dir(self):
+        """
+        Results directory is a parameter in display tab. It defines a directory tree that the display script will
+        search for reconstructed image files and will process them for visualization. This function displays the
+        dialog selection window for the user to select the results directory.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        results_dir = select_dir(os.getcwd())
+        if results_dir is not None:
+            self.result_dir_button.setStyleSheet("Text-align:left")
+            self.result_dir_button.setText(results_dir.replace(os.sep, '/'))
+        else:
+            self.result_dir_button.setText('')
+            msg_window('please select valid results directory')
 
 
 class MpTab(QWidget):

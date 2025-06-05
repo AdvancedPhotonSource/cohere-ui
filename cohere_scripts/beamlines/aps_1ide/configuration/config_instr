@@ -1,0 +1,14 @@
+diffractometer = "1ide"
+                           // it typically will be set to a defined class, but in case of new diffractometer
+                           // one can enter the parameters below instead
+
+vff_r_offset = -0.107
+vff_eta_offset = 0.232
+energy = 52.0
+aero = -10.97994
+vff_eta = -24.8
+detdist = 6.22
+vff_r = 692.50052
+scanmot = "aero"
+scanmot_del = 0.004999999999999997
+detector = "ASI"

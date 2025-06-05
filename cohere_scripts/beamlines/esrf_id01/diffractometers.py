@@ -4,6 +4,7 @@ import xrayutilities.experiment as xuexp
 import h5py
 import beamlines.esrf_id01.detectors as det
 from abc import ABC, abstractmethod
+from inner_scripts.exceptions import  CohereUiNotSupported
 
 
 class Diffractometer(ABC):
@@ -191,12 +192,8 @@ class Diffractometer_id01(Diffractometer):
 
 
 def create_diffractometer(diff_name):
-    if diff_name is None:
-        print('diffractometer name not provided')
-        return None
-    if diff_name == 'id01':
-        d = Diffractometer_id01()
-        return d
-    else:
-        print (f'diffractometer {diff_name} not defined.')
-        return None
+    for diff in Diffractometer.__subclasses__():
+        if diff.name == diff_name:
+            return diff()
+    msg = f'diffractometor {diff_name} not defined'
+    raise CohereUiNotSupported(msg)

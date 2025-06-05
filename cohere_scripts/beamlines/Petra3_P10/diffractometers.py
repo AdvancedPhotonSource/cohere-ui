@@ -5,6 +5,7 @@ import math as m
 import xrayutilities.experiment as xuexp
 import beamlines.Petra3_P10.detectors as det
 import beamlines.Petra3_P10.p10_scan_reader as p10sr
+from inner_scripts.exceptions import CohereUiNotSupported, CohereUiMissingConfParam, CohereUiMissingFileDir
 
 
 class Diffractometer():
@@ -43,10 +44,10 @@ class Diffractometer_P10sixc(Diffractometer):
     detectoraxes_name = ('Gamma', 'Delta')
     detectoraxes_mne = ('gam','del')
 
-    def __init__(self, data_dir, sample):
+    def __init__(self, params):
         super(Diffractometer_P10sixc, self).__init__(self.name)
-        self.data_dir = data_dir
-        self.sample = sample
+        self.data_dir = params['data_dir']
+        self.sample = params['sample']
 
 
     #Here the fiofile is the P10 fio object.  So no need to read a file.
@@ -224,29 +225,24 @@ class Diffractometer_P10sixc(Diffractometer):
         :return: message indicating problem or empty message if all is ok
         """
         if  'data_dir' not in params:
-            return 'data_dir parameter not configured, mandatory for P10sixc diffractometer.'
+            msg = 'data_dir parameter not configured, mandatory for P10sixc diffractometer.'
+            raise CohereUiMissingConfParam(msg)
         data_dir = params['data_dir']
         if not os.path.isdir(data_dir):
-            return f'data_dir directory {data_dir} does not exist.'
+            msg = f'data_dir directory {data_dir} does not exist.'
+            raise CohereUiMissingFileDir(msg)
 
         if 'sample' not in params:
-            return 'sample parameter not configured, mandatory for e4m detector.'
-
-        return ''
+            msg = 'sample parameter not configured, mandatory for e4m detector.'
+            raise CohereUiMissingConfParam(msg)
 
 
 def create_diffractometer(diff_name, params):
-    if diff_name is None:
-        print('diffractometer name not provided')
-        return None
-    if diff_name == 'P10sixc':
-        data_dir = params.get('data_dir', None)
-        sample = params.get('sample', None)
-        d = Diffractometer_P10sixc(data_dir, sample)
-        return d
-    else:
-        print (f'diffractometer {diff_name} not defined.')
-        return None
+    for diff in Diffractometer.__subclasses__():
+        if diff.name == diff_name:
+            return diff(params)
+    msg = f'diffractometor {diff_name} not defined'
+    raise CohereUiNotSupported(msg)
 
 
 diffs = {'P10sixc' : Diffractometer_P10sixc}

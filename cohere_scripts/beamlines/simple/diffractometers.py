@@ -3,6 +3,7 @@ import math as m
 import xrayutilities.experiment as xuexp
 import beamlines.simple.detectors as det
 from abc import ABC
+from inner_scripts.exceptions import  CohereUiNotSupported
 
 
 class Diffractometer(ABC):
@@ -49,31 +50,31 @@ class Diffractometer_34idc(Diffractometer):
 
     def check_params(self, params):
         if 'detector' not in params:
-            print('detector name not parsed from spec file and not configured')
-            raise KeyError('detector name not parsed from spec file and not configured')
+            print('detector name not configured')
+            raise KeyError('detector name not configured')
         if 'detdist' not in params:
-            print('detdist not parsed from spec file and not configured')
-            raise KeyError('detdist not parsed from spec file and not configured')
+            print('detdist not configured')
+            raise KeyError('detdist not configured')
         if 'scanmot' not in params:
-            print('scanmot not parsed from spec file and not configured')
-            raise KeyError('scanmot not parsed from spec file and not configured')
+            print('scanmot not configured')
+            raise KeyError('scanmot not configured')
         if 'energy' not in params:
-            print('energy not parsed from spec file and not configured')
-            raise KeyError('energy not parsed from spec file and not configured')
+            print('energy not configured')
+            raise KeyError('energy not configured')
         if 'scanmot_del' not in params:
-            print('scanmot_del not parsed from spec file and not configured')
-            raise KeyError('scanmot_del not parsed from spec file and not configured')
+            print('scanmot_del not configured')
+            raise KeyError('scanmot_del not configured')
         for ax in self.sampleaxes_mne:
             if ax not in params:
-                print(f'{ax} not parsed from spec file and not configured')
-                raise KeyError (f'{ax} not parsed from spec file and not configured')
+                print(f'{ax} not configured')
+                raise KeyError (f'{ax} not configured')
         for ax in self.detectoraxes_mne:
             if ax not in params:
-                print(f'{ax} not parsed from spec file and not configured')
-                raise KeyError (f'{ax} not parsed from spec file and not configured')
+                print(f'{ax} and not configured')
+                raise KeyError (f'{ax} not configured')
 
 
-    def get_geometry(self, shape, scan, conf_params):
+    def get_geometry(self, shape, scan, config_maps):
         """
         Calculates geometry based on diffractometer and detector attributes and experiment parameters.
 
@@ -85,8 +86,7 @@ class Diffractometer_34idc(Diffractometer):
         :param shape: tuple, shape of array
         :param scan: scan the geometry is calculated for
         :param det_obj: detector object, can be None
-        :param conf_params: reflect configuration, and could contain delta, gamma, theta, phi, chi, scanmot,
-            scanmot_del, detdist, detector_name, energy.
+        :param config_maps: configuration maps
         :return: tuple
             (Trecip, Tdir)
         """
@@ -94,11 +94,11 @@ class Diffractometer_34idc(Diffractometer):
         # can be read from some database depending on the beamline. The params dictionary holds the parsed
         # parameters. It is assumed here that all parameters are from kwargs for the diffractometer,
         # so the dictionary is empty.
-        params = {}
-        params.update(conf_params)
+
+        params = config_maps['config_instr']
         self.check_params(params)
 
-        binning = params.get('binning', [1, 1, 1])
+        binning = config_maps['config_data'].get('binning', [1, 1, 1])
         pixel = det.get_pixel(params['detector'])
         px = pixel[0] * binning[0]
         py = pixel[1] * binning[1]
@@ -172,9 +172,8 @@ class Diffractometer_34idc(Diffractometer):
 
 
 def create_diffractometer(diff_name):
-    if diff_name == '34idc':
-        d = Diffractometer_34idc()
-        return d
-    else:
-        print (f'diffractometer {diff_name} not defined.')
-        return None
+    for diff in Diffractometer.__subclasses__():
+        if diff.name == diff_name:
+            return diff()
+    msg = f'diffractometor {diff_name} not defined'
+    raise CohereUiNotSupported(msg)

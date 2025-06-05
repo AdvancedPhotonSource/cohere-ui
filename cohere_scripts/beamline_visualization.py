@@ -93,17 +93,18 @@ def process_dir(config_maps, res_dir_scan):
     # This block of code creates vts file with arrays depending on the complex_mode.
     # If complex_mode is "AmpPhase" the following arrays are included: imAmp, imPh, support.
     # If complex_mode is "ReIm" the following arrays are included: imRe, imImag, support .
-    dir_viz = pu.make_image_viz(geometry, image, support, viz_params)
+    dir_viz = pu.make_image_viz(geometry, image, support,config_maps)
     complex_mode = viz_params.get('complex_mode', 'AmpPhase')
     filename = ut.join(save_dir, f'direct_space_images_{complex_mode}.vts')
     dir_viz.write(filename, complex_mode=complex_mode)
 
+    res_viz_d, res_viz_r = None, None
     # If 'interpolation_mode' and 'interpolation_resolution' parameters are configured then
     # the image is interpolated. First the resolution is determined. It can be configured
     # or calculated depending on the 'interpolation_resolution' parameter.
     if 'interpolation_mode' in viz_params and 'interpolation_resolution' in viz_params:
         # Find the resolution, as it can be configured as a value or prompted to derive it if configured
-        # to 'min-deconv_res'.
+        # to 'min_deconv_res'.
         match viz_params['interpolation_resolution']:
             case [*_]:
                 interpolation_resolution = viz_params['interpolation_resolution']
@@ -111,12 +112,14 @@ def process_dir(config_maps, res_dir_scan):
                 interpolation_resolution = viz_params['interpolation_resolution']
             case float():
                 interpolation_resolution = viz_params['interpolation_resolution']
-            case 'min-deconv_res':
+            case 'min_deconv_res':
                 # Only direct resolution is needed for interpolation.
                 # If configured to determine resolution, get it here in direct and reciprocal spaces, otherwise
                 # get only direct space resolution to use for interpolation.
                 only_direct_res = 'determine_resolution' not in viz_params
-                res_viz_d, res_viz_r = pu.make_resolution_viz(geometry, np.abs(image), viz_params, only_direct=only_direct_res)
+                res_viz_d, res_viz_r = pu.make_resolution_viz(geometry, np.abs(image), config_maps)
+                res_viz_d.write(ut.join(save_dir, "resolution_direct.vts"))
+                res_viz_r.write(ut.join(save_dir, "resolution_recip.vts"))
                 res_ssg = res_viz_d.get_structured_grid()
                 res_arr = res_ssg.point_data['resolution']
                 # because of [::-1] to get array indexing right the x axis in paraview is last axis in array.
@@ -136,7 +139,7 @@ def process_dir(config_maps, res_dir_scan):
                 # In this mode the image amplitudes and phases are obtained from the grid and interpolated
                 # The imAmp and imPh arrays are then saved.
                 pass
-            case 'Complex':
+            case 'ReIm':
                 # In this mode the image amplitudes and phases are calculated from real and imaginary values
                 # obtained from the grid and then interpolated.
                 # The imAmp and imPh arrays are then saved.
@@ -148,11 +151,10 @@ def process_dir(config_maps, res_dir_scan):
 
         del dir_viz
 
-    if 'determine_resolution' in viz_params:
-        if res_viz_d is None:
-            (res_viz_d, res_viz_r) = pu.make_resolution_viz(geometry, np.abs(image), viz_params)
+    if 'determine_resolution' in viz_params and res_viz_d is None:
         res_viz_d.write(ut.join(save_dir, "resolution_direct.vts"))
         res_viz_r.write(ut.join(save_dir, "resolution_recip.vts"))
+    if res_viz_d is None:
         del res_viz_d
         del res_viz_r
 
@@ -168,7 +170,7 @@ def process_dir(config_maps, res_dir_scan):
         twin_image = np.conjugate(np.flip(image))
         if support is not None:
             twin_support = np.flip(support)
-        twin_viz = pu.make_image_viz(geometry, twin_image, twin_support)
+        twin_viz = pu.make_image_viz(geometry, twin_image, twin_support, config_maps)
         twin_viz.write(ut.join(save_dir, "twin_direct_space_images.vts"))
 
     cohfile = ut.join(res_dir, 'coherence.npy')

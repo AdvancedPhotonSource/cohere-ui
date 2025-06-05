@@ -1,8 +1,6 @@
-import os.path
-
 import beamlines.simple.diffractometers as diff
 import beamlines.simple.detectors as det
-import re
+from inner_scripts.exceptions import CohereUiNotSupported, CohereUiMissingConfParam, CohereUiMissingFileDir
 
 
 class Instrument:
@@ -114,24 +112,23 @@ def create_instr(configs, **kwargs):
 
     if 'need_detector' in kwargs and kwargs['need_detector']:
         if 'config_prep' not in configs:
-            raise ValueError('missing config_prep')
+            msg = 'missing config_prep'
+            raise CohereUiMissingConfParam(msg)
         det_params = instr_config_params
         det_params.update(configs['config_prep'])
 
         det_obj = det.create_detector(det_name, det_params)
-        if det_obj is None:
-            raise ValueError('failed create detector', det_name)
 
     diff_name = instr_config_params.get('diffractometer', None)
     if diff_name is None:
-        raise ValueError('detector name not configured in config_instr')
+        msg = 'detector name not configured in config_instr'
+        raise CohereUiMissingConfParam(msg)
 
     diff_obj = diff.create_diffractometer(diff_name)
-    if diff_obj is None:
-        raise ValueError('failed create diffractometer', diff_name)
 
     instr = Instrument(det_obj, diff_obj)
-    if 'scan' in params:
-        instr.scan_ranges = [[int(params['scan']), int(params['scan'])]]
+    main_conf = configs['config']
+    if 'scan' in main_conf:
+        instr.scan_ranges = [[int(main_conf['scan']), int(main_conf['scan'])]]
 
     return instr

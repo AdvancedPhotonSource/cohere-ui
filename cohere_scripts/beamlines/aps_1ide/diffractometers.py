@@ -4,6 +4,7 @@ import xrayutilities.experiment as xuexp
 from xrayutilities.io import spec as spec
 import beamlines.aps_1ide.detectors as det
 from abc import ABC
+from inner_scripts.exceptions import  CohereUiNotSupported
 
 
 class Diffractometer(ABC):
@@ -222,9 +223,8 @@ class Diffractometer_1ide(Diffractometer):
 
 
 def create_diffractometer(diff_name, params):
-    if diff_name == '1ide':
-        d = Diffractometer_1ide(params)
-        return d
-    else:
-        print (f'diffractometer {diff_name} not defined.')
-        return None
+    for diff in Diffractometer.__subclasses__():
+        if diff.name == diff_name:
+            return diff(params)
+    msg = f'diffractometor {diff_name} not defined'
+    raise CohereUiNotSupported(msg)

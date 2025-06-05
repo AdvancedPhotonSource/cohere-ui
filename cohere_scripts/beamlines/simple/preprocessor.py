@@ -11,6 +11,8 @@ def process_batch(get_scan_array_function, scans_datainfo, experiment_dir, separ
         scans. Not used in this simple example.
     :return:
     """
+    print('scans_datainfo', scans_datainfo)
+    print('get_scan_array_function', get_scan_array_function)
     arr = get_scan_array_function(scans_datainfo[1])
     # save the file
     save_dir = ut.join(experiment_dir, 'preprocessed_data')

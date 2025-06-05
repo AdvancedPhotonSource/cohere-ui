@@ -1,0 +1,15 @@
+data_dir = "data_dir"
+whitefield_filename = "cohere_scripts/beamlines/aps_1ide/detector_corrections/ASI/oldwf.tif"
+maxcrop = [100, 100]
+roi = [0, 256, 256, 256]
+
+//exclude_scans = [78,81]
+                                            // A list containing scan indexes that will be excluded when adding scans.
+
+//ouliers_scans = [78,81]
+                                            // A list containing scan indexes that will be excluded when adding scans.
+                                            // This list is determined when running auto-data preprocessing.
+
+//Imult = 10000
+                                            // Optional, defaults to the average of the whitefield.
+                                            // A multiplication factor used to renormalize the whitefield correction.

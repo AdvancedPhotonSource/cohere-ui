@@ -3,6 +3,7 @@ import numpy as np
 import cohere_core.utilities as ut
 from abc import ABC, abstractmethod
 import re
+from inner_scripts.exceptions import  CohereUiNotSupported
 
 
 class Detector(ABC):
@@ -198,13 +199,11 @@ class Detector_34idcTIM2(Detector):
 
 
 def create_detector(det_name, params):
-    if det_name == '34idcTIM2':
-        return Detector_34idcTIM2(params)
-    elif det_name == '34idcTIM1':
-        return Detector_34idcTIM1(params)
-    else:
-        print(f'detector {det_name} not defined.')
-        return None
+    for detector in Detector.__subclasses__():
+        if detector.name == det_name:
+            return  detector(params)
+    msg = f'detector {det_name} not defined'
+    raise CohereUiNotSupported(msg)
 
 
 dets = {'34idcTIM1' : Detector_34idcTIM1, '34idcTIM2' : Detector_34idcTIM2}

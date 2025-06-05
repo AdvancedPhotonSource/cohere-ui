@@ -484,4 +484,4 @@ def verify(file_name, conf_map):
     elif file_name == 'config_mp':
         return ''
     else:
-        return ('verifier has no fumction to check config file named', file_name)
+        return ('verifier has no function to check config file named', file_name)

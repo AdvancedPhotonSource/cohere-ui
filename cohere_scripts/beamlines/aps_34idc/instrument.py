@@ -1,6 +1,7 @@
 import beamlines.aps_34idc.diffractometers as diff
 import beamlines.aps_34idc.detectors as det
 from xrayutilities.io import spec
+from inner_scripts.exceptions import CohereUiNotSupported, CohereUiMissingConfParam
 
 
 def parse_spec4roi(specfile, scan):
@@ -157,24 +158,26 @@ def create_instr(configs, **kwargs):
     if 'need_detector' in kwargs and kwargs['need_detector']:
         # add parameters from config_prep to det_params
         if 'config_prep' not in configs:
-            raise ValueError('missing config_prep, required for beamline aps34-idc')
+            msg = 'missing config_prep, required for beamline aps34-idc'
+            raise CohereUiMissingConfParam(msg)
         det_params.update(configs['config_prep'])
-        # check for parameters
-        err_msg = det.check_mandatory_params(det_name, det_params)
-        if len(err_msg) > 0:
-            raise ValueError(err_msg)
+        # check for parameters, it will raise exception if failed
+        det.check_mandatory_params(det_name, det_params)
 
         det_obj = det.create_detector(det_name, det_params)
         if det_obj is None:
-            raise ValueError('failed create detector {det_name}')
+            msg = f'failed create {det_name} detector'
+            raise CohereUiNotSupported(msg)
 
     diff_name = instr_config_params.get('diffractometer', None)
     if diff_name is None:
-        raise ValueError('diffractometer parameter not defined')
+        msg = 'diffractometer parameter not defined'
+        raise CohereUiMissingConfParam(msg)
     else:
-        diff_obj = diff.create_diffractometer(diff_name, specfile=instr_config_params.get('specfile', None))
+        diff_obj = diff.create_diffractometer(diff_name, instr_config_params)
         if diff_obj is None:
-            raise ValueError('failed create diffractometer', diff_name)
+            msg = f'failed create {diff_name} diffractometer'
+            raise CohereUiNotSupported(msg)
 
     instr = Instrument(det_obj, diff_obj)
     instr.scan_ranges = scan_ranges

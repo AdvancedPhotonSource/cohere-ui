@@ -1,4 +1,4 @@
-raw_data_dir = "ADDATADIR"
+data_dir = "ADDATADIR"
                                             // The directory containing raw data. This directory will have several
                                             // subdirectories each containing .tif data files. Each subdirectory
                                             // represents separate scan and is numbered with the scan index.

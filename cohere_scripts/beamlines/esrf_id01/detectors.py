@@ -1,6 +1,7 @@
 import numpy as np
 import h5py
 from abc import ABC, abstractmethod
+from inner_scripts.exceptions import  CohereUiNotSupported
 
 
 class Detector(ABC):
@@ -94,12 +95,12 @@ class Detector_mpxgaas(Detector):
             setattr(self, key, val)
 
 
-def create_detector(det_name, **conf_params):
-    if det_name == 'mpxgaas':
-        return Detector_mpxgaas(conf_params)
-    else:
-        print (f'detector {det_name} not defined.')
-        return None
+def create_detector(det_name, params):
+    for detector in Detector.__subclasses__():
+        if detector.name == det_name:
+            return  detector(params)
+    msg = f'detector {det_name} not defined'
+    raise CohereUiNotSupported(msg)
 
 
 dets = {'mpxgaas' : Detector_mpxgaas}

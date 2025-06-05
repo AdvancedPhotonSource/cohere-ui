@@ -1,9 +1,9 @@
 import numpy as np
 import os
 import re
-import glob
 import cohere_core.utilities as ut
 from abc import ABC, abstractmethod
+from inner_scripts.exceptions import CohereUiNotSupported, CohereUiMissingConfParam, CohereUiMissingFileDir
 
 
 class Detector(ABC):
@@ -175,10 +175,12 @@ class Detector_34idcTIM1(Detector):
         :return: message indicating problem or empty message if all is ok
         """
         if  'data_dir' not in params:
-            return 'data_dir parameter not configured, mandatory for 34idcTIM1 detector.'
+            msg = 'data_dir parameter not configured, mandatory for 34idcTIM1 detector.'
+            raise CohereUiMissingConfParam(msg)
         data_dir = params['data_dir']
         if not os.path.isdir(data_dir):
-            return f'data_dir directory{data_dir} does not exist.'
+            msg = f'data_dir directory{data_dir} does not exist.'
+            raise CohereUiMissingFileDir(msg)
 
 
 class Detector_34idcTIM2(Detector):
@@ -345,34 +347,36 @@ class Detector_34idcTIM2(Detector):
         :return: message indicating problem or empty message if all is ok
         """
         if  'data_dir' not in params:
-            return 'data_dir parameter not configured, mandatory for 34idcTIM2 detector.'
+            msg = 'data_dir parameter not configured, mandatory for 34idcTIM2 detector.'
+            raise CohereUiMissingConfParam(msg)
         data_dir = params['data_dir']
         if not os.path.isdir(data_dir):
-            return f'data_dir directory{data_dir} does not exist.'
+            msg = f'data_dir directory{data_dir} does not exist.'
+            raise CohereUiMissingFileDir(msg)
 
         if 'whitefield_filename' not in params:
-            return 'whitefield_filename parameter not configured, mandatory for 34idcTIM2 detector.'
+            msg = 'whitefield_filename parameter not configured, mandatory for 34idcTIM2 detector.'
+            raise CohereUiMissingConfParam(msg)
         whitefield = params['whitefield_filename']
         if not os.path.isfile(whitefield):
-            return f'whitefield_filename file {whitefield} does not exist.'
+            msg = f'whitefield_filename file {whitefield} does not exist.'
+            raise CohereUiMissingFileDir(msg)
 
         if 'darkfield_filename' not in params:
-            return 'darkfield_filename parameter not configured, mandatory for 34idcTIM2 detector.'
+            msg = 'darkfield_filename parameter not configured, mandatory for 34idcTIM2 detector.'
+            raise CohereUiMissingConfParam(msg)
         darkfield = params['darkfield_filename']
         if not os.path.isfile(darkfield):
-            return f'darkfield_filename file {darkfield} does not exist.'
-
-        return ''
+            msg = f'darkfield_filename file {darkfield} does not exist.'
+            raise CohereUiMissingFileDir(msg)
 
 
 def create_detector(det_name, params):
-    if det_name == '34idcTIM1':
-        return Detector_34idcTIM1(params)
-    elif det_name == '34idcTIM2':
-        return Detector_34idcTIM2(params)
-    else:
-        print(f'detector {det_name} not defined.')
-        return None
+    for detector in Detector.__subclasses__():
+        if detector.name == det_name:
+            return  detector(params)
+    msg = f'detector {det_name} not defined'
+    raise CohereUiNotSupported(msg)
 
 
 dets = {'34idcTIM1' : Detector_34idcTIM1, '34idcTIM2' : Detector_34idcTIM2}
@@ -386,4 +390,8 @@ def get_pixel_orientation(det_name):
 
 
 def check_mandatory_params(det_name, params):
-    return dets[det_name].check_mandatory_params(params)
+    for detector in Detector.__subclasses__():
+        if detector.name == det_name:
+            return dets[det_name].check_mandatory_params(params)
+    msg = f'detector {det_name} not defined'
+    raise CohereUiNotSupported(msg)

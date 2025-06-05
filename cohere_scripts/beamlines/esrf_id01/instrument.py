@@ -1,7 +1,7 @@
 import beamlines.esrf_id01.diffractometers as diff
 import beamlines.esrf_id01.detectors as det
 import os
-import cohere_core.utilities as ut
+from inner_scripts.exceptions import CohereUiMissingConfParam, CohereUiMissingFileDir
 
 
 class Instrument:
@@ -89,28 +89,27 @@ def create_instr(configs, **kwargs):
 
     h5file = configs['config_instr'].get('h5file', None)
     if h5file is None:
-        raise ValueError('h5file file must be provided to create Instrument for esrf_id01 beamline')
+        msg = 'h5file file must be provided to create Instrument for esrf_id01 beamline'
+        raise CohereUiMissingConfParam(msg)
     # check if the file exist
     if not os.path.isfile(h5file):
-        raise ValueError("h5file does not exist", h5file)
+        msg = f"h5file {h5file} does not exist"
+        raise CohereUiMissingFileDir(msg)
 
     diffractometer = configs['config_instr'].get('diffractometer', None)
     if diffractometer is None:
-        raise ValueError('diffractometer must be provided to create Instrument for esrf_id01 beamline')
+        msg = 'diffractometer must be provided to create Instrument for esrf_id01 beamline'
+        raise CohereUiMissingConfParam(msg)
 
     detector = configs['config_instr'].get('detector', None)
     if detector is None:
-        raise ValueError('detector must be provided to create Instrument for esrf_id01 beamline')
+        msg = 'detector must be provided to create Instrument for esrf_id01 beamline'
+        raise CohereUiMissingConfParam(msg)
 
     diff_obj = diff.create_diffractometer(diffractometer)
-    if diff_obj is None:
-        raise ValueError('failed create diffractometer', diffractometer)
 
     if 'need_detector' in kwargs:
-        roi = configs['config_prep'].get('roi', None)
-        det_obj = det.create_detector(detector, roi=roi)
-        if det_obj is None:
-            raise ValueError('failed create detector', detector)
+        det_obj = det.create_detector(detector, configs['config_prep'])
 
     instr = Instrument(h5file, diff_obj, det_obj, detector)
 

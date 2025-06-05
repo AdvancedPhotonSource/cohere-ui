@@ -1,5 +1,6 @@
 import beamlines.aps_1ide.diffractometers as diff
 import beamlines.aps_1ide.detectors as det
+from inner_scripts.exceptions import CohereUiMissingConfParam
 
 
 class Instrument:
@@ -35,7 +36,7 @@ class Instrument:
         return self.det_obj.get_scan_array(scan_dir)
 
 
-    def get_geometry(self, shape, scan, conf_params):
+    def get_geometry(self, shape, scan, conf_maps):
         """
         Calculates geometry based on diffractometer's and detctor's attributes and experiment parameters.
 
@@ -83,27 +84,22 @@ def create_instr(configs, **kwargs):
 
     det_name = configs['config_instr'].get('detector', None)
     if det_name is None:
-        raise ValueError('detector name not configured and could not be parsed')
+        raise CohereUiMissingConfParam('detector name not configured and could not be parsed')
 
     if  'need_detector' in kwargs and kwargs['need_detector']:
         if 'config_prep' not in configs:
-            raise ValueError('missing config_prep, required for beamline aps34-idc')
+            raise CohereUiMissingConfParam('missing config_prep, required for beamline aps34-idc')
         # set detector parameters to configured parameters in config_prep
         det_params = configs['config_prep']
-        # check for parameters
-        err_msg = det.check_mandatory_params(det_name, det_params)
-        if len(err_msg) > 0:
-            raise ValueError(err_msg)
-
+        # check for parameters, it will raise exception if not success
+        det.check_mandatory_params(det_name, det_params)
         det_obj = det.create_detector(det_name, det_params)
 
     diff_name = configs['config_instr'].get('diffractometer', None)
     if diff_name is None:
-        raise ValueError('diffractometer parameter not defined')
+        raise CohereUiMissingConfParam('diffractometer parameter not defined')
     else:
         diff_obj = diff.create_diffractometer(diff_name, configs['config_instr'])
-        if diff_obj is None:
-            raise ValueError('failed create diffractometer', diff_name)
 
     instr = Instrument(det_obj, diff_obj)
     # set scan ranges in instrument class

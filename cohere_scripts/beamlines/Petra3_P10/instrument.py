@@ -1,9 +1,9 @@
 import beamlines.Petra3_P10.diffractometers as diff
 import beamlines.Petra3_P10.detectors as det
-import re
 import os
 import beamlines.Petra3_P10.p10_scan_reader as p10sr
 import cohere_core.utilities as ut
+from inner_scripts.exceptions import CohereUiNotSupported, CohereUiMissingConfParam, CohereUiMissingFileDir
 
 
 class Instrument:
@@ -112,36 +112,30 @@ def create_instr(configs, **kwargs):
         data_dir = config_params['data_dir']
         scan_subdir = config_params['sample'] + '_{:05d}'.format(int(scan))
         if not os.path.isdir(ut.join(data_dir, scan_subdir)):
-            raise ValueError ("cannot parse det_name, the data/sample path does not exist", data_dir,scan_subdir)
+            msg = "cannot parse det_name, the data/sample path does not exist"
+            raise CohereUiMissingFileDir(msg)
 
         scanmeta = p10sr.P10Scan(config_params.get('data_dir'), config_params.get('sample'), first_scan, pathsave='', creat_save_folder=True)
         det_name = scanmeta.get_motor_pos('_ccd')
 
     if det_name is None:
-        raise ValueError('detector name not configured and could not be parsed')
+        msg = 'detector name not configured and could not be parsed'
+        raise CohereUiMissingConfParam(msg)
 
     diff_name = config_params.get('diffractometer', None)
     if diff_name is None:
-        raise ValueError('diffractometer parameter not defined')
+        msg = 'diffractometer parameter not defined'
+        raise CohereUiMissingConfParam(msg)
     else:
-        err_msg = diff.check_mandatory_params(diff_name, config_params)
-        if len(err_msg) > 0:
-            raise ValueError(err_msg)
+        diff.check_mandatory_params(diff_name, config_params)
         diff_obj = diff.create_diffractometer(diff_name, config_params)
-        if diff_obj is None:
-            raise ValueError('failed create diffractometer', diff_name)
 
     if 'need_detector' in kwargs and kwargs['need_detector']:
         # add parameters from the config_prep
         config_params.update(configs['config_prep'])
         # check for parameters
-        err_msg = det.check_mandatory_params(det_name, config_params)
-        if len(err_msg) > 0:
-            raise ValueError(err_msg)
-
+        det.check_mandatory_params(det_name, config_params)
         det_obj = det.create_detector(det_name, config_params)
-        if det_obj is None:
-            raise ValueError('failed create detector', det_name)
 
     instr = Instrument(det_obj, diff_obj)
     instr.scan_ranges = scan_ranges
