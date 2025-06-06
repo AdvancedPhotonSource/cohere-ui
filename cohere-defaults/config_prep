@@ -20,6 +20,9 @@ whitefield_filename = "WHITEFIELD"
 //exclude_scans = [78,81]
                                             // A list containing scan indexes that will be excluded when adding scans.
 
+remove_outliers = False
+                                            // for auto removal of outlier scans in large data sets
+
 //ouliers_scans = [78,81]
                                             // A list containing scan indexes that will be excluded when adding scans.
                                             // This list is determined when running auto-data preprocessing.

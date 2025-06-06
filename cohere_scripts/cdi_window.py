@@ -128,9 +128,6 @@ class cdi_gui(QWidget):
         self.beamline_widget = QLineEdit()
         ruplayout.addRow("beamline", self.beamline_widget)
         scan_layout = QHBoxLayout()
-        self.auto_data = QCheckBox('auto data')
-        self.auto_data.setChecked(False)
-        scan_layout.addWidget(self.auto_data)
         self.separate_scans = QCheckBox('separate scans')
         self.separate_scans.setChecked(False)
         scan_layout.addWidget(self.separate_scans)
@@ -171,7 +168,6 @@ class cdi_gui(QWidget):
         self.run_button.clicked.connect(self.run_everything)
         self.create_exp_button.clicked.connect(self.set_experiment)
         self.multipeak.stateChanged.connect(self.toggle_multipeak)
-        self.auto_data.stateChanged.connect(self.toggle_auto_data)
         self.separate_scans.stateChanged.connect(self.toggle_separate_scans)
         self.separate_scan_ranges.stateChanged.connect(self.toggle_separate_scan_ranges)
 
@@ -208,7 +204,6 @@ class cdi_gui(QWidget):
         self.Id_widget.setText('')
         self.scan_widget.setText('')
         self.beamline_widget.setText('')
-        self.auto_data.setChecked(False)
         self.separate_scans.setChecked(False)
         self.separate_scan_ranges.setChecked(False)
         self.multipeak.setChecked(False)
@@ -351,8 +346,6 @@ class cdi_gui(QWidget):
             self.scan_widget.setText(conf_map['scan'].replace(' ',''))
         if 'beamline' in conf_map:
             self.beamline_widget.setText(conf_map['beamline'])
-        if 'auto_data' in conf_map and conf_map['auto_data']:
-            self.auto_data.setChecked(True)
         if 'separate_scans' in conf_map and conf_map['separate_scans']:
             self.separate_scans.setChecked(True)
         if 'separate_scan_ranges' in conf_map and conf_map['separate_scan_ranges']:
@@ -390,8 +383,6 @@ class cdi_gui(QWidget):
             conf_map['beamline'] = self.beamline
         if self.multipeak.isChecked():
             conf_map['multipeak'] = True
-        if self.auto_data.isChecked():
-            conf_map['auto_data'] = True
         if self.separate_scans.isChecked():
             conf_map['separate_scans'] = True
         if self.separate_scan_ranges.isChecked():
@@ -486,11 +477,6 @@ class cdi_gui(QWidget):
             self.save_main()
         if not self.t is None:
             self.t.toggle_checked(self.separate_scan_ranges.isChecked(), False)
-
-
-    def toggle_auto_data(self):
-        if self.is_exp_set():
-            self.save_main()
 
 
 class Tabs(QTabWidget):
@@ -652,6 +638,9 @@ class DataTab(QWidget):
         sub_layout = QFormLayout()
         self.set_alien_layout(sub_layout)
         layout.addRow(sub_layout)
+        self.auto_intensity_threshold = QCheckBox('auto intensity threshold')
+        self.auto_intensity_threshold.setChecked(False)
+        layout.addWidget(self.auto_intensity_threshold)
         self.intensity_threshold = QLineEdit()
         layout.addRow("Intensity Threshold", self.intensity_threshold)
         self.shift = QLineEdit()
@@ -660,9 +649,6 @@ class DataTab(QWidget):
         layout.addRow("crop, pad", self.crop_pad)
         self.binning = QLineEdit()
         layout.addRow("binning", self.binning)
-        self.no_adjust_dims = QCheckBox('not adjust dims')
-        self.no_adjust_dims.setChecked(False)
-        layout.addWidget(self.no_adjust_dims)
         self.no_center_max = QCheckBox('not center max')
         self.no_center_max.setChecked(False)
         layout.addWidget(self.no_center_max)
@@ -689,7 +675,7 @@ class DataTab(QWidget):
         self.binning.setText('')
         self.shift.setText('')
         self.crop_pad.setText('')
-        self.no_adjust_dims.setChecked(False)
+        self.auto_intensity_threshold.setChecked(False)
         self.no_center_max.setChecked(False)
 
 
@@ -734,6 +720,7 @@ class DataTab(QWidget):
                 self.AA1_save_arrs.setChecked(False)
             if 'AA1_expandcleanedsigma' in conf_map:
                 self.AA1_expandcleanedsigma.setText(str(conf_map['AA1_expandcleanedsigma']).replace(" ", ""))
+        self.auto_intensity_threshold.setChecked('auto_intensity_threshold' in conf_map and conf_map['auto_intensity_threshold'])
         if 'intensity_threshold' in conf_map:
             self.intensity_threshold.setText(str(conf_map['intensity_threshold']).replace(" ", ""))
         if 'binning' in conf_map:
@@ -742,10 +729,6 @@ class DataTab(QWidget):
             self.shift.setText(str(conf_map['shift']).replace(" ", ""))
         if 'crop_pad' in conf_map:
             self.crop_pad.setText(str(conf_map['crop_pad']).replace(" ", ""))
-        if 'no_adjust_dims' in conf_map and conf_map['no_adjust_dims']:
-            self.no_adjust_dims.setChecked(True)
-        else:
-            self.no_adjust_dims.setChecked(False)
         if 'no_center_max' in conf_map and conf_map['no_center_max']:
             self.no_center_max.setChecked(True)
         else:
@@ -798,8 +781,8 @@ class DataTab(QWidget):
             conf_map['shift'] = ast.literal_eval(str(self.shift.text()).replace(os.linesep, ''))
         if len(self.crop_pad.text()) > 0:
             conf_map['crop_pad'] = ast.literal_eval(str(self.crop_pad.text()).replace(os.linesep, ''))
-        if self.no_adjust_dims.isChecked():
-            conf_map['no_adjust_dims'] = True
+        if self.auto_intensity_threshold.isChecked():
+            conf_map['auto_intensity_threshold'] = True
         if self.no_center_max.isChecked():
             conf_map['no_center_max'] = True
 
@@ -905,9 +888,8 @@ class DataTab(QWidget):
                 msg_window('Run data preparation in previous tab to activate this function')
                 return
 
-        # reload the window if auto_data as the intensity_threshold and binning could change
-        main_conf_map = ut.read_config(ut.join(self.main_win.experiment_dir, 'conf', 'config'))
-        if 'auto_data' in main_conf_map and main_conf_map['auto_data']:
+        # reload the window if auto_intensity_threshold is set
+        if self.auto_intensity_threshold.isChecked():
             data_map = ut.read_config(ut.join(self.main_win.experiment_dir, 'conf', 'config_data'))
             self.load_tab(data_map)
 

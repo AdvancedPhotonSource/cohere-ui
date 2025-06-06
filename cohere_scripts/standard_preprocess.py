@@ -14,6 +14,7 @@ import os
 import cohere_core.data as fd
 import cohere_core.utilities as ut
 import inner_scripts.common as com
+from inner_scripts.exceptions import CohereUiMissingConfParam
 
 
 __author__ = "Barbara Frosik"
@@ -44,16 +45,12 @@ def format_data(experiment_dir, **kwargs):
 
     conf_list = ['config_data']
     conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, **kwargs)
-
-    main_conf_map = conf_maps['config']
-    auto_data = main_conf_map.get('auto_data', False)
-
-    if 'config_data' not in conf_maps and not auto_data: # not possible to get intensity threshold
-        raise ValueError('Missing config_data file and not auto_data, cannot determine intensity threshold.')
-        #return 'Missing config_data file and not auto_data, cannot determine intensity threshold.'
+    if 'config_data' not in conf_maps: # not possible to get intensity threshold
+        msg = 'Missing config_data file, cannot determine intensity threshold.'
+        raise CohereUiMissingConfParam(msg)
 
     # check the maps
-    data_conf_map = conf_maps.get('config_data', {})
+    data_conf_map = conf_maps.get('config_data')
 
     dirs = os.listdir(experiment_dir)
     for dir in dirs:
@@ -70,15 +67,14 @@ def format_data(experiment_dir, **kwargs):
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
 
-        # call the preprocessing in cohere_core, it will return updated configuration if auto_data
-        data_conf_map = fd.prep(ut.join(proc_dir, 'preprocessed_data', 'prep_data.tif'), auto_data, **data_conf_map)
+        # call the preprocessing in cohere_core, it will return updated configuration if auto_intensity_threshold is set
+        data_conf_map = fd.prep(ut.join(proc_dir, 'preprocessed_data', 'prep_data.tif'), **data_conf_map)
 
     # This will work for a single reconstruction.
     # For separate scan the last auto-calculated values will be saved
     # TODO:
     # make the parameters like threshold a list for the separate scans scenario
-    if auto_data:
-        ut.write_config(data_conf_map, ut.join(experiment_dir,'conf', 'config_data'))
+    ut.write_config(data_conf_map, ut.join(experiment_dir,'conf', 'config_data'))
 
 
 def main():

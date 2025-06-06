@@ -119,6 +119,9 @@ class PrepTab(QWidget):
         layout.addRow("min files in scan", self.min_frames)
         self.exclude_scans = QLineEdit()
         layout.addRow("exclude scans", self.exclude_scans)
+        self.remove_outliers = QCheckBox('remove outlierse')
+        self.remove_outliers.setChecked(False)
+        layout.addRow(self.remove_outliers)
         self.outliers_scans = QLineEdit()
         layout.addRow("outliers scans", self.outliers_scans)
 
@@ -182,6 +185,7 @@ class PrepTab(QWidget):
             self.min_frames.setText(str(conf_map['min_frames']).replace(" ", ""))
         if 'exclude_scans' in conf_map:
             self.exclude_scans.setText(str(conf_map['exclude_scans']).replace(" ", ""))
+        self.remove_outliers.setChecked('remove_outliers' in conf_map and conf_map['remove_outliers'])
         if 'outliers_scans' in conf_map:
             self.outliers_scans.setText(str(conf_map['outliers_scans']).replace(" ", ""))
         if 'roi' in conf_map:
@@ -197,6 +201,7 @@ class PrepTab(QWidget):
         self.min_frames.setText('')
         self.exclude_scans.setText('')
         self.outliers_scans.setText('')
+        self.remove_outliers.setChecked(False)
         self.roi.setText('')
 
 
@@ -244,6 +249,8 @@ class PrepTab(QWidget):
             conf_map['min_frames'] = min_frames
         if len(self.exclude_scans.text()) > 0:
             conf_map['exclude_scans'] = ast.literal_eval(str(self.exclude_scans.text()).replace(os.linesep,''))
+        if self.remove_outliers.isChecked():
+            conf_map['remove_outliers'] = True
         if len(self.roi.text()) > 0:
             conf_map['roi'] = ast.literal_eval(str(self.roi.text()).replace(os.linesep,''))
 
@@ -277,10 +284,7 @@ class PrepTab(QWidget):
             if not self.main_win.no_verify:
               return
 
-        main_config_map = ut.read_config(ut.join(self.main_win.experiment_dir, 'conf', 'config'))
-        auto_data = 'auto_data' in main_config_map and main_config_map['auto_data']
-
-        if auto_data:
+        if conf_map['remove_outliers']:
             # exclude outliers_scans from saving
             current_prep_map = ut.read_config(ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
             if current_prep_map is not None and 'outliers_scans' in current_prep_map:
@@ -293,8 +297,8 @@ class PrepTab(QWidget):
             msg_window(str(e))
             return
 
-        # reload the window if auto_data as the outliers_scans could change
-        if auto_data:
+        # reload the window if remove_outliers as the outliers_scans could change
+        if conf_map['remove_outliers']:
             prep_map = ut.read_config(ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
             self.load_tab(prep_map)
 

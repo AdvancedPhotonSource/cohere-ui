@@ -38,11 +38,6 @@ multipeak = False
                                             // True if running multipeak experiment.
                                             // This requires config_mp file in conf directory
 
-auto_data = False
-                                            // for auto removal of outlier scans in large data sets during beamline
-                                            // preprocess phase, and determining threshold value during standard
-                                            // preprocess
-
 converter_ver = 2
                                             // mandatory after converter_ver 0, if current, the configuration files
                                             // won't be converted

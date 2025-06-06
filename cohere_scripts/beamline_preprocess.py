@@ -18,7 +18,6 @@ __docformat__ = 'restructuredtext en'
 __all__ = ['handle_prep',
            'main']
 
-import sys
 import argparse
 import importlib
 import cohere_core.utilities as ut
@@ -75,7 +74,7 @@ def handle_prep(experiment_dir, **kwargs):
     instr_obj = instr_module.create_instr(conf_maps, need_detector=need_detector)
 
     # get the settings from main config
-    auto_data = main_conf_map.get('auto_data', False)
+    remove_outliers = main_conf_map.get('remove_outliers', False)
     separate_scans = main_conf_map.get('separate_scans', False)
     separate_scan_ranges = main_conf_map.get('separate_scan_ranges', False)
     multipeak = main_conf_map.get('multipeak', False)
@@ -104,8 +103,8 @@ def handle_prep(experiment_dir, **kwargs):
         print('no data left after removing scans, exiting')
         return
 
-    # auto_data should not be configured for separate scans
-    if auto_data and not separate_scans:
+    # remove_outliers should not be configured for separate scans
+    if remove_outliers and not separate_scans:
         prep_conf_map = conf_maps.get('config_prep', {})
         # get all (scan, data info) tuples, process each scan and save the data in scans directories.
         single_scans_datainfo = [s_d for batch in scans_datainfo for s_d in batch]

@@ -58,14 +58,15 @@
                              // used in the 'AutoAliens1' method, optional.
                              // If given the algorithm will apply last step of cleaning
                              // the data using the configured sigma
+
+auto_intensity_threshold = False
+                             // optional, defaults to False
+                             // if set to True the intensity threshold is automatically set based
+                             // on data characteristic
 intensity_threshold = 2.0
-                             // mandatory
-                             // min data threshold.  Values below this are set to 0. The 
+                             // mandatory if auto_intensity_threshold is False
+                             // min data threshold.  Values below this are set to 0. The
                              // threshold is applied after removing aliens.
-
-no_adjust_dims = False       // optional, defaults to False
-                             // if set to True the dimensions won't change during standard_preprocessing
-
 crop_pad = [-65, -65, -65, -65, -13, -13]
                              // optional
                              // enter adjust dimensions list
