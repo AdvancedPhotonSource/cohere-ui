@@ -51,9 +51,9 @@ interpolation_mode = "AmpPhase"
                            // then the interpolated image amplitudes and image phases are calculated.
 
 interpolation_resolution = "min_deconv_res"
-                           // Required parameter for interpolation. Supported values: "min-deconv_res", int value,
+                           // Required parameter for interpolation. Supported values: "min_deconv_res", int value,
                            // float value, list.
-                           // If set to "min-deconv_res" the resolution will be determined by including the
+                           // If set to "min_deconv_res" the resolution will be determined by including the
                            // deconvolution resolution.
                            // If defined as integer value the resolution will be set to this value in each dimension.
                            // If defined as list, the list will define resolution in corresponding dimension.
