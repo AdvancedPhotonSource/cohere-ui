@@ -1,7 +1,7 @@
-import beamlines.Petra3_P10.diffractometers as diff
-import beamlines.Petra3_P10.detectors as det
 import os
-import beamlines.Petra3_P10.p10_scan_reader as p10sr
+import cohere_ui.beamlines.Petra3_P10.diffractometers as diff
+import cohere_ui.beamlines.Petra3_P10.detectors as det
+import cohere_ui.beamlines.Petra3_P10.p10_scan_reader as p10sr
 import cohere_core.utilities as ut
 
 

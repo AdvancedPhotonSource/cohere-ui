@@ -2,7 +2,7 @@ import numpy as np
 import math as m
 import xrayutilities.experiment as xuexp
 import h5py
-import beamlines.esrf_id01.detectors as det
+import cohere_ui.beamlines.esrf_id01.detectors as det
 from abc import ABC, abstractmethod
 
 

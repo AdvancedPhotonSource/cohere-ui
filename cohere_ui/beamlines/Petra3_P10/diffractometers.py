@@ -3,8 +3,8 @@ import cohere_core.utilities as ut
 import numpy as np
 import math as m
 import xrayutilities.experiment as xuexp
-import beamlines.Petra3_P10.detectors as det
-import beamlines.Petra3_P10.p10_scan_reader as p10sr
+import cohere_ui.beamlines.Petra3_P10.detectors as det
+import cohere_ui.beamlines.Petra3_P10.p10_scan_reader as p10sr
 
 
 class Diffractometer():

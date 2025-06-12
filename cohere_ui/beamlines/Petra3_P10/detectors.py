@@ -2,7 +2,7 @@ import numpy as np
 import os
 from abc import ABC, abstractmethod
 import h5py
-import beamlines.Petra3_P10.p10_scan_reader as p10sr
+import cohere_ui.beamlines.Petra3_P10.p10_scan_reader as p10sr
 import cohere_core.utilities as ut
 
 

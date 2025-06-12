@@ -19,12 +19,12 @@ __all__ = ['handle_prep',
            'main']
 
 import argparse
+from multiprocessing import Process
 import importlib
 import cohere_core.utilities as ut
-import api.auto_data as ad
-from multiprocessing import Process
-import api.common as com
-import api.multipeak as mp
+import cohere_ui.api.auto_data as ad
+import cohere_ui.api.common as com
+import cohere_ui.api.multipeak as mp
 
 
 def handle_prep(experiment_dir, **kwargs):

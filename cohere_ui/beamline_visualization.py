@@ -23,9 +23,9 @@ from functools import partial
 from multiprocessing import Pool, cpu_count
 import importlib
 import cohere_core.utilities as ut
-import api.multipeak as mp
-import api.common as com
-import api.postprocess_utils as pu
+import cohere_ui.api.multipeak as mp
+import cohere_ui.api.common as com
+import cohere_ui.api.postprocess_utils as pu
 
 
 def process_dir(config_maps, res_dir_scan):

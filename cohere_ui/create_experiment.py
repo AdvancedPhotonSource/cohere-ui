@@ -23,7 +23,7 @@ __all__ = ['create_conf_prep',
 import argparse
 import os
 import cohere_core.utilities as ut
-import api.convertconfig as conv
+import cohere_ui.api.convertconfig as conv
 
 
 def create_conf_prep(conf_dir):

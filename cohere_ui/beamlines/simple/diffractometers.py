@@ -1,7 +1,7 @@
 import numpy as np
 import math as m
 import xrayutilities.experiment as xuexp
-import beamlines.simple.detectors as det
+import cohere_ui.beamlines.simple.detectors as det
 from abc import ABC
 
 

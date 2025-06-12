@@ -1,5 +1,5 @@
-import beamlines.esrf_id01.diffractometers as diff
-import beamlines.esrf_id01.detectors as det
+import cohere_ui.beamlines.esrf_id01.diffractometers as diff
+import cohere_ui.beamlines.esrf_id01.detectors as det
 import os
 
 

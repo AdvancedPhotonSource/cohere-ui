@@ -1,10 +1,7 @@
 import sys
 import os
 import cohere_core.utilities as ut
-try:
-    import api.convertconfig as conv
-except:
-    import cohere_ui.api.convertconfig as conv
+import cohere_ui.api.convertconfig as conv
 
 
 def get_config_maps(experiment_dir, configs, **kwargs):

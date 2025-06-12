@@ -23,7 +23,7 @@ __all__ = ['calc_geometry',
 import os
 from pathlib import Path
 import numpy as np
-from tvtk.api import tvtk
+# from tvtk.api import tvtk
 from multiprocessing import Process
 from skimage import transform
 import scipy.ndimage as ndi
@@ -226,6 +226,7 @@ def center_mp(image, support):
 
 
 def write_vti(data, px, savedir, is_twin=False):
+    from tvtk.api import tvtk
     # Create the vtk object for the data
     if is_twin:
         prepend = "twin_"

@@ -13,7 +13,7 @@ import argparse
 import os
 import cohere_core.data as fd
 import cohere_core.utilities as ut
-import api.common as com
+import cohere_ui.api.common as com
 
 
 __author__ = "Barbara Frosik"

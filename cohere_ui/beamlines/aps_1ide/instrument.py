@@ -1,5 +1,5 @@
-import beamlines.aps_1ide.diffractometers as diff
-import beamlines.aps_1ide.detectors as det
+import cohere_ui.beamlines.aps_1ide.diffractometers as diff
+import cohere_ui.beamlines.aps_1ide.detectors as det
 
 
 class Instrument:

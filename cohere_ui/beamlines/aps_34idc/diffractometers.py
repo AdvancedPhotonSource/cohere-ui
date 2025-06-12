@@ -2,7 +2,7 @@ import numpy as np
 import math as m
 import xrayutilities.experiment as xuexp
 from xrayutilities.io import spec as spec
-import beamlines.aps_34idc.detectors as det
+import cohere_ui.beamlines.aps_34idc.detectors as det
 from abc import ABC
 
 class Diffractometer(ABC):

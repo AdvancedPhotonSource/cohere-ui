@@ -3,7 +3,7 @@ from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 import ast
 import cohere_core.utilities as ut
-import beamlines.esrf_id01.beam_verifier as ver
+import cohere_ui.beamlines.esrf_id01.beam_verifier as ver
 
 
 def msg_window(text):

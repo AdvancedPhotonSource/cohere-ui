@@ -13,10 +13,7 @@ import argparse
 import os
 import numpy as np
 import cohere_core.utilities as ut
-try:
-    import api.common as com
-except:
-    import cohere_ui.api.common as com
+import cohere_ui.api.common as com
 
 
 __author__ = "Barbara Frosik"

@@ -20,10 +20,7 @@ from multiprocessing import Queue
 import shutil
 from multiprocessing import Process
 import argparse
-try:
-    from api.reconstruction_populous import multi_rec
-except:
-    from cohere_ui.api.reconstruction_populous import multi_rec
+from cohere_ui.api.reconstruction_populous import multi_rec
 
 
 __author__ = "Barbara Frosik"

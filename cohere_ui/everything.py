@@ -16,12 +16,12 @@ __docformat__ = 'restructuredtext en'
 __all__ = ['run_all',
            'main']
 
-import beamline_preprocess as prep
-import standard_preprocess as dt
-import run_reconstruction as rec
-import beamline_visualization as dsp
 import os
 import argparse
+import cohere_ui.beamline_preprocess as prep
+import cohere_ui.standard_preprocess as dt
+import cohere_ui.run_reconstruction as rec
+import cohere_ui.beamline_visualization as dsp
 
 def run_all(experiment_dir, **kwargs):
     """
