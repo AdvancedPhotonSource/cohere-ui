@@ -263,7 +263,6 @@ class PrepTab(QWidget):
 
         self.tabs.run_prep()
 
-        # reload the window if auto_data as the outliers_scans could change
         # reload the window if remove_outliers as the outliers_scans could change
         if 'remove_outliers' in conf_map and conf_map['remove_outliers']:
             prep_map = ut.read_config(ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
