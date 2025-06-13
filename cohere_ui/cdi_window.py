@@ -2449,7 +2449,7 @@ class DispTab(QWidget):
         self.interpolation_mode.addItem("no interpolation")
         self.interpolation_mode.addItem("AmpPhase")
         self.interpolation_mode.addItem("ReIm")
-        layout.addRow("complex mode", self.interpolation_mode)
+        layout.addRow("interpolation mode", self.interpolation_mode)
         self.interpolation_resolution = QLineEdit()
         layout.addRow("interpolation resolution", self.interpolation_resolution)
         self.interpolation_resolution.setToolTip('Supported values: "min_deconv_res", int value, float value, list')

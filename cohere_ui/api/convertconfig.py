@@ -11,7 +11,8 @@ version = 2
 config_map = {}
 config_prep_map = {'darkfile': 'darkfield_filename',
                    'whitefile': 'whitefield_filename',
-                   'min_files': 'min_frames'}
+                   'min_files': 'min_frames',
+                   'auto_data': 'remove_outliers'}
 config_rec_map = {'samples': 'reconstructions',
                   'beta': 'hio_beta',
                   'amp_support_trigger': 'shrink_wrap_trigger',
@@ -37,11 +38,13 @@ config_rec_map = {'samples': 'reconstructions',
                   'gen_pcdi_start' : 'ga_gen_pc_start',
                   }
 config_disp_map = {'arm': 'detdist',
-                   'dth': 'scanmot_del'}
+                   'dth': 'scanmot_del',
+                   'crop': 'imcrop_fraction'}
 config_data_map = {'aliens': 'aliens',
                    'amp_threshold' : 'intensity_threshold',
                    'adjust_dimensions' : 'crop_pad',
-                   'center_shift' : 'shift'}
+                   'center_shift' : 'shift',
+                   'auto_data': 'auto_intensity_threshold'}
 config_instr_map = {}
 config_mp_map = {}
 
@@ -57,7 +60,7 @@ config_maps = {'config': config_map,
 
 # the key is the configuration file parameters are removed from
 # the parameters in list are inserted into the configuration file of subdict key
-move_dict = {'config':{'config_instr':['specfile']},
+move_dict = {'config':{'config_instr':['specfile'], 'config_prep':['auto_data'], 'config_data':['auto_data']},
              'config_prep':{'config':['separate_scans', 'separate_scan_ranges'],
                             'config_instr':['specfile']},
              'config_disp':{'config_instr':['energy', 'delta', 'gamma', 'detdist', 'th', 'chi', 'phi', 'scanmot',
@@ -238,31 +241,33 @@ def convert(conf_dir):
         conf_version = None
 
     config_dicts = {}
-    if not os.path.isfile(ut.join(conf_dir, 'config_instr')):
-        config_dicts['config_instr'] = {}
     for cfile in config_maps.keys():
         conf_file = ut.join(conf_dir, cfile)
         # check if file exist
-        if not os.path.isfile(conf_file):
-            continue
-        if os.access(os.path.dirname(conf_dir), os.W_OK):
-            shutil.copy(conf_file, f'{conf_file}_backup')
-
-        config_dicts[cfile] = ut.read_config(conf_file)
-
-        # Use map file to see what items need to change
-        # Use the map file to determine what parameters need to be changed.
-        # if the key is found then do the remap, if not then skip.
-        config_dicts[cfile] = replace_keys(config_dicts[cfile], cfile)
+        if os.path.isfile(conf_file):
+            config_dicts[cfile] = ut.read_config(conf_file)
+            if os.access(os.path.dirname(conf_dir), os.W_OK):
+                shutil.copy(conf_file, f'{conf_file}_backup')
+        else:
+            config_dicts[cfile] = {}
 
     # move parameters between files
     for k,v in move_dict.items():
+        to_pop = set()
         for nk, sv in v.items():
             for p in sv:
                 if p in config_dicts[k]:
-                    config_dicts[nk][p] = config_dicts[k].pop(p)
+                    config_dicts[nk][p] = config_dicts[k].get(p)
+                    to_pop.add(p)
+        to_pop.clear()
 
-    # Some special cases:
+
+    for cfile in config_maps.keys():
+        # Use the defined maps to determine what parameter names need to be changed.
+        # if the key is found then do the remap.
+        config_dicts[cfile] = replace_keys(config_dicts[cfile], cfile)
+
+   # Some special cases:
     # Now only applies if the configuration version is None
     # config: if beamline has no value then it was never defined so set it to the default
     #         set the converter version to current version
@@ -271,14 +276,21 @@ def convert(conf_dir):
     if conf_version is None:
         config_dicts = convert_dict(config_dicts)
 
+    # special case for config_disp: if crop was defined in previous versions, the name is changed 
+    # to imcrop_fraction and imcrop is set to 'fraction'. The first part has been done above.
+    # Now the code is setting the imcrop.
+    if 'imcrop_fraction' in config_dicts['config_disp']:
+        config_dicts['config_disp']['imcrop'] = 'fraction'
+
     # set the converter version in config to the current
     config_dicts['config']['converter_ver'] = get_version()
 
     # Write the data out to the same-named file
     if os.access(os.path.dirname(conf_dir), os.W_OK):
         for k, v in config_dicts.items():
-            file_name = ut.join(conf_dir, k)
-            ut.write_config(v, file_name)
+            if len(v) > 0:
+                file_name = ut.join(conf_dir, k)
+                ut.write_config(v, file_name)
 
 
 
