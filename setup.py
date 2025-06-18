@@ -52,6 +52,7 @@ setuptools.setup(
                          'xrayutilities',
                          'pyvista',
                          'scipy==1.14.1',
+                         'notebook',
                         ],
       classifiers=[
             'Intended Audience :: Science/Research',

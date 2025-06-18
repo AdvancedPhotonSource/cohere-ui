@@ -160,7 +160,7 @@ class cdi_gui(QWidget):
         self.vbox.addItem(spacer)
 
         self.setLayout(self.vbox)
-        self.setWindowTitle("CDI Reconstruction")
+        self.setWindowTitle("Cohere GUI")
 
         self.set_exp_button.clicked.connect(self.load_experiment)
         self.set_work_dir_button.clicked.connect(self.set_working_dir)
