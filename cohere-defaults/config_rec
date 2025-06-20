@@ -39,6 +39,7 @@ processing = "auto"
                              // Optional parameter. Defines the library used when running reconstruction.
                              // When the auto option is selected the program will use the best performing library
                              // that is available, in the following order: cupy, torch, numpy. Default is auto.
+                             // Supported values: 'cp' for cupy, 'np' for numpy, 'torch' for torch.
 
 device = [0,1]
 device = 'all'

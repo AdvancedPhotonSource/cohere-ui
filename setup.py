@@ -35,8 +35,8 @@ with open('example_workspace/esrf_exp_4/conf/config', 'w') as file:
 
 setuptools.setup(
       name='cohere_ui',
-      author = 'Barbara Frosik, Ross Harder',
-      author_email = 'bfrosik@anl.gov',
+      author='Barbara Frosik, Ross Harder',
+      author_email='bfrosik@anl.gov',
       url='https://github.com/advancedPhotonSource/cohere/cohere-ui',
       version='4.2.0',
       packages=['cohere_ui', 
