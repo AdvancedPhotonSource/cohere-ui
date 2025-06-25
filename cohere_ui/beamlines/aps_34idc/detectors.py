@@ -208,7 +208,7 @@ class Detector_34idcTIM2(Detector):
         if 'whitefield_filename' in params:
             self.whitefield = ut.read_tif(params.get('whitefield_filename'))
             # the code below is specific to TIM2 detector, excluding the correction of the weird pixels
-            self.whitefield[255:257, 0:255] = 0  # wierd pixels on edge of seam (TL/TR). Kill in WF kills in returned frame as well.
+            self.whitefield[255:257, 0:255] = 0  # weird pixels on edge of seam (TL/TR). Kill in WF kills in returned frame as well.
             self.wfavg = np.average(self.whitefield)
             self.wfstd = np.std(self.whitefield)
             self.whitefield = np.where(self.whitefield < self.wfavg - 3 * self.wfstd, 0, self.whitefield)
