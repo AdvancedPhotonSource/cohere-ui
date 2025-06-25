@@ -48,7 +48,7 @@ def handle_prep(experiment_dir, **kwargs):
     print('pre-processing data')
 
     # requesting the configuration files that provide parameters for preprocessing
-    conf_list = ['config_prep', 'config_instr', 'config_mp']
+    conf_list = ['config_prep', 'config_instr', 'config_mp', 'config_data']
     conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, **kwargs)
 
     # check the maps

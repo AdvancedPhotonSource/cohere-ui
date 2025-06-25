@@ -130,6 +130,8 @@ def create_instr(configs, **kwargs):
     instr_config_params = configs['config_instr']
 
     scan = main_config_params.get('scan', None)
+    if 'config_mp' in configs:
+        scan = configs['config_mp'].get('scan', None)
     if scan is not None:
         # 'scan' is configured as string. It can be a single scan, range, or combination separated by comma.
         # Parse the scan into list of scan ranges, defined by starting scan, and ending scan, inclusive.

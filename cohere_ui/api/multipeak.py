@@ -23,7 +23,7 @@ __all__ = ['calc_geometry',
 import os
 from pathlib import Path
 import numpy as np
-# from tvtk.api import tvtk
+import pyvista as pv
 from multiprocessing import Process
 from skimage import transform
 import scipy.ndimage as ndi
@@ -32,10 +32,10 @@ import cohere_core.utilities as ut
 import cohere_core.controller.phasing as calc
 
 
-def calc_geometry(instr_obj, shape, scan, o_twin):
+
+def calc_geometry(instr_obj, shape, scan, conf_maps, o_twin):
     """Calculates the rotation matrix and voxel size for a given peak"""
-    params = {}
-    B_recip, _ = instr_obj.get_geometry(shape, scan, params, xtal=True)
+    B_recip, _ = instr_obj.get_geometry(shape, scan, conf_maps, xtal=True)
     B_recip = np.stack([B_recip[1, :], B_recip[0, :], B_recip[2, :]])
     rs_voxel_size = np.max([np.linalg.norm(B_recip[:, i]) for i in range(3)])  # Units are inverse nanometers
     B_recip = o_twin @ B_recip
@@ -130,7 +130,8 @@ def twin_matrix(hklin, hklout, twin_plane, sample_axis):
     return R.from_rotvec(vec * -theta).as_matrix()
 
 
-def preprocess(preprocessor, instr_obj, scans_dirs, experiment_dir, mp_conf_map):
+def preprocess(preprocessor, instr_obj, scans_dirs, experiment_dir, conf_maps):
+    mp_conf_map = conf_maps['config_mp']
     try:
         o_twin = twin_matrix(mp_conf_map.get('hkl_in'),
                              mp_conf_map.get('hkl_out'),
@@ -146,7 +147,7 @@ def preprocess(preprocessor, instr_obj, scans_dirs, experiment_dir, mp_conf_map)
     batches_B_recipes = []
     for batch in scans_dirs:
         first_scan = batch[0][0]
-        B_recip, rs_voxel_size = calc_geometry(instr_obj, shape, first_scan, o_twin)
+        B_recip, rs_voxel_size = calc_geometry(instr_obj, shape, first_scan, conf_maps, o_twin)
         batches_rs_voxel_sizes.append(rs_voxel_size)   # reciprocal-space voxel size in inverse nanometers
         batches_ds_voxel_sizes.append(2*np.pi/(rs_voxel_size*shape[0]))  # direct-space voxel size in nanometers
         batches_B_recipes.append(B_recip)
@@ -178,9 +179,8 @@ def preprocess(preprocessor, instr_obj, scans_dirs, experiment_dir, mp_conf_map)
             Path(save_dir).mkdir()
         ut.write_config(geometry, ut.join(save_dir, 'geometry'))
 
-        p = Process(target=preprocessor.process_batch,
-                    args=(instr_obj.get_scan_array, batch, ut.join(save_dir, 'preprocessed_data', 'prep_data.tif'),
-                          experiment_dir)
+        p = Process(target=preprocessor.process_batch_mp,
+                    args=(instr_obj.get_scan_array, batch, save_dir)
                     )
         p.start()
         processes.append(p)
@@ -225,33 +225,36 @@ def center_mp(image, support):
     return image, support
 
 
-def write_vti(data, px, savedir, is_twin=False):
-    from tvtk.api import tvtk
-    # Create the vtk object for the data
+def write_vti(data, conf_maps, save_dir, is_twin=False):
+    # Assume `data` is a list of 3D numpy arrays
+    # Ensure data is in z, y, x order as PyVista/VTK expects
+    dims = data[0].shape
+    px = conf_maps["config_mp"]["ds_voxel_size"]
+    spacing = (px, px, px)
+
+    # Create a UniformGrid
+    grid = pv.ImageData()
+
+    # Set dimensions, spacing, and origin
+    grid.dimensions = dims  # should be (nx, ny, nz)
+    grid.spacing = spacing
+    grid.origin = (0.0, 0.0, 0.0)
+
+    # Add each data array to the point_data
+    names = ["density", "u_x", "u_y", "u_z", "s_xx", "s_yy", "s_zz", "s_xy", "s_yz", "s_zx", "support"]
+    for img, name in zip(data, names):
+        grid.point_data[name] = img.T.T.ravel(order='F')  # Fortran order is required for VTK compatibility
+
+    # Write to .vti file
     if is_twin:
         prepend = "twin_"
     else:
         prepend = ""
-    print("Preparing VTK data")
-    grid = tvtk.ImageData(dimensions=data[0].shape, spacing=(px, px, px))
-    # Set the data to the image/support/distortion
-    names = ["density", "u_x", "u_y", "u_z", "s_xx", "s_yy", "s_zz", "s_xy", "s_yz", "s_zx", "support"]
-    for img, name in zip(data, names):
-        arr = tvtk.DoubleArray()
-        arr.from_array(img.ravel())
-        arr.name = name
-        grid.point_data.add_array(arr)
-
-    # print("Saving VTK")
-    # Create the writer object
-    writer = tvtk.XMLImageDataWriter(file_name=f"{savedir}/{prepend}full_data.vti")
-    writer.set_input_data(grid)
-    # Save the data
-    writer.write()
-    print(f"saved file: {savedir}/{prepend}full_data.vti")
+    filename = os.path.join(save_dir, f"{prepend}full_data.vti")
+    grid.save(filename)
 
 
-def process_dir(exp_dir, rampups=1, make_twin=True):
+def process_dir(exp_dir, conf_maps):
     """
     Loads arrays from files in results directory. If reciprocal array exists, it will save reciprocal info in tif
     format.
@@ -260,15 +263,13 @@ def process_dir(exp_dir, rampups=1, make_twin=True):
     ----------
     exp_dir : str
         the directory where phasing results are saved
-    rampups : int
-        factor to apply to rampups operation, i.e. smoothing the image
-    make_twin : bool
-        if True visualize twin
+    conf_maps : dict
+        dictionary containing configuration dictionaries for 'config', 'config_mp', and 'config_disp'.
     """
     res_dir = Path(exp_dir) / "results_phasing"
     save_dir = Path(exp_dir) / "results_viz"
     # create dir if does not exist
-    print(save_dir)
+
     if not save_dir.exists():
         save_dir.mkdir()
     for f in save_dir.iterdir():
@@ -279,14 +280,14 @@ def process_dir(exp_dir, rampups=1, make_twin=True):
     support = np.load(f"{res_dir}/support.npy")
 
     image, support = center_mp(image, support)
+    rampups = conf_maps['config_disp'].get('rampups', 1)
     if rampups > 1:
-        image = ut.remove_ramp(image, ups=rampups)
+        image[0] = ut.remove_ramp(image[0], ups=rampups)
     np.save(f"{res_dir}/reconstruction.npy", np.moveaxis(image, 0, -1))
 
-    px = ut.read_config(f"{exp_dir}/conf/config_mp")["ds_voxel_size"]
+    write_vti(image, conf_maps, save_dir)
 
-    write_vti(image, px, save_dir)
-
+    make_twin = conf_maps['config_disp'].get('make_twin', False)
     if make_twin:
         image = np.flip(image, axis=(1, 2, 3))
         image[1:-1] *= -1
@@ -295,7 +296,7 @@ def process_dir(exp_dir, rampups=1, make_twin=True):
             image, support = center_mp(image, support)
         if rampups > 1:
             image = ut.remove_ramp(image, ups=rampups)
-        write_vti(image, px, save_dir, is_twin=True)
+        write_vti(image, conf_maps, save_dir, is_twin=True)
 
 
 def reconstruction(lib, pars, peak_dirs, dev, **kwargs):
@@ -324,7 +325,6 @@ def reconstruction(lib, pars, peak_dirs, dev, **kwargs):
         may contain:
         debug : if True the exceptions are not handled
     """
-    print('peak_dirs', peak_dirs)
     if 'init_guess' not in pars:
         pars['init_guess'] = 'random'
     elif pars['init_guess'] == 'AI_guess':

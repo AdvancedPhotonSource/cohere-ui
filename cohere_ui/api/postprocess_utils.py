@@ -6,7 +6,7 @@ from itertools import chain, repeat, islice
 from typing import List, Union
 
 
-# CXDViz is meant to manage arrays (coords, real,recip) for building a vtk structured grids.
+# CXDViz is meant to manage arrays (coords, real,recip) for building structured grids.
 class CXDViz:
     """
     CXDViz(self, crop, geometry)

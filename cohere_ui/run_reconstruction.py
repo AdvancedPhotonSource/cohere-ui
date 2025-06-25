@@ -161,9 +161,7 @@ def process_scan_range(ga_method, pkg, conf_file, datafile, dir, picked_devs, ho
     nothing
     """
     if len(picked_devs) == 1:
-        err_msg = reconstruction_single(pkg, conf_file, datafile, dir, picked_devs, debug=debug)
-        if len(err_msg) > 0:
-            return err_msg
+        reconstruction_single(pkg, conf_file, datafile, dir, picked_devs, debug=debug)
     elif ga_method is None:
         reconstruction_populous.reconstruction(pkg, conf_file, datafile, dir, picked_devs)
     elif ga_method == 'ga_fast':
@@ -234,7 +232,8 @@ def manage_reconstruction(experiment_dir, **kwargs):
         for dir in os.listdir(experiment_dir):
             if dir.startswith('mp'):
                 peak_dirs.append(ut.join(experiment_dir, dir))
-        return multipeak.reconstruction(pkg, config_map, peak_dirs, devices, **kwargs)
+        multipeak.reconstruction(pkg, config_map, peak_dirs, devices, **kwargs)
+        return
 
     # exp_dirs_data list hold pairs of data and directory, where the directory is the root of phasing_data/data.tif file, and
     # data is the data.tif file in this directory.

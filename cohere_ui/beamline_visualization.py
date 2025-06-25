@@ -74,7 +74,7 @@ def process_dir(config_maps, res_dir_scan):
     # init variables
     support = None
     coh = None
-    (res_viz_d, res_viz_r) = (None, None)
+    #(res_viz_d, res_viz_r) = (None, None)
 
     supportfile = ut.join(res_dir, 'support.npy')
     if os.path.isfile(supportfile):
@@ -202,7 +202,7 @@ def handle_visualization(experiment_dir, **kwargs):
     """
     print ('starting visualization process')
 
-    conf_list = ['config_disp', 'config_instr', 'config_data']
+    conf_list = ['config_disp', 'config_instr', 'config_data', 'config_mp']
     conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, **kwargs)
 
     if 'config_disp' not in conf_maps.keys():
@@ -215,7 +215,7 @@ def handle_visualization(experiment_dir, **kwargs):
     main_conf_map = conf_maps['config']
 
     if 'multipeak' in main_conf_map and main_conf_map['multipeak']:
-        mp.process_dir(experiment_dir, make_twin=False)
+        mp.process_dir(experiment_dir, conf_maps)
     else:
         separate = main_conf_map.get('separate_scans', False) or main_conf_map.get('separate_scan_ranges', False)
         rec_id = kwargs.get('rec_id', None)

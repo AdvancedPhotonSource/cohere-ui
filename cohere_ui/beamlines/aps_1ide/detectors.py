@@ -60,10 +60,10 @@ class Detector(ABC):
                 elif scan <= scan_range[-1]:
                     # scan within range
                     scans_dirs.append((scan, scandir_full))
-                    if scan == scan_range[-1]:
-                        sr_idx += 1
-                        if sr_idx > len(scans) - 1:
-                            break
+                elif scan > scan_range[-1]:
+                    sr_idx += 1
+                    if sr_idx > len(scans) - 1:
+                        break
                     scan_range = scans[sr_idx]
                     scans_dirs = scans_dirs_ranges[sr_idx]
 

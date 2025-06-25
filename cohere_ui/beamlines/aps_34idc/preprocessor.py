@@ -99,6 +99,21 @@ def combine_scans(get_scan_func, scans_dirs, experiment_dir):
     return sumarr
 
 
+def process_batch_mp(get_scan_func, scans_dirs, peak_dir):
+    save_dir = ut.join(peak_dir, 'preprocessed_data')
+    save_file = ut.join(save_dir, 'prep_data.tif')
+
+    if len(scans_dirs) == 1:
+        arr = get_scan_func(scans_dirs[0][1])
+    else:
+        arr = combine_scans(get_scan_func, scans_dirs, peak_dir)
+    # save the file
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    # print(f"Saving array (max={int(arr.max())}) as {save_dir + '/' + filename}")
+    ut.save_tif(arr, save_file)
+
+
 def process_batch(get_scan_func, scans_dirs, experiment_dir, separate_scan_ranges):
     if separate_scan_ranges:
         indx = str(scans_dirs[0][0])
