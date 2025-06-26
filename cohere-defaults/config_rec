@@ -76,7 +76,10 @@ algorithm_sequence = "3* (20*ER.SW0 + 180*HIO.SW1) + 20*ER.SW0"
                             // sub-trigger place in the list.
 
 hio_beta = .9
-                             // Parameter used in hio algorithm.
+                             // Parameter used in HIO algorithm.
+
+raar_beta = .45
+                             // Parameter used in RAAR algorithm.
 
 // GENERATIc ALGORITHM
 // ga_generations = 4

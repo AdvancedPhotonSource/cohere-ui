@@ -988,6 +988,8 @@ class RecTab(QWidget):
         # TODO add logic to show this only if HIO is in sequence
         self.hio_beta = QLineEdit()
         ulayout.addRow("HIO beta", self.hio_beta)
+        self.raar_beta = QLineEdit()
+        ulayout.addRow("RAAR beta", self.raar_beta)
         self.initial_support_area = QLineEdit()
         ulayout.addRow("initial support area", self.initial_support_area)
         self.rec_default_button = QPushButton('set to defaults', self)
@@ -1052,6 +1054,8 @@ class RecTab(QWidget):
             self.alg_seq.setText(str(conf_map['algorithm_sequence']))
         if 'hio_beta' in conf_map:
             self.hio_beta.setText(str(conf_map['hio_beta']).replace(" ", ""))
+        if 'raar_beta' in conf_map:
+            self.raar_beta.setText(str(conf_map['raar_beta']).replace(" ", ""))
         if 'initial_support_area' in conf_map:
             self.initial_support_area.setText(str(conf_map['initial_support_area']).replace(" ", ""))
 
@@ -1072,6 +1076,7 @@ class RecTab(QWidget):
         self.reconstructions.setText('')
         self.alg_seq.setText('')
         self.hio_beta.setText('')
+        self.raar_beta.setText('')
         self.initial_support_area.setText('')
         for feat_id in self.features.feature_dir:
             self.features.feature_dir[feat_id].active.setChecked(False)
@@ -1114,6 +1119,12 @@ class RecTab(QWidget):
                 conf_map['hio_beta'] = ast.literal_eval(str(self.hio_beta.text()))
             except:
                 msg_window('hio_beta parameter should be float')
+                return {}
+        if len(self.raar_beta.text()) > 0:
+            try:
+                conf_map['raar_beta'] = ast.literal_eval(str(self.raar_beta.text()))
+            except:
+                msg_window('raar_beta parameter should be float')
                 return {}
         if len(self.initial_support_area.text()) > 0:
             try:
@@ -1358,6 +1369,7 @@ class RecTab(QWidget):
             self.device.setText('[0]')
             self.alg_seq.setText('3*(20*ER+180*HIO)+20*ER')
             self.hio_beta.setText('.9')
+            self.raar_beta.setText('.45')
             self.initial_support_area.setText('[0.5, 0.5, 0.5]')
 
 

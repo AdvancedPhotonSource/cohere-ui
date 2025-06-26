@@ -53,6 +53,7 @@ setuptools.setup(
                          'pyvista',
                          'scipy==1.14.1',
                          'notebook',
+                         'gputil',
                         ],
       classifiers=[
             'Intended Audience :: Science/Research',

@@ -25,6 +25,7 @@ from multiprocessing import Process, Queue, Pool
 import cohere_core.controller as rec
 import cohere_core.utilities as ut
 import cohere_ui.api.common as com
+import cohere_ui.api.balancer as balancer
 import cohere_ui.api.mpi_cmd as mpi_cmd
 import cohere_ui.api.reconstruction_populous as reconstruction_populous
 import cohere_ui.api.reconstruction_populous_ga as ga
@@ -298,7 +299,7 @@ def manage_reconstruction(experiment_dir, **kwargs):
         # this code below assigns jobs for GPUs
         data_size = ut.read_tif(exp_dirs_data[0][0]).size
         job_size = get_job_size(data_size, ga_method, 'pc' in rec_config_map['algorithm_sequence'])
-        picked_devs, avail_jobs, hostfile = ut.get_gpu_use(devices, want_dev_no, job_size)
+        picked_devs, avail_jobs, hostfile = balancer.get_gpu_use(devices, want_dev_no, job_size)
 
     if hostfile is not None:
         picked_devs = sum(picked_devs, [])
