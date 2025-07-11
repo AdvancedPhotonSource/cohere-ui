@@ -54,7 +54,7 @@ algorithm_sequence = "3* (20*ER.SW0 + 180*HIO.SW1) + 20*ER.SW0"
                             // Mandatory, defines algorithm applied in each iteration during modulus projection and
                             // during modulus. The "*" character means repeat, and the "+" means add to the sequence.
                             // The sequence may contain single brackets defining a group that will be repeated by the
-                            // preceding multiplier. The alphabetic entries: 'ER', 'ERpc', 'HIO', 'HIOpc' define
+                            // preceding multiplier. The alphabetic entries: 'ER', 'ERpc', 'HIO', 'HIOpc', 'RAAR', 'SF' define
                             // algorithms used in this iteration. The entries will invoke functions as follows:
                             // 'ER' definition will invoke 'er' and 'modulus' functions
                             // 'ERpc' will invoke 'er' and 'pc_modulus'
@@ -85,8 +85,9 @@ raar_beta = .45
 // ga_generations = 4
                              // Defines number of generations.
 
-// ga_metrics = ["chi", "sharpness"]
+// ga_metrics = ["chi"]
                              // Defines which metric should be used to rank the reconstruction results.
+                             // Can be configured per generation, or same for all.
                              // Supported metrics:
                              // - 'chi' - the last error calculated as norm(rs_amplitudes - data)/norm(data)
                              //   The smallest 'chi' value is the best.
@@ -102,6 +103,7 @@ raar_beta = .45
 // ga_breed_modes = ["sqrt_ab", "2ab_a_b"]
                              // Defines which breeding mode to use to populate new generation. If defined as "none",
                              // there is no breeding.
+                             // Can be configured per generation, or same for all.
                              // Breeding starts with choosing alpha image. The rest of the images are crossed with alpha.
                              // Before the crossing, the image beta is aligned with alpha, and phases in both of
                              // the arrays are normalized to derive ph_alpha = angle(alpha), and ph_beta = angle(beta)
@@ -126,9 +128,11 @@ raar_beta = .45
 
 // ga_sw_thresholds = [.15, .1]
                              // The threshold to apply when recalculating support after breeding.
+                             // Can be configured per generation, or same for all.
 
 // ga_sw_gauss_sigmas = [1.1, 1.0]
                              // The gauss sigma to apply when recalculating support after breeding.
+                             // Can be configured per generation, or same for all.
 
 // ga_lpf_sigmas = [2.0, 1.5]
                              // List of sigmas that will be used in subsequent generations to calculate
@@ -181,7 +185,7 @@ initial_support_area = [.5,.5,.5]
                              // otherwise to 0.
 
 // PHASE CONSTRAIN
-// At the begginning iterations the support area is modified in respect to the phase. Support area will exclude points
+// At the beginning iterations the support area is modified in respect to the phase. Support area will exclude points
 // that phase is outside of the defined bounds.
 
 // phc_trigger = [0, 1, 310]

@@ -73,8 +73,8 @@ def handle_prep(experiment_dir, **kwargs):
     need_detector = True # need to create for preprocessing
     instr_obj = instr_module.create_instr(conf_maps, need_detector=need_detector)
 
-    # get the settings from main config
-    remove_outliers = main_conf_map.get('remove_outliers', False)
+    # get the settings from config
+    remove_outliers = conf_maps['config_prep'].get('remove_outliers', False)
     separate_scans = main_conf_map.get('separate_scans', False)
     separate_scan_ranges = main_conf_map.get('separate_scan_ranges', False)
     multipeak = main_conf_map.get('multipeak', False)

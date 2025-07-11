@@ -278,12 +278,11 @@ def manage_reconstruction(experiment_dir, **kwargs):
     # This is the simplest case, i.e. one scan range, single reconstruction, no GA
     if want_dev_no == 1:
         datafile, dir = exp_dirs_data[0]
-        dev = [-1]
-        try:
-            dev = [rec_config_map['device'][0]]
-        except:
+        if rec_config_map['device'] == 'all':
             print('configure device as list of int(s) for simple case')
             return
+
+        dev = [rec_config_map['device'][0]]
         reconstruction_single(pkg, conf_file, datafile, dir, dev, **kwargs)
 
         print('finished reconstruction')

@@ -137,10 +137,10 @@ def reconstruction(pkg, conf_file, datafile, dir, devices, log_file, hpc=False):
         filename = conf_file.split('/')[-1]
         save_dir = ut.join(dir, filename.replace('config_rec', 'results_phasing'))
 
-    last_alpha = None
-    last_alpha_metric = None
-
     if rank == 0:
+        # last_alpha is added to list of reconstructed images for ordering, which happens in rank 0
+        last_alpha = None
+        last_alpha_metric = None
         if not os.path.isdir(save_dir):
             os.mkdir(save_dir)
 
@@ -159,14 +159,16 @@ def reconstruction(pkg, conf_file, datafile, dir, devices, log_file, hpc=False):
         tracing.set_map(tracing_map)
 
     active = True
-    success = True
 
     for g in range(pars['ga_generations']):
+        comm.Barrier()
         if rank == 0 and not hpc:
             # write log file when new generation starts
-            #
             write_log(log_file, f'starting generation {g}')
-        was_active = active
+
+        # if initialization returns error in first generation, quit the processing,
+        # as is problem with device setting or configuration;
+        # in any other generation make the worker inactive and continue
         if g == 0:
             if hpc:
                 dev = -1
@@ -175,7 +177,7 @@ def reconstruction(pkg, conf_file, datafile, dir, devices, log_file, hpc=False):
             ret = worker.init_dev(dev)
             if ret < 0:
                 print(f'rank {rank} failed initializing device {dev}')
-                active = False
+                break
             if active:
                 if pars['init_guess'] == 'AI_guess' and rank == 0:
                     # run AI part first
@@ -198,13 +200,15 @@ def reconstruction(pkg, conf_file, datafile, dir, devices, log_file, hpc=False):
                     active = False
 
             if active:
+                # write_log(log_file, f'will breed, rank {rank} gen {g} active {active} was active {was_active}')
                 def breed():
                     worker.ds_image = dvut.breed(pars['ga_breed_modes'][g], alpha, worker.ds_image)
                     worker.support = dvut.shrink_wrap(worker.ds_image, pars['ga_sw_thresholds'][g], pars['ga_sw_gauss_sigmas'][g])
                 try:
                     breed()
                 except Exception as e:
-                    # this individual will not be bred and will start as is in new generation
+                    # assuming here the reason for exception is not enough memory
+                    # this individual will not be bred and will start as is in next generation
                     # this situation should happen seldom and using culling will mitigate effect
                     print('except in breed', e)
         if active:
@@ -220,27 +224,20 @@ def reconstruction(pkg, conf_file, datafile, dir, devices, log_file, hpc=False):
             metric = None
 
         # send metric and rank to rank 0
-        if rank > 0 and was_active:
+        if rank != 0:
             comm.send(metric, dest=0)
 
         # rank 0 receives metrics from ranks and creates metrics dict
         if rank == 0:
             metrics = {}
-            if active:
-                metrics[0] = metric
-            elif was_active:
-                active_ranks.remove(0)
-            to_remove = []
+            metrics[0] = metric
+
             for r in active_ranks:
                 if r != 0:
                     metric = comm.recv(source=r)
-                    if metric is None:
-                        to_remove.append(r)
-                    else:
-                        metrics[r] = metric
-            for r in to_remove:
-                active_ranks.remove(r)
+                    metrics[r] = metric
 
+            metrics = {k:v for k,v in metrics.items() if v is not None}
             # order processes by metric
             proc_ranks, best_metrics, last_alpha_best = order_ranks(tracing, metrics, metric_type, last_alpha_metric)
             proc_ranks = [p[0] for p in proc_ranks]
@@ -248,6 +245,7 @@ def reconstruction(pkg, conf_file, datafile, dir, devices, log_file, hpc=False):
             # cull
             culled_proc_ranks = cull(proc_ranks, pars['ga_reconstructions'][g])
             no_active = len(culled_proc_ranks)
+
             # if previous alpha was better, insert -1, so no rank will match
             if last_alpha_best:
                 culled_proc_ranks = [-1] + culled_proc_ranks
@@ -256,45 +254,44 @@ def reconstruction(pkg, conf_file, datafile, dir, devices, log_file, hpc=False):
             for r in active_ranks:
                 if r != 0:
                     comm.send(culled_proc_ranks, dest=r)
-            # remove culled processes from active list
-            to_remove = proc_ranks[no_active : len(proc_ranks)]
-            for r in to_remove:
-                if r in active_ranks:
-                    active_ranks.remove(r)
-        elif active:
+
+            alpha_rank = max(0, culled_proc_ranks[0])
+        else:  # rank not 0
             culled_proc_ranks = comm.recv(source=0)
             if rank not in culled_proc_ranks:
                 active = False
 
+        # set the alpha rank to the rank with best metric. If the previous alpha is the best, -1 will be in the
+        # first place. Change it to 0, as rank 0 will do the sending.
         alpha_rank = max(0, culled_proc_ranks[0])
 
-        if rank == alpha_rank:
-            if culled_proc_ranks[0] == -1:
-                # check if last alpha is the best
-                alpha = last_alpha
-            else:
-                # check if this process is the best and find rank that would broadcast alpha
-                alpha = worker.ds_image
-        else:
-            alpha = None
-        # send the alpha image to oter workers
-        alpha = comm.bcast(alpha, root=alpha_rank)
+        # save the alpha results that will be overridden in subsequent generation
+        if rank == alpha_rank and culled_proc_ranks[0] != -1:
+            worker.save_res(save_dir)
 
-        if rank == 0:
-            last_alpha = alpha
-            last_alpha_metric = best_metrics
-
-        if not active:
-            worker = None
-
-        if g == pars['ga_generations'] -1:
-        # save alpha result for last generation
-            if culled_proc_ranks[0] == -1:
-                alpha_rank = culled_proc_ranks[1]
+        if g < pars['ga_generations'] -1:
+            # broadcast in all generations but last, as no breeding happens 
+            # find rank that would broadcast alpha
             if rank == alpha_rank:
-                worker.save_res(save_dir)
+                if culled_proc_ranks[0] == -1:
+                    # check if last alpha is the best
+                    alpha = last_alpha
+                else:
+                    alpha = worker.ds_image
+            else:
+                alpha = None
+            # send the alpha image to other workers
+            # it broadcasts to all ranks, but only active will use the alpha
+            alpha = comm.bcast(alpha, root=alpha_rank)
 
-    if rank == 0 and success:
+            if rank == 0:
+                last_alpha = alpha
+                last_alpha_metric = best_metrics
+
+        if not active and rank != 0:
+            worker = None
+    # after gen loop
+    if rank == 0:
         tracing.save(save_dir)
 
 

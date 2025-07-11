@@ -97,12 +97,17 @@ def process_dir(config_maps, res_dir_scan):
     complex_mode = viz_params.get('complex_mode', 'AmpPhase')
     filename = ut.join(save_dir, f'direct_space_images_{complex_mode}.vts')
     dir_viz.write(filename, complex_mode=complex_mode)
+    print(f'saved direct_space_images_{complex_mode}.vts file')
 
     res_viz_d, res_viz_r = None, None
     # If 'interpolation_mode' and 'interpolation_resolution' parameters are configured then
     # the image is interpolated. First the resolution is determined. It can be configured
     # or calculated depending on the 'interpolation_resolution' parameter.
-    if 'interpolation_mode' in viz_params and 'interpolation_resolution' in viz_params:
+    if 'interpolation_mode' in viz_params:
+        if 'interpolation_resolution' not in viz_params:
+            print(f'interpolation_resolution parameter not configured, exiting')
+            return
+
         # Find the resolution, as it can be configured as a value or prompted to derive it if configured
         # to 'min_deconv_res'.
         match viz_params['interpolation_resolution']:
@@ -120,6 +125,7 @@ def process_dir(config_maps, res_dir_scan):
                 res_viz_d, res_viz_r = pu.make_resolution_viz(geometry, np.abs(image), config_maps)
                 res_viz_d.write(ut.join(save_dir, "resolution_direct.vts"))
                 res_viz_r.write(ut.join(save_dir, "resolution_recip.vts"))
+                print('saved resolution_direct.vts and resolution_recip.vts files')
                 res_ssg = res_viz_d.get_structured_grid()
                 res_arr = res_ssg.point_data['resolution']
                 # because of [::-1] to get array indexing right the x axis in paraview is last axis in array.
@@ -130,6 +136,9 @@ def process_dir(config_maps, res_dir_scan):
                 r3 = np.dot(geometry[1], [0, 0, res_bounds[2] / res_arr.shape[2]])
                 # interpolate at half the smallest value.  Could make a param.
                 interpolation_resolution = min([np.linalg.norm(r1), np.linalg.norm(r2), np.linalg.norm(r3)]) / 2
+            case _:
+                print(f'not supported interpolation_resolution parameter value {viz_params["interpolation_resolution"]}, exiting')
+                return
 
         interpolation_mode = viz_params['interpolation_mode']
         interpolated_data = pu.get_interpolated_arrays(dir_viz, interpolation_resolution, interpolation_mode=interpolation_mode)
@@ -147,24 +156,32 @@ def process_dir(config_maps, res_dir_scan):
                                                                1j * interpolated_data.point_data['imImag'])
                 interpolated_data.point_data['imPh'] = np.angle(interpolated_data.point_data['imRe'] +
                                                                1j * interpolated_data.point_data['imImag'])
+            case _:
+                print(f'not supported interpolation_mode parameter value {viz_params["interpolation_mode"]}, exiting')
+                return
+
         interpolated_data.save(filename)
+        print(f'saved direct_space_images_interpolated_{interpolation_mode}.vti file')
 
         del dir_viz
 
-    if 'determine_resolution' in viz_params and res_viz_d is None:
-        res_viz_d.write(ut.join(save_dir, "resolution_direct.vts"))
-        res_viz_r.write(ut.join(save_dir, "resolution_recip.vts"))
-    if res_viz_d is None:
+    if 'determine_resolution' in viz_params:
+        if res_viz_d is None: # otherwise it was saved during interpolation
+            res_viz_d, res_viz_r = pu.make_resolution_viz(geometry, np.abs(image), config_maps)
+            res_viz_d.write(ut.join(save_dir, "resolution_direct.vts"))
+            res_viz_r.write(ut.join(save_dir, "resolution_recip.vts"))
+            print('saved resolution_direct.vts and resolution_recip.vts files')
+
         del res_viz_d
         del res_viz_r
 
     if viz_params.get('write_recip', False):
-        #
         dfile = ut.join(*(os.path.split(res_dir)[0], "phasing_data", "data.tif"))
         d = ut.read_tif(dfile)
         ftim = np.fft.ifftshift(np.fft.ifftn(np.fft.fftshift(image), norm='forward'))
         dviz = pu.make_recip_viz(geometry, np.abs(d), ftim)
         dviz.write(ut.join(save_dir, "reciprocal_space.vts"))
+        print('saved reciprocal_space.vts file')
 
     if viz_params.get('make_twin', False):
         twin_image = np.conjugate(np.flip(image))
@@ -172,6 +189,7 @@ def process_dir(config_maps, res_dir_scan):
             twin_support = np.flip(support)
         twin_viz = pu.make_image_viz(geometry, twin_image, twin_support, config_maps)
         twin_viz.write(ut.join(save_dir, "twin_direct_space_images.vts"))
+        print('saved twin_direct_space_images.vts file')
 
     cohfile = ut.join(res_dir, 'coherence.npy')
     if os.path.isfile(cohfile):
@@ -180,6 +198,7 @@ def process_dir(config_maps, res_dir_scan):
             (viz_d, viz_r) = pu.make_coherence_viz(geometry, coh, image.shape)
             viz_d.write(ut.join(save_dir, "direct_space_coherence.vts"))
             viz_r.write(ut.join(save_dir, "recip_space_coherence.vts"))
+            prinr('saved direct_space_coherence.vts and recip_space_coherence.vts files')
         except:
             raise
 
