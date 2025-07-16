@@ -1,3 +1,9 @@
+# #########################################################################
+# Copyright (c) , UChicago Argonne, LLC. All rights reserved.             #
+#                                                                         #
+# See LICENSE file.                                                       #
+# #########################################################################
+
 import numpy as np
 import cohere_core.utilities.dvc_utils as dvut
 import cohere_core.utilities as ut

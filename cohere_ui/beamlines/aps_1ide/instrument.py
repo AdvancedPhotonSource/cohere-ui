@@ -1,3 +1,9 @@
+# #########################################################################
+# Copyright (c) , UChicago Argonne, LLC. All rights reserved.             #
+#                                                                         #
+# See LICENSE file.                                                       #
+# #########################################################################
+
 import cohere_ui.beamlines.aps_1ide.diffractometers as diff
 import cohere_ui.beamlines.aps_1ide.detectors as det
 

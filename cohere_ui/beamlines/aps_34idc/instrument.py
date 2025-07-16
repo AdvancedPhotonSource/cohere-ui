@@ -1,3 +1,9 @@
+# #########################################################################
+# Copyright (c) , UChicago Argonne, LLC. All rights reserved.             #
+#                                                                         #
+# See LICENSE file.                                                       #
+# #########################################################################
+
 import cohere_ui.beamlines.aps_34idc.diffractometers as diff
 import cohere_ui.beamlines.aps_34idc.detectors as det
 from xrayutilities.io import spec

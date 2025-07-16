@@ -1,5 +1,11 @@
 #!/usr/bin/env python
 
+# #########################################################################
+# Copyright (c) , UChicago Argonne, LLC. All rights reserved.             #
+#                                                                         #
+# See LICENSE file.                                                       #
+# #########################################################################
+
 from cohere_scripts.inner_scripts.te_rec import time_evolving_rec
 import time
 import argparse

@@ -1,3 +1,9 @@
+# #########################################################################
+# Copyright (c) , UChicago Argonne, LLC. All rights reserved.             #
+#                                                                         #
+# See LICENSE file.                                                       #
+# #########################################################################
+
 import os
 import cohere_ui.beamlines.Petra3_P10.diffractometers as diff
 import cohere_ui.beamlines.Petra3_P10.detectors as det

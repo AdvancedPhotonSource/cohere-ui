@@ -1,5 +1,10 @@
-import argparse
+# #########################################################################
+# Copyright (c) , UChicago Argonne, LLC. All rights reserved.             #
+#                                                                         #
+# See LICENSE file.                                                       #
+# #########################################################################
 
+import argparse
 import numpy as np
 from matplotlib import pyplot as plt
 from mayavi import mlab
