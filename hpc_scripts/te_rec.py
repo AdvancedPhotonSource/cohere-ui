@@ -6,7 +6,7 @@
 # See LICENSE file.                                                       #
 # #########################################################################
 
-from cohere_scripts.inner_scripts.te_rec import time_evolving_rec
+from cohere_ui.api.te_rec import time_evolving_rec
 import time
 import argparse
 
