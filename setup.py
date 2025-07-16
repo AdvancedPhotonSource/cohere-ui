@@ -38,7 +38,7 @@ setuptools.setup(
       author='Barbara Frosik, Ross Harder',
       author_email='bfrosik@anl.gov',
       url='https://github.com/advancedPhotonSource/cohere/cohere-ui',
-      version='4.2.0',
+      version='4.2.1',
       packages=['cohere_ui', 
                 'cohere_ui.api', 
                 'cohere_ui.beamlines.aps_1ide', 

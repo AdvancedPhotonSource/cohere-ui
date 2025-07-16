@@ -5,7 +5,7 @@ import cohere_core.utilities as ut
 
 
 # version must be increased after each modification of configuration file(s)
-version = 2
+version = 3
 
 # Map file of before/after keys to remap
 config_map = {}
