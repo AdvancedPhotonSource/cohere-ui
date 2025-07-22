@@ -484,7 +484,7 @@ class SubInstrTab():
             msg_window ('cannot parse fio, diffractometer not defined')
             return
 
-        import beamlines.Petra3_P10.diffractometers as diff
+        import cohere_ui.beamlines.Petra3_P10.diffractometers as diff
 
         if diffractometer not in diff.diffs.keys():
             msg_window (f'diffractometer {diffractometer} not defined')

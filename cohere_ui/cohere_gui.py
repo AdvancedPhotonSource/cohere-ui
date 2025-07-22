@@ -493,10 +493,10 @@ class Tabs(QTabWidget):
 
         if beamline is not None and len(beamline) > 0:
             try:
-                self.beam = importlib.import_module(f'beamlines.{beamline}.beam_tabs')
+                self.beam = importlib.import_module(f'cohere_ui.beamlines.{beamline}.beam_tabs')
             except Exception as e:
                 print (e)
-                msg_window(f'cannot import beamlines.{beamline} module')
+                msg_window(f'cannot import cohere_ui.beamlines.{beamline} module')
                 raise
             self.instr_tab = self.beam.InstrTab()
             self.prep_tab = self.beam.PrepTab()
@@ -525,10 +525,10 @@ class Tabs(QTabWidget):
         if not self.instr_tab is None:
             return
         try:
-            self.beam = importlib.import_module(f'beamlines.{beamline}.beam_tabs')
+            self.beam = importlib.import_module(f'cohere_ui.beamlines.{beamline}.beam_tabs')
         except Exception as e:
             print (e)
-            msg_window(f'cannot import beamlines.{beamline} module')
+            msg_window(f'cannot import cohere_ui.beamlines.{beamline} module')
             raise
         self.instr_tab = self.beam.InstrTab()
         self.insertTab(0, self.instr_tab, self.instr_tab.name)
@@ -557,7 +557,7 @@ class Tabs(QTabWidget):
 
 
     def run_prep(self):
-        import beamline_preprocess as prep
+        import cohere_ui.beamline_preprocess as prep
 
         # this line is passing all parameters from command line to prep script. 
         # if there are other parameters, one can add some code here        
@@ -570,7 +570,7 @@ class Tabs(QTabWidget):
 
 
     def run_viz(self):
-        import beamline_visualization as dp
+        import cohere_ui.beamline_visualization as dp
 
         try:
             dp.handle_visualization(self.main_win.experiment_dir, no_verify=self.main_win.no_verify)
@@ -858,7 +858,7 @@ class DataTab(QWidget):
         -------
         nothing
         """
-        import standard_preprocess as run_dt
+        import cohere_ui.standard_preprocess as run_dt
 
         if not self.main_win.is_exp_exists():
             msg_window('the experiment has not been created yet')
@@ -1299,7 +1299,7 @@ class RecTab(QWidget):
         -------
         nothing
         """
-        import run_reconstruction as run_rc
+        import cohere_ui.run_reconstruction as run_rc
 
         if not self.main_win.is_exp_exists():
             msg_window('the experiment has not been created yet')

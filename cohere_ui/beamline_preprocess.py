@@ -64,8 +64,8 @@ def handle_prep(experiment_dir, **kwargs):
 
     # checked already if beamline is configured
     beamline = main_conf_map['beamline']
-    instr_module = importlib.import_module(f'beamlines.{beamline}.instrument')
-    preprocessor = importlib.import_module(f'beamlines.{beamline}.preprocessor')
+    instr_module = importlib.import_module(f'cohere_ui.beamlines.{beamline}.instrument')
+    preprocessor = importlib.import_module(f'cohere_ui.beamlines.{beamline}.preprocessor')
 
     # # combine parameters from the above configuration files into one dictionary
     # all_params = {k:v for d in conf_maps.values() for k,v in d.items()}

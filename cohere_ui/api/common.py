@@ -60,10 +60,10 @@ def get_config_maps(experiment_dir, configs, **kwargs):
         # the configuration file applies to specific beamline and needs to be imported
         beamline = main_config_map.get('beamline', None)
         if beamline is None:
-            raise ValueError(f'cannot import beamlines.{beamline} module, exiting.')
-            # return f'cannot import beamlines.{beamline} module, exiting.', maps, None
+            raise ValueError(f'cannot import cohere_ui.beamlines.{beamline} module, exiting.')
+            # return f'cannot import cohere_ui.beamlines.{beamline} module, exiting.', maps, None
         import importlib
-        beam_ver = importlib.import_module(f'beamlines.{beamline}.beam_verifier')
+        beam_ver = importlib.import_module(f'cohere_ui.beamlines.{beamline}.beam_verifier')
     else:
         beam_ver = None
 

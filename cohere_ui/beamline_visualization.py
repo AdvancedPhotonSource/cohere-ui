@@ -51,11 +51,11 @@ def process_dir(config_maps, res_dir_scan):
     config_map = config_maps['config']
     beamline = config_map["beamline"]
     try:
-        instr_module = importlib.import_module(f'beamlines.{beamline}.instrument')
+        instr_module = importlib.import_module(f'cohere_ui.beamlines.{beamline}.instrument')
     except Exception as e:
         print(e)
-        print(f'cannot import beamlines.{beamline}.instrument module.')
-        return (f'cannot import beamlines.{beamline}.instrument module.')
+        print(f'cannot import cohere_ui.beamlines.{beamline}.instrument module.')
+        return (f'cannot import cohere_ui.beamlines.{beamline}.instrument module.')
 
     instr_obj = instr_module.create_instr(config_maps)
     if instr_obj is None:

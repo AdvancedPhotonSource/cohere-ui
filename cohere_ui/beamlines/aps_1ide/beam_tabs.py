@@ -494,7 +494,7 @@ class SubInstrTab():
             msg_window ('cannot parse spec, vff_eta_offset not defined')
             return
 
-        import beamlines.aps_1ide.diffractometers as diff
+        import cohere_ui.beamlines.aps_1ide.diffractometers as diff
 
         try:
             diff_obj = diff.create_diffractometer(diffractometer, {'specfile':specfile})
