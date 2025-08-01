@@ -45,7 +45,7 @@ config_rec_map = {'samples': 'reconstructions',
                   }
 config_disp_map = {'arm': 'detdist',
                    'dth': 'scanmot_del',
-                   'crop': 'imcrop_fraction'}
+                   'crop': 'crop_fraction'}
 config_data_map = {'aliens': 'aliens',
                    'amp_threshold' : 'intensity_threshold',
                    'adjust_dimensions' : 'crop_pad',
@@ -285,8 +285,8 @@ def convert(conf_dir):
     # special case for config_disp: if crop was defined in previous versions, the name is changed 
     # to imcrop_fraction and imcrop is set to 'fraction'. The first part has been done above.
     # Now the code is setting the imcrop.
-    if 'imcrop_fraction' in config_dicts['config_disp']:
-        config_dicts['config_disp']['imcrop'] = 'fraction'
+    if 'crop_fraction' in config_dicts['config_disp']:
+        config_dicts['config_disp']['crop_type'] = 'fraction'
 
     # set the converter version in config to the current
     config_dicts['config']['converter_ver'] = get_version()
