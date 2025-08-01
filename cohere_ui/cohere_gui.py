@@ -566,7 +566,7 @@ class Tabs(QTabWidget):
         except ValueError as e:
             msg_window(str(e))
         except KeyError as e:
-            msg_window(str(e))
+            msg_window('KeyError: ' + str(e))
 
 
     def run_viz(self):
@@ -577,7 +577,7 @@ class Tabs(QTabWidget):
         except ValueError as e:
             msg_window(str(e))
         except KeyError as e:
-            msg_window(str(e))
+            msg_window('KeyError: ' + str(e))
 
 
     def load_conf(self, conf_dirs):
@@ -992,10 +992,21 @@ class RecTab(QWidget):
         ulayout.addRow("RAAR beta", self.raar_beta)
         self.initial_support_area = QLineEdit()
         ulayout.addRow("initial support area", self.initial_support_area)
-        self.rec_default_button = QPushButton('set to defaults', self)
-        ulayout.addWidget(self.rec_default_button)
+        self.set_defaults_button = QPushButton('set to defaults', self)
+        ulayout.addWidget(self.set_defaults_button)
 
-        self.features = Features(self, mlayout)
+        feature_ids = ['GA', 'low resolution', 'shrink wrap', 'phase constrain', 'pcdi', 'twin', 'average', 'progress', 'live']
+        feature_dir = {'GA' : GA(),
+                            'low resolution' : low_resolution(),
+                            'shrink wrap' : shrink_wrap(),
+                            'phase constrain' : phase_constrain(),
+                            'pcdi' : pcdi(),
+                            'twin' : twin(),
+                            'average' : average(),
+                            'progress' : progress(),
+                            'live' : live()
+                            }
+        self.features = Features(self, mlayout, feature_ids, feature_dir)
 
         llayout = QHBoxLayout()
         self.set_rec_conf_from_button = QPushButton("Load rec conf from")
@@ -1017,7 +1028,7 @@ class RecTab(QWidget):
 
         self.config_rec_button.clicked.connect(self.run_tab)
         self.init_guess.currentIndexChanged.connect(lambda: self.set_init_guess_layout(sub_layout))
-        self.rec_default_button.clicked.connect(self.set_defaults)
+        self.set_defaults_button.clicked.connect(self.set_defaults)
         self.add_conf_button.clicked.connect(self.add_rec_conf)
         self.rec_id.currentIndexChanged.connect(self.toggle_conf)
         self.set_rec_conf_from_button.clicked.connect(self.load_rec_conf_dir)
@@ -1455,9 +1466,8 @@ class Feature(object):
 
             self.default_button = QPushButton('set to defaults', feats)
             layout.addWidget(self.default_button)
-            self.default_button.clicked.connect(self.rec_default)
-
-            item.setForeground(QColor('black'));
+            self.default_button.clicked.connect(self.set_defaults)
+            item.setForeground(QColor('black'))
         else:
             self.clear_params(layout, item)
 
@@ -1465,7 +1475,7 @@ class Feature(object):
     def clear_params(self, layout, item):
         for i in reversed(range(1, layout.count())):
             layout.itemAt(i).widget().setParent(None)
-        item.setForeground(QColor('grey'));
+        item.setForeground(QColor('grey'))
 
 
     def fill_active(self, layout):
@@ -1482,7 +1492,7 @@ class Feature(object):
         pass
 
 
-    def rec_default(self):
+    def set_defaults(self):
         """
         This function is overriden in concrete class. It sets feature's parameters to hardcoded default values.
         Parameters
@@ -1632,7 +1642,7 @@ class GA(Feature):
         layout.addRow("gen to start pcdi", self.gen_pc_start)
 
 
-    def rec_default(self):
+    def set_defaults(self):
         """
         This function sets GA feature's parameters to hardcoded default values.
         Parameters
@@ -1739,7 +1749,7 @@ class low_resolution(Feature):
         layout.addRow("lowpass filter range", self.lpf_range)
 
 
-    def rec_default(self):
+    def set_defaults(self):
         """
         This function sets low resolution feature's parameters to hardcoded default values.
         Parameters
@@ -1835,7 +1845,7 @@ class shrink_wrap(Feature):
         layout.addRow("shrink wrap Gauss sigma", self.shrink_wrap_gauss_sigma)
 
 
-    def rec_default(self):
+    def set_defaults(self):
         """
         This function sets support feature's parameters to hardcoded default values.
         Parameters
@@ -1938,7 +1948,7 @@ class phase_constrain(Feature):
         layout.addRow("phase maximum", self.phc_phase_max)
 
 
-    def rec_default(self):
+    def set_defaults(self):
         """
         This function sets phase constrain feature's parameters to hardcoded default values.
         Parameters
@@ -2039,7 +2049,7 @@ class pcdi(Feature):
         layout.addRow("LUCY kernel area", self.pc_LUCY_kernel)
 
 
-    def rec_default(self):
+    def set_defaults(self):
         """
         This function sets pcdi feature's parameters to hardcoded default values.
         Parameters
@@ -2131,7 +2141,7 @@ class twin(Feature):
         layout.addRow("twin halves", self.twin_halves)
 
 
-    def rec_default(self):
+    def set_defaults(self):
         """
         This function sets twin feature's parameters to hardcoded default values.
         Parameters
@@ -2205,7 +2215,7 @@ class average(Feature):
         layout.addRow("average triggers", self.average_triggers)
 
 
-    def rec_default(self):
+    def set_defaults(self):
         """
         This function sets average feature's parameters to hardcoded default values.
         Parameters
@@ -2275,7 +2285,7 @@ class progress(Feature):
         layout.addRow("progress triggers", self.progress_triggers)
 
 
-    def rec_default(self):
+    def set_defaults(self):
         """
         This function sets progress feature's parameters to hardcoded default values.
         Parameters
@@ -2345,7 +2355,7 @@ class live(Feature):
         layout.addRow("live triggers", self.live_triggers)
 
 
-    def rec_default(self):
+    def set_defaults(self):
         """
         This function sets live feature's parameters to hardcoded default values.
         Parameters
@@ -2372,27 +2382,378 @@ class live(Feature):
         conf_map['live_trigger'] = ast.literal_eval(str(self.live_triggers.text()).replace(os.linesep,''))
 
 
+class crop(Feature):
+    """
+    This class encapsulates crop feature.
+    """
+    def __init__(self):
+        super(crop, self).__init__()
+        self.id = 'crop'
+        self.crop_type = None
+
+
+    def init_config(self, conf_map):
+        """
+        This function sets crop feature's parameters to parameters in dictionary and displays in the window.
+        Parameters
+        ----------
+        conf_map : dict
+            contains parameters for vizualization
+        Returns
+        -------
+        nothing
+        """
+        if 'crop_type' in conf_map:
+            crop_type = conf_map['crop_type']
+            if crop_type == 'tight':
+                self.active.setChecked(True)
+                self.crop_type.setCurrentIndex(0)
+                if 'crop_margin' in conf_map:
+                    self.crop_margin.setText(str(conf_map['crop_margin']).replace(" ", ""))
+                if 'crop_thresh' in conf_map:
+                    self.crop_thresh.setText(str(conf_map['crop_thresh']).replace(" ", ""))
+            elif crop_type == 'fraction':
+                self.active.setChecked(True)
+                self.crop_type.setCurrentIndex(1)
+                if 'crop_fraction' in conf_map:
+                    self.crop_fraction.setText(str(conf_map['crop_fraction']).replace(" ", ""))
+            else:
+                msg_window(f'unsupported crop_type {crop_type}')
+
+    def set_crop_layout(self, sub_layout):
+        for i in reversed(range(sub_layout.count())):
+            sub_layout.itemAt(i).widget().setParent(None)
+        if self.crop_type.currentIndex() == 0:
+            self.crop_margin = QLineEdit()
+            sub_layout.addRow("crop margin", self.crop_margin)
+            self.crop_margin.setToolTip('margin added to extend')
+            self.crop_thresh = QLineEdit()
+            sub_layout.addRow("crop threshold", self.crop_thresh)
+            self.crop_thresh.setToolTip('threshold used to determine extend')
+        elif self.crop_type.currentIndex() == 1:
+            self.crop_fraction = QLineEdit()
+            sub_layout.addRow("crop fractions", self.crop_fraction)
+            self.crop_fraction.setToolTip('a list of fractions applied in each dimension to crop image')
+
+
+    def fill_active(self, layout):
+        """
+        This function displays the feature's parameters when the feature becomes active.
+        Parameters
+        ----------
+        layout : Layout widget
+            a layout with the feature
+        Returns
+        -------
+        nothing
+        """
+        self.crop_type = QComboBox()
+        self.crop_type.addItem("tight")
+        self.crop_type.addItem("fraction")
+        self.crop_type.addItem("none")
+        self.crop_type.view().setRowHidden(2, True)
+        layout.addRow("image crop", self.crop_type)
+        sub_layout = QFormLayout()
+        self.set_crop_layout(sub_layout)
+        layout.addRow(sub_layout)
+
+        self.crop_type.currentIndexChanged.connect(lambda: self.set_crop_layout(sub_layout))
+
+
+    def set_defaults(self):
+        """
+        This function sets crop feature's parameters to hardcoded default values.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        if self.crop_type.currentIndex() == 0:
+            self.crop_margin.setText('10')
+            self.crop_thresh.setText('.5')
+        elif self.crop_type.currentIndex() == 1:
+            self.crop_fraction.setText('[.5, .5, .5]')
+
+
+    def add_feat_conf(self, conf_map):
+        """
+        This function adds crop feature's parameters to dictionary.
+        Parameters
+        ----------
+        conf_map : dict
+            contains parameters for reconstruction
+        Returns
+        -------
+        nothing
+        """
+        conf_map['crop_type'] = self.crop_type.currentText()
+        if self.crop_type.currentIndex() == 0:
+            if len(self.crop_margin.text()) > 0:
+                conf_map['crop_margin'] = ast.literal_eval(str(self.crop_margin.text()))
+            if len(self.crop_thresh.text()) > 0:
+                conf_map['crop_thresh'] = ast.literal_eval(str(self.crop_thresh.text()))
+        elif self.crop_type.currentIndex() == 1:
+            if len(self.crop_fraction.text()) > 0:
+                conf_map['crop_fraction'] = ast.literal_eval(str(self.crop_fraction.text()).replace(os.linesep,''))
+
+
+    def clear_params(self, layout, item):
+        # override parent to include clearing sub_layout
+        # by setting it to hidden index 2
+        if self.crop_type is not None:
+            self.crop_type.setCurrentIndex(2)
+        for i in reversed(range(1, layout.count())):
+            widget = layout.itemAt(i).widget()
+            if widget is not None:
+                widget.setParent(None)
+        item.setForeground(QColor('grey'))
+
+
+class interpolation(Feature):
+    """
+    This class encapsulates interpolation feature.
+    """
+    def __init__(self):
+        super(interpolation, self).__init__()
+        self.id = 'interpolation'
+
+
+    def init_config(self, conf_map):
+        """
+        This function sets interpolation feature's parameters to parameters in dictionary and displays in the window.
+        Parameters
+        ----------
+        conf_map : dict
+            contains parameters for reconstruction
+        Returns
+        -------
+        nothing
+        """
+        if 'interpolation_mode' in conf_map:
+            self.active.setChecked(True)
+            self.interpolation_mode.setText(conf_map['interpolation_mode'])
+            if 'interpolation_resolution' in conf_map:
+                self.interpolation_resolution.setText(str(conf_map['interpolation_resolution']).replace(" ", ""))
+            else:
+                self.interpolation_resolution.setText('')
+        else:
+            self.active.setChecked(False)
+            return
+
+
+    def fill_active(self, layout):
+        """
+        This function displays the feature's parameters when the feature becomes active.
+        Parameters
+        ----------
+        layout : Layout widget
+            a layout with the feature
+        Returns
+        -------
+        nothing
+        """
+        self.interpolation_mode = QLineEdit()
+        layout.addRow("interpolation mode", self.interpolation_mode)
+        self.interpolation_mode.setToolTip(
+            'Supported values: "AmpPhase", "ReIm"')
+        self.interpolation_resolution = QLineEdit()
+        layout.addRow("interpolation resolution", self.interpolation_resolution)
+        self.interpolation_resolution.setToolTip(
+            'Supported values: "min_deconv_res", int value, float value, list. If set to "min_deconv_res" the resolution feature must be active')
+
+    def set_defaults(self):
+        """
+        This function sets interpolation feature's parameters to hardcoded default values.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        self.interpolation_mode.setText("AmpPhase")
+        self.interpolation_resolution.setText("min_deconv_res")
+
+
+    def add_feat_conf(self, conf_map):
+        """
+        This function adds interpolation feature's parameters to dictionary.
+        Parameters
+        ----------
+        conf_map : dict
+            contains parameters for reconstruction
+        Returns
+        -------
+        nothing
+        """
+        if len(self.interpolation_mode.text()) > 0:
+            conf_map['interpolation_mode'] = str(self.interpolation_mode.text())
+        if len(self.interpolation_resolution.text()) > 0:
+            try: # it can be a number or list
+                conf_map['interpolation_resolution'] = ast.literal_eval(str(self.interpolation_resolution.text()).replace(os.linesep,''))
+            except: # it can be a text
+                conf_map['interpolation_resolution'] = str(self.interpolation_resolution.text())
+
+class resolution(Feature):
+    """
+    This class encapsulates resolution feature.
+    """
+    def __init__(self):
+        super(resolution, self).__init__()
+        self.id = 'resolution'
+
+
+    def init_config(self, conf_map):
+        """
+        This function sets resolution feature's parameters to parameters in dictionary and displays in the window.
+        Parameters
+        ----------
+        conf_map : dict
+            contains parameters for reconstruction
+        Returns
+        -------
+        nothing
+        """
+        if 'determine_resolution_type' in conf_map:
+            self.active.setChecked(True)
+            self.determine_resolution_type.setCurrentText(conf_map['determine_resolution_type'])
+            if 'resolution_deconv_contrast' in conf_map:
+                self.resolution_deconv_contrast.setText(str(conf_map['resolution_deconv_contrast']))
+        else:
+            self.active.setChecked(False)
+            return
+
+
+    def fill_active(self, layout):
+        """
+        This function displays the feature's parameters when the feature becomes active.
+        Parameters
+        ----------
+        layout : Layout widget
+            a layout with the feature
+        Returns
+        -------
+        nothing
+        """
+        self.determine_resolution_type = QComboBox()
+        self.determine_resolution_type.addItem("deconv")
+        layout.addRow("determine resolution type", self.determine_resolution_type)
+        self.resolution_deconv_contrast = QLineEdit()
+        layout.addRow("resolution deconv contrast", self.resolution_deconv_contrast)
+        self.resolution_deconv_contrast.setToolTip('float number < 1.0')
+
+
+    def set_defaults(self):
+        """
+        This function sets resolution feature's parameters to hardcoded default values.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        self.determine_resolution_type.setCurrentIndex(0)
+        self.resolution_deconv_contrast.setText('.25')
+
+    def add_feat_conf(self, conf_map):
+        """
+        This function adds resolution feature's parameters to dictionary.
+        Parameters
+        ----------
+        conf_map : dict
+            contains parameters for reconstruction
+        Returns
+        -------
+        nothing
+        """
+        conf_map['determine_resolution_type'] = str(self.determine_resolution_type.currentText())
+        if len(self.resolution_deconv_contrast.text()) > 0:
+            conf_map['resolution_deconv_contrast'] = ast.literal_eval(str(self.resolution_deconv_contrast.text()))
+
+
+class reciprocal(Feature):
+    """
+    This class encapsulates reciprocal feature.
+    """
+    def __init__(self):
+        super(reciprocal, self).__init__()
+        self.id = 'reciprocal'
+
+
+    def init_config(self, conf_map):
+        """
+        This function sets reciprocal feature's parameters to parameters in dictionary and displays in the window.
+        Parameters
+        ----------
+        conf_map : dict
+            contains parameters for reconstruction
+        Returns
+        -------
+        nothing
+        """
+        if 'write_recip' in conf_map and conf_map['write_recip']:
+            self.active.setChecked(True)
+        else:
+            self.active.setChecked(False)
+            return
+
+
+    def fill_active(self, layout):
+        """
+        This function displays the feature's parameters when the feature becomes active.
+        Parameters
+        ----------
+        layout : Layout widget
+            a layout with the feature
+        Returns
+        -------
+        nothing
+        """
+        pass
+
+
+    def set_defaults(self):
+        """
+        This function sets reciprocal feature's parameters to hardcoded default values.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        pass
+
+
+    def add_feat_conf(self, conf_map):
+        """
+        This function adds reciprocal feature's parameters to dictionary.
+        Parameters
+        ----------
+        conf_map : dict
+            contains parameters for reconstruction
+        Returns
+        -------
+        nothing
+        """
+        pass
+
+
 class Features(QWidget):
     """
     This class is composition of all feature classes.
     """
-    def __init__(self, tab, layout):
+    def __init__(self, tab, layout, feature_ids, feature_dir):
         """
         Constructor, creates all concrete feature objects, and displays in window.
         """
         super(Features, self).__init__()
-        feature_ids = ['GA', 'low resolution', 'shrink wrap', 'phase constrain', 'pcdi', 'twin', 'average', 'progress', 'live']
+
         self.leftlist = QListWidget()
-        self.feature_dir = {'GA' : GA(),
-                            'low resolution' : low_resolution(),
-                            'shrink wrap' : shrink_wrap(),
-                            'phase constrain' : phase_constrain(),
-                            'pcdi' : pcdi(),
-                            'twin' : twin(),
-                            'average' : average(),
-                            'progress' : progress(),
-                            'live' : live()
-                            }
+        self.feature_dir = feature_dir
         self.Stack = QStackedWidget(self)
         for i in range(len(feature_ids)):
             id = feature_ids[i]
@@ -2434,46 +2795,33 @@ class DispTab(QWidget):
         self.tabs = tabs
         self.main_win = main_window
 
-        layout = QFormLayout()
+        layout = QVBoxLayout()
+        ulayout = QFormLayout()
+        mlayout = QHBoxLayout()
+
         self.result_dir_button = QPushButton()
-        layout.addRow("phasing results directory", self.result_dir_button)
+        ulayout.addRow("phasing results directory", self.result_dir_button)
         self.make_twin = QCheckBox('make twin')
         self.make_twin.setChecked(False)
-        layout.addWidget(self.make_twin)
+        ulayout.addWidget(self.make_twin)
         self.unwrap = QCheckBox('include unwrapped phase')
         self.unwrap.setChecked(False)
-        layout.addWidget(self.unwrap)
-        self.imcrop = QComboBox()
-        self.imcrop.addItem("none")
-        self.imcrop.addItem("tight")
-        self.imcrop.addItem("fraction")
-        layout.addRow("image crop", self.imcrop)
-        sub_layout = QFormLayout()
-        self.set_imcrop_layout(sub_layout)
-        layout.addRow(sub_layout)
+        ulayout.addWidget(self.unwrap)
         self.rampups = QLineEdit()
-        layout.addRow("ramp upscale", self.rampups)
+        ulayout.addRow("ramp upscale", self.rampups)
         self.complex_mode = QComboBox()
         self.complex_mode.addItem("AmpPhase")
         self.complex_mode.addItem("ReIm")
-        layout.addRow("complex mode", self.complex_mode)
-        self.interpolation_mode = QComboBox()
-        self.interpolation_mode.addItem("no interpolation")
-        self.interpolation_mode.addItem("AmpPhase")
-        self.interpolation_mode.addItem("ReIm")
-        layout.addRow("interpolation mode", self.interpolation_mode)
-        self.interpolation_resolution = QLineEdit()
-        layout.addRow("interpolation resolution", self.interpolation_resolution)
-        self.interpolation_resolution.setToolTip('Supported values: "min_deconv_res", int value, float value, list')
-        self.determine_resolution = QLineEdit()
-        layout.addRow("determine resolution", self.determine_resolution)
-        self.determine_resolution.setToolTip('If present, the resolution in direct and reciprocal spaces will be found. Supported value: "deconv"')
-        self.resolution_deconv_contrast = QLineEdit()
-        layout.addRow("determine resolution", self.resolution_deconv_contrast)
-        self.resolution_deconv_contrast.setToolTip('float number < 1.0')
-        self.write_recip = QCheckBox('write reciprocal')
-        self.write_recip.setChecked(False)
-        layout.addWidget(self.write_recip)
+        ulayout.addRow("complex mode", self.complex_mode)
+
+        feature_ids = ['crop', 'interpolation', 'resolution', 'reciprocal']
+        feature_dir = {'crop' : crop(),
+                       'interpolation' : interpolation(),
+                        'resolution' : resolution(),
+                        'reciprocal' : reciprocal(),
+                        }
+        self.dis_features = Features(self, mlayout, feature_ids, feature_dir)
+
         cmd_layout = QHBoxLayout()
         self.set_disp_conf_from_button = QPushButton("Load disp conf from")
         self.set_disp_conf_from_button.setStyleSheet("background-color:rgb(205,178,102)")
@@ -2481,10 +2829,17 @@ class DispTab(QWidget):
         self.config_disp.setStyleSheet("background-color:rgb(175,208,156)")
         cmd_layout.addWidget(self.set_disp_conf_from_button)
         cmd_layout.addWidget(self.config_disp)
-        layout.addRow(cmd_layout)
+
+        spacer = QSpacerItem(0, 3)
+        cmd_layout.addItem(spacer)
+
+        layout.addLayout(ulayout)
+        layout.addLayout(mlayout)
+        layout.addLayout(cmd_layout)
+
+        self.setAutoFillBackground(True)
         self.setLayout(layout)
 
-        self.imcrop.currentIndexChanged.connect(lambda: self.set_imcrop_layout(sub_layout))
         self.result_dir_button.clicked.connect(self.set_res_dir)
         self.config_disp.clicked.connect(self.run_tab)
         self.set_disp_conf_from_button.clicked.connect(self.load_disp_conf)
@@ -2522,19 +2877,6 @@ class DispTab(QWidget):
         else:
             self.unwrap.setChecked(False)
 
-        if 'imcrop' not in conf_map:
-            self.imcrop.setCurrentIndex(0)
-        elif conf_map['imcrop'] == 'tight':
-            self.imcrop.setCurrentIndex(1)
-            if 'imcrop_margin' in conf_map:
-                self.imcrop_margin.setText(str(conf_map['imcrop_margin']).replace(" ", ""))
-            if 'imcrop_thresh' in conf_map:
-                self.imcrop_thresh.setText(str(conf_map['imcrop_thresh']).replace(" ", ""))
-        elif conf_map['imcrop'] == 'fraction':
-            self.imcrop.setCurrentIndex(2)
-            if 'imcrop_fraction' in conf_map:
-                self.imcrop_fraction.setText(str(conf_map['imcrop_fraction']).replace(" ", ""))
-
         if 'rampups' in conf_map:
             self.rampups.setText(str(conf_map['rampups']).replace(" ", ""))
 
@@ -2543,46 +2885,18 @@ class DispTab(QWidget):
         else:
             self.complex_mode.setCurrentIndex(0)
 
-        if 'interpolation_mode' in conf_map:
-            if conf_map['interpolation_mode'] == 'ReIm':
-                self.interpolation_mode.setCurrentIndex(1)
-            elif conf_map['interpolation_mode'] == 'AmpPhase':
-                self.interpolation_mode.setCurrentIndex(1)
-            else:
-                self.interpolation_mode.setCurrentIndex(0)
-        else:
-            self.interpolation_mode.setCurrentIndex(0)
-
-        if 'interpolation_resolution' in conf_map:
-            self.interpolation_resolution.setText(str(conf_map['interpolation_resolution']).replace(" ", ""))
-
-        if 'determine_resolution' in conf_map:
-            self.determine_resolution.setText(str(conf_map['determine_resolution']).replace(" ", ""))
-        if 'resolution_deconv_contrast' in conf_map:
-            self.resolution_deconv_contrast.setText(str(conf_map['resolution_deconv_contrast']).replace(" ", ""))
-
-        if 'write_recip' in conf_map:
-            write_recip = conf_map['write_recip']
-            if write_recip:
-                self.write_recip.setChecked(True)
-            else:
-                self.write_recip.setChecked(False)
-        else:
-            self.write_recip.setChecked(False)
+        for feat_id in self.dis_features.feature_dir:
+            self.dis_features.feature_dir[feat_id].init_config(conf_map)
 
 
     def clear_conf(self):
         self.result_dir_button.setText('')
         self.make_twin.setChecked(False)
         self.unwrap.setChecked(False)
-        self.imcrop.setCurrentIndex(0)
         self.rampups.setText('')
         self.complex_mode.setCurrentIndex(0)
-        self.interpolation_mode.setCurrentIndex(0)
-        self.interpolation_resolution.setText('')
-        self.determine_resolution.setText('')
-        self.resolution_deconv_contrast.setText('')
-        self.write_recip.setChecked(False)
+        for feat_id in self.dis_features.feature_dir:
+            self.dis_features.feature_dir[feat_id].active.setChecked(False)
 
 
     def load_disp_conf(self):
@@ -2622,59 +2936,16 @@ class DispTab(QWidget):
             conf_map['make_twin'] = True
         if self.unwrap.isChecked():
             conf_map['unwrap'] = True
-
-        if self.imcrop.currentIndex() == 1:
-            conf_map['imcrop'] = 'tight'
-            if len(self.imcrop_margin.text()) > 0:
-                conf_map['imcrop_margin'] = ast.literal_eval(str(self.imcrop_margin.text()))
-            if len(self.imcrop_thresh.text()) > 0:
-                conf_map['imcrop_thresh'] = ast.literal_eval(str(self.imcrop_thresh.text()))
-        if self.imcrop.currentIndex() == 2:
-            conf_map['imcrop'] = 'fraction'
-            if len(self.imcrop_fraction.text()) > 0:
-                conf_map['imcrop_fraction'] = ast.literal_eval(str(self.imcrop_fraction.text()))
-
         if len(self.rampups.text()) > 0:
             conf_map['rampups'] = ast.literal_eval(str(self.rampups.text()).replace(os.linesep, ''))
-
         if self.complex_mode.currentIndex() == 0:
             conf_map['complex_mode'] = 'AmpPhase'
         if self.complex_mode.currentIndex() == 1:
             conf_map['complex_mode'] = 'ReIm'
-
-        if self.interpolation_mode.currentIndex() == 1:
-            conf_map['interpolation_mode'] = 'AmpPhase'
-        if self.interpolation_mode.currentIndex() == 2:
-            conf_map['interpolation_mode'] = 'ReIm'
-
-        if len(self.interpolation_resolution.text()) > 0:
-            try:
-                conf_map['interpolation_resolution'] = ast.literal_eval(str(self.interpolation_resolution.text()))
-            except ValueError:
-                conf_map['interpolation_resolution'] = str(self.interpolation_resolution.text())
-
-        if len(self.determine_resolution.text()) > 0:
-            conf_map['determine_resolution'] = str(self.determine_resolution.text())
-        if len(self.resolution_deconv_contrast.text()) > 0:
-            conf_map['resolution_deconv_contrast'] = ast.literal_eval(str(self.resolution_deconv_contrast.text()))
-
-        if self.write_recip.isChecked():
-            conf_map['write_recip'] = True
+        for feat_id in self.dis_features.feature_dir:
+            self.dis_features.feature_dir[feat_id].add_config(conf_map)
 
         return conf_map
-
-
-    def set_imcrop_layout(self, layout):
-        for i in reversed(range(layout.count())):
-            layout.itemAt(i).widget().setParent(None)
-        if self.imcrop.currentIndex() == 1:
-            self.imcrop_margin = QLineEdit()
-            layout.addRow("margin added to extend", self.imcrop_margin)
-            self.imcrop_thresh = QLineEdit()
-            layout.addRow("threshold extend", self.imcrop_thresh)
-        elif self.imcrop.currentIndex() == 2:
-            self.imcrop_fraction = QLineEdit()
-            layout.addRow("image crop fractions", self.imcrop_fraction)
 
 
     def run_tab(self):
@@ -2694,8 +2965,8 @@ class DispTab(QWidget):
             msg_window('the experiment has changed, pres "set experiment" button')
             return
         if len(str(self.result_dir_button.text())) == 0:
-            msg_window('the results directory is not set')
-            return
+            self.result_dir_button.setText(self.main_win.experiment_dir)
+            msg_window('Info: The results directory is being set to experiment directory. All phasing results in this directory tree will be processed for visualization.')
 
         conf_map = self.get_disp_config()
         er_msg = ut.verify('config_disp', conf_map)

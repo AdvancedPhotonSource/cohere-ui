@@ -15,25 +15,25 @@ unwrap = True
 make_twin = True
                            // A switch to whether visualize twin image.
 
-imcrop = "tight"
+crop_type = "tight"
                            // Defines how crop is determined. Supported values: "fraction' and "tight".
                            // If defined as fraction, the defined fraction of each dimension is cropped
                            // around maximum value.
-                           // The "tight" defines crop being determined by imcrop_margin and imcrop_thresh
+                           // The "tight" defines crop being determined by crop_margin and crop_thresh
                            // parameters applied to the image. The extend subarray will be derived from image array
                            // by finding points greater than threshold multiplied by maximum value.
                            // A margin will be added to each side of the extend array.
 
-imcrop_margin = 10
-                           // Required parameter when imcrop is configured "tight". The margin will be added
+crop_margin = 10
+                           // Required parameter when crop is configured "tight". The margin will be added
                            // to each side of the extend array.
 
-imcrop_thresh = 0.5
-                           // Required parameter when imcrop is configured "tight". The threshold will
+crop_thresh = 0.5
+                           // Required parameter when crop is configured "tight". The threshold will
                            // determine the extend of the array.
 
-imcrop_fraction = [0.3, 0.25, 1]
-                           // Required parameter when imcrop is configured "fraction". Defines size of the
+crop_fraction = [0.3, 0.25, 1]
+                           // Required parameter when crop is configured "fraction". Defines size of the
                            // cropped array relative to the full image array. The full array is cropped around
                            // maximum value.
 
@@ -59,7 +59,7 @@ interpolation_resolution = "min_deconv_res"
                            // If defined as list, the list will define resolution in corresponding dimension.
 
 
-determine_resolution = "deconv"
+determine_resolution_type = "deconv"
                            // If present, the resolution in direct and reciprocal spaces will be found.
                            // Supported value: "deconv".
 

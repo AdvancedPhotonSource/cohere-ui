@@ -15,11 +15,10 @@ from typing import List, Union
 # CXDViz is meant to manage arrays (coords, real,recip) for building structured grids.
 class CXDViz:
     """
-    CXDViz(self, crop, geometry)
+    CXDViz(self, geometry)
     ===================================
     Class, generates files for visualization from reconstructed suite.
-    crop : list
-        list of fractions; the fractions will be multipled by dimensions to derive region to visualize
+
     geometry : tuple of arrays
         arrays containing geometry in reciprocal and direct space
     """
@@ -29,8 +28,6 @@ class CXDViz:
         The constructor creates objects assisting with visualization.
         Parameters
         ----------
-        crop : tuple or list
-            list of fractions; the fractions will be applied to each dimension to derive region to visualize
         geometry : tuple of arrays
             arrays containing geometry in reciprocal and direct space
         Returns
@@ -92,8 +89,6 @@ class Dir_viz(CXDViz):
         The constructor creates objects assisting with visualization.
         Parameters
         ----------
-        crop : tuple or list
-            list of fractions; the fractions will be applied to each dimension to derive region to visualize
         geometry : tuple of arrays
             arrays containing geometry in reciprocal and direct space
         Returns
@@ -130,8 +125,6 @@ class Recip_viz(CXDViz):
         The constructor creates objects assisting with visualization.
         Parameters
         ----------
-        crop : tuple or list
-            list of fractions; the fractions will be applied to each dimension to derive region to visualize
         geometry : tuple of arrays
             arrays containing geometry in reciprocal and direct space
         Returns
@@ -309,25 +302,25 @@ def make_image_viz(geometry, image, support, config_maps):
         unwrapped_phase = restoration.unwrap_phase(np.angle(image))
         viz.add_array("imPhUW", unwrapped_phase)
 
-    if 'imcrop' in viz_params:
-        mode = viz_params['imcrop']
+    if 'crop_type' in viz_params:
+        mode = viz_params['crop_type']
         match mode:
             case 'tight':
                 arr = np.abs(image)
-                imcrop_thresh = viz_params['imcrop_thresh']
-                buf = viz_params['imcrop_margin']
+                crop_thresh = viz_params['crop_thresh']
+                buf = viz_params['crop_margin']
                 # find_datarange extends an int to the size of arr.dim
-                voisize = find_datarange(arr, buf, imcrop_thresh)
+                voisize = find_datarange(arr, buf, crop_thresh)
                 viz.voi = get_centered_voisize(arr.shape[::-1], voisize[::-1])
             case 'fraction':
                 dims = image.shape
-                arrfrac = list(pad(viz_params['imcrop_fraction'], len(dims), dims[-1]))
+                arrfrac = list(pad(viz_params['crop_fraction'], len(dims), dims[-1]))
                 viz.voi = []
                 for d in enumerate(zip(dims, arrfrac)):
                     viz.voi.append(int(d[1][0] / 2) - int(d[1][0] * d[1][1] / 2))
                     viz.voi.append(int(d[1][0] / 2) + int(d[1][0] * d[1][1] / 2))
             case _:
-                print("No imcrop mode set in config_disp or not supported", mode)
+                print("No crop_type mode set in config_disp or not supported", mode)
 
     return viz
 
@@ -342,7 +335,7 @@ def make_recip_viz(geometry, data, ftim):
 def make_resolution_viz(geometry, arr, config_maps):
     viz_params = config_maps['config_disp']
 
-    mode = viz_params.get('determine_resolution')
+    mode = viz_params.get('determine_resolution_type')
     if mode == 'deconv':
         viz_d = Dir_viz(geometry)
         thresh = viz_params['resolution_deconv_contrast']

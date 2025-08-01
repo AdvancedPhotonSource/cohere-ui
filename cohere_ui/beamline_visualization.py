@@ -121,7 +121,8 @@ def process_dir(config_maps, res_dir_scan):
                 # Only direct resolution is needed for interpolation.
                 # If configured to determine resolution, get it here in direct and reciprocal spaces, otherwise
                 # get only direct space resolution to use for interpolation.
-                only_direct_res = 'determine_resolution' not in viz_params
+                if 'determine_resolution_type' not in viz_params:
+                    raise ValueError(f'activate the resolution in GUI; when running from command line, set determine_resolution_type parameter, exiting')
                 res_viz_d, res_viz_r = pu.make_resolution_viz(geometry, np.abs(image), config_maps)
                 res_viz_d.write(ut.join(save_dir, "resolution_direct.vts"))
                 res_viz_r.write(ut.join(save_dir, "resolution_recip.vts"))
@@ -165,7 +166,7 @@ def process_dir(config_maps, res_dir_scan):
 
         del dir_viz
 
-    if 'determine_resolution' in viz_params:
+    if 'determine_resolution_type' in viz_params:
         if res_viz_d is None: # otherwise it was saved during interpolation
             res_viz_d, res_viz_r = pu.make_resolution_viz(geometry, np.abs(image), config_maps)
             res_viz_d.write(ut.join(save_dir, "resolution_direct.vts"))
@@ -247,11 +248,14 @@ def handle_visualization(experiment_dir, **kwargs):
             if not os.path.isdir(results_dir):
                 print(f'the configured results_dir: {results_dir} does not exist')
                 return(f'the configured results_dir: {results_dir} does not exist')
-        elif separate:
-            results_dir = experiment_dir
-        elif rec_id is not None:
-            results_dir = ut.join(experiment_dir, f'results_phasing_{kwargs["rec_id"]}')
+        # elif separate:
+        #     results_dir = experiment_dir
+        # elif rec_id is not None:
+        #     results_dir = ut.join(experiment_dir, f'results_phasing_{kwargs["rec_id"]}')
         else:
+            # if not configured, set the result_dir to experiment_dir
+            # the code will find all directories with 'image,npy' file and will
+            # process each of these directories
             results_dir = ut.join(experiment_dir, 'results_phasing')
 
         # find directories with image.npy file in the root of results_dir

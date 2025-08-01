@@ -145,6 +145,8 @@ class PrepTab(QWidget):
         self.dark_file_button.clicked.connect(self.set_dark_file)
         self.white_file_button.clicked.connect(self.set_white_file)
         self.set_prep_conf_from_button.clicked.connect(self.load_prep_conf)
+        self.roi.textChanged.connect(lambda: set_overriden(self.roi))
+
 
 
     def load_tab(self, conf_map):
@@ -597,6 +599,10 @@ class SubInstrTab():
         if 'detector' in spec_dict:
             self.detector.setText(str(spec_dict['detector']))
             self.detector.setStyleSheet('color: blue')
+
+        if 'roi' in spec_dict:
+            self.instr_tab.tabs.prep_tab.roi.setText(str(spec_dict['roi']))
+            self.instr_tab.tabs.prep_tab.roi.setStyleSheet('color: blue')
 
 
 

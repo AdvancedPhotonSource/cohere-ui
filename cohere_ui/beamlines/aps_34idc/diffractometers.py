@@ -110,6 +110,11 @@ class Diffractometer_34idc(Diffractometer):
         except Exception as ex:
             print(str(ex))
 
+        try:
+            spec_dict['roi'] = [int(n) for n in ss.getheader_element('UIMR5').split()]
+        except Exception as ex:
+            print(str(ex))
+
         return spec_dict
 
 
