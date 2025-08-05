@@ -1,5 +1,0 @@
-working_dir = "CUR_DIR/example_workspace"
-experiment_id = "scan"
-scan = "54"
-beamline = "aps_34idc"
-converter_ver = 3

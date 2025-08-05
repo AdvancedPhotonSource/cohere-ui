@@ -1,3 +1,0 @@
-detector = "mpxgaas"
-diffractometer = "id01"
-h5file = "data_file.h5"

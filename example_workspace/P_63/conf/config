@@ -1,5 +1,0 @@
-working_dir = "example_workspace"
-experiment_id = "P"
-scan = "63"
-beamline = "Petra3_P10"
-converter_ver = 2

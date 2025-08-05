@@ -1,5 +1,0 @@
-working_dir = "example_workspace"
-experiment_id = "esrf_exp"
-scan = "4"
-beamline = "esrf_id01"
-converter_ver = 2

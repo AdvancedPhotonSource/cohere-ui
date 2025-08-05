@@ -1,4 +1,0 @@
-data_dir = "/net/s34data/export/34idc-data/2024/APS1ID/mpe_dec24/asi/ADQMPX3_mpe_dec24/"
-whitefield_filename = "cohere_ui/beamlines/aps_1ide/detector_corrections/oldwf.tif"
-maxcrop = [100, 100]
-roi = [0, 256, 256, 256]
