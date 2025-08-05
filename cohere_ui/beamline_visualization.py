@@ -122,7 +122,7 @@ def process_dir(config_maps, res_dir_scan):
                 # If configured to determine resolution, get it here in direct and reciprocal spaces, otherwise
                 # get only direct space resolution to use for interpolation.
                 if 'determine_resolution_type' not in viz_params:
-                    raise ValueError(f'activate the resolution in GUI; when running from command line, set determine_resolution_type parameter, exiting')
+                    raise ValueError(f'Unable processing of interpolation with resolution set to "min_deconv_res". Activate the resolution in GUI or when running from command line, set determine_resolution_type parameter, exiting')
                 res_viz_d, res_viz_r = pu.make_resolution_viz(geometry, np.abs(image), config_maps)
                 res_viz_d.write(ut.join(save_dir, "resolution_direct.vts"))
                 res_viz_r.write(ut.join(save_dir, "resolution_recip.vts"))
