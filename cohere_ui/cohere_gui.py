@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+#
 # #########################################################################
 # Copyright (c) , UChicago Argonne, LLC. All rights reserved.             #
 #                                                                         #
@@ -5,7 +7,21 @@
 # #########################################################################
 
 """
-This is GUI that allows user to configure and run experiment.
+This script provides GUI interface to cohere tools.
+
+User can create new cohere experiment or load an existing one. The GUI offers user friendly interface that allows to
+define configuration, set parameters to defaults, and run the scripts: beamline_preprocessing, standard_preprocessing,
+run_rec, and beamline_visualization, with push buttons.
+
+If running this script in user mode (i.e. after installing cohere_ui package with pypi), use this command:
+    cohere_gui
+
+To run this script in developer mode (i.e. after cloning the cohere-ui repository) navigate to cohere-ui directory and
+use the following command:
+    python cohere_ui/cohere_gui.py
+optional arguments may follow:  --no_verify, --debug
+
+In any of the mode one can use --help to get explanation of command line parameters.
 """
 
 __author__ = "Barbara Frosik"
@@ -33,14 +49,9 @@ import cohere_ui.api.convertconfig as conv
 def select_file(start_dir):
     """
     Shows dialog interface allowing user to select file from file system.
-    Parameters
-    ----------
-    start_dir : str
-        directory where to start selecting the file
-    Returns
-    -------
-    str
-        name of selected file or None
+
+    :param start_dir: directory it will set file system to
+    :return: selected file or None
     """
     start_dir = start_dir.replace(os.sep, '/')
     dialog = QFileDialog(None, 'select dir', start_dir)
@@ -55,14 +66,9 @@ def select_file(start_dir):
 def select_dir(start_dir):
     """
     Shows dialog interface allowing user to select directory from file system.
-    Parameters
-    ----------
-    start_dir : str
-        directory where to start selecting
-    Returns
-    -------
-    str
-        name of selected directory or None
+
+    :param start_dir: directory it will set file system to
+    :return: selected directory or None
     """
     start_dir = start_dir.replace(os.sep, '/')
     dialog = QFileDialog(None, 'select dir', start_dir)
@@ -76,14 +82,9 @@ def select_dir(start_dir):
 
 def msg_window(text):
     """
-    Shows message with requested information (text)).
-    Parameters
-    ----------
-    text : str
-        string that will show on the screen
-    Returns
-    -------
-    noting
+    Shows message window.
+
+    :param text: text to be displayed
     """
     msg = QMessageBox()
     msg.setIcon(QMessageBox.Information)
@@ -96,12 +97,6 @@ class cdi_gui(QWidget):
     def __init__(self, parent=None, **kwargs):
         """
         Constructor, initializes GUI.
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        noting
         """
         super(cdi_gui, self).__init__(parent)
 
@@ -179,13 +174,7 @@ class cdi_gui(QWidget):
 
     def run_everything(self):
         """
-        Runs everything.py user script in bin directory.
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        nothing
+        Activated by GUI push button, runs everything.py user script.
         """
         if not self.is_exp_exists():
             msg_window('the experiment has not been created yet')
@@ -213,13 +202,8 @@ class cdi_gui(QWidget):
 
     def set_working_dir(self):
         """
-        It shows the select dialog for user to select working directory. If the selected directory does not exist user will see info message.
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        nothing
+        Activated by GUI push button, shows a dialog for user to select working directory.
+        If the selected directory does not exist user will see info message.
         """
         self.working_dir = select_dir(os.getcwd())
         if self.working_dir is not None:
@@ -233,14 +217,9 @@ class cdi_gui(QWidget):
     def is_exp_exists(self):
         """
         Determines if minimum information for creating the experiment space exists, i.e the working directory and experiment id must be set.
-        Resolves the experiment name, and create experiment directory if it does not exist.
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        boolean
-            True if experiment exists, False otherwise
+        Resolves the experiment name, and creates experiment directory if it does not exist.
+
+        :return: True if experiment exists, False otherwise
         """
         if self.exp_id is None:
             return False
@@ -257,14 +236,10 @@ class cdi_gui(QWidget):
 
     def is_exp_set(self):
         """
-        The GUI can be used to load an experiment, and then change the parameters, such id or scan. This function will return True if information in class are the same as in the GUI.
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        boolean
-            True if experiment has been set, False otherwise
+        The GUI can be used to load an experiment, and then change the parameters, such id or scan. This function will
+        return True if information in the GUI screen are saved.
+
+        :return: True if experiment has been set, False otherwise
         """
         if self.exp_id is None:
             return False
@@ -277,13 +252,8 @@ class cdi_gui(QWidget):
 
     def load_experiment(self):
         """
-        It shows a dialog for user to select previously created experiment directory. If no main configuration file is found user will see info message.
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        nothing
+        It shows a dialog for user to select previously created experiment directory. If no main configuration file is
+        found user will see info message.
         """
         self.loaded = False
         self.reset_window()
@@ -326,14 +296,9 @@ class cdi_gui(QWidget):
 
     def load_main(self, conf_map):
         """
-        It reads 'config' file from the given directory, parses all parameters, verifies, and sets the display in window and class members to parsed values.
-        Parameters
-        ----------
-        load_dir : str
-            a directory to load the main configuration from
-        Returns
-        -------
-        nothing
+        It verifies parameters in dictionary and displays the fields in gui to the parameters values.
+
+        :param conf_map: a directory to load the main configuration from
         """
         if 'working_dir' in conf_map:
             working_dir = conf_map['working_dir'].replace(os.sep, '/')
@@ -355,13 +320,7 @@ class cdi_gui(QWidget):
 
     def assure_experiment_dir(self):
         """
-        It creates experiment directory, and experiment configuration directory if they dp not exist.
-        Parameters
-        ----------
-        nothing
-        Returns
-        -------
-        nothing
+        Creates experiment directory, and experiment configuration directory if they dp not exist.
         """
         if not os.path.exists(self.experiment_dir):
             os.makedirs(self.experiment_dir)
@@ -371,8 +330,9 @@ class cdi_gui(QWidget):
 
 
     def save_main(self):
-        # read the configurations from GUI and write to experiment config files
-        # save the main config
+        """
+        Reads the configuration from GUI and write to experiment config files on file system.
+        """
         conf_map = {}
         conf_map['working_dir'] = str(self.working_dir)
         conf_map['experiment_id'] = self.id
@@ -398,8 +358,8 @@ class cdi_gui(QWidget):
 
     def set_experiment(self, loaded=False):
         """
-        Reads the parameters in the window, and sets the experiment to read values, i.e. creates experiment directory,
-        and saves all configuration files with parameters from window.
+        Reads the parameters in the gui fields, and sets the experiment by creating experiment directory,
+        and saving all configuration files with parameters from gui.
 
         Parameters
         ----------

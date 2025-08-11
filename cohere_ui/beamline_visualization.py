@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+#
 # #########################################################################
 # Copyright (c) , UChicago Argonne, LLC. All rights reserved.             #
 #                                                                         #
@@ -5,8 +7,22 @@
 # #########################################################################
 
 """
-This user script processes reconstructed image for visualization.
-After the script is executed the experiment directory will contain image.vts file for each reconstructed image in the given directory tree.
+This script reads phasing result image file(s) and applies postprocessing as defined in config_disp file. The outcome
+are files in vti and vtk formats that can be visualized with Paraview.
+
+The script will generate image of the reconstructed object in direct space in vts format.
+In addition through configuration user can request twin image, unwrapped phase, interpolation, resolution, and
+reciprocal space view.
+
+If running this script in user mode (i.e. after installing cohere_ui package with pypi), use this command:
+    beamline_visualization  # provide argument <experiment_dir> in command line
+
+To run this script in developer mode (i.e. after cloning the cohere-ui repository) navigate to cohere-ui directory and
+use the following command:
+    python cohere_ui/beamline_visualization.py <experiment_dir>
+optional arguments may follow:  --no_verify
+
+In any of the mode one can use --help to get explanation of command line parameters.
 """
 
 __author__ = "Ross Harder"
@@ -30,16 +46,13 @@ import cohere_ui.api.postprocess_utils as pu
 
 def process_dir(config_maps, res_dir_scan):
     """
-    Loads arrays from files in results directory. If reciprocal array exists, it will save reciprocal info in tif format. It calls the save_CX function with the relevant parameters.
-    Parameters
-    ----------
-    res_dir_conf : tuple
-        tuple of two elements:
-        res_dir - directory where the results of reconstruction are saved
-        conf_dict - dictionary containing configuration parameters
-    Returns
-    -------
-    nothing
+    Loads arrays with reconstructed image from files in results directory and applies postprocessing according to
+    configuration.
+
+    :param config_maps: dictionary of dictionaries with configuration parameters with the config file names as keys
+    :param res_dir_scan: tuple containing phasing results directory and corresponding scan number
+    :param kwargs:
+        no_verify : boolean switch to determine if the verification error throws exception
     """
     [scan, res_dir] = res_dir_scan
 
@@ -206,19 +219,14 @@ def process_dir(config_maps, res_dir_scan):
 
 def handle_visualization(experiment_dir, **kwargs):
     """
-    If the image_file parameter is defined, the file is processed and vts file saved. Otherwise this function determines root directory with results that should be processed for visualization. Multiple images will be processed concurrently.
-    Parameters
-    ----------
-    experiment_dir : str
-        directory where the experiment files are saved
-    kwargs: ver parameters
-        may contain:
-        - rec_id : reconstruction id, pointing to alternate config
-        - no_verify : boolean switch to determine if the verification error is returned
-        - debug : boolean switch not used in this code
-    Returns
-    -------
-    nothing
+    Reads the configuration files and accordingly to configuration continues postprocessing for all image files
+    found in the configured results_dir tree. The outcome are vts and vti format files that can be viewed using
+    Paraview.
+
+    :param experimnent_dir: directory with experiment files
+    :param kwargs:
+        no_verify : boolean switch to determine if the verification error throws exception
+        rec_id : reconstruction id, pointing to alternate config
     """
     print ('starting visualization process')
 
@@ -303,6 +311,10 @@ def handle_visualization(experiment_dir, **kwargs):
 
 
 def main():
+    """
+    An entry function that takes command line parameters. It invokes the processing function handle_visualization with
+    the parameters. The command line parameters: experiment directory, rec_id, --no_verify.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_dir", help="experiment directory")
     parser.add_argument("--rec_id", action="store", help="alternate reconstruction id")

@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # #########################################################################
 # Copyright (c) , UChicago Argonne, LLC. All rights reserved.             #
 #                                                                         #
@@ -5,9 +7,19 @@
 # #########################################################################
 
 """
-This user script invokes all cohere_ui needed to present reconstructed data from raw data:
+This user script invokes in sequence all scripts needed to visualize reconstructed data from raw data:
 beamline_preprocess, standard_preprocess, run_reconstruction, beamline_visualization.
 This script uses configuration parameters from the experiment configuration files.
+
+If running this script in user mode (i.e. after installing cohere_ui package with pypi), use this command:
+    everything  # provide argument <experiment_dir> --rec_id <rec_id> in command line
+
+To run this script in developer mode (i.e. after cloning the cohere-ui repository) navigate to cohere-ui directory and
+use the following command:
+    python cohere_ui/everything.py <experiment_dir>
+optional argument may follow:  --rec_id --no_verify
+
+In any of the mode one can use --help to get explanation of command line parameters.
 """
 
 __author__ = "Barbara Frosik"
@@ -25,19 +37,14 @@ import cohere_ui.beamline_visualization as dsp
 
 def run_all(experiment_dir, **kwargs):
     """
-    Creates a "config_prep" file with some parameters commented out.
+    Runs users scripts in this order: beamline_preprocess, standard_preprocess, run_reconstruction,
+    beamline_visualization for the given cohere experiment.
 
-    Parameters
-    ----------
-    :param experiment_dir: str
-        directory where the experiment files are loacted
-    :param kwargs: ver parameters
-        may contain:
-        - rec_id : reconstruction id, pointing to alternate config
-        - no_verify : boolean switch to determine if the verification error is returned
-        - debug : boolean switch to determine whether exception shell be handled during reconstruction
-    :return:
-    nothing
+    :param experiment_dir: directory where the experiment files are loacted
+    :param kwargs: may contain:
+        rec_id : reconstruction id, pointing to alternate config
+        no_verify : boolean switch to determine if the verification error is returned
+        debug : boolean switch to determine whether exception will be handled during reconstruction
     """
     experiment_dir = experiment_dir.replace(os.sep, '/')
     prep.handle_prep(experiment_dir, **kwargs)
@@ -47,6 +54,10 @@ def run_all(experiment_dir, **kwargs):
 
 
 def main():
+    """
+    An entry function that takes command line parameters. It invokes the processing functions for all stages of
+    cohere experiment. The command line parameters: experiment directory, --rec_id, --no_verify, --debug.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_dir", help="experiment directory")
     parser.add_argument("--rec_id", help="reconstruction id, a prefix to '_results' directory")

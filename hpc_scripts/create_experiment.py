@@ -176,5 +176,5 @@ def main():
 if __name__ == "__main__":
     exit(main())
 
-# python create_experiment.py --working_dir example_workspace --id s2 --scan 54 --beamline aps_34idc --data_dir example_data/AD34idcTIM2_example --darkfield_filename example_data/dark.tif --whitefield_filename example_data/whitefield.tif --specfile example_data/example.spec --diffractometer 34idc
+# python create_aps34idc_experiment.py --working_dir example_workspace --id s2 --scan 54 --beamline aps_34idc --data_dir example_data/AD34idcTIM2_example --darkfield_filename example_data/dark.tif --whitefield_filename example_data/whitefield.tif --specfile example_data/example.spec --diffractometer 34idc
 

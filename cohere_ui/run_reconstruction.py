@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # #########################################################################
 # Copyright (c) , UChicago Argonne, LLC. All rights reserved.             #
 #                                                                         #
@@ -5,8 +7,21 @@
 # #########################################################################
 
 """
-This user script manages reconstruction(s).
-Depending on configuration it starts either single reconstruction, GA, or multiple reconstructions. In multiple reconstruction scenario or split scans the script runs parallel reconstructions.
+This user script manages reconstruction(s). Depending on configuration it starts either single reconstruction, GA, or
+multiple reconstructions. In multiple reconstruction scenario or separate scans the script runs parallel reconstructions.
+
+The reconstruction can run on GPUs, which is recommended or on CPU. The hardware is defined in the configuration file
+by a package that must be installed. Cohere supports cupy and torch GPU processing, and numpy processing on CPU.
+
+If running this script in user mode (i.e. after installing cohere_ui package with pypi), use this command:
+    run_reconstruction  # provide argument <experiment_dir> in command line
+
+To run this script in developer mode (i.e. after cloning the cohere-ui repository) navigate to cohere-ui directory and
+use the following command:
+    python cohere_ui/run_reconstruction.py <experiment_dir>
+optional argument may follow:  --rec_id <rec_id> --debug
+
+In any of the mode one can use --help to get explanation of command line parameters.
 """
 
 __author__ = "Barbara Frosik"
@@ -98,10 +113,9 @@ def reconstruction_single(pkg, conf_file, datafile, dir, dev, **kwargs):
         a parent directory that holds the reconstructions. For example experiment directory or scan directory.
     :param dev: int
         id defining GPU the this reconstruction will be utilizing, or -1 if running cpu
-    :param kwargs: var parameters
-        may contain:
+    :param kwargs: may contain:
         debug : if True the exceptions are not handled
-    :return:
+        rec_id : literal distinguishing multiple configuration in one cohere experiment
     """
     pars = ut.read_config(conf_file)
 
@@ -139,27 +153,17 @@ def reconstruction_single(pkg, conf_file, datafile, dir, dev, **kwargs):
 
 def process_scan_range(ga_method, pkg, conf_file, datafile, dir, picked_devs, hostfile=None, q=None, debug=None):
     """
-    Calls the reconstruction function in a module identified by parameter. After the reconstruction is finished, it enqueues th eprocess id wit associated list of gpus.
-    Parameters
-    ----------
-    ga_method : str
-        defines what type of GA was requested, or None
-    pkg : str
-        defines library to run reconstruction with
-    conf_file : str
-        configuration file with reconstruction parameters
-    datafile : str
-        name of file containing data
-    dir : str
-        parent directory to the <prefix>/results, or results directory
-    picked_devs : list
-       a list of gpus that will be used for reconstruction
-    kwargs : dict
-        may contain:
+    Calls the reconstruction function appropriate to the ga_method. In some scenarios the devices may be reused and
+    thus a list of GPU ids that completed reconstruction is enqued for the distributing process to get and reuse.
+
+    :param ga_method: defines what type of GA was requested, or None
+    :param pkg: defines library to run reconstruction with
+    :param conf_file: configuration file with reconstruction parameters
+    :param datafile: name of file containing data
+    :param dir: parent directory to the <prefix>/results, or results directory
+    :param picked_devs: a list of gpus that will be used for reconstruction
+    :param kwargs: may contain:
         hostfile : name of hostfile if cluster configuration was used
-    Returns
-    -------
-    nothing
     """
     if len(picked_devs) == 1:
         reconstruction_single(pkg, conf_file, datafile, dir, picked_devs, debug=debug)
@@ -179,22 +183,15 @@ def process_scan_range(ga_method, pkg, conf_file, datafile, dir, picked_devs, ho
 
 def manage_reconstruction(experiment_dir, **kwargs):
     """
-    This function starts the interruption discovery process and continues the recontruction processing.
-    It reads configuration file defined as <experiment_dir>/conf/config_rec.
+    This function reads configuration file defined as <experiment_dir>/conf/config_rec.
     If multiple generations are configured, or separate scans are discovered, it will start parallel reconstructions.
     It creates image.npy file for each successful reconstruction.
-    Parameters
-    ----------
-    experiment_dir : str
-        directory where the experiment files are loacted
-    :param kwargs: ver parameters
-        may contain:
-        - rec_id : reconstruction id, pointing to alternate config
-        - no_verify : boolean switch to determine if the verification error is returned
-        - debug : boolean switch to determine whether exception shell be handled during reconstruction
-    Returns
-    -------
-    nothing
+
+    :param experiment_dir: directory where the experiment files are loacted
+    :param kwargs: may contain:
+        rec_id : reconstruction id, pointing to alternate config
+        no_verify : boolean switch to determine if the verification error is returned
+        debug : boolean switch to determine whether exception shell be handled during reconstruction
     """
     print('started reconstruction')
 
@@ -376,6 +373,10 @@ def manage_reconstruction(experiment_dir, **kwargs):
 
 
 def main():
+    """
+    An entry function that takes command line parameters. It invokes the processing function manage_reconstruction with
+    the parameters. The command line parameters: experiment directory, --rec_id, --no_verify, --debug.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_dir", help="experiment directory.")
     parser.add_argument("--rec_id", action="store", help="reconstruction id, a postfix to 'results_phasing_' directory")

@@ -7,10 +7,21 @@
 # #########################################################################
 
 """
-This user script reads raw data, applies correction related to instrument, and saves prepared data.
-This script is written for a specific APS beamline. It reads multiple raw data files in each scan directory, applies
-darkfield and whitefield correction if applicable, creates 3D stack for each scan, then alignes and combines with
-other scans.
+This script reads raw data, applies correction related to instrument, aligns multiple scans data if applicable,
+and saves the preprocessed data.
+
+It is designed to support different beamlines that may use different file format and different instrument.
+The specifics are obtained from beamline implementations.
+
+If running this script in user mode (i.e. after installing cohere_ui package with pypi), use this command:
+    beamline_preprocess  # provide argument <experiment_dir> in command line
+
+To run this script in developer mode (i.e. after cloning the cohere-ui repository) navigate to cohere-ui directory and
+use the following command:
+    python cohere_ui/beamline_preprocess.py <experiment_dir>
+optional argument may follow:  --no_verify
+
+In any of the mode one can use --help to get explanation of command line parameters.
 """
 
 __author__ = "Barbara Frosik"
@@ -29,21 +40,15 @@ import cohere_ui.api.multipeak as mp
 
 def handle_prep(experiment_dir, **kwargs):
     """
-    Reads the configuration files and accrdingly creates prep_data.tif file in <experiment_dir>/prep directory or multiple
-    prep_data.tif in <experiment_dir>/<scan_<scan_no>>/prep directories.
-    Parameters
-    ----------
-    experimnent_dir : str
-        directory with experiment files
-    kwargs: ver parameters
-        may contain:
-        - rec_id : reconstruction id, pointing to alternate config
-        - no_verify : boolean switch to determine if the verification error is returned
-        - debug : boolean switch not used in this code
-    Returns
-    -------
-    experimnent_dir : str
-        directory with experiment files
+    Reads the configuration files and accordingly to configuration creates prep_data.tif file in the
+    <experiment_dir>/prep directory or for separate scans and for separate scan ranges creates multiple
+    prep_data.tif files in <experiment_dir>/<scan_<scan_no>>/prep directories. It applies instrument
+    corrections and aligns multiple scans data files.
+
+    :param experimnent_dir: directory with experiment files
+    :param kwargs:
+        no_verify : boolean switch to determine if the verification error throws exception
+    :return: experiment directory
     """
     print('pre-processing data')
 
@@ -146,6 +151,10 @@ def handle_prep(experiment_dir, **kwargs):
 
 
 def main():
+    """
+    An entry function that takes command line parameters. It invokes the processing function handle_prep with
+    the parameters. The command line parameters: experiment directory, --no_verify.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_dir",
                         help="directory where the configuration files are located")

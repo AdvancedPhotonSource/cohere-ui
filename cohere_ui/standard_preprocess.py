@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # #########################################################################
 # Copyright (c) , UChicago Argonne, LLC. All rights reserved.             #
 #                                                                         #
@@ -6,7 +8,21 @@
 
 
 """
-This script formats data for reconstruction according to configuration.
+This script reads all instrument corrected data instances found in the cohere experiment space.
+The data is then preprocessed for phasing by calling the standard_preprocessing api from the cohere_core package.
+
+The steps implemented in standard_preprocessing: removing aliens, removing noise, applying sqrt, cropping and padding,
+centering, and binning.
+
+If running this script in user mode (i.e. after installing cohere_ui package with pypi), use this command:
+    standard_preprocess  # provide argument <experiment_dir> in command line
+
+To run this script in developer mode (i.e. after cloning the cohere-ui repository) navigate to cohere-ui directory and
+use the following command:
+    python cohere_ui/standard_preprocess.py <experiment_dir>
+optional argument may follow:  --no_verify
+
+In any of the mode one can use --help to get explanation of command line parameters.
 """
 
 import argparse
@@ -25,20 +41,13 @@ __all__ = ['format_data',
 
 def format_data(experiment_dir, **kwargs):
     """
-    For each prepared data in an experiment directory structure formats the data according to configured parameters and saves in the experiment space.
+    The script formats the data according to configured parameters and saves in the experiment space for each prepared
+    data found in the in the experiment directory structure.
 
-    Parameters
-    ----------
-    experiment_dir : str
-        directory where the experiment processing files are saved
-    kwargs: ver parameters
-        may contain:
-        - no_verify : boolean switch to determine if the verification error is returned
-        - debug : boolean switch not used in this code
-
-    Returns
-    -------
-    nothing
+    :param experiment_dir: directory where the experiment files are saved
+    :param kwargs: may contain:
+        no_verify : boolean switch to determine if the verification error is returned
+        debug : boolean switch not used in this code
     """
     print('formatting data')
 
@@ -77,6 +86,10 @@ def format_data(experiment_dir, **kwargs):
 
 
 def main():
+    """
+    An entry function that takes command line parameters. It invokes the processing function format_data with
+    the parameters. The command line parameters: experiment directory, --no_verify.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment_dir", help="experiment directory")
     parser.add_argument("--no_verify", action="store_true",

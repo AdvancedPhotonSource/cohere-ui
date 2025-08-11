@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # #########################################################################
 # Copyright (c) , UChicago Argonne, LLC. All rights reserved.             #
 #                                                                         #
@@ -5,9 +7,22 @@
 # #########################################################################
 
 """
-This user script create experiment directory space.
+This user script create a new cohere experiment directory space.
 
-After the script is executed the experiment directory will contain "conf" subdirectory with configuration files. The initial configuration files contain all parameters, but most of them are commented out to clock the functionality.
+The experiment directory will contain "conf" subdirectory with configuration files. The initial configuration files
+contain all parameters, but most of them are commented out to clock the functionality.
+
+If running this script in user mode (i.e. after installing cohere_ui package with pypi), use this command:
+    create_aps34idc_experiment  # provide arguments in command line
+                                       # <id> <scan_no> <working_dir> --specfile <specfile>
+
+To run this script in developer mode (i.e. after cloning the cohere-ui repository) navigate to cohere-ui directory and
+use the following command:
+    python cohere_ui/create_aps34idc_experiment.py <id> <scan_no> <working_dir>
+
+optional arguments may follow: --specfile <specfile>
+
+In any of the mode one can use --help to get explanation of command line parameters.
 """
 
 __author__ = "Barbara Frosik"
@@ -17,6 +32,7 @@ __all__ = ['create_conf_prep',
            'create_conf_data',
            'create_conf_rec',
            'create_conf_disp',
+           'create_conf_instr',
            'create_exp',
            'main']
 
@@ -29,15 +45,6 @@ import cohere_ui.api.convertconfig as conv
 def create_conf_prep(conf_dir):
     """
     Creates a "config_prep" file with some parameters commented out.
-
-    Parameters
-    ----------
-    conf_dir : str
-        directory where the file will be saved
-
-    Returns
-    -------
-    nothing
     """
     conf_dir = conf_dir.replace(os.sep, '/')
     conf_file_name = conf_dir + '/config_prep'
@@ -56,15 +63,6 @@ def create_conf_prep(conf_dir):
 def create_conf_data(conf_dir):
     """
     Creates a "config_data" file with some parameters commented out.
-
-    Parameters
-    ----------
-    conf_dir : str
-        directory where the file will be saved
-
-    Returns
-    -------
-    nothing
     """
     conf_dir = conf_dir.replace(os.sep, '/')
     conf_file_name = conf_dir + '/config_data'
@@ -84,15 +82,6 @@ def create_conf_data(conf_dir):
 def create_conf_rec(conf_dir):
     """
     Creates a "config_rec" file with some parameters commented out.
-
-    Parameters
-    ----------
-    conf_dir : str
-        directory where the file will be saved
-
-    Returns
-    -------
-    nothing
     """
     conf_dir = conf_dir.replace(os.sep, '/')
     conf_file_name = conf_dir + '/config_rec'
@@ -140,15 +129,6 @@ def create_conf_rec(conf_dir):
 def create_conf_disp(conf_dir):
     """
     Creates a "config_disp" file with some parameters commented out.
-
-    Parameters
-    ----------
-    conf_dir : str
-        directory where the file will be saved
-
-    Returns
-    -------
-    nothing
     """
     conf_dir = conf_dir.replace(os.sep, '/')
     conf_file_name = conf_dir + '/config_disp'
@@ -156,29 +136,21 @@ def create_conf_disp(conf_dir):
 
     f.write('// results_dir = "/path/to/dir/with/reconstructed/image(s)"\n')
     f.write('// rampups = 1\n')
-    f.write('crop = [.5, .5, .5]\n')
+    f.write('crop_type = "fraction"\n')
+    f.write('crop_fraction = [.5, .5, .5]\n')
     f.close()
 
 
-def create_conf_disp(conf_dir):
+def create_conf_instr(conf_dir):
     """
-    Creates a "config_disp" file with some parameters commented out.
-
-    Parameters
-    ----------
-    conf_dir : str
-        directory where the file will be saved
-
-    Returns
-    -------
-    nothing
+    Creates a "config_instr" file with some parameters commented out.
     """
     conf_dir = conf_dir.replace(os.sep, '/')
     conf_file_name = conf_dir + '/config_instr'
     f = open(conf_file_name, "w+")
 
     f.write('diffractometer = "34idc"\n')
-    f.write('// scanfile = "path/to/scanfile/scanfile"\n')
+    f.write('// specfile = "path/to/specfile/specfile"\n')
     f.close()
 
 
@@ -186,23 +158,11 @@ def create_exp(prefix, scan, working_dir, **args):
     """
     Concludes experiment name, creates directory, and "conf" subdirectory with initial configuration files.
 
-    Parameters
-    ----------
-    prefix : str
-        a literal ID of the experiment
-    scan : str
-        string indicating scan number, or scan range
-        ex1: 5
-        ex2: 67 - 89
-    working_dir : str
-        directory where the file will be saved
-    specfile : str
-        optional, name of specfile that was saved during the experiment
-
-    Returns
-    -------
-    experiment_dir : str
-        directory where the new experiment is located
+    :param prefix: a literal ID of the experiment
+    :param scan: string indicating scan number, or scan range
+    :param working_dir: a parent directory where the conf directory will be saved
+    :param specfile: optional, name of specfile that was saved during the experiment
+    :return: experiment directory
     """
     id = prefix + '_' + scan
     working_dir = working_dir.replace(os.sep, '/')
@@ -227,8 +187,7 @@ def create_exp(prefix, scan, working_dir, **args):
     conf_map['working_dir'] = working_dir
     conf_map['experiment_id'] = prefix
     conf_map['scan'] = scan
-    if 'beamline' in args:
-        conf_map['beamline'] = args['beamline']
+    conf_map['beamline'] = 'aps_34idc'
 
     # get converter version
     conf_map['converter_ver'] = conv.get_version()
@@ -251,7 +210,6 @@ def main():
     parser.add_argument("id", help="prefix to name of the experiment/data reconstruction")
     parser.add_argument("scan", help="a range of scans to prepare data from")
     parser.add_argument("working_dir", help="directory where the created experiment will be located")
-    parser.add_argument('--beamline', action='store')
     parser.add_argument('--specfile', action='store')
 
     args = parser.parse_args()
@@ -262,9 +220,6 @@ def main():
     varpar = {}
     if args.specfile and os.path.isfile(args.specfile):
         varpar['specfile'] = args.specfile
-
-    if args.beamline:
-        varpar['beamline'] = args.beamline
 
     return create_exp(id, scan, working_dir, **varpar)
 

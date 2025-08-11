@@ -70,3 +70,5 @@ venv.bak/
 
 .idea
 .DS_Store
+
+.ipynb_checkpoints

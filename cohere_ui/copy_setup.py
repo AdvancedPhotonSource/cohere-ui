@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+#
 # #########################################################################
 # Copyright (c) , UChicago Argonne, LLC. All rights reserved.             #
 #                                                                         #
@@ -5,15 +7,26 @@
 # #########################################################################
 
 """
-This user script create experiment directory space and copies configuration files.
+This script is used to create a cohere experiment with predefined configuration files. The main configuration file is
+created and the other files are copied into the newly created experiment space.
 
-After the script is executed the experiment directory will contain "conf" subdirectory with configuration files, copies of files from given directory.
+This script is typically used to create an initial cohere experiment after data collection.
+
+If running this script in user mode (i.e. after installing cohere_ui package with pypi), use this command:
+    copy_setup  # provide arguments <id> <scan_no> <conf_dir> --specfile <specfile> --copy_prep in command line
+
+To run this script in developer mode (i.e. after cloning the cohere-ui repository) navigate to cohere-ui directory and
+use the following command:
+    python cohere_ui/copy_setup.py <id> <scan_no> <conf_dir>
+optional arguments may follow:  --specfile <specfile> --copy_prep
+
+In any of the mode one can use --help to get explanation of command line parameters.
 """
 
 __author__ = "Ross Harder"
 __copyright__ = "Copyright (c), UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['setup_rundirs',
+__all__ = ['setup_example',
            'main']
 
 import argparse
@@ -24,22 +37,15 @@ import cohere_core.utilities as ut
 
 
 ######################################################################
-def setup_rundirs(prefix, scan, conf_dir, **kwargs):
+def setup_example(prefix, scan, conf_dir, **kwargs):
     """
-    Concludes the experiment directory, creates main configuration files, and calls function to copy other configuration files.
+    Creates the new cohere experiment directory, creates main configuration files, and copies other configuration files.
 
-    Parameters
-    ----------
-    prefix : str
-        prefix to name of the experiment/data reconstruction
-    scan : str
-        a range of scans to prepare data from
-    conf_dir : str
-        directory from where the configuration files will be copied
-    specfile : str
-        optional, from kwargs, specfile configuration to write to config file
-    copy_prep : bool
-        optional, from kwargs, if sets to True, the prepared file is also copied
+    :param id: literal part ofnew experiment id
+    :param scan: scan(s) number od the new experiment
+    :param conf_dir: directory from where the configuration files will be copied
+    :param specfile: optional, specfile configuration to write to config_instr file
+    :param copy_prep: optional, if True, the preprocessed file is also copied
         
     """
     conf_dir = conf_dir.replace(os.sep, '/')
@@ -106,6 +112,10 @@ def setup_rundirs(prefix, scan, conf_dir, **kwargs):
 
 
 def main():
+    """
+    An entry function that takes command line parameters. It invokes the processing function setup_example with
+    the parameters. The command line parameters: id, scan, conf_dir, --specfile, --copy_prep.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("id", help="prefix to name of the experiment/data reconstruction")
     parser.add_argument("scan", help="a range of scans to prepare data from")
@@ -119,7 +129,7 @@ def main():
     id = args.id
     conf_dir = args.conf_dir
 
-    return setup_rundirs(id, scan, conf_dir, copy_prep=args.copy_prep, specfile=args.specfile)
+    return setup_example(id, scan, conf_dir, copy_prep=args.copy_prep, specfile=args.specfile)
 
 
 if __name__ == "__main__":

@@ -1,8 +1,36 @@
+#!/usr/bin/env python
+
 # #########################################################################
 # Copyright (c) , UChicago Argonne, LLC. All rights reserved.             #
 #                                                                         #
 # See LICENSE file.                                                       #
 # #########################################################################
+
+"""
+This script executes reconstruction of provided data in tiff or npy formats. The data can be preprocessed by any
+package, not necessarily cohere.
+
+This script does not use cohere experiment framework. It simply calls the reconstruction process from cohere_core
+package on the provided data. The basic parameters are hardcoded in the script. User can copy the script and modify
+the parameters if needed.
+
+The results, like reconstructed image, support, errors, and metrics are saved by default in 'results' directory.
+
+If running this script in user mode (i.e. after installing cohere_ui package with pypi), use this command:
+    simple_phasing  # provide argument <data_file> in command line
+
+To run this script in developer mode (i.e. after cloning the cohere-ui repository) navigate to cohere-ui directory and
+use the following command:
+    python cohere_ui/simple_phasing.py <data_file>
+optional argument may follow: params --debug
+
+In any of the mode one can use --help to get explanation of command line parameters.
+"""
+
+__author__ = "Barbara Frosik"
+__docformat__ = 'restructuredtext en'
+__all__ = ['reconstruction',
+           'main']
 
 import argparse
 import cohere_core.controller as rec
@@ -11,11 +39,10 @@ import os
 
 def reconstruction(datafile, **kwargs):
     """
-    Reconstructs the image of the data in datafile according to arguments the user enters in the script when invoking
-    rec.phasing.reconstruction.
-    The results:
-    image.npy, support.npy, and errors.npy are saved in 'saved_dir' defined in kwargs, or if not defined,
-    in the directory of datafile.
+    Reconstructs the provided data according to hardcoded parameters in the script. User can change the parameters
+    by altering the code. The parameters become arguments when invoking rec.phasing.reconstruction.
+    The results: image.npy, support.npy, and errors.npy are saved in directory defined by 'save_dir' which is hardcoded
+    to 'results' in the script.
 
     List of supported arguments:
      save_dir : str
@@ -110,12 +137,16 @@ def reconstruction(datafile, **kwargs):
 
 
 def main():
-        parser = argparse.ArgumentParser()
-        parser.add_argument("datafile", help="data file name. It should be either tif file or numpy.")
-        parser.add_argument("--debug", action="store_true",
-                            help="if True the exceptions are not handled")
-        args = parser.parse_args()
-        reconstruction(args.datafile, debug=args.debug)
+    """
+    An entry function that takes command line parameters. It invokes the processing function reconstruction with
+    the parameters. The command line parameters: experiment datafile, --debug.
+    """
+    parser = argparse.ArgumentParser()
+    parser.add_argument("datafile", help="data file name. It should be either tif file or numpy.")
+    parser.add_argument("--debug", action="store_true",
+                        help="if True the exceptions are not handled")
+    args = parser.parse_args()
+    reconstruction(args.datafile, debug=args.debug)
 
 
 if __name__ == "__main__":

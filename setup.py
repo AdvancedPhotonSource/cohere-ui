@@ -1,37 +1,4 @@
-import os
 import setuptools
-
-cur_dir = os.getcwd().replace(os.sep, '/')
-
-with open('example_workspace/scan_54/conf/config', 'r') as file :
-    filedata = file.read()
-filedata = filedata.replace('CUR_DIR', cur_dir)
-with open('example_workspace/scan_54/conf/config', 'w') as file:
-    file.write(filedata)
-
-with open('example_workspace/scan_54/conf/config_prep', 'r') as file :
-    filedata = file.read()
-filedata = filedata.replace('CUR_DIR', cur_dir)
-with open('example_workspace/scan_54/conf/config_prep', 'w') as file:
-    file.write(filedata)
-
-with open('example_workspace/scan_54/conf/config_disp', 'r') as file :
-    filedata = file.read()
-filedata = filedata.replace('CUR_DIR', cur_dir)
-with open('example_workspace/scan_54/conf/config_disp', 'w') as file:
-    file.write(filedata)
-
-with open('example_workspace/scan_54/conf/config_instr', 'r') as file :
-    filedata = file.read()
-filedata = filedata.replace('CUR_DIR', cur_dir)
-with open('example_workspace/scan_54/conf/config_instr', 'w') as file:
-    file.write(filedata)
-
-with open('example_workspace/esrf_exp_4/conf/config', 'r') as file :
-    filedata = file.read()
-filedata = filedata.replace('CUR_DIR', cur_dir)
-with open('example_workspace/esrf_exp_4/conf/config', 'w') as file:
-    file.write(filedata)
 
 setuptools.setup(
       name='cohere_ui',
@@ -46,6 +13,15 @@ setuptools.setup(
                 'cohere_ui.beamlines.esrf_id01', 
                 'cohere_ui.beamlines.Petra3_P10', 
                 'cohere_ui.beamlines.simple'],
+      entry_points={'console_scripts': ['beamline_preprocess=cohere_ui.beamline_preprocess:main',
+                                        'beamline_visualization=cohere_ui.beamlines.visualization:main',
+                                        'cohere_gui=cohere_ui.cohere_gui:main',
+                                        'copy_setup=cohere_ui.copy_setup:main',
+                                        'create_aps34idc_experiment=cohere_ui.create_aps34idc_experiment:main',
+                                        'everything=cohere_ui.everything:main',
+                                        'run_reconstruction=cohere_ui.run_reconstruction:main',
+                                        'simple_phasing=cohere_ui.simple_phasing:main',
+                                        'standard_preprocess=cohere_ui.standard_preprocess:main']},
       install_requires=[
                          'pyqt5',
                          'scikit-image',
