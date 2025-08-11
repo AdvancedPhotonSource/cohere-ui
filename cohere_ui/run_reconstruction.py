@@ -40,7 +40,6 @@ from multiprocessing import Process, Queue, Pool
 import cohere_core.controller as rec
 import cohere_core.utilities as ut
 import cohere_ui.api.common as com
-import cohere_ui.api.balancer as balancer
 import cohere_ui.api.mpi_cmd as mpi_cmd
 import cohere_ui.api.reconstruction_populous as reconstruction_populous
 import cohere_ui.api.reconstruction_populous_ga as ga
@@ -291,6 +290,8 @@ def manage_reconstruction(experiment_dir, **kwargs):
         # for now run locally on cpu, will be enhanced to support cluster conf
         picked_devs, avail_jobs, hostfile = devices * want_dev_no, want_dev_no, None
     else:
+        import cohere_ui.api.balancer as balancer
+        
         # based on configured devices find what is available
         # this code below assigns jobs for GPUs
         data_size = ut.read_tif(exp_dirs_data[0][0]).size
