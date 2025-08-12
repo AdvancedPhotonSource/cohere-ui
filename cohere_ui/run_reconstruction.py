@@ -291,7 +291,7 @@ def manage_reconstruction(experiment_dir, **kwargs):
         picked_devs, avail_jobs, hostfile = devices * want_dev_no, want_dev_no, None
     else:
         import cohere_ui.api.balancer as balancer
-        
+
         # based on configured devices find what is available
         # this code below assigns jobs for GPUs
         data_size = ut.read_tif(exp_dirs_data[0][0]).size

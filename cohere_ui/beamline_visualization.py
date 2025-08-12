@@ -155,7 +155,9 @@ def process_dir(config_maps, res_dir_scan):
                 return
 
         interpolation_mode = viz_params['interpolation_mode']
-        interpolated_data = pu.get_interpolated_arrays(dir_viz, interpolation_resolution, interpolation_mode=interpolation_mode)
+        sgrid = dir_viz.get_structured_grid(complex_mode=interpolation_mode)
+        interpolated_data = pu.interpolate(sgrid, interpolation_resolution)
+        print('no funct')
         filename = ut.join(save_dir, f'direct_space_images_interpolated_{interpolation_mode}.vti')
         match interpolation_mode:
             case 'AmpPhase':

@@ -245,9 +245,9 @@ def interpolate(sgrid, resolution):
     return image_data.sample(sgrid)
 
 
-def get_interpolated_arrays(viz, resolution, **kwargs):
-    sgrid = viz.get_structured_grid(complex_mode=kwargs['interpolation_mode'])
-    return interpolate(sgrid, resolution)
+# def get_interpolated_arrays(viz, resolution, **kwargs):
+#     sgrid = viz.get_structured_grid(complex_mode=kwargs['interpolation_mode'])
+#     return interpolate(sgrid, resolution)
 
 
 def get_centered_voisize(arrdims, voisize):
