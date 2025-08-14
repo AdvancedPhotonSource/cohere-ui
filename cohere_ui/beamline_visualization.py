@@ -5,24 +5,28 @@
 #                                                                         #
 # See LICENSE file.                                                       #
 # #########################################################################
-
 """
-This script reads phasing result image file(s) and applies postprocessing as defined in config_disp file. The outcome
-are files in vti and vtk formats that can be visualized with Paraview.
+This script reads phasing result image file(s) and applies postprocessing as defined in config_disp file.
+Refer to :ref:`config_disp` for definition of parameters that direct the processing. The outcome
+is a collection of files in vti and vtk formats that can be visualized with Paraview.
+
+To deliver the files for visualization the program calculates geometry that depends on parameters in config_instr
+file that differ for beamlines. Refer to :ref:`config_instr` for definitions of these parameters by beamline.
+The parameters are metadata, however for some beamlines some parameters have to be configured.
 
 The script will generate image of the reconstructed object in direct space in vts format.
-In addition through configuration user can request twin image, unwrapped phase, interpolation, resolution, and
+In addition, through configuration user can request twin image, unwrapped phase, interpolation, resolution, and
 reciprocal space view.
 
-If running this script in user mode (i.e. after installing cohere_ui package with pypi), use this command:
-    beamline_visualization  # provide argument <experiment_dir> in command line
+If running this script in **user mode** (i.e. after installing cohere_ui package with pypi), use this command:
+    **beamline_visualization <experiment_dir>**
 
-To run this script in developer mode (i.e. after cloning the cohere-ui repository) navigate to cohere-ui directory and
+To run this script in **developer mode** (i.e. after cloning the cohere-ui repository) navigate to cohere-ui directory and
 use the following command:
-    python cohere_ui/beamline_visualization.py <experiment_dir>
+    **python cohere_ui/beamline_visualization.py <experiment_dir>**
 optional arguments may follow:  --no_verify
 
-In any of the mode one can use --help to get explanation of command line parameters.
+In either of the mode one can use --help to get explanation of command line parameters.
 """
 
 __author__ = "Ross Harder"

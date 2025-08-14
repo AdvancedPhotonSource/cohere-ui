@@ -4,5 +4,5 @@ diffractometer = "P10sixc"
 sample = "MC7_insitu"
                           // Defines sample name that matches directory structure.
 data_dir = "example_data"
-                          // Directory where experiment data is stored. This will contain subdirectories
+                          // Directory where experiment data is stored; contains subdirectories
                           // related to samples.

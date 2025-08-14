@@ -7,8 +7,8 @@
 # #########################################################################
 
 """
-This script is used to create a cohere experiment with predefined configuration files. The main configuration file is
-created and the other files are copied into the newly created experiment space.
+This script is used to create a cohere experiment directory structure with predefined configuration files.
+The main configuration file is created and the other files are copied into the newly created experiment space.
 
 This script is typically used to create an initial cohere experiment after data collection.
 
