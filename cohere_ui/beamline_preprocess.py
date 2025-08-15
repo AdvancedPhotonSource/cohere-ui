@@ -8,20 +8,23 @@
 
 """
 This script reads raw data, applies correction related to instrument, aligns multiple scans data if applicable,
-and saves the preprocessed data.
+and saves the preprocessed data in cohere experiment space in the preprocessed_data subdirectory. User can control
+some elements of the preprocess, like cropping area around maximum intensity, or accepting only scans with
+set number of frames, removing outliers. The configuration parameters are described in :ref:`config_prep`.
 
 It is designed to support different beamlines that may use different file format and different instrument.
-The specifics are obtained from beamline implementations.
+The specifics are obtained from beamline instrument implementations. The configuration of instrument is define by
+beamline. Refer to :ref:`config_instr` for definitions of these parameters.
 
-If running this script in user mode (i.e. after installing cohere_ui package with pypi), use this command:
-    beamline_preprocess  # provide argument <experiment_dir> in command line
+If running this script in **user mode** (i.e. after installing cohere_ui package with pypi), use this command:
+    **beamline_preprocess <experiment_dir>**
 
-To run this script in developer mode (i.e. after cloning the cohere-ui repository) navigate to cohere-ui directory and
+To run this script in **developer mode** (i.e. after cloning the cohere-ui repository) navigate to cohere-ui directory and
 use the following command:
-    python cohere_ui/beamline_preprocess.py <experiment_dir>
+    **python cohere_ui/beamline_preprocess.py <experiment_dir>**
 optional argument may follow:  --no_verify
 
-In any of the mode one can use --help to get explanation of command line parameters.
+In either of the mode one can use --help to get explanation of command line parameters.
 """
 
 __author__ = "Barbara Frosik"
