@@ -245,11 +245,6 @@ def interpolate(sgrid, resolution):
     return image_data.sample(sgrid)
 
 
-# def get_interpolated_arrays(viz, resolution, **kwargs):
-#     sgrid = viz.get_structured_grid(complex_mode=kwargs['interpolation_mode'])
-#     return interpolate(sgrid, resolution)
-
-
 def get_centered_voisize(arrdims, voisize):
     voi = []
     for d in zip(arrdims, voisize):
@@ -295,7 +290,8 @@ def make_image_viz(geometry, image, support, config_maps):
     # adding the image as a complex array. Can select AmpPhase or ReIm depending on what you want.
     viz.add_array("im", image)
 
-    viz.add_array("support", support)
+    if support is not None:
+        viz.add_array("support", support)
     unwrap_phase = viz_params.get('unwrap', False)
     if unwrap_phase:
         from skimage import restoration

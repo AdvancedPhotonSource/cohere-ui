@@ -86,7 +86,6 @@ def process_dir(config_maps, res_dir_scan):
     imagefile = ut.join(res_dir, 'image.npy')
     try:
         image = np.load(imagefile)
-        # ut.save_tif(image, ut.join(save_dir, 'support.tif'))
     except:
         print(f'cannot load file {imagefile}')
         return
@@ -100,7 +99,6 @@ def process_dir(config_maps, res_dir_scan):
     if os.path.isfile(supportfile):
         try:
             support = np.load(supportfile)
-            # ut.save_tif(support, ut.join(save_dir, 'support.tif'))
         except:
             print(f'cannot load file {supportfile}')
     else:
@@ -113,7 +111,7 @@ def process_dir(config_maps, res_dir_scan):
     # This block of code creates vts file with arrays depending on the complex_mode.
     # If complex_mode is "AmpPhase" the following arrays are included: imAmp, imPh, support.
     # If complex_mode is "ReIm" the following arrays are included: imRe, imImag, support .
-    dir_viz = pu.make_image_viz(geometry, image, support,config_maps)
+    dir_viz = pu.make_image_viz(geometry, image, support, config_maps)
     complex_mode = viz_params.get('complex_mode', 'AmpPhase')
     filename = ut.join(save_dir, f'direct_space_images_{complex_mode}.vts')
     dir_viz.write(filename, complex_mode=complex_mode)
@@ -256,7 +254,7 @@ def handle_visualization(experiment_dir, **kwargs):
     else:
         separate = main_conf_map.get('separate_scans', False) or main_conf_map.get('separate_scan_ranges', False)
         rec_id = kwargs.get('rec_id', None)
-        if 'results_dir' in conf_maps:
+        if 'results_dir' in conf_maps['config_disp']:
             results_dir = conf_maps['config_disp']['results_dir'].replace(os.sep, '/')
             if rec_id is not None and not results_dir.endswith(rec_id):
                 print(f'Verify the results_directory. Currently set to {results_dir}')
