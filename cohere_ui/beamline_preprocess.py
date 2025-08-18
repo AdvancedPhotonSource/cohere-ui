@@ -16,15 +16,18 @@ It is designed to support different beamlines that may use different file format
 The specifics are obtained from beamline instrument implementations. The configuration of instrument is define by
 beamline. Refer to :ref:`config_instr` for definitions of these parameters.
 
-If running this script in **user mode** (i.e. after installing cohere_ui package with pypi), use this command:
-    **beamline_preprocess <experiment_dir>**
+If running this script in **user mode** (i.e. after installing cohere_ui package with pypi), use this command::
 
-To run this script in **developer mode** (i.e. after cloning the cohere-ui repository) navigate to cohere-ui directory and
-use the following command:
-    **python cohere_ui/beamline_preprocess.py <experiment_dir>**
+    beamline_preprocess <experiment_dir>
+
+To run this script in **developer mode** (i.e. after cloning the cohere-ui repository and installing from code) navigate to cohere-ui directory and
+use the following command::
+
+    python cohere_ui/beamline_preprocess.py <experiment_dir>
+
 optional argument may follow:  --no_verify
 
-In either of the mode one can use --help to get explanation of command line parameters.
+In either mode one can use --help to get explanation of command line parameters.
 """
 
 __author__ = "Barbara Frosik"
@@ -39,7 +42,6 @@ import cohere_core.utilities as ut
 import cohere_ui.api.auto_data as ad
 import cohere_ui.api.common as com
 import cohere_ui.api.multipeak as mp
-
 
 def handle_prep(experiment_dir, **kwargs):
     """

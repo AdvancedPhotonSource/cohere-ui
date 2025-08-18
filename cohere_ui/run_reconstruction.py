@@ -7,21 +7,25 @@
 # #########################################################################
 
 """
-This user script manages reconstruction(s). Depending on configuration it starts either single reconstruction, GA, or
-multiple reconstructions. In multiple reconstruction scenario or separate scans the script runs parallel reconstructions.
+This script manages reconstruction(s). Depending on configuration it starts either single reconstruction, GA, or
+multiple reconstructions. In multiple reconstruction scenario or separate scans the script runs parallel execution.
+Refer to :ref:`config_rec` for definitions of these parameters.
 
-The reconstruction can run on GPUs, which is recommended or on CPU. The hardware is defined in the configuration file
+The reconstruction can run on GPUs, which has very good performance, or on CPU. The hardware is defined in the configuration file
 by a package that must be installed. Cohere supports cupy and torch GPU processing, and numpy processing on CPU.
 
-If running this script in user mode (i.e. after installing cohere_ui package with pypi), use this command:
-    run_reconstruction  # provide argument <experiment_dir> in command line
+If running this script in **user mode** (i.e. after installing cohere_ui package with pypi), use this command::
 
-To run this script in developer mode (i.e. after cloning the cohere-ui repository) navigate to cohere-ui directory and
-use the following command:
+    run_reconstruction <experiment_dir>
+
+To run this script in **developer mode** (i.e. after cloning the cohere-ui repository and installing from code) navigate to cohere-ui directory and
+use the following command::
+
     python cohere_ui/run_reconstruction.py <experiment_dir>
+
 optional argument may follow:  --rec_id <rec_id> --debug
 
-In any of the mode one can use --help to get explanation of command line parameters.
+In either mode one can use --help to get explanation of command line parameters.
 """
 
 __author__ = "Barbara Frosik"

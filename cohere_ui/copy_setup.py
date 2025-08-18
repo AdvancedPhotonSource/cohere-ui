@@ -1,26 +1,28 @@
 #!/usr/bin/env python
-#
+
 # #########################################################################
 # Copyright (c) , UChicago Argonne, LLC. All rights reserved.             #
 #                                                                         #
 # See LICENSE file.                                                       #
 # #########################################################################
-
 """
 This script is used to create a cohere experiment directory structure with predefined configuration files.
 The main configuration file is created and the other files are copied into the newly created experiment space.
 
 This script is typically used to create an initial cohere experiment after data collection.
 
-If running this script in user mode (i.e. after installing cohere_ui package with pypi), use this command:
-    copy_setup  # provide arguments <id> <scan_no> <conf_dir> --specfile <specfile> --copy_prep in command line
+If running this script in **user mode** (i.e. after installing cohere_ui package with pypi), use this command::
 
-To run this script in developer mode (i.e. after cloning the cohere-ui repository) navigate to cohere-ui directory and
-use the following command:
+    copy_setup <id> <scan_no> <conf_dir> --specfile <specfile> --copy_prep
+
+To run this script in **developer mode** (i.e. after cloning the cohere-ui repository and installing from code) navigate to cohere-ui directory and
+use the following command::
+
     python cohere_ui/copy_setup.py <id> <scan_no> <conf_dir>
+
 optional arguments may follow:  --specfile <specfile> --copy_prep
 
-In any of the mode one can use --help to get explanation of command line parameters.
+In either mode one can use --help to get explanation of command line parameters.
 """
 
 __author__ = "Ross Harder"

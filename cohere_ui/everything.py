@@ -9,17 +9,20 @@
 """
 This user script invokes in sequence all scripts needed to visualize reconstructed data from raw data:
 beamline_preprocess, standard_preprocess, run_reconstruction, beamline_visualization.
-This script uses configuration parameters from the experiment configuration files.
+This script uses configuration parameters from the cohere experiment configuration files.
 
-If running this script in user mode (i.e. after installing cohere_ui package with pypi), use this command:
-    everything  # provide argument <experiment_dir> --rec_id <rec_id> in command line
+If running this script in **user mode** (i.e. after installing cohere_ui package with pypi), use this command::
 
-To run this script in developer mode (i.e. after cloning the cohere-ui repository) navigate to cohere-ui directory and
-use the following command:
+    everything <experiment_dir> --rec_id <rec_id>
+
+To run this script in **developer mode** (i.e. after cloning the cohere-ui repository and installing from code) navigate to cohere-ui directory and
+use the following command::
+
     python cohere_ui/everything.py <experiment_dir>
+
 optional argument may follow:  --rec_id --no_verify
 
-In any of the mode one can use --help to get explanation of command line parameters.
+In either mode one can use --help to get explanation of command line parameters.
 """
 
 __author__ = "Barbara Frosik"

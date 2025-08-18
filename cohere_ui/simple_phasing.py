@@ -16,15 +16,18 @@ the parameters if needed.
 
 The results, like reconstructed image, support, errors, and metrics are saved by default in 'results' directory.
 
-If running this script in user mode (i.e. after installing cohere_ui package with pypi), use this command:
-    simple_phasing  # provide argument <data_file> in command line
+If running this script in **user mode** (i.e. after installing cohere_ui package with pypi), use this command::
 
-To run this script in developer mode (i.e. after cloning the cohere-ui repository) navigate to cohere-ui directory and
-use the following command:
+    simple_phasing <data_file>
+
+To run this script in **developer mode** (i.e. after cloning the cohere-ui repository and installing from code) navigate to cohere-ui directory and
+use the following command::
+
     python cohere_ui/simple_phasing.py <data_file>
+
 optional argument may follow: params --debug
 
-In any of the mode one can use --help to get explanation of command line parameters.
+In either mode one can use --help to get explanation of command line parameters.
 """
 
 __author__ = "Barbara Frosik"

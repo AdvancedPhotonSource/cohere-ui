@@ -8,20 +8,23 @@
 """
 This script reads all instrument corrected data instances found in the cohere experiment space.
 The data is then preprocessed for phasing by calling the standard_preprocessing api from the cohere_core package.
-Refer to :ref:`config_dt` for definition of parameters that direct the processing.
+Refer to :ref:`config_data` for definition of parameters that direct the processing.
 
 The steps implemented in standard_preprocessing: removing aliens, removing noise, applying sqrt, cropping and padding,
 centering, and binning.
 
-If running this script in **user mode** (i.e. after installing cohere_ui package with pypi), use this command:
-    **standard_preprocess <experiment_dir>**
+If running this script in **user mode** (i.e. after installing cohere_ui package with pypi), use this command::
 
-To run this script in **developer mode** (i.e. after cloning the cohere-ui repository) navigate to cohere-ui directory and
-use the following command:
-    **python cohere_ui/standard_preprocess.py <experiment_dir>**
+    standard_preprocess <experiment_dir>
+
+To run this script in **developer mode** (i.e. after cloning the cohere-ui repository and installing from code) navigate to cohere-ui directory and
+use the following command::
+
+    python cohere_ui/standard_preprocess.py <experiment_dir>
+
 optional argument may follow:  --no_verify
 
-In either of the mode one can use --help to get explanation of command line parameters.
+In either mode one can use --help to get explanation of command line parameters.
 """
 
 import argparse
