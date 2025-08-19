@@ -53,7 +53,7 @@ def format_data(experiment_dir, **kwargs):
     """
     print('formatting data')
 
-    conf_list = ['config_data']
+    conf_list = ['config_data', 'config_rec']
     conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, **kwargs)
     if 'config_data' not in conf_maps: # not possible to get intensity threshold
         msg = 'Missing config_data file, cannot determine intensity threshold.'
@@ -76,6 +76,17 @@ def format_data(experiment_dir, **kwargs):
 
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
+
+        # add parameters setting dimensions to the best for fast fourier transform processing.
+        pkg = 'auto'
+        if 'config_rec' in conf_maps and 'processing' in conf_maps['config_rec']:
+            pkg = conf_maps['config_rec']['processing']
+        try:
+            pkg = com.get_pkg(pkg, [0])
+        except:
+            pkg = 'np'
+        data_conf_map['pkg'] = pkg
+        data_conf_map['next_fast_len'] = True
 
         # call the preprocessing in cohere_core, it will return updated configuration if auto_intensity_threshold is set
         data_conf_map = fd.prep(ut.join(proc_dir, 'preprocessed_data', 'prep_data.tif'), **data_conf_map)

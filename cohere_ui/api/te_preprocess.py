@@ -62,7 +62,7 @@ def format_data(experiment_dir, **kwargs):
 
     print('formatting data')
 
-    conf_list = ['config_data']
+    conf_list = ['config_data', config_rec]
     err_msg, conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, **kwargs)
     if len(err_msg) > 0:
         return err_msg
@@ -132,11 +132,17 @@ def format_data(experiment_dir, **kwargs):
 
         print('dfile full', dfile[1],(data < 0).sum() == 0)
 
+        # add parameters setting dimensions to the best for fast fourier transform processing.
+        pkg = 'auto'
+        if 'config_rec' in conf_maps and 'processing' in conf_maps['config_rec']:
+            pkg = conf_maps['config_rec']['processing']
+        pkg = com.get_pkg(pkg, [0])
+
         # even with crops_pads not given the size still has to be adjusted to the optimal dimension
         crops_pads = kwargs.get('crop_pad', (0, 0, 0, 0, 0, 0))
         # adjust the size, either pad with 0s or crop array
         pairs = [crops_pads[2 * i:2 * i + 2] for i in range(int(len(crops_pads) / 2))]
-        data = ut.adjust_dimensions(data, pairs)
+        data = ut.adjust_dimensions(data, pairs, next_fast_len=True, pkg=pkg)
 
         # do the centering now
         if not no_center_max:
