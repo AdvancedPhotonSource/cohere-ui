@@ -229,9 +229,7 @@ class Diffractometer_1ide(Diffractometer):
 
 def create_diffractometer(diff_name, params):
     for diff in Diffractometer.__subclasses__():
-        print('dif name', diff)
         if diff.name == diff_name:
-            print('name', diff.name)
             return diff(params)
     msg = f'diffractometor {diff_name} not defined'
     raise ValueError(msg)

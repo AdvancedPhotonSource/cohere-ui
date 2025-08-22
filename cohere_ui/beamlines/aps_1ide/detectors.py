@@ -56,9 +56,10 @@ class Detector(ABC):
                 scan_dir_pattern = r'_S[0-9]{4}$'
                 dir_end = re.search(scan_dir_pattern, scandir)
                 if dir_end is not None:
+                    dir_end = dir_end.group()
                     # find last digits, which is scan
-                    last_digits = re.search(r'\d+$', dir_end)
-                    scan = int(last_digits.group())
+                    last_digits = dir_end[-4:]
+                    scan = int(last_digits)
                 else:
                     continue
                 if scan < scan_range[0]:
