@@ -51,7 +51,7 @@ class Instrument:
         return self.det_obj.get_scan_array(scan_node, self.h5file)
 
 
-    def get_geometry(self, shape, scan, params):
+    def get_geometry(self, shape, scan, conf_maps):
         """
         Calculates geometry based on diffractometer's and detctor's attributes and experiment parameters.
 
@@ -73,7 +73,7 @@ class Instrument:
         # get needed parameters into one flat dict
         conf_params = conf_maps['config_instr']
         conf_params['binning'] = conf_maps['config_data'].get('binning', [1,1,1])
-        return self.diff_obj.get_geometry(shape, scan, params)
+        return self.diff_obj.get_geometry(shape, scan, conf_params)
 
 
 def create_instr(configs, **kwargs):
@@ -92,7 +92,8 @@ def create_instr(configs, **kwargs):
     """
     det_obj = None
 
-    h5file = configs['config_instr'].get('h5file', None)
+    config_params = configs['config_instr']
+    h5file = config_params.get('h5file', None)
     if h5file is None:
         msg = 'h5file file must be provided to create Instrument for esrf_id01 beamline'
         raise ValueError(msg)
@@ -101,12 +102,12 @@ def create_instr(configs, **kwargs):
         msg = f"h5file {h5file} does not exist"
         raise ValueError(msg)
 
-    diffractometer = configs['config_instr'].get('diffractometer', None)
+    diffractometer = config_params.get('diffractometer', None)
     if diffractometer is None:
         msg = 'diffractometer must be provided to create Instrument for esrf_id01 beamline'
         raise ValueError(msg)
 
-    detector = configs['config_instr'].get('detector', None)
+    detector = config_params.get('detector', None)
     if detector is None:
         msg = 'detector must be provided to create Instrument for esrf_id01 beamline'
         raise ValueError(msg)
@@ -114,7 +115,9 @@ def create_instr(configs, **kwargs):
     diff_obj = diff.create_diffractometer(diffractometer)
 
     if 'need_detector' in kwargs:
-        det_obj = det.create_detector(detector, configs['config_prep'])
+        if 'config_prep' in configs:
+            config_params.update(configs['config_prep'])
+        det_obj = det.create_detector(detector, config_params)
 
     instr = Instrument(h5file, diff_obj, det_obj, detector)
 

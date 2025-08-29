@@ -16,32 +16,18 @@ __docformat__ = 'restructuredtext en'
 __all__ = ['verify']
 
 
-config_prep_error = {'File':['No configuration file',
-                             'cannot read configuration file',
-                             'Parsing error, check parenthesis,quotation syntax'],
-                     'Roi':['roi parameter should be a list of int'],
-                     'Datadir':['data_dir parameter should be string',
-                                'missing mandatory parameter data_dir'],
-                     'Darkfield':['darkfield_filename parameter should be string',
-                                  'darkfield_filename parameter parsing error'],
-                     'Whitefield':['whitefield_filename parameter should be string',
-                                   'whitefield_filename parameter parsing error'],
-                     'Excludescans':['exclude scans should be a list'],
-                     'MinFiles':['min_frames should be int',
-                                 'min_frames parameter parsing error']}
-# config_disp_error = {'File':['No configuration file',
-#                              'Cannot read configuration file',
-#                              'Parsing error, check parenthesis,quotation syntax'],
-#                      'Resultsdir':['results_dir parameter should be string'],
-#                      'Crop':['crop should be list',
-#                              'crop should be a list of int or float'],
-#                      'Rampups':['rampups should be int']}
-#
 config_instr_error = { 'Diffractometer':['missing mandatory diffractometer parameter',
                                          'diffractometer parameter should be string'],
                        'Specfile': ['missing specfile parameter. The program will use detector configured in config_instr and roi in config_prep',
                                     'specfile parameter should be string',
                                     'specfile parameter parsing error'],
+                       'Roi': ['roi parameter should be a list of int'],
+                       'Datadir': ['data_dir parameter should be string',
+                                   'missing mandatory parameter data_dir'],
+                       'Darkfield': ['darkfield_filename parameter should be string',
+                                     'darkfield_filename parameter parsing error'],
+                       'Whitefield': ['whitefield_filename parameter should be string',
+                                      'whitefield_filename parameter parsing error'],
                        'Detector':['detector parameter should be string'],
                        'Energy':['energy should be float',
                                  'energy parameter parsing error'],
@@ -55,9 +41,7 @@ config_instr_error = { 'Diffractometer':['missing mandatory diffractometer param
                               'dth parameter parsing error']
                     }
 
-config_map_names = {'config_prep_error_map_file':config_prep_error,
-                   # 'config_disp_error_map_file':config_disp_error,
-                    'config_instr_error_map_file':config_instr_error}
+config_map_names = {'config_instr_error_map_file':config_instr_error}
 
 def ver_list_int(param_name, param_value):
     """
@@ -149,46 +133,6 @@ def ver_config_prep(config_map):
     config_map_file = 'config_prep_error_map_file'
     fname = 'config_prep'
 
-    config_parameter = 'Roi'
-    if 'roi' in config_map:
-        if not ver_list_int('roi', config_map['roi']):
-            config_error = 0
-            error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
-            print (error_message)
-            return (error_message)
-
-    config_parameter = 'Datadir'
-    if 'data_dir' in config_map:
-        data_dir = config_map['data_dir']
-        if type(data_dir) != str:
-            config_error = 0
-            error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
-            print(error_message)
-            return error_message
-    else:
-        config_error = 1
-        error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
-        print (error_message)
-        return (error_message)
-
-    config_parameter = 'Darkfield'
-    if 'darkfield_filename' in config_map:
-        darkfield_filename = config_map['darkfield_filename']
-        if type(darkfield_filename) != str:
-            config_error = 0
-            error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
-            print(error_message)
-            return (error_message)
-
-    config_parameter = 'Whitefield'
-    if 'whitefield_filename' in config_map:
-        whitefield_filename = config_map['whitefield_filename']
-        if type(whitefield_filename) != str:
-            config_error = 0
-            error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
-            print(error_message)
-            return (error_message)
-
     config_parameter = 'Excludescans'
     if 'exclude_scans' in config_map:
         if not ver_list_int('exclude_scans', config_map['exclude_scans']):
@@ -208,59 +152,6 @@ def ver_config_prep(config_map):
 
     return ("")
 
-#
-# def ver_config_disp(config_map):
-#     """
-#     This function verifies experiment config_disp file
-#
-#     Parameters
-#     ----------
-#     fname : str
-#         configuration file name
-#
-#     Returns
-#     -------
-#     error_message : str
-#         message describing parameter error or empty string if all parameters are verified
-#     """
-#     config_map_file = 'config_disp_error_map_file'
-#     fname = 'config_disp'
-#
-#     config_parameter = 'Resultsdir'
-#     if 'results_dir' in config_map:
-#         results_dir = config_map['results_dir']
-#         if type(results_dir) != str:
-#             config_error = 0
-#             error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
-#             print('results_dir parameter should be string')
-#             return (error_message)
-#
-#     config_parameter = 'Crop'
-#     if 'crop' in config_map:
-#         crop = config_map['crop']
-#         if not issubclass(type(crop), list):
-#             config_error = 0
-#             error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
-#             print('crop should be list')
-#             return (error_message)
-#         for e in crop:
-#             if type(e) != int and type(e) != float:
-#                 config_error = 1
-#                 error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
-#                 print('crop should be a list of int or float')
-#                 return (error_message)
-#
-#     config_parameter = 'Rampups'
-#     if 'rampups' in config_map:
-#         rampups = config_map['rampups']
-#         if type(rampups) != int:
-#             config_error = 0
-#             error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
-#             print('rampups should be float')
-#             return (error_message)
-#
-#     return ("")
-#
 
 def ver_config_instr(config_map):
     """
@@ -306,6 +197,46 @@ def ver_config_instr(config_map):
         error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
         print(error_message)
         return ''
+
+    config_parameter = 'Roi'
+    if 'roi' in config_map:
+        if not ver_list_int('roi', config_map['roi']):
+            config_error = 0
+            error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
+            print (error_message)
+            return (error_message)
+
+    config_parameter = 'Datadir'
+    if 'data_dir' in config_map:
+        data_dir = config_map['data_dir']
+        if type(data_dir) != str:
+            config_error = 0
+            error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
+            print(error_message)
+            return error_message
+    else:
+        config_error = 1
+        error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
+        print (error_message)
+        return (error_message)
+
+    config_parameter = 'Darkfield'
+    if 'darkfield_filename' in config_map:
+        darkfield_filename = config_map['darkfield_filename']
+        if type(darkfield_filename) != str:
+            config_error = 0
+            error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
+            print(error_message)
+            return (error_message)
+
+    config_parameter = 'Whitefield'
+    if 'whitefield_filename' in config_map:
+        whitefield_filename = config_map['whitefield_filename']
+        if type(whitefield_filename) != str:
+            config_error = 0
+            error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
+            print(error_message)
+            return (error_message)
 
     config_parameter = 'Detector'
     if 'detector' in config_map:

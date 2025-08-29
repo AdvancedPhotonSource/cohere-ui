@@ -19,11 +19,6 @@ __all__ = ['verify']
 config_prep_error = {'File':['No configuration file',
                              'cannot read configuration file',
                              'Parsing error, check parenthesis,quotation syntax'],
-                     'Darkfield':['darkfield_filename parameter should be string',
-                                  'darkfield_filename parameter parsing error'],
-                     'Detectormodule':['detector_module parameter should be int',
-                                   'detector_module should be smaller or equal 8',
-                                    'missing mandatory detector_module parameter'],
                      'Excludescans':['exclude scans should be a list'],
                      'MinFiles':['min_frames should be int',
                                  'min_frames parameter parsing error'],
@@ -42,6 +37,11 @@ config_instr_error = { 'Diffractometer':['missing mandatory diffractometer param
                        'Detector':['detector parameter should be string'],
                        'Datadir': ['data_dir parameter should be string',
                                    'missing mandatory parameter data_dir'],
+                       'Darkfield': ['darkfield_filename parameter should be string',
+                                     'darkfield_filename parameter parsing error'],
+                       'Detectormodule': ['detector_module parameter should be int',
+                                          'detector_module should be smaller or equal 8',
+                                          'missing mandatory detector_module parameter'],
                        'Energy':['energy should be float',
                                  'energy parameter parsing error'],
                        'Delta':['delta should be float',
@@ -60,9 +60,7 @@ config_instr_error = { 'Diffractometer':['missing mandatory diffractometer param
                               'phi parameter parsing error']
                        }
 
-config_map_names = {'config_prep_error_map_file':config_prep_error,
-                    'config_disp_error_map_file':config_disp_error,
-                    'config_instr_error_map_file':config_instr_error}
+config_map_names = {'config_instr_error_map_file':config_instr_error}
 
 def ver_list_int(param_name, param_value):
     """
@@ -154,15 +152,6 @@ def ver_config_prep(config_map):
     config_map_file = 'config_prep_error_map_file'
     fname = 'config_prep'
 
-    config_parameter = 'Darkfield'
-    if 'darkfield_filename' in config_map:
-        darkfield_filename = config_map['darkfield_filename']
-        if type(darkfield_filename) != str:
-            config_error = 0
-            error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
-            print(error_message)
-            return (error_message)
-
     config_parameter = 'Minframes'
     if 'min_frames' in config_map:
         min_frames = config_map['min_frames']
@@ -179,24 +168,6 @@ def ver_config_prep(config_map):
             error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
             print (error_message)
             return (error_message)
-
-    config_parameter = 'Detectormodule'
-    if 'detector_module' in config_map:
-        if type(config_map['detector_module']) != int:
-            config_error = 0
-            error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
-            print (error_message)
-            return (error_message)
-        elif int(config_map['detector_module']) > 8:
-            config_error = 1
-            error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
-            print (error_message)
-            return (error_message)
-    else:
-        config_error = 2
-        error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
-        print(error_message)
-        return ''
 
     return ("")
 
@@ -298,6 +269,34 @@ def ver_config_instr(config_map):
         error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
         print (error_message)
         return (error_message)
+
+
+    config_parameter = 'Darkfield'
+    if 'darkfield_filename' in config_map:
+        darkfield_filename = config_map['darkfield_filename']
+        if type(darkfield_filename) != str:
+            config_error = 0
+            error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
+            print(error_message)
+            return (error_message)
+
+    config_parameter = 'Detectormodule'
+    if 'detector_module' in config_map:
+        if type(config_map['detector_module']) != int:
+            config_error = 0
+            error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
+            print (error_message)
+            return (error_message)
+        elif int(config_map['detector_module']) > 8:
+            config_error = 1
+            error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
+            print (error_message)
+            return (error_message)
+    else:
+        config_error = 2
+        error_message = get_config_error_message(fname, config_map_file, config_parameter, config_error)
+        print(error_message)
+        return ''
 
     config_parameter = 'Detector'
     if 'detector' in config_map:

@@ -68,7 +68,7 @@ def get_config_maps(experiment_dir, configs, **kwargs):
         beam_ver = None
 
     verifier_map = {'config_data' : ut, 'config_rec' : ut, 'config_instr' : beam_ver,
-                    'config_prep' : beam_ver, 'config_disp' : ut, 'config_mp' : beam_ver}
+                    'config_prep' : ut, 'config_disp' : ut, 'config_mp' : beam_ver}
 
     rec_id = kwargs.get('rec_id')
     for conf in configs:

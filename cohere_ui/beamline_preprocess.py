@@ -66,9 +66,11 @@ def handle_prep(experiment_dir, **kwargs):
         return 'missing config_instr file, exiting'
     if 'config_prep' not in conf_maps.keys():
         print('info: no config_prep file, continuing')
-        remove_scans = None
+        exclude_scans = None
+        remove_outliers = False
     else:
-        remove_scans = conf_maps['config_prep'].get('remove_scans', None)
+        exclude_scans = conf_maps['config_prep'].get('exclude_scans', None)
+        remove_outliers = conf_maps['config_prep'].get('remove_outliers', False)
 
     main_conf_map = conf_maps['config']
 
@@ -84,7 +86,6 @@ def handle_prep(experiment_dir, **kwargs):
     instr_obj = instr_module.create_instr(conf_maps, need_detector=need_detector)
 
     # get the settings from config
-    remove_outliers = conf_maps['config_prep'].get('remove_outliers', False)
     separate_scans = main_conf_map.get('separate_scans', False)
     separate_scan_ranges = main_conf_map.get('separate_scan_ranges', False)
     multipeak = main_conf_map.get('multipeak', False)
@@ -101,16 +102,16 @@ def handle_prep(experiment_dir, **kwargs):
     # object. The following logic still applies.
     scans_datainfo = instr_obj.datainfo4scans()
 
-    if len(scans_datainfo) == 0:
+    if sum(len(inner_list) for inner_list in scans_datainfo) == 0:
         print('no data found for scans, exiting')
         return
 
     # remove exclude_scans from the scans_dirs
-    if remove_scans is not None:
-        scans_datainfo = [[s_d for s_d in batch if s_d[0] not in remove_scans] for batch in scans_datainfo]
+    if exclude_scans is not None:
+        scans_datainfo = [[s_d for s_d in batch if s_d[0] not in exclude_scans] for batch in scans_datainfo]
 
-    if len(scans_datainfo) == 0:
-        print('no data left after removing scans, exiting')
+    if sum(len(inner_list) for inner_list in scans_datainfo) == 0:
+        print('no data left after excluding scans, exiting')
         return
 
     # remove_outliers should not be configured for separate scans

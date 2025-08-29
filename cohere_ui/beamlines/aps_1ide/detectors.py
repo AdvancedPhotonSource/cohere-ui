@@ -66,13 +66,24 @@ class Detector(ABC):
                     continue
                 elif scan <= scan_range[-1]:
                     # scan within range
-                    scans_dirs.append((scan, scandir_full))
+                    # before adding scan check if there is enough data files
+                    if len(os.listdir(scandir_full)) >= self.min_frames:
+                        scans_dirs.append((scan, scandir_full))
+                    if scan == scan_range[-1]:
+                        sr_idx += 1
+                        if sr_idx > len(scans) - 1:
+                            break
+                        scan_range = scans[sr_idx]
+                        scans_dirs = scans_dirs_ranges[sr_idx]
                 elif scan > scan_range[-1]:
                     sr_idx += 1
                     if sr_idx > len(scans) - 1:
                         break
                     scan_range = scans[sr_idx]
                     scans_dirs = scans_dirs_ranges[sr_idx]
+                    if (scan >= scan_range[0] and scan <= scan_range[-1]
+                            and len(os.listdir(scandir_full)) >= self.min_frames):
+                            scans_dirs.append((scan, scandir_full))
 
         # remove empty sub-lists
         scans_dirs_ranges = [e for e in scans_dirs_ranges if len(e) > 0]
@@ -138,6 +149,7 @@ class ASI(Detector):
     pixelorientation = ('x+', 'y-')  # in xrayutilities notation
     whitefield = None
     maxcrop = None
+    min_frames = None  # defines minimum frame scans in scan directory
 
     def __init__(self, params):
         super(ASI, self).__init__(self.name)
@@ -158,6 +170,7 @@ class ASI(Detector):
             self.wfstd = np.std(self.whitefield)
             self.whitefield = np.where(self.whitefield < self.wfavg - 3 * self.wfstd, 0, self.whitefield)
             self.Imult = params.get('Imult', self.wfavg)
+        self.min_frames = params.get('min_frames', 0)
 
     def correct_frame(self, frame_filename):
         """

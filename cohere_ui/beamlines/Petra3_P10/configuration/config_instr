@@ -6,3 +6,15 @@ sample = "MC7_insitu"
 data_dir = "example_data"
                           // Directory where experiment data is stored; contains subdirectories
                           // related to samples.
+darkfield_filename = "DARKFIELD"
+                                            // Dark file taken to clean bad pixels or correct background in CCD.
+                                            // Depends on detector if used.
+
+detector_module = 6
+                                            // Defines which module of detector was used to capture data and thus
+                                            // only this part of data is read from the hdf5 file.
+                                            // The roi relation with the module is shown here:
+                                            // ROIS={ 0:(0,0,2070,2160), 1:(0,0,1030,514), 2:(0,550,1030,1065),
+                                            // 3:(0,1100,1030,1616), 4:(0,1650,1030,2160), 5:(1040,0,2070,514),
+                                            // 6:(1040,550,2070,1065), 7:(1040,1100,2070,1616), 8:(1040,1650,2070,2160)}
+

@@ -11,7 +11,7 @@ import cohere_core.utilities as ut
 
 
 # version must be increased after each modification of configuration file(s)
-version = 3
+version = 4
 
 # Map file of before/after keys to remap
 config_map = {}
@@ -68,7 +68,8 @@ config_maps = {'config': config_map,
 # the parameters in list are inserted into the configuration file of subdict key
 move_dict = {'config':{'config_instr':['specfile'], 'config_prep':['auto_data'], 'config_data':['auto_data']},
              'config_prep':{'config':['separate_scans', 'separate_scan_ranges'],
-                            'config_instr':['specfile']},
+                            'config_instr':['specfile', 'data_dir', 'whitefield_filename', 'darkfield_filename',
+                                            'roi', 'Imult', 'detector_module']},
              'config_disp':{'config_instr':['energy', 'delta', 'gamma', 'detdist', 'th', 'chi', 'phi', 'scanmot',
                                             'scanmot_del', 'detector', 'diffractometer']}}
 
@@ -265,6 +266,8 @@ def convert(conf_dir):
                 if p in config_dicts[k]:
                     config_dicts[nk][p] = config_dicts[k].get(p)
                     to_pop.add(p)
+        for item in to_pop:
+            config_dicts[k].pop(item)
         to_pop.clear()
 
 

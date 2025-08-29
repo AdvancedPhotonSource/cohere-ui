@@ -164,10 +164,8 @@ def create_instr(configs, **kwargs):
         raise ValueError('detector name not configured and could not be parsed')
     if 'need_detector' in kwargs and kwargs['need_detector']:
         # add parameters from config_prep to det_params
-        if 'config_prep' not in configs:
-            msg = 'missing config_prep, required for beamline aps34-idc'
-            raise ValueError(msg)
-        det_params.update(configs['config_prep'])
+        if 'config_prep' in configs:
+            det_params.update(configs['config_prep'])
         # check for parameters, it will raise exception if failed
         det.check_mandatory_params(det_name, det_params)
 

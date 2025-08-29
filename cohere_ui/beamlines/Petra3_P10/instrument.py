@@ -93,6 +93,11 @@ def create_instr(configs, **kwargs):
     # set parameters from config_instr
     config_params = configs['config_instr']
 
+    diff_name = config_params.get('diffractometer', None)
+    if diff_name is None:
+        msg = 'diffractometer parameter not defined'
+        raise ValueError(msg)
+
     scan = configs['config'].get('scan', None)
     if scan is not None:
         # 'scan' is configured as string. It can be a single scan, range, or combination separated by comma.
@@ -127,17 +132,13 @@ def create_instr(configs, **kwargs):
         msg = 'detector name not configured and could not be parsed'
         raise ValueError(msg)
 
-    diff_name = config_params.get('diffractometer', None)
-    if diff_name is None:
-        msg = 'diffractometer parameter not defined'
-        raise ValueError(msg)
-    else:
-        diff.check_mandatory_params(diff_name, config_params)
-        diff_obj = diff.create_diffractometer(diff_name, config_params)
+    diff.check_mandatory_params(diff_name, config_params)
+    diff_obj = diff.create_diffractometer(diff_name, config_params)
 
     if 'need_detector' in kwargs and kwargs['need_detector']:
         # add parameters from the config_prep
-        config_params.update(configs['config_prep'])
+        if 'config_prep' in configs:
+            config_params.update(configs['config_prep'])
         # check for parameters
         det.check_mandatory_params(det_name, config_params)
         det_obj = det.create_detector(det_name, config_params)

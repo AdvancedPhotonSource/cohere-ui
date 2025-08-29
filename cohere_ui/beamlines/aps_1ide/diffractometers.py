@@ -181,7 +181,7 @@ class Diffractometer_1ide(Diffractometer):
         pixelorientation = det.get_pixel_orientation(params['detector'])
         qc.init_area(pixelorientation[0], pixelorientation[1], shape[0], shape[1], 2, 2,
                      distance=detdist, pwidth1=px, pwidth2=py)
-
+        print('scan, scanmot', scan, scanmot)
         if scanmot in self.sampleaxes_mne:  # based on scanmot args are made for qc.area
             args = []
             for sampleax in self.sampleaxes_mne:
@@ -196,7 +196,7 @@ class Diffractometer_1ide(Diffractometer):
 
             q2 = np.array(qc.area(*args, deg=True))
         else:
-            print("scanmot not in sample axes or energy, exiting")
+            print(f"scanmot {scanmot} not in sample axes, exiting")
             raise RuntimeError
 
         # I think q2 will always be (3,2,2,2) (vec, scanarr, px, py)

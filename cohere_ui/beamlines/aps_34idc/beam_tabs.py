@@ -87,304 +87,6 @@ def set_overriden(item):
     item.setStyleSheet('color: black')
 
 
-class PrepTab(QWidget):
-    def __init__(self, parent=None):
-        """
-        Constructor, initializes the tabs.
-        """
-        super(PrepTab, self).__init__(parent)
-        self.name = 'Prep Data'
-        self.conf_name = 'config_prep'
-
-
-    def init(self, tabs, main_window):
-        """
-        Creates and initializes the 'prep' tab.
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        nothing
-        """
-        self.tabs = tabs
-        self.main_win = main_window
-        layout = QFormLayout()
-        self.data_dir_button = QPushButton()
-        layout.addRow("data directory", self.data_dir_button)
-        self.dark_file_button = QPushButton()
-        layout.addRow("darkfield file", self.dark_file_button)
-        self.white_file_button = QPushButton()
-        layout.addRow("whitefield file", self.white_file_button)
-        self.roi = QLineEdit()
-        layout.addRow("detector area (roi)", self.roi)
-        self.Imult = QLineEdit()
-        layout.addRow("Imult", self.Imult)
-        self.min_frames = QLineEdit()
-        layout.addRow("min files in scan", self.min_frames)
-        self.exclude_scans = QLineEdit()
-        layout.addRow("exclude scans", self.exclude_scans)
-        self.remove_outliers = QCheckBox('remove outliers')
-        self.remove_outliers.setChecked(False)
-        layout.addRow(self.remove_outliers)
-        self.outliers_scans = QLineEdit()
-        layout.addRow("outliers scans", self.outliers_scans)
-
-        cmd_layout = QHBoxLayout()
-        self.set_prep_conf_from_button = QPushButton("Load prep conf from")
-        self.set_prep_conf_from_button.setStyleSheet("background-color:rgb(205,178,102)")
-        self.prep_button = QPushButton('prepare', self)
-        self.prep_button.setStyleSheet("background-color:rgb(175,208,156)")
-        cmd_layout.addWidget(self.set_prep_conf_from_button)
-        cmd_layout.addWidget(self.prep_button)
-        layout.addRow(cmd_layout)
-        self.setLayout(layout)
-
-        self.prep_button.clicked.connect(self.run_tab)
-        self.data_dir_button.clicked.connect(self.set_data_dir)
-        self.dark_file_button.clicked.connect(self.set_dark_file)
-        self.white_file_button.clicked.connect(self.set_white_file)
-        self.set_prep_conf_from_button.clicked.connect(self.load_prep_conf)
-        self.roi.textChanged.connect(lambda: set_overriden(self.roi))
-
-
-
-    def load_tab(self, conf_map):
-        """
-        It verifies given configuration file, reads the parameters, and fills out the window.
-        Parameters
-        ----------
-        conf : dict
-            configuration (config_prep)
-        Returns
-        -------
-        nothing
-        """
-        if 'data_dir' in conf_map:
-            if os.path.isdir(conf_map['data_dir']):
-                self.data_dir_button.setStyleSheet("Text-align:left")
-                self.data_dir_button.setText(conf_map['data_dir'])
-            else:
-                msg_window(f'The data_dir directory in config_prep file {conf_map["data_dir"]} does not exist')
-        else:
-            self.data_dir_button.setText('')
-        if 'darkfield_filename' in conf_map:
-            if os.path.isfile(conf_map['darkfield_filename']):
-                self.dark_file_button.setStyleSheet("Text-align:left")
-                self.dark_file_button.setText(conf_map['darkfield_filename'])
-            else:
-                msg_window(f'The darkfield file {conf_map["darkfield_filename"]} in config_prep file does not exist')
-                self.dark_file_button.setText('')
-        else:
-            self.dark_file_button.setText('')
-        if 'whitefield_filename' in conf_map:
-            if os.path.isfile(conf_map['whitefield_filename']):
-                self.white_file_button.setStyleSheet("Text-align:left")
-                self.white_file_button.setText(conf_map['whitefield_filename'])
-            else:
-                self.white_file_button.setText('')
-                msg_window(f'The whitefield file {conf_map["whitefield_filename"]} in config_prep file does not exist')
-        else:
-            self.white_file_button.setText('')
-        if 'Imult' in conf_map:
-            self.Imult.setText(str(conf_map['Imult']).replace(" ", ""))
-        if 'min_frames' in conf_map:
-            self.min_frames.setText(str(conf_map['min_frames']).replace(" ", ""))
-        if 'exclude_scans' in conf_map:
-            self.exclude_scans.setText(str(conf_map['exclude_scans']).replace(" ", ""))
-        self.remove_outliers.setChecked('remove_outliers' in conf_map and conf_map['remove_outliers'])
-        if 'outliers_scans' in conf_map:
-            self.outliers_scans.setText(str(conf_map['outliers_scans']).replace(" ", ""))
-        if 'roi' in conf_map:
-            self.roi.setText(str(conf_map['roi']).replace(" ", ""))
-            self.roi.setStyleSheet('color: black')
-
-
-    def clear_conf(self):
-        self.data_dir_button.setText('')
-        self.dark_file_button.setText('')
-        self.white_file_button.setText('')
-        self.Imult.setText('')
-        self.min_frames.setText('')
-        self.exclude_scans.setText('')
-        self.outliers_scans.setText('')
-        self.remove_outliers.setChecked(False)
-        self.roi.setText('')
-
-
-    def load_prep_conf(self):
-        """
-        TODO: combine all load conf files in one function
-        It display a select dialog for user to select a configuration file for preparation. When selected, the parameters from that file will be loaded to the window.
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        nothing
-        """
-        prep_file = select_file(os.getcwd())
-        if prep_file is not None:
-            conf_map = ut.read_config(prep_file.replace(os.sep, '/'))
-            self.load_tab(conf_map)
-        else:
-            msg_window('select valid prep config file')
-
-
-    def get_prep_config(self):
-        """
-        It reads parameters related to preparation from the window and adds them to dictionary.
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        conf_map : dict
-            contains parameters read from window
-        """
-        conf_map = {}
-        if len(self.data_dir_button.text().strip()) > 0:
-            conf_map['data_dir'] = str(self.data_dir_button.text()).strip()
-        if len(self.dark_file_button.text().strip()) > 0:
-            conf_map['darkfield_filename'] = str(self.dark_file_button.text().strip())
-        if len(self.white_file_button.text().strip()) > 0:
-            conf_map['whitefield_filename'] = str(self.white_file_button.text().strip())
-        if len(self.Imult.text()) > 0:
-            conf_map['Imult'] = ast.literal_eval(str(self.Imult.text()).replace(os.linesep,''))
-        if len(self.min_frames.text()) > 0:
-            min_frames = ast.literal_eval(str(self.min_frames.text()))
-            conf_map['min_frames'] = min_frames
-        if len(self.exclude_scans.text()) > 0:
-            conf_map['exclude_scans'] = ast.literal_eval(str(self.exclude_scans.text()).replace(os.linesep,''))
-        if self.remove_outliers.isChecked():
-            conf_map['remove_outliers'] = True
-        if len(self.roi.text()) > 0:
-            conf_map['roi'] = ast.literal_eval(str(self.roi.text()).replace(os.linesep,''))
-
-        return conf_map
-
-
-    def run_tab(self):
-        """
-        Reads the parameters needed by prep script. Saves the config_prep configuration file with parameters from
-        the window and runs the prep script.
-
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        nothing
-        """
-        if not self.main_win.is_exp_exists():
-            msg_window('the experiment has not been created yet')
-            return
-        elif not self.main_win.is_exp_set():
-            msg_window('the experiment has changed, press "set experiment" button')
-            return
-        else:
-            conf_map = self.get_prep_config()
-        # verify that prep configuration is ok
-        er_msg = ver.verify('config_prep', conf_map)
-        if len(er_msg) > 0:
-            msg_window(er_msg)
-            if not self.main_win.no_verify:
-              return
-
-        if 'remove_outliers' in conf_map and conf_map['remove_outliers']:
-            # exclude outliers_scans from saving
-            current_prep_map = ut.read_config(ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
-            if current_prep_map is not None and 'outliers_scans' in current_prep_map:
-                conf_map['outliers_scans'] = current_prep_map['outliers_scans']
-        ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
-
-        try:
-            self.tabs.run_prep()
-        except ValueError as e:
-            msg_window(str(e))
-            return
-
-        # reload the window if remove_outliers as the outliers_scans could change
-        if 'remove_outliers' in conf_map and conf_map['remove_outliers']:
-            prep_map = ut.read_config(ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
-            self.load_tab(prep_map)
-
-
-    def set_dark_file(self):
-        """
-        It display a select dialog for user to select a darkfield file.
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        nothing
-        """
-        darkfield_filename = select_file(os.getcwd().replace(os.sep, '/'))
-        if darkfield_filename is not None:
-            darkfield_filename = darkfield_filename.replace(os.sep, '/')
-            self.dark_file_button.setStyleSheet("Text-align:left")
-            self.dark_file_button.setText(darkfield_filename)
-        else:
-            self.dark_file_button.setText('')
-
-
-    def set_white_file(self):
-        """
-        It display a select dialog for user to select a whitefield file.
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        nothing
-        """
-        whitefield_filename = select_file(os.getcwd().replace(os.sep, '/'))
-        if whitefield_filename is not None:
-            whitefield_filename = whitefield_filename.replace(os.sep, '/')
-            self.white_file_button.setStyleSheet("Text-align:left")
-            self.white_file_button.setText(whitefield_filename)
-        else:
-            self.white_file_button.setText('')
-
-
-    def set_data_dir(self):
-        """
-        It display a select dialog for user to select a directory with raw data file.
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        nothing
-        """
-        data_dir = select_dir(os.getcwd().replace(os.sep, '/'))
-        if data_dir is not None:
-            self.data_dir_button.setStyleSheet("Text-align:left")
-            self.data_dir_button.setText(data_dir)
-        else:
-            self.data_dir_button.setText('')
-
-
-    def save_conf(self):
-        if not self.main_win.is_exp_exists():
-            msg_window('the experiment does not exist, cannot save the config_prep file')
-            return
-
-        conf_map = self.get_prep_config()
-        er_msg = ver.verify('config_prep', conf_map)
-        if len(er_msg) > 0:
-            msg_window(er_msg)
-            if not self.main_win.no_verify:
-                return
-        if len(conf_map) > 0:
-            ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
-
-
-    def notify(self):
-        self.tabs.notify(**{})
-
-
 class SubInstrTab():
     def init(self, instr_tab, main_window):
         """
@@ -441,7 +143,7 @@ class SubInstrTab():
         Parameters
         ----------
         conf : dict
-            configuration (config_disp)
+            configuration (config_instr)
         Returns
         -------
         nothing
@@ -601,8 +303,8 @@ class SubInstrTab():
             self.detector.setStyleSheet('color: blue')
 
         if 'roi' in spec_dict:
-            self.instr_tab.tabs.prep_tab.roi.setText(str(spec_dict['roi']))
-            self.instr_tab.tabs.prep_tab.roi.setStyleSheet('color: blue')
+            self.instr_tab.roi.setText(str(spec_dict['roi']))
+            self.instr_tab.roi.setStyleSheet('color: blue')
 
 
 
@@ -655,6 +357,16 @@ class InstrTab(QWidget):
         gen_layout.addRow("diffractometer", self.diffractometer)
         self.spec_file_button = QPushButton()
         gen_layout.addRow("spec file", self.spec_file_button)
+        self.data_dir_button = QPushButton()
+        gen_layout.addRow("data directory", self.data_dir_button)
+        self.dark_file_button = QPushButton()
+        gen_layout.addRow("darkfield file", self.dark_file_button)
+        self.white_file_button = QPushButton()
+        gen_layout.addRow("whitefield file", self.white_file_button)
+        self.Imult = QLineEdit()
+        gen_layout.addRow("Imult", self.Imult)
+        self.roi = QLineEdit()
+        gen_layout.addRow("detector area (roi)", self.roi)
         tab_layout.addLayout(gen_layout)
         tab_layout.addWidget(self.extended.spec_widget)
         if not self.add_config:
@@ -671,6 +383,10 @@ class InstrTab(QWidget):
         self.setLayout(tab_layout)
 
         self.spec_file_button.clicked.connect(self.set_spec_file)
+        self.data_dir_button.clicked.connect(self.set_data_dir)
+        self.dark_file_button.clicked.connect(self.set_dark_file)
+        self.white_file_button.clicked.connect(self.set_white_file)
+        self.roi.textChanged.connect(lambda: set_overriden(self.roi))
         self.save_instr_conf.clicked.connect(self.save_conf)
         self.set_instr_conf_from_button.clicked.connect(self.load_instr_conf)
 
@@ -685,7 +401,7 @@ class InstrTab(QWidget):
         Parameters
         ----------
         conf : dict
-            configuration (config_disp)
+            configuration (config_instr)
         Returns
         -------
         nothing
@@ -700,6 +416,37 @@ class InstrTab(QWidget):
                 self.spec_file_button.setText(specfile)
             else:
                 msg_window(f'The specfile file {specfile} in config file does not exist')
+        if 'data_dir' in conf_map:
+            if os.path.isdir(conf_map['data_dir']):
+                self.data_dir_button.setStyleSheet("Text-align:left")
+                self.data_dir_button.setText(conf_map['data_dir'])
+            else:
+                msg_window(f'The data_dir directory in config_prep file {conf_map["data_dir"]} does not exist')
+        else:
+            self.data_dir_button.setText('')
+        if 'darkfield_filename' in conf_map:
+            if os.path.isfile(conf_map['darkfield_filename']):
+                self.dark_file_button.setStyleSheet("Text-align:left")
+                self.dark_file_button.setText(conf_map['darkfield_filename'])
+            else:
+                msg_window(f'The darkfield file {conf_map["darkfield_filename"]} in config_prep file does not exist')
+                self.dark_file_button.setText('')
+        else:
+            self.dark_file_button.setText('')
+        if 'whitefield_filename' in conf_map:
+            if os.path.isfile(conf_map['whitefield_filename']):
+                self.white_file_button.setStyleSheet("Text-align:left")
+                self.white_file_button.setText(conf_map['whitefield_filename'])
+            else:
+                self.white_file_button.setText('')
+                msg_window(f'The whitefield file {conf_map["whitefield_filename"]} in config_prep file does not exist')
+        else:
+            self.white_file_button.setText('')
+        if 'Imult' in conf_map:
+            self.Imult.setText(str(conf_map['Imult']).replace(" ", ""))
+        if 'roi' in conf_map:
+            self.roi.setText(str(conf_map['roi']).replace(" ", ""))
+            self.roi.setStyleSheet('color: black')
 
         if self.add_config:
             self.extended.load_tab(conf_map)
@@ -729,9 +476,70 @@ class InstrTab(QWidget):
             self.save_conf()
 
 
+    def set_dark_file(self):
+        """
+        It display a select dialog for user to select a darkfield file.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        darkfield_filename = select_file(os.getcwd().replace(os.sep, '/'))
+        if darkfield_filename is not None:
+            darkfield_filename = darkfield_filename.replace(os.sep, '/')
+            self.dark_file_button.setStyleSheet("Text-align:left")
+            self.dark_file_button.setText(darkfield_filename)
+        else:
+            self.dark_file_button.setText('')
+
+
+    def set_white_file(self):
+        """
+        It display a select dialog for user to select a whitefield file.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        whitefield_filename = select_file(os.getcwd().replace(os.sep, '/'))
+        if whitefield_filename is not None:
+            whitefield_filename = whitefield_filename.replace(os.sep, '/')
+            self.white_file_button.setStyleSheet("Text-align:left")
+            self.white_file_button.setText(whitefield_filename)
+        else:
+            self.white_file_button.setText('')
+
+
+    def set_data_dir(self):
+        """
+        It display a select dialog for user to select a directory with raw data file.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        data_dir = select_dir(os.getcwd().replace(os.sep, '/'))
+        if data_dir is not None:
+            self.data_dir_button.setStyleSheet("Text-align:left")
+            self.data_dir_button.setText(data_dir)
+        else:
+            self.data_dir_button.setText('')
+
+
     def clear_conf(self):
         self.diffractometer.setText('')
         self.spec_file_button.setText('')
+        self.data_dir_button.setText('')
+        self.dark_file_button.setText('')
+        self.white_file_button.setText('')
+        self.roi.setText('')
+        self.Imult.setText('')
         if self.add_config:
             self.extended.clear_conf()
 
@@ -771,6 +579,16 @@ class InstrTab(QWidget):
             conf_map['diffractometer'] = str(self.diffractometer.text())
         if len(self.spec_file_button.text()) > 0:
             conf_map['specfile'] = str(self.spec_file_button.text())
+        if len(self.data_dir_button.text().strip()) > 0:
+            conf_map['data_dir'] = str(self.data_dir_button.text()).strip()
+        if len(self.dark_file_button.text().strip()) > 0:
+            conf_map['darkfield_filename'] = str(self.dark_file_button.text().strip())
+        if len(self.white_file_button.text().strip()) > 0:
+            conf_map['whitefield_filename'] = str(self.white_file_button.text().strip())
+        if len(self.Imult.text()) > 0:
+            conf_map['Imult'] = ast.literal_eval(str(self.Imult.text()).replace(os.linesep,''))
+        if len(self.roi.text()) > 0:
+            conf_map['roi'] = ast.literal_eval(str(self.roi.text()).replace(os.linesep,''))
 
         if self.add_config:
             conf_map.update(self.extended.get_instr_config())
@@ -780,7 +598,7 @@ class InstrTab(QWidget):
 
     def save_conf(self):
         """
-        Reads the parameters needed by format display script. Saves the config_disp configuration file with parameters from the window and runs the display script.
+        Reads the parameters needed by format display script. Saves the config_instr configuration file with parameters from the window and runs the display script.
         Parameters
         ----------
         none

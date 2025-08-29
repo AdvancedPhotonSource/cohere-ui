@@ -87,184 +87,6 @@ def set_overriden(item):
     item.setStyleSheet('color: black')
 
 
-class PrepTab(QWidget):
-    def __init__(self, parent=None):
-        """
-        Constructor, initializes the tabs.
-        """
-        super(PrepTab, self).__init__(parent)
-        self.name = 'Prep Data'
-        self.conf_name = 'config_prep'
-
-
-    def init(self, tabs, main_window):
-        """
-        Creates and initializes the 'prep' tab.
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        nothing
-        """
-        self.tabs = tabs
-        self.main_win = main_window
-        layout = QFormLayout()
-        self.exclude_scans = QLineEdit()
-        layout.addRow("exclude scans", self.exclude_scans)
-        self.roi = QLineEdit()
-        layout.addRow("detector area (roi)", self.roi)
-        self.remove_outliers = QCheckBox('remove outliers')
-        self.remove_outliers.setChecked(False)
-        layout.addRow(self.remove_outliers)
-        self.outliers_scans = QLineEdit()
-        layout.addRow("outliers scans", self.outliers_scans)
-
-        cmd_layout = QHBoxLayout()
-        self.set_prep_conf_from_button = QPushButton("Load prep conf from")
-        self.set_prep_conf_from_button.setStyleSheet("background-color:rgb(205,178,102)")
-        self.prep_button = QPushButton('prepare', self)
-        self.prep_button.setStyleSheet("background-color:rgb(175,208,156)")
-        cmd_layout.addWidget(self.set_prep_conf_from_button)
-        cmd_layout.addWidget(self.prep_button)
-        layout.addRow(cmd_layout)
-        self.setLayout(layout)
-
-        self.prep_button.clicked.connect(self.run_tab)
-        self.set_prep_conf_from_button.clicked.connect(self.load_prep_conf)
-
-
-    def load_tab(self, conf_map):
-        """
-        It verifies given configuration file, reads the parameters, and fills out the window.
-        Parameters
-        ----------
-        conf : dict
-            configuration (config_prep)
-        Returns
-        -------
-        nothing
-        """
-        if 'exclude_scans' in conf_map:
-            self.exclude_scans.setText(str(conf_map['exclude_scans']).replace(" ", ""))
-        if 'roi' in conf_map:
-            self.roi.setText(str(conf_map['roi']).replace(" ", ""))
-            self.roi.setStyleSheet('color: black')
-        self.remove_outliers.setChecked('remove_outliers' in conf_map and conf_map['remove_outliers'])
-        if 'outliers_scans' in conf_map:
-            self.outliers_scans.setText(str(conf_map['outliers_scans']).replace(" ", ""))
-
-
-    def clear_conf(self):
-        self.exclude_scans.setText('')
-        self.roi.setText('')
-        self.remove_outliers.setChecked(False)
-        self.outliers_scans.setText('')
-
-
-    def load_prep_conf(self):
-        """
-        TODO: combine all load conf files in one function
-        It display a select dialog for user to select a configuration file for preparation. When selected, the parameters from that file will be loaded to the window.
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        nothing
-        """
-        prep_file = select_file(os.getcwd())
-        if prep_file is not None:
-            conf_map = ut.read_config(prep_file.replace(os.sep, '/'))
-            self.load_tab(conf_map)
-        else:
-            msg_window('info: no prep config file')
-
-
-    def get_prep_config(self):
-        """
-        It reads parameters related to preparation from the window and adds them to dictionary.
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        conf_map : dict
-            contains parameters read from window
-        """
-        conf_map = {}
-        if len(self.exclude_scans.text()) > 0:
-            conf_map['exclude_scans'] = ast.literal_eval(str(self.exclude_scans.text()).replace(os.linesep,''))
-        if self.remove_outliers.isChecked():
-            conf_map['remove_outliers'] = True
-        if len(self.roi.text()) > 0:
-            conf_map['roi'] = ast.literal_eval(str(self.roi.text()).replace(os.linesep,''))
-
-        return conf_map
-
-
-    def run_tab(self):
-        """
-        Reads the parameters needed by prep script. Saves the config_prep configuration file with parameters from
-        the window and runs the prep script.
-
-        Parameters
-        ----------
-        none
-        Returns
-        -------
-        nothing
-        """
-        if not self.main_win.is_exp_exists():
-            msg_window('the experiment has not been created yet')
-            return
-        elif not self.main_win.is_exp_set():
-            msg_window('the experiment has changed, press "set experiment" button')
-            return
-        else:
-            conf_map = self.get_prep_config()
-        # verify that prep configuration is ok
-        er_msg = ver.verify('config_prep', conf_map)
-        if len(er_msg) > 0:
-            msg_window(er_msg)
-            if not self.main_win.no_verify:
-              return
-
-        if 'remove_outliers' in conf_map and conf_map['remove_outliers']:
-            # exclude outliers_scans from saving
-            current_prep_map = ut.read_config(ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
-            if current_prep_map is not None and 'outliers_scans' in current_prep_map:
-                conf_map['outliers_scans'] = current_prep_map['outliers_scans']
-        ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
-
-        self.tabs.run_prep()
-
-        # reload the window if remove_outliers as the outliers_scans could change
-        if 'remove_outliers' in conf_map and conf_map['remove_outliers']:
-            prep_map = ut.read_config(ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
-            self.load_tab(prep_map)
-
-
-    def save_conf(self):
-        if not self.main_win.is_exp_exists():
-            msg_window('the experiment does not exist, cannot save the config_prep file')
-            return
-
-        conf_map = self.get_prep_config()
-        # verify that prep configuration is ok
-        er_msg = ver.verify('config_prep', conf_map)
-        if len(er_msg) > 0:
-            msg_window(er_msg)
-            if not self.main_win.no_verify:
-              return
-        if len(conf_map) > 0:
-            ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
-
-
-    def notify(self):
-        self.tabs.notify(**{})
-
-
 class InstrTab(QWidget):
     def __init__(self, parent=None):
         """
@@ -296,6 +118,8 @@ class InstrTab(QWidget):
         gen_layout.addRow("diffractometer", self.diffractometer)
         self.h5file_button = QPushButton()
         gen_layout.addRow("h5file file", self.h5file_button)
+        self.roi = QLineEdit()
+        gen_layout.addRow("detector area (roi)", self.roi)
         tab_layout.addLayout(gen_layout)
         cmd_layout = QHBoxLayout()
         self.set_instr_conf_from_button = QPushButton("Load instr conf from")
@@ -323,7 +147,7 @@ class InstrTab(QWidget):
         Parameters
         ----------
         conf : dict
-            configuration (config_disp)
+            configuration (config_instr)
         Returns
         -------
         nothing
@@ -343,6 +167,9 @@ class InstrTab(QWidget):
                 self.h5file_button.setText(h5file)
             else:
                 msg_window(f'The h5file file {h5file} in config file does not exist')
+        if 'roi' in conf_map:
+            self.roi.setText(str(conf_map['roi']).replace(" ", ""))
+            self.roi.setStyleSheet('color: black')
 
 
     def set_h5file(self):
@@ -370,6 +197,7 @@ class InstrTab(QWidget):
         self.detector_button.setText('')
         self.diffractometer.setText('')
         self.h5file_button.setText('')
+        self.roi.setText('')
 
 
     def load_instr_conf(self):
@@ -409,13 +237,15 @@ class InstrTab(QWidget):
             conf_map['diffractometer'] = str(self.diffractometer.text())
         if len(self.h5file_button.text()) > 0:
             conf_map['h5file'] = str(self.h5file_button.text())
+        if len(self.roi.text()) > 0:
+            conf_map['roi'] = ast.literal_eval(str(self.roi.text()).replace(os.linesep,''))
 
         return conf_map
 
 
     def save_conf(self):
         """
-        Reads the parameters needed by format display script. Saves the config_disp configuration file with parameters from the window and runs the display script.
+        Reads the parameters needed by format display script. Saves the config_instr configuration file with parameters from the window and runs the display script.
         Parameters
         ----------
         none

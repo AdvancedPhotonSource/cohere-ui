@@ -440,7 +440,7 @@ class Tabs(QTabWidget):
     """
     The main window contains four tabs, each tab holding parameters for different part of processing.
     The tabs are as follows: prep (prepare data), data (format data), rec (reconstruction), disp (visualization).
-    This class holds holds the tabs.
+    This class holds the tabs.
     """
     def __init__(self, main_win, beamline, parent=None):
         """
@@ -457,7 +457,7 @@ class Tabs(QTabWidget):
                 msg_window(f'cannot import cohere_ui.beamlines.{beamline} module')
                 raise
             self.instr_tab = self.beam.InstrTab()
-            self.prep_tab = self.beam.PrepTab()
+            self.prep_tab = PrepTab()
             self.format_tab = DataTab()
             self.rec_tab = RecTab()
             self.display_tab = DispTab()
@@ -491,10 +491,11 @@ class Tabs(QTabWidget):
         self.instr_tab = self.beam.InstrTab()
         self.insertTab(0, self.instr_tab, self.instr_tab.name)
         self.instr_tab.init(self, self.main_win)
-        self.prep_tab = self.beam.PrepTab()
-        self.insertTab(1, self.prep_tab, self.prep_tab.name)
-        self.prep_tab.init(self, self.main_win)
-        self.tabs = self.tabs + [self.instr_tab, self.prep_tab]
+        # self.prep_tab = self.beam.PrepTab()
+        # self.insertTab(1, self.prep_tab, self.prep_tab.name)
+        # self.prep_tab.init(self, self.main_win)
+        # self.tabs = self.tabs + [self.instr_tab, self.prep_tab]
+        self.tabs = self.tabs + [self.instr_tab]
 
     def notify(self, **args):
         try:
@@ -564,6 +565,194 @@ class Tabs(QTabWidget):
         # change the Instrument tab if present
         if not self.instr_tab is None:
             self.instr_tab.toggle_config()
+
+
+class PrepTab(QWidget):
+    def __init__(self, parent=None):
+        """
+        Constructor, initializes the tabs.
+        """
+        super(PrepTab, self).__init__(parent)
+        self.name = 'Prep Data'
+        self.conf_name = 'config_prep'
+
+
+    def init(self, tabs, main_window):
+        """
+        Creates and initializes the 'prep' tab.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        self.tabs = tabs
+        self.main_win = main_window
+        layout = QFormLayout()
+        self.min_frames = QLineEdit()
+        layout.addRow("min frames in scan", self.min_frames)
+        self.exclude_scans = QLineEdit()
+        layout.addRow("exclude scans", self.exclude_scans)
+        self.max_crop = QLineEdit()
+        layout.addRow("max crop", self.max_crop)
+        self.remove_outliers = QCheckBox('remove outliers')
+        self.remove_outliers.setChecked(False)
+        layout.addRow(self.remove_outliers)
+        self.outliers_scans = QLineEdit()
+        layout.addRow("outliers scans", self.outliers_scans)
+
+        cmd_layout = QHBoxLayout()
+        self.set_prep_conf_from_button = QPushButton("Load prep conf from")
+        self.set_prep_conf_from_button.setStyleSheet("background-color:rgb(205,178,102)")
+        self.prep_button = QPushButton('prepare', self)
+        self.prep_button.setStyleSheet("background-color:rgb(175,208,156)")
+        cmd_layout.addWidget(self.set_prep_conf_from_button)
+        cmd_layout.addWidget(self.prep_button)
+        layout.addRow(cmd_layout)
+        self.setLayout(layout)
+
+        self.prep_button.clicked.connect(self.run_tab)
+        self.set_prep_conf_from_button.clicked.connect(self.load_prep_conf)
+
+
+    def load_tab(self, conf_map):
+        """
+        It verifies given configuration file, reads the parameters, and fills out the window.
+        Parameters
+        ----------
+        conf : dict
+            configuration (config_prep)
+        Returns
+        -------
+        nothing
+        """
+        if 'min_frames' in conf_map:
+            self.min_frames.setText(str(conf_map['min_frames']).replace(" ", ""))
+        if 'exclude_scans' in conf_map:
+            self.exclude_scans.setText(str(conf_map['exclude_scans']).replace(" ", ""))
+        if 'max_crop' in conf_map:
+            self.max_crop.setText(str(conf_map['max_crop']).replace(" ", ""))
+        self.remove_outliers.setChecked('remove_outliers' in conf_map and conf_map['remove_outliers'])
+        if 'outliers_scans' in conf_map:
+            self.outliers_scans.setText(str(conf_map['outliers_scans']).replace(" ", ""))
+
+
+    def clear_conf(self):
+        self.min_frames.setText('')
+        self.exclude_scans.setText('')
+        self.max_crop.setText('')
+        self.outliers_scans.setText('')
+        self.remove_outliers.setChecked(False)
+
+
+    def load_prep_conf(self):
+        """
+        TODO: combine all load conf files in one function
+        It display a select dialog for user to select a configuration file for preparation. When selected, the parameters from that file will be loaded to the window.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        prep_file = select_file(os.getcwd())
+        if prep_file is not None:
+            conf_map = ut.read_config(prep_file.replace(os.sep, '/'))
+            self.load_tab(conf_map)
+        else:
+            msg_window('select valid prep config file')
+
+
+    def get_prep_config(self):
+        """
+        It reads parameters related to preparation from the window and adds them to dictionary.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        conf_map : dict
+            contains parameters read from window
+        """
+        conf_map = {}
+        if len(self.min_frames.text()) > 0:
+            min_frames = ast.literal_eval(str(self.min_frames.text()))
+            conf_map['min_frames'] = min_frames
+        if len(self.exclude_scans.text()) > 0:
+            conf_map['exclude_scans'] = ast.literal_eval(str(self.exclude_scans.text()).replace(os.linesep,''))
+        if len(self.max_crop.text()) > 0:
+            conf_map['max_crop'] = ast.literal_eval(str(self.max_crop.text()).replace(os.linesep,''))
+        if self.remove_outliers.isChecked():
+            conf_map['remove_outliers'] = True
+
+        return conf_map
+
+
+    def run_tab(self):
+        """
+        Reads the parameters needed by prep script. Saves the config_prep configuration file with parameters from
+        the window and runs the prep script.
+
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        if not self.main_win.is_exp_exists():
+            msg_window('the experiment has not been created yet')
+            return
+        elif not self.main_win.is_exp_set():
+            msg_window('the experiment has changed, press "set experiment" button')
+            return
+        else:
+            conf_map = self.get_prep_config()
+        # verify that prep configuration is ok
+        er_msg = ut.verify('config_prep', conf_map)
+        if len(er_msg) > 0:
+            msg_window(er_msg)
+            if not self.main_win.no_verify:
+              return
+
+        if 'remove_outliers' in conf_map and conf_map['remove_outliers']:
+            # exclude outliers_scans from saving
+            current_prep_map = ut.read_config(ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
+            if current_prep_map is not None and 'outliers_scans' in current_prep_map:
+                conf_map['outliers_scans'] = current_prep_map['outliers_scans']
+        ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
+
+        try:
+            self.tabs.run_prep()
+        except ValueError as e:
+            msg_window(str(e))
+            return
+
+        # reload the window if remove_outliers as the outliers_scans could change
+        if 'remove_outliers' in conf_map and conf_map['remove_outliers']:
+            prep_map = ut.read_config(ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
+            self.load_tab(prep_map)
+
+
+    def save_conf(self):
+        if not self.main_win.is_exp_exists():
+            msg_window('the experiment does not exist, cannot save the config_prep file')
+            return
+
+        conf_map = self.get_prep_config()
+        er_msg = ut.verify('config_prep', conf_map)
+        if len(er_msg) > 0:
+            msg_window(er_msg)
+            if not self.main_win.no_verify:
+                return
+        if len(conf_map) > 0:
+            ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
+
+
+    def notify(self):
+        self.tabs.notify(**{})
 
 
 class DataTab(QWidget):
