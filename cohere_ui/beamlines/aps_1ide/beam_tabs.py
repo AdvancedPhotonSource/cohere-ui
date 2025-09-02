@@ -311,6 +311,8 @@ class InstrTab(QWidget):
         gen_layout.addRow("spec file", self.spec_file_button)
         self.data_dir_button = QPushButton()
         gen_layout.addRow("data directory", self.data_dir_button)
+        self.dark_file_button = QPushButton()
+        gen_layout.addRow("darkfield file", self.dark_file_button)
         self.white_file_button = QPushButton()
         gen_layout.addRow("whitefield file", self.white_file_button)
         self.Imult = QLineEdit()
@@ -344,6 +346,7 @@ class InstrTab(QWidget):
 
         self.spec_file_button.clicked.connect(self.set_spec_file)
         self.data_dir_button.clicked.connect(self.set_data_dir)
+        self.dark_file_button.clicked.connect(self.set_dark_file)
         self.white_file_button.clicked.connect(self.set_white_file)
         self.save_instr_conf.clicked.connect(self.save_conf)
         self.set_instr_conf_from_button.clicked.connect(self.load_instr_conf)
@@ -382,6 +385,15 @@ class InstrTab(QWidget):
                 msg_window(f'The data_dir directory in config_prep file {conf_map["data_dir"]} does not exist')
         else:
             self.data_dir_button.setText('')
+        if 'darkfield_filename' in conf_map:
+            if os.path.isfile(conf_map['darkfield_filename']):
+                self.dark_file_button.setStyleSheet("Text-align:left")
+                self.dark_file_button.setText(conf_map['darkfield_filename'])
+            else:
+                self.dark_file_button.setText('')
+                msg_window(f'The darkfield file {conf_map["darkfield_filename"]} in config_prep file does not exist')
+        else:
+            self.dark_file_button.setText('')
         if 'whitefield_filename' in conf_map:
             if os.path.isfile(conf_map['whitefield_filename']):
                 self.white_file_button.setStyleSheet("Text-align:left")
@@ -440,6 +452,25 @@ class InstrTab(QWidget):
             self.save_conf()
 
 
+    def set_dark_file(self):
+        """
+        It display a select dialog for user to select a darkfield file.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        darkfield_filename = select_file(os.getcwd().replace(os.sep, '/'))
+        if darkfield_filename is not None:
+            darkfield_filename = darkfield_filename.replace(os.sep, '/')
+            self.dark_file_button.setStyleSheet("Text-align:left")
+            self.dark_file_button.setText(darkfield_filename)
+        else:
+            self.dark_file_button.setText('')
+
+
     def set_white_file(self):
         """
         It display a select dialog for user to select a whitefield file.
@@ -481,6 +512,7 @@ class InstrTab(QWidget):
         self.diffractometer.setText('')
         self.spec_file_button.setText('')
         self.data_dir_button.setText('')
+        self.dark_file_button.setText('')
         self.white_file_button.setText('')
         self.Imult.setText('')
         self.detector.setText('')
@@ -530,6 +562,8 @@ class InstrTab(QWidget):
             conf_map['specfile'] = str(self.spec_file_button.text())
         if len(self.data_dir_button.text().strip()) > 0:
             conf_map['data_dir'] = str(self.data_dir_button.text()).strip()
+        if len(self.dark_file_button.text().strip()) > 0:
+            conf_map['darkfield_filename'] = str(self.dark_file_button.text().strip())
         if len(self.white_file_button.text().strip()) > 0:
             conf_map['whitefield_filename'] = str(self.white_file_button.text().strip())
         if len(self.Imult.text()) > 0:
