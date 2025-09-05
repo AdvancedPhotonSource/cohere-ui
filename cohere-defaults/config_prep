@@ -10,3 +10,6 @@ remove_outliers = False
 //ouliers_scans = [78,81]
                                             // A list containing scan indexes that will be excluded when adding scans.
                                             // This list is determined when running auto-data preprocessing.
+
+//max_crop = [200,200]
+                                            // Size of frame cut out around maximum

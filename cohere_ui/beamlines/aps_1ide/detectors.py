@@ -118,10 +118,10 @@ class Detector(ABC):
         ordered_slices = [self.correct_frame(slices_files[k]) for k in ordered_keys]
 
         arr= np.stack(ordered_slices, axis=-1)
-        if self.maxcrop is not None:
+        if self.max_crop is not None:
             maxindx= np.unravel_index(arr.argmax(), arr.shape)
-            mc0=int(self.maxcrop[0]/2)
-            mc1=int(self.maxcrop[1]/2)
+            mc0=int(self.max_crop[0]/2)
+            mc1=int(self.max_crop[1]/2)
             roislice1 = slice(maxindx[0]-mc0, maxindx[0]+mc0)
             roislice2 = slice(maxindx[1]-mc1, maxindx[1]+mc1)
             arr=arr[roislice1, roislice2, :]
@@ -148,7 +148,7 @@ class ASI(Detector):
     pixel = (55.0e-6, 55e-6)
     pixelorientation = ('x+', 'y-')  # in xrayutilities notation
     whitefield = None
-    maxcrop = None
+    max_crop = None
     min_frames = None  # defines minimum frame scans in scan directory
 
     def __init__(self, params):
@@ -156,8 +156,8 @@ class ASI(Detector):
         # The detector attributes specific for the detector.
         # Can include data directory, whitefield_filename, roi, etc.
 
-        if 'maxcrop' in params:
-            self.maxcrop=params['maxcrop']
+        if 'max_crop' in params:
+            self.max_crop=params['max_crop']
         # keep parameters that are relevant to the detector
         if 'roi' in params:
             self.roi = params.get('roi')
@@ -223,15 +223,15 @@ class BSE(Detector):
     pixelorientation = ('x-', 'y-')  # in xrayutilities notation
     whitefield = None
     darkfield=None
-    maxcrop = None
+    max_crop = None
     min_frames = None  # defines minimum frame scans in scan directory
 
     def __init__(self, params):
         super(BSE, self).__init__(self.name)
         # The detector attributes specific for the detector.
         # Can include data directory, whitefield_filename, roi, etc.
-        if 'maxcrop' in params:
-            self.maxcrop=params['maxcrop']
+        if 'max_crop' in params:
+            self.max_crop=params['max_crop']
         # keep parameters that are relevant to the detector
         if 'roi' in params:
             self.roi = params.get('roi')
