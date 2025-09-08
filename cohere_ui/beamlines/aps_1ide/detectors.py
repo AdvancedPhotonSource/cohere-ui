@@ -117,14 +117,22 @@ class Detector(ABC):
         ordered_keys = sorted(list(slices_files.keys()))
         ordered_slices = [self.correct_frame(slices_files[k]) for k in ordered_keys]
 
-        arr= np.stack(ordered_slices, axis=-1)
+        arr = np.stack(ordered_slices, axis=-1)
         if self.max_crop is not None:
-            maxindx= np.unravel_index(arr.argmax(), arr.shape)
-            mc0=int(self.max_crop[0]/2)
-            mc1=int(self.max_crop[1]/2)
-            roislice1 = slice(maxindx[0]-mc0, maxindx[0]+mc0)
-            roislice2 = slice(maxindx[1]-mc1, maxindx[1]+mc1)
-            arr=arr[roislice1, roislice2, :]
+            # check if the max value is bad pixel. If so zero it and get the next max value.
+            maxindx = np.unravel_index(arr.argmax(), arr.shape)
+            while (arr[maxindx[0] + 1, maxindx[1], maxindx[2]] == 0
+                   and arr[maxindx[0] - 1, maxindx[1], maxindx[2]] == 0
+                   or arr[maxindx[0], maxindx[1] + 1, maxindx[2]] == 0
+                   and arr[maxindx[0], maxindx[1] - 1, maxindx[2]] == 0):
+                arr[maxindx] = 0.0
+                maxindx = np.unravel_index(arr.argmax(), arr.shape)
+
+            mc0 = int(self.max_crop[0] / 2)
+            mc1 = int(self.max_crop[1] / 2)
+            roislice1 = slice(maxindx[0] - mc0, maxindx[0] + mc0)
+            roislice2 = slice(maxindx[1] - mc1, maxindx[1] + mc1)
+            arr = arr[roislice1, roislice2, :]
         return arr
 
 

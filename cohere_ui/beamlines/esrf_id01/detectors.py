@@ -8,6 +8,8 @@ import numpy as np
 import h5py
 from abc import ABC, abstractmethod
 
+from cohere_core import data
+
 
 class Detector(ABC):
     def __init__(self, name="default"):
@@ -74,9 +76,26 @@ class Detector(ABC):
         print('printing max for scan(s) trimmed to roi')
         for s, d in data.items():
             print('scan, shape, max coordinates, max value', s, d.shape, np.unravel_index(np.argmax(d), d.shape), np.max(d))
+            # apply correction if needed
+            # the rdata already is corrected
 
-        # apply correction if needed
-        # the rdata already is corrected
+        if self.max_crop is not None:
+            for k in data.keys():
+                arr = data[k]
+                maxindx = np.unravel_index(arr.argmax(), arr.shape)
+                while (arr[maxindx[0] + 1, maxindx[1], maxindx[2]] == 0
+                       and arr[maxindx[0] - 1, maxindx[1], maxindx[2]] == 0
+                       or arr[maxindx[0], maxindx[1] + 1, maxindx[2]] == 0
+                       and arr[maxindx[0], maxindx[1] - 1, maxindx[2]] == 0):
+                    arr[maxindx] = 0.0
+                    maxindx = np.unravel_index(arr.argmax(), arr.shape)
+
+                mc0 = int(self.max_crop[0] / 2)
+                mc1 = int(self.max_crop[1] / 2)
+                roislice1 = slice(maxindx[0] - mc0, maxindx[0] + mc0)
+                roislice2 = slice(maxindx[1] - mc1, maxindx[1] + mc1)
+                arr = arr[roislice1, roislice2, :]
+                data[k] = arr
 
         return data
 
@@ -90,6 +109,8 @@ class Detector_mpxgaas(Detector):
     roi = (0, 516, 0, 516)
     pixel = (55.0e-6, 55e-6)
     pixelorientation = ('x-', 'y-')  # in xrayutilities notation
+    max_crop = None
+    min_frames = None  # defines minimum frame scans in scan directory
 
 
     def __init__(self, conf_params):

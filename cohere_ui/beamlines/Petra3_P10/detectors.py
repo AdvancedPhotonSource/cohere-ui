@@ -154,6 +154,14 @@ class Detector_e4m(Detector):
         data = np.nan_to_num(data)
         if self.max_crop is not None:
             maxpos = np.unravel_index(data.argmax(), data.shape)
+            # check if the max value is bad pixel. If so zero it and get the next max value.
+            while (data[maxpos[0] + 1, maxpos[1], maxpos[2]] == 0
+                   and data[maxpos[0] - 1, maxpos[1], maxpos[2]] == 0
+                   or data[maxpos[0], maxpos[1] + 1, maxpos[2]] == 0
+                   and data[maxpos[0], maxpos[1] - 1, maxpos[2]] == 0):
+                data[maxpos] = 0.0
+                maxpos = np.unravel_index(data.argmax(), data.shape)
+
             maxslice = np.s_[::,
                        maxpos[1] - int(self.max_crop[0] / 2):maxpos[1] + int(self.max_crop[0] / 2),
                        maxpos[2] - int(self.max_crop[1] / 2):maxpos[2] + int(self.max_crop[1] / 2)]
