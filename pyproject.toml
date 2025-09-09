@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cohere_ui"
+version = "4.2.1"
+authors = [
+  { name="Barbara Frosik", email="bfrosik@anl.gov" },
+  { name="Ross Harder", email="rharder@anl.gov" }
+]
+description = "cohere scripts"
+readme = "README.md"
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = { file = "LICENSE" }
+
+dependencies = [
+                'pyqt5',
+                'scikit-image',
+                'xrayutilities',
+                'pyvista',
+                'scipy==1.14.1',
+                'notebook',
+                'gputil',
+                ]
+
+[project.scripts]
+beamline_preprocess = "cohere_ui.beamline_preprocess:main"
+beamline_visualization = "cohere_ui.beamline_visualization:main"
+cohere_gui = "cohere_ui.cohere_gui:main"
+copy_setup = "cohere_ui.copy_setup:main"
+create_aps34idc_experiment = "cohere_ui.create_aps34idc_experiment:main"
+everything = "cohere_ui.everything:main"
+run_reconstruction = "cohere_ui.run_reconstruction:main"
+simple_phasing = "cohere_ui.simple_phasing:main"
+standard_preprocess = "cohere_ui.standard_preprocess:main"
+
+[project.urls]
+Homepage = "https://github.com/AdvancedPhotonSource/cohere-ui"

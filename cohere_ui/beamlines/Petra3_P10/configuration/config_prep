@@ -1,9 +1,0 @@
-min_frames = 90
-                                            // Only scans containing minimum of defined number of frames will be included.
-
-max_crop = [144, 144]
-                                            // A region in pixels that will be cropped from frames around max intensity.
-
-//exclude_scans = [78,81]
-                                            // A list containing scan indexes that will be excluded when adding scans.
-

@@ -1,7 +1,0 @@
-max_crop = [100, 100]
-//exclude_scans = [78,81]
-                                // A list containing scan indexes that will be excluded when adding scans.
-//ouliers_scans = [78,81]
-                                // A list containing scan indexes that will be excluded when adding scans.
-                                // This list is determined when running auto-data preprocessing.
-
