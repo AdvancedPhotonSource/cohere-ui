@@ -13,18 +13,12 @@ Refer to :ref:`config_data` for definition of parameters that direct the process
 The steps implemented in standard_preprocessing: removing aliens, removing noise, applying sqrt, cropping and padding,
 centering, and binning.
 
-If running this script in **user mode** (i.e. after installing cohere_ui package with pypi), use this command::
+To run this script from command line::
 
     standard_preprocess <experiment_dir>
 
-To run this script in **developer mode** (i.e. after cloning the cohere-ui repository and installing from code) navigate to cohere-ui directory and
-use the following command::
-
-    python cohere_ui/standard_preprocess.py <experiment_dir>
-
 optional argument may follow:  --no_verify
-
-In either mode one can use --help to get explanation of command line parameters.
+One can use --help to get explanation of command line parameters.
 """
 
 import argparse

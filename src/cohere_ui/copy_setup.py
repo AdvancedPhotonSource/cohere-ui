@@ -11,18 +11,11 @@ The main configuration file is created and the other files are copied into the n
 
 This script is typically used to create an initial cohere experiment after data collection.
 
-If running this script in **user mode** (i.e. after installing cohere_ui package with pypi), use this command::
+To run this script from command line::
 
     copy_setup <id> <scan_no> <conf_dir> --specfile <specfile> --copy_prep
 
-To run this script in **developer mode** (i.e. after cloning the cohere-ui repository and installing from code) navigate to cohere-ui directory and
-use the following command::
-
-    python cohere_ui/copy_setup.py <id> <scan_no> <conf_dir>
-
-optional arguments may follow:  --specfile <specfile> --copy_prep
-
-In either mode one can use --help to get explanation of command line parameters.
+One can use --help to get explanation of command line parameters.
 """
 
 __author__ = "Ross Harder"

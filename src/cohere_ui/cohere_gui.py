@@ -8,18 +8,12 @@
 """
 This script provides GUI interface to cohere tools. User can create new cohere experiment or load an existing one. The GUI offers user friendly interface that allows to define configuration, set parameters to defaults, and run the scripts: beamline_preprocessing, standard_preprocessing, run_rec, and beamline_visualization, with push buttons.
 
-If running this script in **user mode** (i.e. after installing cohere_ui package with pypi), use this command::
+To run this script from command line::
 
     cohere_gui
 
-To run this script in **developer mode** (i.e. after cloning the cohere-ui repository and installing from code) navigate to cohere-ui directory and
-use the following command::
-
-    python cohere_ui/cohere_gui.py
-
 optional arguments may follow:  --no_verify, --debug
-
-In either mode one can use --help to get explanation of command line parameters.
+One can use --help to get explanation of command line parameters.
 """
 
 __author__ = "Barbara Frosik"

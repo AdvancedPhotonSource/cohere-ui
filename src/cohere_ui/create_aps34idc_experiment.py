@@ -12,18 +12,11 @@ This user script create a new cohere experiment directory space.
 The experiment directory will contain "conf" subdirectory with configuration files. The initial configuration files
 contain all parameters, but most of them are commented out to clock the functionality.
 
-If running this script in **user mode** (i.e. after installing cohere_ui package with pypi), use this command::
+To run this script from command line::
 
     create_aps34idc_experiment <id> <scan_no> <working_dir> --specfile <specfile>
 
-To run this script in **developer mode** (i.e. after cloning the cohere-ui repository and installing from code) navigate to cohere-ui directory and
-use the following command::
-
-    python cohere_ui/create_aps34idc_experiment.py <id> <scan_no> <working_dir>
-
-optional arguments may follow: --specfile <specfile>
-
-In either mode one can use --help to get explanation of command line parameters.
+One can use --help to get explanation of command line parameters.
 """
 
 __author__ = "Barbara Frosik"

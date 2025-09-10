@@ -18,18 +18,12 @@ The script will generate image of the reconstructed object in direct space in vt
 In addition, through configuration user can request twin image, unwrapped phase, interpolation, resolution, and
 reciprocal space view.
 
-If running this script in **user mode** (i.e. after installing cohere_ui package with pypi), use this command::
+To run this script from command line::
 
     beamline_visualization <experiment_dir>
 
-To run this script in **developer mode** (i.e. after cloning the cohere-ui repository and installing from code) navigate to cohere-ui directory and
-use the following command::
-
-    python cohere_ui/beamline_visualization.py <experiment_dir>
-
-optional arguments may follow:  --no_verify
-
-In either mode one can use --help to get explanation of command line parameters.
+optional argument may follow:  --no_verify
+One can use --help to get explanation of command line parameters.
 """
 
 __author__ = "Ross Harder"
