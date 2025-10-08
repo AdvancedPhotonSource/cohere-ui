@@ -255,3 +255,6 @@ progress_trigger = [0, 5]
                              // Defines when to print info on the console.
                              // The info includes current iteration and error.
 
+live_trigger = [0, 10]
+                             // Defines when to update the live view.
+

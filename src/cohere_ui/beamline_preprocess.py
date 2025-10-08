@@ -21,6 +21,7 @@ To run this script from command line::
     beamline_preprocess <experiment_dir>
 
 optional argument may follow:  --no_verify
+
 One can use --help to get explanation of command line parameters.
 """
 
@@ -36,7 +37,7 @@ import cohere_core.utilities as ut
 import cohere_ui.api.auto_data as ad
 import cohere_ui.api.common as com
 import cohere_ui.api.multipeak as mp
-# import cohere_beamlines
+
 
 def handle_prep(experiment_dir, **kwargs):
     """

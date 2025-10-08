@@ -40,7 +40,7 @@ config_rec_map = {'samples': 'reconstructions',
                   'generations' : 'ga_generations',
                   'ga_support_thresholds' : 'ga_sw_thresholds',
                   'ga_support_sigmas' : 'ga_sw_gauss_sigmas',
-                  'ga_low_resolution_sigmas' : 'ga_lowpass_filter_sigmas',
+                  'ga_low_resolution_sigmas' : 'ga_lpf_sigmas',
                   'gen_pcdi_start' : 'ga_gen_pc_start',
                   }
 config_disp_map = {'arm': 'detdist',

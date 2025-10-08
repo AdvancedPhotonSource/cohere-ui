@@ -18,6 +18,7 @@ To run this script from command line::
     standard_preprocess <experiment_dir>
 
 optional argument may follow:  --no_verify
+
 One can use --help to get explanation of command line parameters.
 """
 

@@ -19,6 +19,7 @@ To run this script from command line::
     run_reconstruction <experiment_dir>
 
 optional argument may follow:  --no_verify, --rec_id <rec_id> --debug
+
 One can use --help to get explanation of command line parameters.
 """
 

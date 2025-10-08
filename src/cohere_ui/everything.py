@@ -16,6 +16,7 @@ To run this script from command line::
     everything <experiment_dir> --rec_id <rec_id>
 
 optional argument may follow:  --no_verify, --rec_id, --debug
+
 One can use --help to get explanation of command line parameters.
 """
 

@@ -21,6 +21,7 @@ To run this script from command line::
     simple_phasing <data_file>
 
 optional argument may follow:   --debug
+
 One can use --help to get explanation of command line parameters.
 """
 

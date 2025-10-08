@@ -13,6 +13,7 @@ To run this script from command line::
     cohere_gui
 
 optional arguments may follow:  --no_verify, --debug
+
 One can use --help to get explanation of command line parameters.
 """
 
