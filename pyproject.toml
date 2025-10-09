@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cohere_ui"
-version = "4.2.1"
+version = "4.3"
 authors = [
   { name="Barbara Frosik", email="bfrosik@anl.gov" },
   { name="Ross Harder", email="rharder@anl.gov" }
@@ -40,4 +40,11 @@ simple_phasing = "cohere_ui.simple_phasing:main"
 standard_preprocess = "cohere_ui.standard_preprocess:main"
 
 [project.urls]
-Homepage = "https://github.com/AdvancedPhotonSource/cohere-ui"
+    Homepage = "https://github.com/AdvancedPhotonSource/cohere-ui"
+
+[tool.sphinx-pyproject]
+    extensions = [
+        "sphinx.ext.autodoc",
+        "sphinx.ext.napoleon",
+        'sphinx.ext.intersphinx',
+]
