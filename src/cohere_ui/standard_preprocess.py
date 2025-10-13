@@ -81,7 +81,6 @@ def format_data(experiment_dir, **kwargs):
         except:
             pkg = 'np'
         data_conf_map['pkg'] = pkg
-        data_conf_map['next_fast_len'] = True
 
         # call the preprocessing in cohere_core, it will return updated configuration if auto_intensity_threshold is set
         data_conf_map = fd.prep(ut.join(proc_dir, 'preprocessed_data', 'prep_data.tif'), **data_conf_map)
