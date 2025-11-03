@@ -227,21 +227,8 @@ initial_support_area = [.5,.5,.5]
 // the inverse of iteration sigma.
 
 // lowpass_filter_trigger = [0, 1, 320]
-// lowpass_filter_trigger = [[0, 2, 150],[0, 2, 50]]
-                             // Defines when to apply low resolution using the parameters below.
-                             // The second line shows configuration when two sub-triggers are defined.
-                             // When running, GA it is applied only in first generation.
-// lowpass_filter_range = [.7, 1]
-// lowpass_filter_range = [[.7, .8],[.8,1.0]]
-                             // Used to calculate iteration sigma when applying low-pass data filter while iterating.
-                             // The values defined in his range are line-spaced across low resolution iterations.
-                             // If only one number is given, the last det will default to shrink_wrap_gauss_sigma.
-                             // The second line shows configuration when two sub-triggers are defined.
-// lowpass_filter_sw_threshold = 0.1
-// lowpass_filter_sw_threshold = [0.11, 0.1]
-                             // During lowpass iterations a GAUSS type shrink wrap is applied with
-                             // this threshold.
-                             // The second line shows configuration when two sub-triggers are defined.
+
+// lowpass_filter_range = [.7, 1.]
 
 // AVERAGING
 // The amplitudes of the last several iterations are averaged. This trigger defines at which iteration the averaging

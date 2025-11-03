@@ -1861,10 +1861,6 @@ class low_resolution(Feature):
         else:
             self.active.setChecked(False)
             return
-        if 'lowpass_filter_sw_threshold' in conf_map:
-            self.lpf_sw_threshold.setText(str(conf_map['lowpass_filter_sw_threshold']).replace(" ", ""))
-        else:
-            self.lpf_sw_threshold.setText('')
         if 'lowpass_filter_range' in conf_map:
             self.lpf_range.setText(str(conf_map['lowpass_filter_range']).replace(" ", ""))
         else:
@@ -1885,8 +1881,6 @@ class low_resolution(Feature):
         self.lpf_triggers = QLineEdit()
         layout.addRow("lowpass filter triggers", self.lpf_triggers)
         self.lpf_triggers.setToolTip('suggested trigger: [0, 1, <half iteration number>]')
-        self.lpf_sw_threshold = QLineEdit()
-        layout.addRow("shrink wrap threshold", self.lpf_sw_threshold)
         self.lpf_range = QLineEdit()
         layout.addRow("lowpass filter range", self.lpf_range)
 
@@ -1902,8 +1896,7 @@ class low_resolution(Feature):
         nothing
         """
         self.lpf_triggers.setText('[0, 1, 320]')
-        self.lpf_sw_threshold.setText('.1')
-        self.lpf_range.setText('[.7]')
+        self.lpf_range.setText('[.7, 1.0]')
 
 
     def add_feat_conf(self, conf_map):
@@ -1919,8 +1912,6 @@ class low_resolution(Feature):
         """
         if len(self.lpf_triggers.text()) > 0:
             conf_map['lowpass_filter_trigger'] = ast.literal_eval(str(self.lpf_triggers.text()).replace(os.linesep, ''))
-        if len(self.lpf_sw_threshold.text()) > 0:
-            conf_map['lowpass_filter_sw_threshold'] = ast.literal_eval(str(self.lpf_sw_threshold.text()).replace(os.linesep, ''))
         if len(self.lpf_range.text()) > 0:
             conf_map['lowpass_filter_range'] = ast.literal_eval(str(self.lpf_range.text()).replace(os.linesep, ''))
 
