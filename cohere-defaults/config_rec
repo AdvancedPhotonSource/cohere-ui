@@ -218,13 +218,10 @@ initial_support_area = [.5,.5,.5]
                              // by multiplying by the data array dimensions.
 
 // LOW PASS FILTER
-// This functionality should be applied in the beginning iterations. For the iterations with active low-pass filter the
-// shrink wrap operation is inactive and instead a Gauss type shrink wrap with the threshold and sigma determined by
-// low-pass parameters is applied. The low-pass sigma is iteration dependent and is calculated as line space of
-// lowpass_filter_range parameter across the low-pass iterations. The iteration sigma is then used to modify iteration
-// data by applying low-pass gaussian filter. The gaussian filter has effect in both spaces: direct, and reciprocal.
-// Along with gradually modification of data in reciprocal space, the shrink wrap applied in the direct space, uses
-// the inverse of iteration sigma.
+// This functionality should be applied in the beginning iterations.
+// The low-pass sigma is iteration dependent and is calculated as line space of lowpass_filter_range parameter across
+// the low-pass iterations. The iteration sigma is then used to modify iteration data by applying low-pass gaussian
+// filter. The gaussian filter has effect in both spaces: direct, and reciprocal.
 
 // lowpass_filter_trigger = [0, 1, 320]
 
