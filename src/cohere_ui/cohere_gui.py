@@ -1285,6 +1285,11 @@ class RecTab(QWidget):
             except:
                 msg_window('initial_support_area parameter should be a list of floats')
                 return {}
+        for feat_id in self.features.feature_dir:
+            msg = self.features.feature_dir[feat_id].verify_active()
+            if len(msg) > 0:
+                msg_window(msg)
+                return {}
         if self.init_guess.currentIndex() == 1:
             conf_map['init_guess'] = 'continue'
             if len(self.cont_dir_button.text().strip()) > 0:
@@ -1647,6 +1652,15 @@ class Feature(object):
         pass
 
 
+    def verify_active(self):
+        """
+        If feature is active it checks for trigger.
+
+        :return: error message, empty if trigger is set.
+        """
+        return ''
+
+
     def add_config(self, conf_map):
         """
         This function calls all of the subclasses to add feature's parameters to dictionary.
@@ -1784,6 +1798,13 @@ class GA(Feature):
         layout.addRow("gen to start pcdi", self.gen_pc_start)
 
 
+    def verify_active(self):
+        msg = ''
+        if self.active.isChecked() and len(self.generations.text()) == 0:
+            msg = 'GA is set to active but generation is not configured'
+        return msg
+
+
     def set_defaults(self):
         """
         This function sets GA feature's parameters to hardcoded default values.
@@ -1885,6 +1906,13 @@ class low_resolution(Feature):
         layout.addRow("lowpass filter range", self.lpf_range)
 
 
+    def verify_active(self):
+        msg = ''
+        if self.active.isChecked() and len(self.lpf_triggers.text()) == 0:
+            msg = 'lowpass filter is set to active but trigger is not configured'
+        return msg
+
+
     def set_defaults(self):
         """
         This function sets low resolution feature's parameters to hardcoded default values.
@@ -1976,6 +2004,13 @@ class shrink_wrap(Feature):
         layout.addRow("shrink wrap threshold", self.shrink_wrap_threshold)
         self.shrink_wrap_gauss_sigma = QLineEdit()
         layout.addRow("shrink wrap Gauss sigma", self.shrink_wrap_gauss_sigma)
+
+
+    def verify_active(self):
+        msg = ''
+        if self.active.isChecked() and len(self.shrink_wrap_triggers.text()) == 0:
+            msg = 'shrink wrap is set to active but trigger is not configured'
+        return msg
 
 
     def set_defaults(self):
@@ -2081,6 +2116,13 @@ class phase_constrain(Feature):
         layout.addRow("phase maximum", self.phc_phase_max)
 
 
+    def verify_active(self):
+        msg = ''
+        if self.active.isChecked() and len(self.phase_triggers.text()) == 0:
+            msg = 'phase constrain is set to active but trigger is not configured'
+        return msg
+
+
     def set_defaults(self):
         """
         This function sets phase constrain feature's parameters to hardcoded default values.
@@ -2091,7 +2133,7 @@ class phase_constrain(Feature):
         -------
         nothing
         """
-        self.phase_triggers.setText('[1,5,320]')
+        self.phase_triggers.setText('[1,1,320]')
         self.phc_phase_min.setText('-1.57')
         self.phc_phase_max.setText('1.57')
 
@@ -2180,6 +2222,13 @@ class pcdi(Feature):
         layout.addRow("normalize", self.pc_normalize)
         self.pc_LUCY_kernel = QLineEdit()
         layout.addRow("LUCY kernel area", self.pc_LUCY_kernel)
+
+
+    def verify_active(self):
+        msg = ''
+        if self.active.isChecked() and len(self.pc_interval.text()) == 0:
+            msg = 'partial coherence is set to active but pc_interval is not configured'
+        return msg
 
 
     def set_defaults(self):
@@ -2274,6 +2323,13 @@ class twin(Feature):
         layout.addRow("twin halves", self.twin_halves)
 
 
+    def verify_active(self):
+        msg = ''
+        if self.active.isChecked() and len(self.twin_triggers.text()) == 0:
+            msg = 'twin is set to active but trigger is not configured'
+        return msg
+
+
     def set_defaults(self):
         """
         This function sets twin feature's parameters to hardcoded default values.
@@ -2348,6 +2404,13 @@ class average(Feature):
         layout.addRow("average triggers", self.average_triggers)
 
 
+    def verify_active(self):
+        msg = ''
+        if self.active.isChecked() and len(self.average_triggers.text()) == 0:
+            msg = 'average is set to active but trigger is not configured'
+        return msg
+
+
     def set_defaults(self):
         """
         This function sets average feature's parameters to hardcoded default values.
@@ -2418,6 +2481,13 @@ class progress(Feature):
         layout.addRow("progress triggers", self.progress_triggers)
 
 
+    def verify_active(self):
+        msg = ''
+        if self.active.isChecked() and len(self.progress_triggers.text()) == 0:
+            msg = 'progress is set to active but trigger is not configured'
+        return msg
+
+
     def set_defaults(self):
         """
         This function sets progress feature's parameters to hardcoded default values.
@@ -2486,6 +2556,13 @@ class live(Feature):
         """
         self.live_triggers = QLineEdit()
         layout.addRow("live triggers", self.live_triggers)
+
+
+    def verify_active(self):
+        msg = ''
+        if self.active.isChecked() and len(self.live_triggers.text()) == 0:
+            msg = 'live is set to active but trigger is not configured'
+        return msg
 
 
     def set_defaults(self):
