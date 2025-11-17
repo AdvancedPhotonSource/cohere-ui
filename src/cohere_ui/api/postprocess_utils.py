@@ -10,6 +10,7 @@ import cohere_core.utilities as ut
 import pyvista as pv
 from itertools import chain, repeat, islice
 from typing import List, Union
+import math
 
 
 # CXDViz is meant to manage arrays (coords, real,recip) for building structured grids.
@@ -40,20 +41,32 @@ class CXDViz:
         self.shape = None
         self.voi = None
 
-
     def add_array(self, name, array):
         if self.shape is None:
-            # the first array added to ssg, initialiize ssg
+            # the first array added to ssg, initialize ssg
             self.init_ssg(array.shape)
             self.arrs[name] = array
         elif self.shape == array.shape:
             self.arrs[name] = array
+            # Allow it to be ok if the array is 1D but has the correct number of elements.  This is mostly for strain calc.
+        elif array.shape[0] == math.prod(self.shape):
+            self.arrs[name] = array
         else:
+            print('prod', math.prod(self.shape), array.shape[0], math.prod(array.shape))
             raise ValueError(f'Shape mismatch: array has shape {array.shape}, the arrays have shape {self.shape}')
 
+    def get_structured_grid(self, complex_mode="AmpPhase", arrstoinclude=None):
+        # Allow to ask for a structured grid with only some arrays (pass list of names).
+        if arrstoinclude is None:
+            arrs = self.arrs.items()
+        else:
+            # if arrs is provided, use it instead of self.arrs
+            for arrname in arrstoinclude:
+                if arrname not in self.arrs:
+                    raise ValueError(f'Array {arrname} not found in the viz arrays')
+            arrs = [(arrname, self.arrs[arrname]) for arrname in arrstoinclude]
 
-    def get_structured_grid(self, complex_mode="AmpPhase"):
-        for arrname, arr in self.arrs.items():
+        for arrname, arr in arrs:
             if np.iscomplexobj(arr):
                 match complex_mode:
                     case "AmpPhase":
@@ -77,10 +90,30 @@ class CXDViz:
 
         return ssg_cropped
 
-
     def write(self, filename, **kwargs):
         ssg_cropped = self.get_structured_grid(**kwargs)
         ssg_cropped.save(filename)
+
+    def get_COM(self, array_name):
+        """
+        Get the center of mass of the array with the given name.
+        Parameters
+        ----------
+        array_name : str
+            name of the array to compute COM for
+        Returns
+        -------
+        tuple
+            center of mass coordinates
+        """
+        if array_name not in self.arrs:
+            raise ValueError(f'Array {array_name} not found')
+        arr = self.arrs[array_name]
+        # taking the abs of the array is assuming something.
+        masses = np.abs(arr).flatten().reshape(-1, 1)
+
+        com = (self.coords * masses).sum(axis=0) / masses.sum()
+        return com
 
 
 class Dir_viz(CXDViz):
@@ -95,8 +128,7 @@ class Dir_viz(CXDViz):
         -------
         constructed object
         """
-        super().__init__(geometry[1])       # Trecip, Tdir = geometry
-
+        super().__init__(geometry[1])  # Trecip, Tdir = geometry
 
     def init_ssg(self, shape):
         """
@@ -131,8 +163,7 @@ class Recip_viz(CXDViz):
         -------
         constructed object
         """
-        super().__init__(geometry[0])       # Trecip, Tdir = geometry
-
+        super().__init__(geometry[0])  # Trecip, Tdir = geometry
 
     def init_ssg(self, shape):
         """
@@ -276,7 +307,7 @@ def get_resolution_deconv(arr, thresh, max_iter=50, deconvdiffbreak=0.1):
     return res
 
 
-def make_image_viz(geometry, image, support, config_maps):
+def make_image_viz(geometry, image, support, config_maps, ds):
     # if it is important to log that some parameters are not configured, do it here
     viz_params = config_maps['config_disp']
     # smooth the image if rampups parameter is greater than 1
@@ -292,11 +323,43 @@ def make_image_viz(geometry, image, support, config_maps):
 
     if support is not None:
         viz.add_array("support", support)
+
     unwrap_phase = viz_params.get('unwrap', False)
     if unwrap_phase:
         from skimage import restoration
         unwrapped_phase = restoration.unwrap_phase(np.angle(image))
         viz.add_array("imPhUW", unwrapped_phase)
+    else:
+        unwrapped_phase = None
+
+    # in principle the displacement should be computed from the unwrapped phase.
+    # but one could also use the raw phase.  If there are no wraps it would be fine.
+    # maybe we need to provide a warning if the phase is not unwrapped.
+    # also, need the displacment field if strain is asked for, so switch on that param.
+    if viz_params.get('Bragg_displacement', None) is not None:
+        # convert phase to displacement
+        if viz_params['Bragg_displacement'] == 'Q':
+            myq = geometry[2]
+            d_spacing_on2pi = 1.0 / np.linalg.norm(myq)
+            ds['displacement (from Q)'] = d_spacing_on2pi * 2 * np.pi
+        if unwrapped_phase is not None:
+            displacementfield = unwrapped_phase * d_spacing_on2pi / 10.0  # convert to nanometers since coords are nm and derivative needs both to have same units
+        else:
+            displacementfield = np.angle(image) * d_spacing_on2pi / 10.0  # convert to nanometers
+
+        viz.add_array("Displacement", displacementfield)
+
+    if viz_params.get("compute_strain", False):
+        if 'Displacement' not in viz.arrs.keys():
+            raise ValueError(
+                f'Unable processing of strain with displacement not set. Activate the displacement in GUI or when running from command line, set Bragg_displacement parameter, exiting')
+
+        strainsg = viz.get_structured_grid(arrstoinclude=['Displacement']).compute_derivative(scalars='Displacement',
+                                                                                              gradient='DisplacementGradient')
+        myq = geometry[2]
+        disp_grad = np.dot(strainsg.point_data['DisplacementGradient'] / 10.0,
+                           myq)  # divide by 10 to convert from Angstrom to nm
+        viz.add_array('Qstrain', disp_grad)
 
     if 'crop_type' in viz_params:
         mode = viz_params['crop_type']
@@ -321,6 +384,16 @@ def make_image_viz(geometry, image, support, config_maps):
     return viz
 
 
+def make_geometry_vectors_viz(geometry, position=[0, 0, 0]):
+    Q = geometry[2]
+    ki = geometry[3]
+    kf = geometry[4]
+    usg = pv.UnstructuredGrid()
+    usg.points = [position, position, position]
+    usg.point_data['vectors'] = [Q, ki, kf]
+    return usg
+
+
 def make_recip_viz(geometry, data, ftim):
     viz = Recip_viz(geometry)
     viz.add_array("phasing_data", data)
@@ -337,7 +410,6 @@ def make_resolution_viz(geometry, arr, config_maps):
         thresh = viz_params['resolution_deconv_contrast']
         dir_resolution = get_resolution_deconv(arr, thresh)
         viz_d.add_array("resolution", dir_resolution)
-        res_ssg = viz_d.get_structured_grid()
 
         viz_r = Recip_viz(geometry)
         recip_resolution = ut.pad_center(dir_resolution, arr.shape)
@@ -368,8 +440,10 @@ def make_coherence_viz(geometry, coh, dirspace_shape):
 def get_resolution_prtf(viz, config_map):
     pass
 
+
 def get_image_res(sgrid, deconv_params):
     print(deconv_params)
+
 
 # I think yudong may have written something that combines this with the data_range.
 # need to look at those.  or at least make sure there is dims verification here.

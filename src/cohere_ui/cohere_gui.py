@@ -2806,6 +2806,7 @@ class interpolation(Feature):
             except: # it can be a text
                 conf_map['interpolation_resolution'] = str(self.interpolation_resolution.text())
 
+
 class resolution(Feature):
     """
     This class encapsulates resolution feature.
@@ -2949,7 +2950,151 @@ class reciprocal(Feature):
         -------
         nothing
         """
+        if self.active.isChecked():
+            conf_map['write_recip'] = True
+
+
+class strain(Feature):
+    """
+    This class encapsulates reciprocal feature.
+    """
+    def __init__(self):
+        super(strain, self).__init__()
+        self.id = 'strain'
+
+
+    def init_config(self, conf_map):
+        """
+        This function sets reciprocal feature's parameters to parameters in dictionary and displays in the window.
+        Parameters
+        ----------
+        conf_map : dict
+            contains parameters for reconstruction
+        Returns
+        -------
+        nothing
+        """
+        if 'compute_strain' in conf_map and conf_map['compute_strain']:
+            self.active.setChecked(True)
+        else:
+            self.active.setChecked(False)
+            return
+
+
+    def fill_active(self, layout):
+        """
+        This function displays the feature's parameters when the feature becomes active.
+        Parameters
+        ----------
+        layout : Layout widget
+            a layout with the feature
+        Returns
+        -------
+        nothing
+        """
         pass
+
+
+    def set_defaults(self):
+        """
+        This function sets reciprocal feature's parameters to hardcoded default values.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        pass
+
+
+    def add_feat_conf(self, conf_map):
+        """
+        This function adds reciprocal feature's parameters to dictionary.
+        Parameters
+        ----------
+        conf_map : dict
+            contains parameters for reconstruction
+        Returns
+        -------
+        nothing
+        """
+        if self.active.isChecked():
+            conf_map['compute_strain'] = True
+
+
+class displacement(Feature):
+    """
+    This class encapsulates interpolation feature.
+    """
+    def __init__(self):
+        super(displacement, self).__init__()
+        self.id = 'displacement'
+
+
+    def init_config(self, conf_map):
+        """
+        This function sets interpolation feature's parameters to parameters in dictionary and displays in the window.
+        Parameters
+        ----------
+        conf_map : dict
+            contains parameters for reconstruction
+        Returns
+        -------
+        nothing
+        """
+        if 'Bragg_displacement' in conf_map:
+            self.active.setChecked(True)
+            self.Bragg_displacement.setText(conf_map['Bragg_displacement'])
+            self.Bragg_displacement.setToolTip(
+                'Supported values: "Q"')
+        else:
+            self.active.setChecked(False)
+            return
+
+
+    def fill_active(self, layout):
+        """
+        This function displays the feature's parameters when the feature becomes active.
+        Parameters
+        ----------
+        layout : Layout widget
+            a layout with the feature
+        Returns
+        -------
+        nothing
+        """
+        self.Bragg_displacement = QLineEdit()
+        layout.addRow("Bragg_displacement", self.Bragg_displacement)
+        self.Bragg_displacement.setToolTip(
+            'Supported values: "Q"')
+
+    def set_defaults(self):
+        """
+        This function sets interpolation feature's parameters to hardcoded default values.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        self.Bragg_displacement.setText("Q")
+
+
+    def add_feat_conf(self, conf_map):
+        """
+        This function adds interpolation feature's parameters to dictionary.
+        Parameters
+        ----------
+        conf_map : dict
+            contains parameters for reconstruction
+        Returns
+        -------
+        nothing
+        """
+        if len(self.Bragg_displacement.text()) > 0:
+            conf_map['Bragg_displacement'] = str(self.Bragg_displacement.text())
 
 
 class Features(QWidget):
@@ -3024,11 +3169,13 @@ class DispTab(QWidget):
         self.complex_mode.addItem("ReIm")
         ulayout.addRow("complex mode", self.complex_mode)
 
-        feature_ids = ['crop', 'interpolation', 'resolution', 'reciprocal']
+        feature_ids = ['crop', 'interpolation', 'resolution', 'reciprocal', 'strain', 'displacement']
         feature_dir = {'crop' : crop(),
                        'interpolation' : interpolation(),
-                        'resolution' : resolution(),
-                        'reciprocal' : reciprocal(),
+                       'resolution' : resolution(),
+                       'reciprocal' : reciprocal(),
+                       'strain' : strain(),
+                       'displacement' : displacement(),
                         }
         self.dis_features = Features(self, mlayout, feature_ids, feature_dir)
 

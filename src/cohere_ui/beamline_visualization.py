@@ -38,13 +38,15 @@ import argparse
 import os
 import numpy as np
 from functools import partial
-from multiprocessing import Pool, cpu_count
+from multiprocessing import Pool, cpu_count, Queue
 import importlib
 import cohere_core.utilities as ut
 import cohere_ui.api.multipeak as mp
 import cohere_ui.api.common as com
 import cohere_ui.api.postprocess_utils as pu
-# import cohere_beamlines
+import pandas as pd
+from concurrent.futures import ProcessPoolExecutor
+
 
 def process_dir(config_maps, res_dir_scan):
     """
@@ -69,26 +71,22 @@ def process_dir(config_maps, res_dir_scan):
         instr_module = importlib.import_module(f'cohere_beamlines.{beamline}.instrument')
     except Exception as e:
         print(e)
-        print(f'cannot import cohere_beamlines.{beamline}.instrument module.')
         return (f'cannot import cohere_beamlines.{beamline}.instrument module.')
 
     instr_obj = instr_module.create_instr(config_maps)
     if instr_obj is None:
-        print ('cannot create instrument, check configuration, exiting')
-        return
+        return 'cannot create instrument, check configuration, exiting'
 
     # image file was checked in calling function
     imagefile = ut.join(res_dir, 'image.npy')
     try:
         image = np.load(imagefile)
     except:
-        print(f'cannot load file {imagefile}')
-        return
+        return f'cannot load file {imagefile}'
 
     # init variables
     support = None
     coh = None
-    #(res_viz_d, res_viz_r) = (None, None)
 
     supportfile = ut.join(res_dir, 'support.npy')
     if os.path.isfile(supportfile):
@@ -101,85 +99,103 @@ def process_dir(config_maps, res_dir_scan):
 
     viz_params = config_maps['config_disp']
     # get geometry
+    ds = {}
+    ds['res_dir'] = res_dir
     geometry = instr_obj.get_geometry(image.shape, scan, config_maps)
+    myq = geometry[2]
+    ki = geometry[3]
+    kf = geometry[4]
+    ds['Ki'] = ki
+    ds['Kf'] = kf
+    ds['Q'] = myq
 
     # This block of code creates vts file with arrays depending on the complex_mode.
     # If complex_mode is "AmpPhase" the following arrays are included: imAmp, imPh, support.
     # If complex_mode is "ReIm" the following arrays are included: imRe, imImag, support .
-    dir_viz = pu.make_image_viz(geometry, image, support, config_maps)
+    dir_viz = pu.make_image_viz(geometry, image, support, config_maps, ds)
     complex_mode = viz_params.get('complex_mode', 'AmpPhase')
     filename = ut.join(save_dir, f'direct_space_images_{complex_mode}.vts')
     dir_viz.write(filename, complex_mode=complex_mode)
     print(f'saved direct_space_images_{complex_mode}.vts file')
+
+    imcom = dir_viz.get_COM('im')
+    ds['image com'] = imcom
+    #output the vectors of the measurement in lab frame (ki, kf, Q=kf-ki)
+    #the Q is needed for the strain calc
+    vectorviz = pu.make_geometry_vectors_viz(geometry, position=imcom)
+    filename = ut.join(save_dir, f'KiKfQ.vtu')
+    vectorviz.save(filename, binary=False)
 
     res_viz_d, res_viz_r = None, None
     # If 'interpolation_mode' and 'interpolation_resolution' parameters are configured then
     # the image is interpolated. First the resolution is determined. It can be configured
     # or calculated depending on the 'interpolation_resolution' parameter.
     if 'interpolation_mode' in viz_params:
+        cont_interpolation = True
         if 'interpolation_resolution' not in viz_params:
-            print(f'interpolation_resolution parameter not configured, exiting')
-            return
+            print (f'interpolation_resolution parameter not configured, will not do interpolation')
+            cont_interpolation = False
 
         # Find the resolution, as it can be configured as a value or prompted to derive it if configured
         # to 'min_deconv_res'.
-        match viz_params['interpolation_resolution']:
-            case [*_]:
-                interpolation_resolution = viz_params['interpolation_resolution']
-            case int():
-                interpolation_resolution = viz_params['interpolation_resolution']
-            case float():
-                interpolation_resolution = viz_params['interpolation_resolution']
-            case 'min_deconv_res':
-                # Only direct resolution is needed for interpolation.
-                # If configured to determine resolution, get it here in direct and reciprocal spaces, otherwise
-                # get only direct space resolution to use for interpolation.
-                if 'determine_resolution_type' not in viz_params:
-                    raise ValueError(f'Unable processing of interpolation with resolution set to "min_deconv_res". Activate the resolution in GUI or when running from command line, set determine_resolution_type parameter, exiting')
-                res_viz_d, res_viz_r = pu.make_resolution_viz(geometry, np.abs(image), config_maps)
-                res_viz_d.write(ut.join(save_dir, "resolution_direct.vts"))
-                res_viz_r.write(ut.join(save_dir, "resolution_recip.vts"))
-                print('saved resolution_direct.vts and resolution_recip.vts files')
-                res_ssg = res_viz_d.get_structured_grid()
-                res_arr = res_ssg.point_data['resolution']
-                # because of [::-1] to get array indexing right the x axis in paraview is last axis in array.
-                res_arr.shape = res_ssg.dimensions[::-1]
-                res_bounds = pu.find_datarange(res_arr, 0, 0.5)
-                r1 = np.dot(geometry[1], [res_bounds[0] / res_arr.shape[0], 0, 0])
-                r2 = np.dot(geometry[1], [0, res_bounds[1] / res_arr.shape[1], 0])
-                r3 = np.dot(geometry[1], [0, 0, res_bounds[2] / res_arr.shape[2]])
-                # interpolate at half the smallest value.  Could make a param.
-                interpolation_resolution = min([np.linalg.norm(r1), np.linalg.norm(r2), np.linalg.norm(r3)]) / 2
-            case _:
-                print(f'not supported interpolation_resolution parameter value {viz_params["interpolation_resolution"]}, exiting')
-                return
+        if cont_interpolation:
+            match viz_params['interpolation_resolution']:
+                case [*_]:
+                    interpolation_resolution = viz_params['interpolation_resolution']
+                case int():
+                    interpolation_resolution = viz_params['interpolation_resolution']
+                case float():
+                    interpolation_resolution = viz_params['interpolation_resolution']
+                case 'min_deconv_res':
+                    # Only direct resolution is needed for interpolation.
+                    # If configured to determine resolution, get it here in direct and reciprocal spaces, otherwise
+                    # get only direct space resolution to use for interpolation.
+                    if 'determine_resolution_type' not in viz_params:
+                        raise ValueError(f'Unable processing of interpolation with resolution set to "min_deconv_res". Activate the resolution in GUI or when running from command line, set determine_resolution_type parameter, exiting')
+                    res_viz_d, res_viz_r = pu.make_resolution_viz(geometry, np.abs(image), config_maps)
+                    res_viz_d.write(ut.join(save_dir, "resolution_direct.vts"))
+                    res_viz_r.write(ut.join(save_dir, "resolution_recip.vts"))
+                    print('saved resolution_direct.vts and resolution_recip.vts files')
+                    res_ssg = res_viz_d.get_structured_grid()
+                    res_arr = res_ssg.point_data['resolution']
+                    # because of [::-1] to get array indexing right the x axis in paraview is last axis in array.
+                    res_arr.shape = res_ssg.dimensions[::-1]
+                    res_bounds = pu.find_datarange(res_arr, 0, 0.5)
+                    r1 = np.dot(geometry[1], [res_bounds[0] / res_arr.shape[0], 0, 0])
+                    r2 = np.dot(geometry[1], [0, res_bounds[1] / res_arr.shape[1], 0])
+                    r3 = np.dot(geometry[1], [0, 0, res_bounds[2] / res_arr.shape[2]])
+                    # interpolate at half the smallest value.  Could make a param.
+                    interpolation_resolution = min([np.linalg.norm(r1), np.linalg.norm(r2), np.linalg.norm(r3)]) / 2
+                case _:
+                    cont_interpolation = False
+                    print (f'not supported interpolation_resolution parameter value {viz_params["interpolation_resolution"]}, will not do interpolation')
 
-        interpolation_mode = viz_params['interpolation_mode']
-        sgrid = dir_viz.get_structured_grid(complex_mode=interpolation_mode)
-        interpolated_data = pu.interpolate(sgrid, interpolation_resolution)
-        print('no funct')
-        filename = ut.join(save_dir, f'direct_space_images_interpolated_{interpolation_mode}.vti')
-        match interpolation_mode:
-            case 'AmpPhase':
-                # In this mode the image amplitudes and phases are obtained from the grid and interpolated
-                # The imAmp and imPh arrays are then saved.
-                pass
-            case 'ReIm':
-                # In this mode the image amplitudes and phases are calculated from real and imaginary values
-                # obtained from the grid and then interpolated.
-                # The imAmp and imPh arrays are then saved.
-                interpolated_data.point_data['imAmp'] = np.abs(interpolated_data.point_data['imRe'] +
-                                                               1j * interpolated_data.point_data['imImag'])
-                interpolated_data.point_data['imPh'] = np.angle(interpolated_data.point_data['imRe'] +
-                                                               1j * interpolated_data.point_data['imImag'])
-            case _:
-                print(f'not supported interpolation_mode parameter value {viz_params["interpolation_mode"]}, exiting')
-                return
+        if cont_interpolation:
+            interpolation_mode = viz_params['interpolation_mode']
+            sgrid = dir_viz.get_structured_grid(complex_mode=interpolation_mode)
+            interpolated_data = pu.interpolate(sgrid, interpolation_resolution)
+            filename = ut.join(save_dir, f'direct_space_images_interpolated_{interpolation_mode}.vti')
+            match interpolation_mode:
+                case 'AmpPhase':
+                    # In this mode the image amplitudes and phases are obtained from the grid and interpolated
+                    # The imAmp and imPh arrays are then saved.
+                    pass
+                case 'ReIm':
+                    # In this mode the image amplitudes and phases are calculated from real and imaginary values
+                    # obtained from the grid and then interpolated.
+                    # The imAmp and imPh arrays are then saved.
+                    interpolated_data.point_data['imAmp'] = np.abs(interpolated_data.point_data['imRe'] +
+                                                                   1j * interpolated_data.point_data['imImag'])
+                    interpolated_data.point_data['imPh'] = np.angle(interpolated_data.point_data['imRe'] +
+                                                                   1j * interpolated_data.point_data['imImag'])
+                case _:
+                    cont_interpolation = False
+                    print (f'not supported interpolation_mode parameter value {viz_params["interpolation_mode"]}, will not do interpolation')
+            if cont_interpolation:
+                interpolated_data.save(filename)
+                print(f'saved direct_space_images_interpolated_{interpolation_mode}.vti file')
 
-        interpolated_data.save(filename)
-        print(f'saved direct_space_images_interpolated_{interpolation_mode}.vti file')
-
-        del dir_viz
+    del dir_viz
 
     if 'determine_resolution_type' in viz_params:
         if res_viz_d is None: # otherwise it was saved during interpolation
@@ -209,14 +225,13 @@ def process_dir(config_maps, res_dir_scan):
 
     cohfile = ut.join(res_dir, 'coherence.npy')
     if os.path.isfile(cohfile):
-        try:
-            coh = np.load(cohfile)
-            (viz_d, viz_r) = pu.make_coherence_viz(geometry, coh, image.shape)
-            viz_d.write(ut.join(save_dir, "direct_space_coherence.vts"))
-            viz_r.write(ut.join(save_dir, "recip_space_coherence.vts"))
-            prinr('saved direct_space_coherence.vts and recip_space_coherence.vts files')
-        except:
-            raise
+        coh = np.load(cohfile)
+        (viz_d, viz_r) = pu.make_coherence_viz(geometry, coh, image.shape)
+        viz_d.write(ut.join(save_dir, "direct_space_coherence.vts"))
+        viz_r.write(ut.join(save_dir, "recip_space_coherence.vts"))
+        print('saved direct_space_coherence.vts and recip_space_coherence.vts files')
+
+    return ds
 
 
 def handle_visualization(experiment_dir, **kwargs):
@@ -258,14 +273,7 @@ def handle_visualization(experiment_dir, **kwargs):
             if not os.path.isdir(results_dir):
                 print(f'the configured results_dir: {results_dir} does not exist')
                 return(f'the configured results_dir: {results_dir} does not exist')
-        # elif separate:
-        #     results_dir = experiment_dir
-        # elif rec_id is not None:
-        #     results_dir = ut.join(experiment_dir, f'results_phasing_{kwargs["rec_id"]}')
         else:
-            # if not configured, set the result_dir to experiment_dir
-            # the code will find all directories with 'image,npy' file and will
-            # process each of these directories
             results_dir = ut.join(experiment_dir, 'results_phasing')
 
         # find directories with image.npy file in the root of results_dir
@@ -297,17 +305,18 @@ def handle_visualization(experiment_dir, **kwargs):
             scans_dirs = [[last_scan, dir] for dir in scandirs]
 
         if len(scans_dirs) == 1:
-            process_dir(conf_maps, scans_dirs[0])
+            result = [process_dir(conf_maps, scans_dirs[0])]
         else:
             func = partial(process_dir, conf_maps)
-            # TODO account for available memory when calculating number of processes
-            # Currently the code will hung if not enough memory
-            # Work around is to lower no_proc
             no_proc = min(cpu_count(), len(scandirs))
-            with Pool(processes = no_proc) as pool:
-               pool.map_async(func, scans_dirs)
-               pool.close()
-               pool.join()
+            with ProcessPoolExecutor(max_workers=no_proc) as exe:
+                # Maps the function with a iterable
+                result = exe.map(func, scans_dirs)
+
+        res = [r for r in result]
+        df = pd.DataFrame(res)
+        df.to_excel(ut.join(experiment_dir, 'visualization_results.xlsx'), index=False)
+
     print ('done with processing display')
     return ''
 
