@@ -336,12 +336,19 @@ def make_image_viz(geometry, image, support, config_maps, ds):
     # but one could also use the raw phase.  If there are no wraps it would be fine.
     # maybe we need to provide a warning if the phase is not unwrapped.
     # also, need the displacment field if strain is asked for, so switch on that param.
-    if viz_params.get('Bragg_displacement', None) is not None:
+    displacement = viz_params.get('Bragg_displacement', None)
+    if displacement is not None:
+        if isinstance(displacement, float):
+            d_spacing_on2pi = displacement
+            ds['displacement'] = displacement
         # convert phase to displacement
-        if viz_params['Bragg_displacement'] == 'Q':
+        elif displacement == 'Q':
             myq = geometry[2]
             d_spacing_on2pi = 1.0 / np.linalg.norm(myq)
             ds['displacement (from Q)'] = d_spacing_on2pi * 2 * np.pi
+        else:
+            msg = f'Bragg_displacement parameter should be "Q" or float. Value of "{displacement}" is not supported'
+            raise ValueError(msg)
         if unwrapped_phase is not None:
             displacementfield = unwrapped_phase * d_spacing_on2pi / 10.0  # convert to nanometers since coords are nm and derivative needs both to have same units
         else:

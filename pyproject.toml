@@ -26,6 +26,8 @@ dependencies = [
                 'scipy==1.14.1',
                 'notebook',
                 'gputil',
+                'pandas',
+                'openpyxl',
                 ]
 
 [project.scripts]

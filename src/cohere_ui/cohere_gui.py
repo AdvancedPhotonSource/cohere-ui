@@ -3045,9 +3045,9 @@ class displacement(Feature):
         """
         if 'Bragg_displacement' in conf_map:
             self.active.setChecked(True)
-            self.Bragg_displacement.setText(conf_map['Bragg_displacement'])
+            self.Bragg_displacement.setText(str(conf_map['Bragg_displacement']))
             self.Bragg_displacement.setToolTip(
-                'Supported values: "Q"')
+                'Supported values: "Q", float number')
         else:
             self.active.setChecked(False)
             return
@@ -3094,7 +3094,10 @@ class displacement(Feature):
         nothing
         """
         if len(self.Bragg_displacement.text()) > 0:
-            conf_map['Bragg_displacement'] = str(self.Bragg_displacement.text())
+            try:
+                conf_map['Bragg_displacement'] = ast.literal_eval(str(self.Bragg_displacement.text()))
+            except:
+                conf_map['Bragg_displacement'] = str(self.Bragg_displacement.text())
 
 
 class Features(QWidget):

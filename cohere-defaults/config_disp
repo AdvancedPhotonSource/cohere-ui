@@ -69,4 +69,19 @@ write_recip = True
                            // If True the reciprocal_space.vts file will be saved with arrays of
                            // phasing data and inverse fourier of that data
 
+
+Bragg_displacement = "Q"
+                           // If configured the vts file with image will also include displacement array.
+                           // Currently supporting a float value and "Q", where the Q vector from the diffractometer
+                           // is used for the projection of the derivative of displacement field.
+
+compute strain = True
+                           // If True the vts file with image will also include strain. For this to work
+                           // the Bragg_displacement parameter has to be configured.
+
+::
+
+    compute strain = True
+
 #determine_resolution="prtf"  #needs many reconstructions isn't done yet
+

@@ -38,7 +38,7 @@ import argparse
 import os
 import numpy as np
 from functools import partial
-from multiprocessing import Pool, cpu_count, Queue
+from multiprocessing import cpu_count
 import importlib
 import cohere_core.utilities as ut
 import cohere_ui.api.multipeak as mp
