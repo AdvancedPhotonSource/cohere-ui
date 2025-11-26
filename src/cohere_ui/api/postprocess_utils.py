@@ -141,7 +141,11 @@ class Dir_viz(CXDViz):
         -------
         nothing
         """
-        q = np.mgrid[0: 1: 1.0 / shape[0], 0: 1: 1.0 / shape[1], 0: 1: 1.0 / shape[2]]
+        #q = np.mgrid[0: 1: 1.0 / shape[0], 0: 1: 1.0 / shape[1], 0: 1: 1.0 / shape[2]]
+        # used to be like above but for size 98 it creates q vector of size 99 in this dimension.
+        # the hack of not reaching 1 by substructing 1% of step "fixed" it
+
+        q = np.mgrid[0: 1-1.0 / shape[0]/100: 1.0 / shape[0], 0: 1-1.0 / shape[0]/100: 1.0 / shape[1], 0: 1-1.0 / shape[0]/100: 1.0 / shape[2]]
         q.shape = 3, shape[0] * shape[1] * shape[2]
 
         self.coords = np.dot(self.T, q).transpose()
