@@ -138,15 +138,15 @@ def reconstruction_single(pkg, conf_file, datafile, dir, dev, **kwargs):
 
     worker = rec.create_rec(pars, datafile, pkg, device, **kwargs)
     if worker is None:
-        print('Could not create Rec object, check config_rec parameters.')
         return 'Could not create Rec object, check config_rec parameters.'
 
     ret_code = worker.iterate()
     if ret_code < 0:
-        print ('reconstruction failed during iterations')
         return 'reconstruction failed during iterations'
 
     worker.save_res(save_dir)
+
+    return ''
 
 
 def process_scan_range(ga_method, pkg, conf_file, datafile, dir, picked_devs, hostfile=None, q=None, debug=None):
@@ -164,7 +164,7 @@ def process_scan_range(ga_method, pkg, conf_file, datafile, dir, picked_devs, ho
         hostfile : name of hostfile if cluster configuration was used
     """
     if len(picked_devs) == 1:
-        reconstruction_single(pkg, conf_file, datafile, dir, picked_devs, debug=debug)
+        return reconstruction_single(pkg, conf_file, datafile, dir, picked_devs, debug=debug)
     elif ga_method is None:
         reconstruction_populous.reconstruction(pkg, conf_file, datafile, dir, picked_devs)
     elif ga_method == 'ga_fast':
@@ -199,10 +199,12 @@ def manage_reconstruction(experiment_dir, **kwargs):
     # check the maps
     rec_id = kwargs.pop('rec_id', None)
     if 'config_rec' not in conf_maps.keys():
+        print('exiting')
         con = 'config_rec'
         if rec_id is not None:
             con = f'{con}_{rec_id}'
-        raise ValueError (f'missing {con} file, exiting')
+        msg = f'missing {con} file, exiting'
+        raise FileNotFoundError (msg)
     main_config_map = conf_maps['config']
     rec_config_map = conf_maps['config_rec']
 
@@ -252,7 +254,8 @@ def manage_reconstruction(experiment_dir, **kwargs):
 
     no_scan_ranges = len(exp_dirs_data)
     if no_scan_ranges == 0:
-        raise ValueError('did not find data.tif file(s) for phasing. ')
+        print ('exiting, data files not found')
+        raise FileNotFoundError('did not find data.tif file(s) for phasing. ')
 
     if rec_id is None:
         conf_file = ut.join(experiment_dir, 'conf', 'config_rec')
@@ -278,9 +281,11 @@ def manage_reconstruction(experiment_dir, **kwargs):
             return
 
         dev = [rec_config_map['device'][0]]
-        reconstruction_single(pkg, conf_file, datafile, dir, dev, **kwargs)
-
-        print('finished reconstruction')
+        msg = reconstruction_single(pkg, conf_file, datafile, dir, dev, **kwargs)
+        if len(msg) == 0:
+            print('finished reconstruction')
+        else:
+            print('exiting ' + msg)
         return
 
     hostfile = None
@@ -303,6 +308,7 @@ def manage_reconstruction(experiment_dir, **kwargs):
 
     # if fast_ga and there is not enough available devices, exit
     if ga_method == 'ga_fast' and avail_jobs < want_dev_no:
+        print('exiting')
         raise ValueError(f'requested {want_dev_no} reconstructions but only {avail_jobs} is available')
 
     if no_scan_ranges == 1:

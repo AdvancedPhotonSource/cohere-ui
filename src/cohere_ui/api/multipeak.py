@@ -18,6 +18,7 @@ __all__ = ['calc_geometry',
            'twin_matrix',
            'center_mp',
            'write_vti',
+           'preprocess',
            'process_dir']
 
 import os
@@ -30,7 +31,7 @@ import scipy.ndimage as ndi
 from scipy.spatial.transform import Rotation as R
 import cohere_core.utilities as ut
 import cohere_core.controller.phasing as calc
-
+import cohere_ui.api.preprocessor as preprocessor
 
 
 def calc_geometry(instr_obj, shape, scan, conf_maps, o_twin):
@@ -130,8 +131,13 @@ def twin_matrix(hklin, hklout, twin_plane, sample_axis):
     return R.from_rotvec(vec * -theta).as_matrix()
 
 
-def preprocess(preprocessor, instr_obj, scans_dirs, experiment_dir, conf_maps):
+def preprocess(instr_obj, scans_dirs, experiment_dir, conf_maps):
     mp_conf_map = conf_maps['config_mp']
+    if 'config_prep' in conf_maps:
+        remove_outliers = conf_maps['config_prep'].get('remove_outliers', False)
+    else:
+        remove_outliers = False
+
     try:
         o_twin = twin_matrix(mp_conf_map.get('hkl_in'),
                              mp_conf_map.get('hkl_out'),
@@ -160,11 +166,14 @@ def preprocess(preprocessor, instr_obj, scans_dirs, experiment_dir, conf_maps):
     ut.write_config(mp_conf_map, ut.join(experiment_dir, 'conf', 'config_mp'))
 
     # run preprocessor for each batch (data set related to peak)
-    processes = []
+    outliers = []
     conf_scans = [s.strip() for s in mp_conf_map.get('scan').split(',')]
     for i, batch in enumerate(scans_dirs):
-        dirs = batch[0]
-        scans = batch[1]
+        orientation = "".join(f"{o}" for o in mp_conf_map.get('orientations')[i])
+        save_dir = ut.join(experiment_dir, f'mp_{conf_scans[i]}_{orientation}')
+        if not Path(save_dir).exists():
+            Path(save_dir).mkdir()
+        outliers.extend(preprocessor.process_batch(instr_obj.get_scan_array, batch, save_dir, False, remove_outliers))
         geometry = {
             "peak_hkl": mp_conf_map.get('orientations')[i],
             "rmatrix": batches_B_recipes[i].tolist(),
@@ -173,20 +182,21 @@ def preprocess(preprocessor, instr_obj, scans_dirs, experiment_dir, conf_maps):
             "ds_voxel_size": ds_voxel_size,
             "final_size": mp_conf_map.get('final_size')
         }
-        orientation = "".join(f"{o}" for o in geometry["peak_hkl"])
-        save_dir = ut.join(experiment_dir, f'mp_{conf_scans[i]}_{orientation}')
-        if not Path(save_dir).exists():
-            Path(save_dir).mkdir()
+        # orientation = "".join(f"{o}" for o in geometry["peak_hkl"])
+        # save_dir = ut.join(experiment_dir, f'mp_{conf_scans[i]}_{orientation}')
+        # if not Path(save_dir).exists():
+        #     Path(save_dir).mkdir()
         ut.write_config(geometry, ut.join(save_dir, 'geometry'))
 
-        p = Process(target=preprocessor.process_batch_mp,
-                    args=(instr_obj.get_scan_array, batch, save_dir)
-                    )
-        p.start()
-        processes.append(p)
-
-    for p in processes:
-        p.join()
+        # p = Process(target=preprocessor.process_batch_mp,
+        #             args=(instr_obj.get_scan_array, batch, save_dir)
+        #             )
+    #     p.start()
+    #     processes.append(p)
+    #
+    # for p in processes:
+    #     p.join()
+    return outliers
 
 
 def center_mp(image, support):

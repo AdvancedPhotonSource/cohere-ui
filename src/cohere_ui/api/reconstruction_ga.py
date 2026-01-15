@@ -88,7 +88,6 @@ def write_log(logfile, msg):
     """
     with open(logfile, 'a') as log_f:
         log_f.write(f'{msg}\n')
-        #log_f.write(f'{datetime.datetime.now()} | {msg}\n')
 
 
 def reconstruction(pkg, conf_file, datafile, dir, devices, log_file, hpc=False):
@@ -244,7 +243,6 @@ def reconstruction(pkg, conf_file, datafile, dir, devices, log_file, hpc=False):
 
             # cull
             culled_proc_ranks = cull(proc_ranks, pars['ga_reconstructions'][g])
-            no_active = len(culled_proc_ranks)
 
             # if previous alpha was better, insert -1, so no rank will match
             if last_alpha_best:
@@ -255,7 +253,6 @@ def reconstruction(pkg, conf_file, datafile, dir, devices, log_file, hpc=False):
                 if r != 0:
                     comm.send(culled_proc_ranks, dest=r)
 
-            alpha_rank = max(0, culled_proc_ranks[0])
         else:  # rank not 0
             culled_proc_ranks = comm.recv(source=0)
             if rank not in culled_proc_ranks:

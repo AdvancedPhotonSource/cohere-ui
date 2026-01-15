@@ -519,6 +519,8 @@ class Tabs(QTabWidget):
             prep.handle_prep(self.main_win.experiment_dir, no_verify=self.main_win.no_verify)
         except ValueError as e:
             msg_window(str(e))
+        except FileNotFoundError as e:
+            msg_window('FileNotFoundError: ' + str(e))
         except KeyError as e:
             msg_window('KeyError: ' + str(e))
 
@@ -529,7 +531,9 @@ class Tabs(QTabWidget):
         try:
             dp.handle_visualization(self.main_win.experiment_dir, no_verify=self.main_win.no_verify)
         except ValueError as e:
-            msg_window(str(e))
+            msg_window('ValueError: ' + str(e))
+        except FileNotFoundError as e:
+            msg_window('FileNotFoundError: ' + str(e))
         except KeyError as e:
             msg_window('KeyError: ' + str(e))
 
@@ -725,10 +729,10 @@ class PrepTab(QWidget):
             msg_window(str(e))
             return
 
-        # reload the window if remove_outliers as the outliers_scans could change
-        if 'remove_outliers' in conf_map and conf_map['remove_outliers']:
-            prep_map = ut.read_config(ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
-            self.load_tab(prep_map)
+        # reload the window
+        prep_map = ut.read_config(ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
+        self.clear_conf()
+        self.load_tab(prep_map)
 
 
     def save_conf(self):
@@ -2783,7 +2787,7 @@ class interpolation(Feature):
         -------
         nothing
         """
-        self.interpolation_mode.setText("AmpPhase")
+        self.interpolation_mode.setText("ReIm")
         self.interpolation_resolution.setText("min_deconv_res")
 
 

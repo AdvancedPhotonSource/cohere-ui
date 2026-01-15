@@ -11,6 +11,7 @@ cohere_core.reconstruction_GA
 This module controls a reconstructions using genetic algorithm (GA).
 Refer to cohere_core-ui suite for use cases. The reconstruction can be started from GUI x or using command line scripts x.
 """
+import time
 
 import numpy as np
 import os
@@ -183,6 +184,7 @@ def reconstruction(pkg, conf_file, datafile, dir, devices):
     q = Queue()
     prev_dirs = tracing.init_dirs
     tracing.set_map({i:i for i in range(len(prev_dirs))})
+    start_time = time.time()
     for g in range(pars['ga_generations']):
         # delete previous-previous generation
         if g > 1:
@@ -242,8 +244,9 @@ def reconstruction(pkg, conf_file, datafile, dir, devices):
     shutil.rmtree(ut.join(save_dir, 'g_' + str(pars['ga_generations'] - 1)))
 
     tracing.save(save_dir)
+    stop_time = time.time()
 
-    print('done gen')
+    print(f'done gen, took {stop_time - start_time} seconds')
 
 
 def main():

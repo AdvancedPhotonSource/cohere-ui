@@ -28,6 +28,7 @@ dependencies = [
                 'gputil',
                 'pandas',
                 'openpyxl',
+                'xlsxwriter'
                 ]
 
 [project.scripts]

@@ -51,6 +51,7 @@ def format_data(experiment_dir, **kwargs):
     conf_list = ['config_data', 'config_rec']
     conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, **kwargs)
     if 'config_data' not in conf_maps: # not possible to get intensity threshold
+        print('exiting')
         msg = 'Missing config_data file, cannot determine intensity threshold.'
         raise ValueError(msg)
 

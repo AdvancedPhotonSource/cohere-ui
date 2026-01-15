@@ -47,7 +47,6 @@ def create_conf_main(conf_dir, working_dir, id, scan, beamline):
     conf_map['scan'] = scan
     conf_map['beamline'] = beamline
     conf_map['converter_ver'] = 1
-    conf_map['auto_data'] = True
     # TODO in the future it will support separate scans, separate scan ranges, multipeak experiments as well
     write_config(conf_map, conf_dir + '/config')
 

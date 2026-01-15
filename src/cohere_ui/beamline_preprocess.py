@@ -31,10 +31,9 @@ __all__ = ['handle_prep',
            'main']
 
 import argparse
-from multiprocessing import Process
 import importlib
 import cohere_core.utilities as ut
-import cohere_ui.api.auto_data as ad
+import cohere_ui.api.preprocessor as preprocessor
 import cohere_ui.api.common as com
 import cohere_ui.api.multipeak as mp
 
@@ -59,27 +58,25 @@ def handle_prep(experiment_dir, **kwargs):
 
     # check the maps
     if 'config_instr' not in conf_maps.keys():
-        return 'missing config_instr file, exiting'
+        print('exiting pre-processing')
+        raise FileNotFoundError ('missing config_instr file, exiting')
     if 'config_prep' not in conf_maps.keys():
         print('info: no config_prep file, continuing')
-        exclude_scans = None
         remove_outliers = False
     else:
-        exclude_scans = conf_maps['config_prep'].get('exclude_scans', None)
         remove_outliers = conf_maps['config_prep'].get('remove_outliers', False)
 
     main_conf_map = conf_maps['config']
 
     # checked already if beamline is configured
     beamline = main_conf_map['beamline']
-    instr_module = importlib.import_module(f'cohere_beamlines.{beamline}.instrument')
-    preprocessor = importlib.import_module(f'cohere_beamlines.{beamline}.preprocessor')
-
-    # # combine parameters from the above configuration files into one dictionary
-    # all_params = {k:v for d in conf_maps.values() for k,v in d.items()}
-
-    need_detector = True # need to create for preprocessing
-    instr_obj = instr_module.create_instr(conf_maps, need_detector=need_detector)
+    try:
+        instr_module = importlib.import_module(f'cohere_beamlines.{beamline}.instrument')
+        need_detector = True # need to create for preprocessing
+        instr_obj = instr_module.create_instr(conf_maps, need_detector=need_detector)
+    except Exception as ex:
+        print('exiting pre-processing')
+        raise ex
 
     # get the settings from config
     separate_scans = main_conf_map.get('separate_scans', False)
@@ -100,32 +97,9 @@ def handle_prep(experiment_dir, **kwargs):
 
     if sum(len(inner_list) for inner_list in scans_datainfo) == 0:
         print('no data found for scans, exiting')
-        return
+        return 'no data found for scans, exiting'
 
-    # remove exclude_scans from the scans_dirs
-    if exclude_scans is not None:
-        scans_datainfo = [[s_d for s_d in batch if s_d[0] not in exclude_scans] for batch in scans_datainfo]
-
-    if sum(len(inner_list) for inner_list in scans_datainfo) == 0:
-        print('no data left after excluding scans, exiting')
-        return
-
-    # remove_outliers should not be configured for separate scans
-    if remove_outliers and not separate_scans:
-        prep_conf_map = conf_maps.get('config_prep', {})
-        # get all (scan, data info) tuples, process each scan and save the data in scans directories.
-        single_scans_datainfo = [s_d for batch in scans_datainfo for s_d in batch]
-        # passing in lambda: instr_obj.get_scan_array as the function is instrument dependent
-        preprocessor.process_separate_scans(instr_obj.get_scan_array, single_scans_datainfo, experiment_dir)
-
-        outliers_scans = ad.find_outlier_scans(experiment_dir, scans_datainfo, separate_scan_ranges or multipeak)
-        if len(outliers_scans) > 0:
-            # remove outliers_scans from the scans_dirs
-            scans_datainfo = [[s_d for s_d in batch if s_d[0] not in outliers_scans] for batch in scans_datainfo]
-        # save configuration with the auto found outliers. Save even if no outliers found to show it.
-        prep_conf_map['outliers_scans'] = outliers_scans
-        ut.write_config(prep_conf_map, ut.join(experiment_dir, 'conf', 'config_prep'))
-
+    outliers = []
     if separate_scans:
         # get all (scan, data info) tuples, process each scan and save the data in scans directories.
         single_scans_datainfo = [s_d for batch in scans_datainfo for s_d in batch]
@@ -133,20 +107,24 @@ def handle_prep(experiment_dir, **kwargs):
         preprocessor.process_separate_scans(instr_obj.get_scan_array, single_scans_datainfo, experiment_dir)
     elif separate_scan_ranges:
         # combine scans within ranges, save the data in scan ranges directories.
-        processes = []
         for batch in scans_datainfo:
-            p = Process(target=preprocessor.process_batch,
-                        args=(instr_obj.get_scan_array, batch, experiment_dir, separate_scan_ranges))
-            p.start()
-            processes.append(p)
-        for p in processes:
-            p.join()
+            outliers.extend(preprocessor.process_batch(instr_obj.get_scan_array, batch, experiment_dir, separate_scan_ranges, remove_outliers))
     elif multipeak:
-        mp.preprocess(preprocessor, instr_obj, scans_datainfo, experiment_dir, conf_maps)
+        outliers = mp.preprocess(instr_obj, scans_datainfo, experiment_dir, conf_maps)
     else:
         # combine all scans
         scans_datainfo = [e for batch in scans_datainfo for e in batch]
-        preprocessor.process_batch(instr_obj.get_scan_array, scans_datainfo, experiment_dir, separate_scan_ranges)
+        outliers = preprocessor.process_batch(instr_obj.get_scan_array, scans_datainfo, experiment_dir, separate_scan_ranges, remove_outliers)
+
+    # save configuration with the auto found outliers. Save even if no outliers found to show it.
+    if 'config_prep' in conf_maps.keys():
+        prep_conf_map = conf_maps['config_prep']
+        if len(outliers) > 0:
+            prep_conf_map['outliers_scans'] = outliers
+        elif 'outliers_scans' in conf_maps['config_prep'].keys():
+                # remove the outlies param
+                conf_maps['config_prep'].pop('outliers_scans')
+        ut.write_config(prep_conf_map, ut.join(experiment_dir, 'conf', 'config_prep'))
 
     print('finished beamline preprocessing')
     return ''

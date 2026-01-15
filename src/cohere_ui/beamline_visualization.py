@@ -69,20 +69,14 @@ def process_dir(config_maps, res_dir_scan):
     beamline = config_map["beamline"]
     try:
         instr_module = importlib.import_module(f'cohere_beamlines.{beamline}.instrument')
-    except Exception as e:
-        print(e)
-        return (f'cannot import cohere_beamlines.{beamline}.instrument module.')
-
-    instr_obj = instr_module.create_instr(config_maps)
-    if instr_obj is None:
-        return 'cannot create instrument, check configuration, exiting'
+        instr_obj = instr_module.create_instr(config_maps)
+    except Exception as ex:
+        print('exiting post-processing')
+        raise ex
 
     # image file was checked in calling function
     imagefile = ut.join(res_dir, 'image.npy')
-    try:
-        image = np.load(imagefile)
-    except:
-        return f'cannot load file {imagefile}'
+    image = np.load(imagefile)
 
     # init variables
     support = None
@@ -245,15 +239,17 @@ def handle_visualization(experiment_dir, **kwargs):
         no_verify : boolean switch to determine if the verification error throws exception
         rec_id : reconstruction id, pointing to alternate config
     """
-    print ('starting visualization process')
+    print ('starting post-processing')
 
     conf_list = ['config_disp', 'config_instr', 'config_data', 'config_mp']
     conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, **kwargs)
 
     if 'config_disp' not in conf_maps.keys():
-        print('missing config_disp file')
+        print('exiting post-processing')
+        raise FileNotFoundError('missing config_disp file, exiting')
     if 'config_instr' not in conf_maps.keys():
-        return 'missing config_instr file, exiting'
+        print('exiting post-processing')
+        raise FileNotFoundError('missing config_instr file, exiting')
     if 'config_data' not in conf_maps.keys():
         print('no config_data file')
 
@@ -271,8 +267,8 @@ def handle_visualization(experiment_dir, **kwargs):
             if separate and results_dir != experiment_dir:
                 print(f'Verify the results_directory. Currently set to {results_dir}')
             if not os.path.isdir(results_dir):
-                print(f'the configured results_dir: {results_dir} does not exist')
-                return(f'the configured results_dir: {results_dir} does not exist')
+                msg = f'the configured results_dir: {results_dir} does not exist'
+                raise FileNotFoundError(msg)
         else:
             results_dir = ut.join(experiment_dir, 'results_phasing')
 
@@ -283,8 +279,9 @@ def handle_visualization(experiment_dir, **kwargs):
                 if file.endswith('image.npy'):
                     scandirs.append((dirpath).replace(os.sep, '/'))
         if len(scandirs) == 0:
-            print (f'no image.npy files found in the directory tree {results_dir}')
-            return (f'no image.npy files found in the directory tree {results_dir}')
+            print('exiting post-processing')
+            msg = f'no image.npy files found in the directory tree {results_dir}'
+            raise FileNotFoundError(msg)
 
         scans_dirs = []
         if separate:
