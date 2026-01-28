@@ -52,14 +52,14 @@ def process_batch(get_scan_func, scans_infos, experiment_dir, separate_scan_rang
     # if more scans find correlation
     n = len(scans_infos)
     pkg = 'np'
-    try:
-        import cupy as cp
-        pkg = 'cp'
-        # TODO
-        # Hard coded for now, need to find formula
-        no_proc = 10
-    except:
-        no_proc = min(os.cpu_count(), n * n)
+    # try:
+    #     import cupy as cp
+    #     pkg = 'cp'
+    #     # TODO
+    #     # Hard coded for now, need to find formula
+    #     no_proc = 10
+    # except:
+    #     no_proc = min(os.cpu_count(), n * n)
     set_lib_from_pkg(pkg)
 
     scans, info = zip(*scans_infos)
@@ -73,6 +73,7 @@ def process_batch(get_scan_func, scans_infos, experiment_dir, separate_scan_rang
 
     pairs = [(i,j) for i in list(range(n)) for j in list(range(n))]
     func = partial(get_corr, normalized_arrays, cc_shift_dict, scans)
+    no_proc = min(os.cpu_count(), n * n)
     with ThreadPoolExecutor(max_workers=no_proc) as exe:
         exe.map(func, pairs)
 
