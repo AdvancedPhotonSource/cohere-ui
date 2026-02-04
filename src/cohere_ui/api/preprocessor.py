@@ -47,9 +47,21 @@ def process_batch(get_scan_func, scans_infos, experiment_dir, separate_scan_rang
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
         ut.save_tif(arr, ut.join(save_dir, 'prep_data.tif'))
+        # save info of arrays being added, such as max intensity and index of max intensity
+        set_lib_from_pkg('np')
+        max_ind = devlib.unravel_index(devlib.argmax(arr), arr.shape)
+        frame = pd.DataFrame([ {'scan' : scans_infos[0][0],
+                                'max ind (x)' : max_ind[0],
+                                'max ind (y)' : max_ind[1],
+                                'max ind frame' : max_ind[2],
+                                'max intensity' : devlib.amax(arr)} ])
+        with pd.ExcelWriter(ut.join(save_dir, 'preprocess.xlsx'), engine='xlsxwriter') as writer:
+            frame.to_excel(writer, sheet_name='testSheetJ', startrow=1, startcol=0, index=False)
+        print('preprocessed data shape ', arr.shape)
+
         return []
 
-    # if more scans find correlation
+    # if more scans find correlation between them
     n = len(scans_infos)
     pkg = 'np'
     # try:
@@ -130,9 +142,12 @@ def process_batch(get_scan_func, scans_infos, experiment_dir, separate_scan_rang
         frame1 = None
 
     # save info of arrays being added, such as max intensity and index of max intensity
+    max_ind = [devlib.unravel_index(devlib.argmax(arr), arr.shape) for arr in arrays]
     frame2 = pd.DataFrame([{'scan' : scans[i],
-                            'max intensity' : devlib.amax(arrays[i]),
-                            'max intensity indx' : devlib.unravel_index(devlib.argmax(arrays[i]), shape)}
+                            'max ind (x)' : max_ind[i][0],
+                            'max ind (y)' : max_ind[i][1],
+                            'max ind frame' : max_ind[i][2],
+                            'max intensity' : devlib.amax(arrays[i])} 
                            for i in range(len(scans))])
 
     # save relation to the first scan, such as shift and cross correlation
@@ -152,6 +167,7 @@ def process_batch(get_scan_func, scans_infos, experiment_dir, separate_scan_rang
         os.makedirs(save_dir)
     ut.save_tif(sum_arr, ut.join(save_dir, 'prep_data.tif'))
 
+    print('preprocessed data shape ', sum_arr.shape)
     return outliers
 
 
