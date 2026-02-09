@@ -30,6 +30,47 @@ def set_lib_from_pkg(pkg):
     dvut.set_lib_from_pkg(pkg)
 
 
+def get_max_crop_slice(data, max_crop):
+    """
+    Crops the data to the size of max_crop with the maximum in the center.
+
+    The max_crop defines x and y axes (frame). The z axis is not changed.
+    If the maximum value is closer to the edge of the frame than the half of max_crop, then the output
+    array is smaller than max_crop.
+    If the max value is a bad pixel, the bad pixel is set to 0 across all frames.
+    To determine bad pixel the code checks neighbour values, and if both across x axis or both across y axis
+    are 0, it is then bad pixel.
+
+    :param data:
+    :param max_crop:
+    :return:
+    """
+    if max_crop is not None:
+        def isOnedge(maxindx):
+            if maxindx[0] == 0 or maxindx[0] == data.shape[0] - 1:
+                return True
+            if maxindx[1] == 0 or maxindx[1] == data.shape[1] - 1:
+                return True
+            return False
+
+        # check if the max value is bad pixel. If so zero it and get the next max value.
+        maxindx = np.unravel_index(data.argmax(), data.shape)
+        while (isOnedge(maxindx) or
+               data[maxindx[0] + 1, maxindx[1], maxindx[2]] == 0
+               and data[maxindx[0] - 1, maxindx[1], maxindx[2]] == 0
+               or data[maxindx[0], maxindx[1] + 1, maxindx[2]] == 0
+               and data[maxindx[0], maxindx[1] - 1, maxindx[2]] == 0):
+            # zero out bad point in all frames
+            data[maxindx[0], maxindx[1], :] = 0.0
+            maxindx = np.unravel_index(data.argmax(), data.shape)
+
+        mc0 = max_crop[0] // 2
+        mc1 = max_crop[1] // 2
+        cropslice0 = slice(max(0, maxindx[0] - mc0), min(maxindx[0] + mc0, data.shape[0]))
+        cropslice1 = slice(max(0, maxindx[1] - mc1), min(maxindx[1] + mc1, data.shape[1]))
+        return data[cropslice0, cropslice1, :]
+
+
 def get_corr(arrays, cc_shift_dict, scans, pair):
     (i,j) = pair
     cc_shift_dict[scans[i]][scans[j]] = dvut.get_ccamax_cc(arrays[i], arrays[j])
@@ -76,6 +117,13 @@ def process_batch(get_scan_func, scans_infos, experiment_dir, separate_scan_rang
 
     scans, info = zip(*scans_infos)
     arrays = [get_scan_func(scan_info) for scan_info in info]
+    # check if shapes are the same. It is possible that max_crop if applied may return array size
+    # smaller than the crop if the maximum is close to the edge of frame.
+    shape = arrays[0].shape
+    arrays = [ar for ar in arrays if ar.shape == shape]
+    if len(arrays) != n:
+        print('Exiting preprocessing. Array shape mismatch. May be due to applying max_crop and maximum being close to the edge')
+        return []
 
     # normalize
     normalized_arrays = [a / devlib.norm(a) for a in arrays]
@@ -172,6 +220,7 @@ def process_batch(get_scan_func, scans_infos, experiment_dir, separate_scan_rang
 
 
 def process_separate_scans(read_scan_func, scans_datainfo, save_dir):
+    print('scans_datainfo', scans_datainfo)
     for (scan, dinfo) in scans_datainfo:
         arr = read_scan_func(dinfo)
         scan_save_dir = ut.join(save_dir, f'scan_{scan}', 'preprocessed_data')
