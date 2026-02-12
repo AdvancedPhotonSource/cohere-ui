@@ -593,6 +593,15 @@ class PrepTab(QWidget):
         layout.addRow("min frames in scan", self.min_frames)
         self.exclude_scans = QLineEdit()
         layout.addRow("exclude scans", self.exclude_scans)
+        self.user_roi = QLineEdit()
+        layout.addRow("user roi", self.user_roi)
+        self.roi_format = QComboBox()
+        self.roi_format.addItem("")
+        self.roi_format.addItem("center_point_dist")
+        self.roi_format.addItem("start_point_end_point")
+        self.roi_format.addItem("start_point_dist")
+        layout.addRow("roi format", self.roi_format)
+        self.roi_format.setToolTip('center point, distance : [center_point_x, center_point_y, distance_x, distance_y] \n start point, end point : [start_point_x, start_point_y, end_point_x, end_point_y] \n start point, distance : [start_point_x, distance_x, start_point_y, distance_y]')
         self.max_crop = QLineEdit()
         layout.addRow("max crop", self.max_crop)
         self.remove_outliers = QCheckBox('remove outliers')
@@ -630,6 +639,19 @@ class PrepTab(QWidget):
             self.min_frames.setText(str(conf_map['min_frames']).replace(" ", ""))
         if 'exclude_scans' in conf_map:
             self.exclude_scans.setText(str(conf_map['exclude_scans']).replace(" ", ""))
+        if 'user_roi' in conf_map:
+            self.user_roi.setText(str(conf_map['user_roi']).replace(" ", ""))
+        if 'roi_format' in conf_map:
+            if conf_map['roi_format'] == 'center_point_dist':
+                self.roi_format.setCurrentIndex(1)
+            elif conf_map['roi_format'] == 'start_point_end_point':
+                self.roi_format.setCurrentIndex(2)
+            elif conf_map['roi_format'] == 'start_point_dist':
+                self.roi_format.setCurrentIndex(3)
+            else:
+                self.roi_format.setCurrentIndex(0)
+        else:
+            self.roi_format.setCurrentIndex(0)
         if 'max_crop' in conf_map:
             self.max_crop.setText(str(conf_map['max_crop']).replace(" ", ""))
         self.remove_outliers.setChecked('remove_outliers' in conf_map and conf_map['remove_outliers'])
@@ -640,6 +662,8 @@ class PrepTab(QWidget):
     def clear_conf(self):
         self.min_frames.setText('')
         self.exclude_scans.setText('')
+        self.user_roi.setText('')
+        self.roi_format.setCurrentIndex(0)
         self.max_crop.setText('')
         self.outliers_scans.setText('')
         self.remove_outliers.setChecked(False)
@@ -658,7 +682,7 @@ class PrepTab(QWidget):
         """
         prep_file = select_file(os.getcwd())
         if prep_file is not None:
-            conf_map = ut.read_config(prep_file.replace(os.sep, '/'))
+            conf_map = ut.read_config(prep_file)
             self.load_tab(conf_map)
         else:
             msg_window('select valid prep config file')
@@ -681,6 +705,14 @@ class PrepTab(QWidget):
             conf_map['min_frames'] = min_frames
         if len(self.exclude_scans.text()) > 0:
             conf_map['exclude_scans'] = ast.literal_eval(str(self.exclude_scans.text()).replace(os.linesep,''))
+        if len(self.user_roi.text()) > 0:
+            conf_map['user_roi'] = ast.literal_eval(str(self.user_roi.text()).replace(os.linesep,''))
+        if self.roi_format.currentIndex() == 1:
+            conf_map['roi_format'] = 'center_point_dist'
+        if self.roi_format.currentIndex() == 2:
+            conf_map['roi_format'] = 'start_point_end_point'
+        if self.roi_format.currentIndex() == 3:
+            conf_map['roi_format'] = 'start_point_dist'
         if len(self.max_crop.text()) > 0:
             conf_map['max_crop'] = ast.literal_eval(str(self.max_crop.text()).replace(os.linesep,''))
         if self.remove_outliers.isChecked():
@@ -1067,7 +1099,7 @@ class DataTab(QWidget):
         """
         data_file = select_file(os.getcwd())
         if data_file is not None:
-            conf_map = ut.read_config(data_file.replace(os.sep, '/'))
+            conf_map = ut.read_config(data_file)
             self.load_tab(conf_map)
         else:
             msg_window('please select valid data config file')
@@ -1344,7 +1376,7 @@ class RecTab(QWidget):
         -------
         nothing
         """
-        cont_dir = select_dir(os.getcwd().replace(os.sep, '/')).replace(os.sep, '/')
+        cont_dir = select_dir(os.getcwd())
         if cont_dir is not None:
             self.cont_dir_button.setStyleSheet("Text-align:left")
             self.cont_dir_button.setText(cont_dir)
@@ -1353,7 +1385,7 @@ class RecTab(QWidget):
 
 
     def set_aitm_file(self):
-        AI_trained_model = select_file(os.getcwd().replace(os.sep, '/')).replace(os.sep, '/')
+        AI_trained_model = select_file(os.getcwd())
         if AI_trained_model is not None:
             self.AI_trained_model.setStyleSheet("Text-align:left")
             self.AI_trained_model.setText(AI_trained_model)
@@ -1441,7 +1473,7 @@ class RecTab(QWidget):
         """
         rec_file = select_file(os.getcwd())
         if rec_file is not None:
-            conf_map = ut.read_config(rec_file.replace(os.sep, '/'))
+            conf_map = ut.read_config(rec_file)
             if conf_map is None:
                 msg_window(f'please check configuration file {rec_file}')
                 return
@@ -3276,7 +3308,7 @@ class DispTab(QWidget):
         """
         disp_file = select_file(os.getcwd())
         if disp_file is not None:
-            conf_map = ut.read_config(disp_file.replace(os.sep, '/'))
+            conf_map = ut.read_config(disp_file)
             self.load_tab(conf_map)
         else:
             msg_window('please select valid disp config file')
@@ -3403,7 +3435,7 @@ class DispTab(QWidget):
         results_dir = select_dir(os.getcwd())
         if results_dir is not None:
             self.result_dir_button.setStyleSheet("Text-align:left")
-            self.result_dir_button.setText(results_dir.replace(os.sep, '/'))
+            self.result_dir_button.setText(results_dir)
         else:
             self.result_dir_button.setText('')
             msg_window('please select valid results directory')
@@ -3630,7 +3662,7 @@ class MpTab(QWidget):
         """
         conf_file = select_file(os.getcwd())
         if conf_file is not None:
-            conf_map = ut.read_config(conf_file.replace(os.sep, '/'))
+            conf_map = ut.read_config(conf_file)
             self.load_tab(conf_map)
         else:
             msg_window('please select valid config file')
