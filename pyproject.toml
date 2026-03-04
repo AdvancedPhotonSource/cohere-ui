@@ -23,7 +23,7 @@ dependencies = [
                 'scikit-image',
                 'xrayutilities',
                 'pyvista',
-                'scipy==1.14.1',
+                'scipy',
                 'notebook',
                 'gputil',
                 'pandas',
