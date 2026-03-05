@@ -11,14 +11,15 @@ import cohere_core.utilities as ut
 
 
 # version must be increased after each modification of configuration file(s)
-version = 4
+version = 5
 
 # Map file of before/after keys to remap
 config_map = {}
 config_prep_map = {'darkfile': 'darkfield_filename',
                    'whitefile': 'whitefield_filename',
                    'min_files': 'min_frames',
-                   'auto_data': 'remove_outliers'}
+                   'auto_data': 'remove_outliers',
+                   'user_roi': 'roi'}
 config_rec_map = {'samples': 'reconstructions',
                   'beta': 'hio_beta',
                   'amp_support_trigger': 'shrink_wrap_trigger',
@@ -51,7 +52,7 @@ config_data_map = {'aliens': 'aliens',
                    'adjust_dimensions' : 'crop_pad',
                    'center_shift' : 'shift',
                    'auto_data': 'auto_intensity_threshold'}
-config_instr_map = {}
+config_instr_map = {'roi': 'det_roi'}
 config_mp_map = {}
 
 beamlinedefaultvalue = '"aps_34idc"'

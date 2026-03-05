@@ -593,8 +593,8 @@ class PrepTab(QWidget):
         layout.addRow("min frames in scan", self.min_frames)
         self.exclude_scans = QLineEdit()
         layout.addRow("exclude scans", self.exclude_scans)
-        self.user_roi = QLineEdit()
-        layout.addRow("user roi", self.user_roi)
+        self.roi = QLineEdit()
+        layout.addRow("roi", self.roi)
         self.roi_format = QComboBox()
         self.roi_format.addItem("")
         self.roi_format.addItem("center_point_dist")
@@ -639,8 +639,8 @@ class PrepTab(QWidget):
             self.min_frames.setText(str(conf_map['min_frames']).replace(" ", ""))
         if 'exclude_scans' in conf_map:
             self.exclude_scans.setText(str(conf_map['exclude_scans']).replace(" ", ""))
-        if 'user_roi' in conf_map:
-            self.user_roi.setText(str(conf_map['user_roi']).replace(" ", ""))
+        if 'roi' in conf_map:
+            self.roi.setText(str(conf_map['roi']).replace(" ", ""))
         if 'roi_format' in conf_map:
             if conf_map['roi_format'] == 'center_point_dist':
                 self.roi_format.setCurrentIndex(1)
@@ -662,7 +662,7 @@ class PrepTab(QWidget):
     def clear_conf(self):
         self.min_frames.setText('')
         self.exclude_scans.setText('')
-        self.user_roi.setText('')
+        self.roi.setText('')
         self.roi_format.setCurrentIndex(0)
         self.max_crop.setText('')
         self.outliers_scans.setText('')
@@ -705,8 +705,8 @@ class PrepTab(QWidget):
             conf_map['min_frames'] = min_frames
         if len(self.exclude_scans.text()) > 0:
             conf_map['exclude_scans'] = ast.literal_eval(str(self.exclude_scans.text()).replace(os.linesep,''))
-        if len(self.user_roi.text()) > 0:
-            conf_map['user_roi'] = ast.literal_eval(str(self.user_roi.text()).replace(os.linesep,''))
+        if len(self.roi.text()) > 0:
+            conf_map['roi'] = ast.literal_eval(str(self.roi.text()).replace(os.linesep,''))
         if self.roi_format.currentIndex() == 1:
             conf_map['roi_format'] = 'center_point_dist'
         if self.roi_format.currentIndex() == 2:
