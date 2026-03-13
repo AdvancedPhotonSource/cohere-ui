@@ -34,11 +34,14 @@ dependencies = [
 [project.scripts]
 beamline_preprocess = "cohere_ui.beamline_preprocess:main"
 beamline_visualization = "cohere_ui.beamline_visualization:main"
+beamline_postprocess = "cohere_ui.beamline_postprocess:main"
 cohere_gui = "cohere_ui.cohere_gui:main"
 copy_setup = "cohere_ui.copy_setup:main"
 create_aps34idc_experiment = "cohere_ui.create_aps34idc_experiment:main"
 everything = "cohere_ui.everything:main"
+cohere_full = "cohere_ui.cohere_full:main"
 run_reconstruction = "cohere_ui.run_reconstruction:main"
+cohere_reconstruction = "cohere_ui.cohere_reconstruction:main"
 simple_phasing = "cohere_ui.simple_phasing:main"
 standard_preprocess = "cohere_ui.standard_preprocess:main"
 

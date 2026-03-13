@@ -6,7 +6,7 @@
 # See LICENSE file.                                                       #
 # #########################################################################
 """
-This script provides GUI interface to cohere tools. User can create new cohere experiment or load an existing one. The GUI offers user friendly interface that allows to define configuration, set parameters to defaults, and run the scripts: beamline_preprocessing, standard_preprocessing, run_rec, and beamline_visualization, with push buttons.
+This script provides GUI interface to cohere tools. User can create new cohere experiment or load an existing one. The GUI offers user friendly interface that allows to define configuration, set parameters to defaults, and run the scripts: beamline_preprocessing, standard_preprocessing, run_rec, and beamline_postprocess, with push buttons.
 
 To run this script from command line::
 
@@ -139,7 +139,7 @@ class cdi_gui(QWidget):
         self.create_exp_button = QPushButton('set experiment')
         self.create_exp_button.setStyleSheet("background-color:rgb(120,180,220)")
         downlayout.addWidget(self.create_exp_button)
-        self.run_button = QPushButton('run everything', self)
+        self.run_button = QPushButton('run cohere_full', self)
         self.run_button.setStyleSheet("background-color:rgb(175,208,156)")
         downlayout.addWidget(self.run_button)
         self.vbox.addLayout(downlayout)
@@ -152,7 +152,7 @@ class cdi_gui(QWidget):
 
         self.set_exp_button.clicked.connect(self.load_experiment)
         self.set_work_dir_button.clicked.connect(self.set_working_dir)
-        self.run_button.clicked.connect(self.run_everything)
+        self.run_button.clicked.connect(self.cohere_full)
         self.create_exp_button.clicked.connect(self.set_experiment)
         self.multipeak.stateChanged.connect(self.toggle_multipeak)
         self.separate_scans.stateChanged.connect(self.toggle_separate_scans)
@@ -165,9 +165,9 @@ class cdi_gui(QWidget):
         self.debug = kwargs.get('debug', False)
 
 
-    def run_everything(self):
+    def cohere_full(self):
         """
-        Activated by GUI push button, runs everything.py user script.
+        Activated by GUI push button, runs cohere_full.py user script.
         """
         if not self.is_exp_exists():
             msg_window('the experiment has not been created yet')
@@ -526,7 +526,7 @@ class Tabs(QTabWidget):
 
 
     def run_viz(self):
-        import cohere_ui.beamline_visualization as dp
+        import cohere_ui.beamline_postprocess as dp
 
         try:
             dp.handle_visualization(self.main_win.experiment_dir, no_verify=self.main_win.no_verify)
@@ -1493,7 +1493,7 @@ class RecTab(QWidget):
         -------
         nothing
         """
-        import cohere_ui.run_reconstruction as run_rc
+        import cohere_ui.cohere_reconstruction as run_rc
 
         if not self.main_win.is_exp_exists():
             msg_window('the experiment has not been created yet')
