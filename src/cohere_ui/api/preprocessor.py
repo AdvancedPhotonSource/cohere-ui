@@ -64,18 +64,15 @@ def process_batch(get_scan_func, scans_infos, experiment_dir, separate_scan_rang
     # if more scans find correlation between them
     n = len(scans_infos)
     pkg = 'np'
-    # try:
-    #     import cupy as cp
-    #     pkg = 'cp'
-    #     # TODO
-    #     # Hard coded for now, need to find formula
-    #     no_proc = 10
-    # except:
-    #     no_proc = min(os.cpu_count(), n * n)
+    try:
+        import cupy as cp
+        pkg = 'cp'
+    except:
+        pass
     set_lib_from_pkg(pkg)
 
     scans, info = zip(*scans_infos)
-    arrays = [get_scan_func(scan_info) for scan_info in info]
+    arrays = [devlib.from_numpy(get_scan_func(scan_info)) for scan_info in info]
     # check if shapes are the same. It is possible that max_crop if applied may return array size
     # smaller than the crop if the maximum is close to the edge of frame.
     shape = arrays[0].shape
@@ -90,13 +87,33 @@ def process_batch(get_scan_func, scans_infos, experiment_dir, separate_scan_rang
     # get shifts to align and correlation(between each of the arrays)
     cc_shift_dict = {scan : {} for scan in scans}
 
+    # number processes for numpy array is number of available cores
+    # for cupy the number is calculated
+    if pkg == 'cp':
+        size = arrays[0].size
+        factor = 315
+        job_size = size * factor
+        # get available memory from device
+        free_mem, total_mem = arrays[0].device.mem_info  # Returns values in bytes
+        no_proc = int(free_mem / job_size)
+    else:
+        no_proc = min(os.cpu_count(), n * n)
+
     pairs = [(i,j) for i in list(range(n)) for j in list(range(n))]
     func = partial(get_corr, normalized_arrays, cc_shift_dict, scans)
-    no_proc = min(os.cpu_count(), n * n)
     with ThreadPoolExecutor(max_workers=no_proc) as exe:
         exe.map(func, pairs)
 
-    cc_matrix = np.array([[inner_dict[key][1] for key in scans] for inner_dict in cc_shift_dict.values()])
+    try:
+        # If the code allocated too many threads the Pool processing fails with no indication, and only
+        # the code below fails on KeyError. So, adding a handling of exception for that case.
+        cc_matrix = devlib.to_numpy(devlib.array([[inner_dict[key][1] for key in scans] for inner_dict in cc_shift_dict.values()]))
+    except:
+        # calculate the cross correlation serially
+        for pair in pairs:
+            (i, j) = pair
+            cc_shift_dict[scans[i]][scans[j]] = dvut.get_ccamax_cc(normalized_arrays[i], normalized_arrays[j])
+        cc_matrix = devlib.to_numpy(devlib.array([[inner_dict[key][1] for key in scans] for inner_dict in cc_shift_dict.values()]))
 
     # delete the normalized_arrays
     del normalized_arrays
@@ -172,14 +189,13 @@ def process_batch(get_scan_func, scans_infos, experiment_dir, separate_scan_rang
     # save the data file
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
-    ut.save_tif(sum_arr, ut.join(save_dir, 'prep_data.tif'))
+    ut.save_tif(devlib.to_numpy(sum_arr), ut.join(save_dir, 'prep_data.tif'))
 
     print('preprocessed data shape ', sum_arr.shape)
     return outliers
 
 
 def process_separate_scans(read_scan_func, scans_datainfo, save_dir):
-    print('scans_datainfo', scans_datainfo)
     for (scan, dinfo) in scans_datainfo:
         arr = read_scan_func(dinfo)
         scan_save_dir = ut.join(save_dir, f'scan_{scan}', 'preprocessed_data')

@@ -13,6 +13,9 @@ This module returns available, balanced devices suited for given job.
 import os
 import ast
 import GPUtil
+from multiprocessing import cpu_count
+import psutil
+import subprocess
 from functools import reduce
 import cohere_core.utilities as ut
 
@@ -42,9 +45,6 @@ def estimate_no_proc(arr_size, factor):
     int
         number of processes
     """
-    from multiprocessing import cpu_count
-    import psutil
-
     ncpu = cpu_count()
     freemem = psutil.virtual_memory().available
     nmem = freemem / (factor * arr_size)
