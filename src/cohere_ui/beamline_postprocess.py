@@ -43,7 +43,7 @@ import importlib
 import cohere_core.utilities as ut
 import cohere_ui.api.multipeak as mp
 import cohere_ui.api.common as com
-import cohere_ui.api.postprocess_utils as pu
+import cohere_ui.api.postprocessor as pu
 import pandas as pd
 from concurrent.futures import ProcessPoolExecutor
 
