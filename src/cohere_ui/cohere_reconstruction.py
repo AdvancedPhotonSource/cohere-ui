@@ -132,12 +132,7 @@ def reconstruction_single(pkg, conf_file, datafile, dir, dev, **kwargs):
         filename = conf_file.split('/')[-1]
         save_dir = ut.join(dir, filename.replace('config_rec', 'results_phasing'))
 
-    if dev is None:
-        device = pars.get('device', -1)
-    else:
-        device = dev[0]
-
-    worker = rec.create_rec(pars, datafile, pkg, device, **kwargs)
+    worker = rec.create_rec(pars, datafile, pkg, dev, **kwargs)
     if worker is None:
         return 'Could not create Rec object, check config_rec parameters.'
 
@@ -165,7 +160,7 @@ def process_scan_range(ga_method, pkg, conf_file, datafile, dir, picked_devs, ho
         hostfile : name of hostfile if cluster configuration was used
     """
     if len(picked_devs) == 1:
-        return reconstruction_single(pkg, conf_file, datafile, dir, picked_devs, debug=debug)
+        return reconstruction_single(pkg, conf_file, datafile, dir, picked_devs[0], debug=debug)
     elif ga_method is None:
         reconstruction_populous.reconstruction(pkg, conf_file, datafile, dir, picked_devs)
     elif ga_method == 'ga_fast':
@@ -277,11 +272,7 @@ def manage_reconstruction(experiment_dir, **kwargs):
     # This is the simplest case, i.e. one scan range, single reconstruction, no GA
     if want_dev_no == 1:
         datafile, dir = exp_dirs_data[0]
-        if rec_config_map['device'] == 'all':
-            print('configure device as list of int(s) for simple case')
-            return
-
-        dev = [rec_config_map['device'][0]]
+        dev = balancer.get_one_dev(rec_config_map.get('device', [-1]))
         msg = reconstruction_single(pkg, conf_file, datafile, dir, dev, **kwargs)
         if len(msg) == 0:
             print('finished reconstruction')

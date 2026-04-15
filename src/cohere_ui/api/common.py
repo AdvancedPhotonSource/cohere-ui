@@ -97,9 +97,9 @@ def get_pkg(proc, dev):
     if proc == 'auto':
         try:
             import cupy
-            pkg = 'cp'
             if dev == [-1]:
                 raise ValueError('cupy processing is available, define device')
+            pkg = 'cp'
         except:
             try:
                 import torch
@@ -111,11 +111,11 @@ def get_pkg(proc, dev):
             raise ValueError('cupy is not supported by Mac, select different processing')
         try:
             import cupy
-            if dev == [-1]:
-                raise ValueError('when using cupy processing, define device')
-            pkg = 'cp'
         except:
             raise ValueError('cupy is not installed, select different processing')
+        if dev == [-1]:
+            raise ValueError('when using cupy processing, define a valid device')
+        pkg = 'cp'
     elif proc == 'torch':
         try:
             import torch

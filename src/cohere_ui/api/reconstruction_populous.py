@@ -66,7 +66,7 @@ def single_rec_process(pkg, pars, datafile, gen, alpha_dir, rec_attrs, hpc=False
                 threshold = pars['ga_sw_thresholds'][gen]
                 sigma = pars['ga_sw_gauss_sigmas'][gen]
                 breed_mode = pars['ga_breed_modes'][gen]
-                alpha = devlib.load(ut.join(alpha_dir, 'image.npy'))
+                alpha = devlib.load(ut.join(alpha_dir, 'image.npy'), device=worker.dev)
                 worker.ds_image = dvut.breed(breed_mode, alpha, worker.ds_image)
                 worker.support = dvut.shrink_wrap(worker.ds_image, threshold, sigma)
 
