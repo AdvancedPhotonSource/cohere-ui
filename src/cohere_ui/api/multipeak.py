@@ -32,6 +32,7 @@ from scipy.spatial.transform import Rotation as R
 import cohere_core.utilities as ut
 import cohere_core.controller.phasing as calc
 import cohere_ui.api.preprocessor as preprocessor
+import cohere_ui.api.balancer as balancer
 
 
 def calc_geometry(instr_obj, shape, scan, conf_maps, o_twin):
@@ -340,9 +341,11 @@ def reconstruction(lib, pars, peak_dirs, dev, **kwargs):
     elif pars['init_guess'] == 'AI_guess':
         print('AI initial guess is not a valid choice for multi peak reconstruction')
         return -1
+    
+    device = balancer.get_one_dev(pars.get('device', [-1]))
 
     kwargs['rec_type'] = 'mp'
-    worker = calc.create_rec(pars, peak_dirs, lib, dev[0], **kwargs)
+    worker = calc.create_rec(pars, peak_dirs, lib, device, **kwargs)
     if worker is None:
         return
 

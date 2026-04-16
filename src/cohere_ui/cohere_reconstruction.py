@@ -218,6 +218,10 @@ def manage_reconstruction(experiment_dir, **kwargs):
 
     # for multipeak reconstruction divert here
     if 'config_mp' in conf_maps:
+        if pkg == 'torch':
+            print('multipeak reconstruction is not supported on torch library')
+            raise ValueError('multipeak reconstruction is not supported on torch library')
+        
         config_map = conf_maps['config_mp']
         config_map.update(main_config_map)
         config_map.update(rec_config_map)
