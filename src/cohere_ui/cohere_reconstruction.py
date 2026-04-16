@@ -204,17 +204,18 @@ def manage_reconstruction(experiment_dir, **kwargs):
     main_config_map = conf_maps['config']
     rec_config_map = conf_maps['config_rec']
 
-    proc = rec_config_map.get('processing', 'auto')
-    devices = rec_config_map.get('device', [-1])
-
     separate = main_config_map.get('separate_scans', False) or main_config_map.get('separate_scan_ranges', False)
     debug = kwargs.get('debug', False)
 
+    proc = rec_config_map.get('processing', 'auto')
+    devices = rec_config_map.get('device', [-1])
     # find which library to run it on, default is numpy ('np')
     pkg = com.get_pkg(proc, devices)
 
-    if sys.platform == 'darwin' or pkg == 'np':
+    if pkg == 'np':
         devices = [-1]
+    elif sys.platform == 'darwin' and devices != [-1]:
+        devices = [0]
 
     # for multipeak reconstruction divert here
     if 'config_mp' in conf_maps:
@@ -276,7 +277,10 @@ def manage_reconstruction(experiment_dir, **kwargs):
     # This is the simplest case, i.e. one scan range, single reconstruction, no GA
     if want_dev_no == 1:
         datafile, dir = exp_dirs_data[0]
-        dev = balancer.get_one_dev(rec_config_map.get('device', [-1]))
+        if sys.platform == 'darwin':
+            dev = devices[0]
+        else:
+            dev = balancer.get_one_dev(devices)
         msg = reconstruction_single(pkg, conf_file, datafile, dir, dev, **kwargs)
         if len(msg) == 0:
             print('finished reconstruction')
@@ -286,7 +290,7 @@ def manage_reconstruction(experiment_dir, **kwargs):
 
     hostfile = None
     # if device is [-1] it will be run on cpu
-    if devices == [-1]:
+    if devices == [-1] or sys.platform == 'darwin':
         # for now run locally on cpu, will be enhanced to support cluster conf
         picked_devs, avail_jobs, hostfile = devices * want_dev_no, want_dev_no, None
     else:
