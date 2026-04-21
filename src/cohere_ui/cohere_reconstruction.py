@@ -167,6 +167,8 @@ def process_scan_range(ga_method, pkg, conf_file, datafile, dir, picked_devs, ho
         mpi_cmd.run_with_mpi(pkg, conf_file, datafile, dir, picked_devs, hostfile)
     else:
         # populous ga reconstruction
+        if sys.platform == 'darwin':    # darwin mps does not support some functions thus choosing to run on cpu
+            picked_devs = [-1 for d in picked_devs]
         ga.reconstruction(pkg, conf_file, datafile, dir, picked_devs)
 
     if q is not None:

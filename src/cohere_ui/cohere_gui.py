@@ -29,9 +29,9 @@ import sys
 import os
 import argparse
 import shutil
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
+from PyQt6.QtCore import *
+from PyQt6.QtGui import *
+from PyQt6.QtWidgets import *
 import importlib
 import ast
 import cohere_core.utilities as ut
@@ -50,7 +50,7 @@ def select_file(start_dir):
     dialog = QFileDialog(None, 'select dir', start_dir)
     dialog.setFileMode(QFileDialog.ExistingFile)
     dialog.setSidebarUrls([QUrl.fromLocalFile(start_dir)])
-    if dialog.exec_() == QDialog.Accepted:
+    if dialog.exec() == QDialog.DialogCode.Accepted:
         return str(dialog.selectedFiles()[0]).replace(os.sep, '/')
     else:
         return None
@@ -65,9 +65,9 @@ def select_dir(start_dir):
     """
     start_dir = start_dir.replace(os.sep, '/')
     dialog = QFileDialog(None, 'select dir', start_dir)
-    dialog.setFileMode(QFileDialog.DirectoryOnly)
+    dialog.setFileMode(QFileDialog.FileMode.Directory)
     dialog.setSidebarUrls([QUrl.fromLocalFile(start_dir)])
-    if dialog.exec_() == QDialog.Accepted:
+    if dialog.exec() == QDialog.DialogCode.Accepted:
         return str(dialog.selectedFiles()[0]).replace(os.sep, '/')
     else:
         return None
@@ -83,7 +83,7 @@ def msg_window(text):
     msg.setIcon(QMessageBox.Information)
     msg.setText(text)
     msg.setWindowTitle("Info")
-    msg.exec_()
+    msg.exec()
 
 
 class cdi_gui(QWidget):
@@ -132,7 +132,7 @@ class cdi_gui(QWidget):
         self.t = None
 
         downlayout = QHBoxLayout()
-        downlayout.setAlignment(Qt.AlignCenter)
+        downlayout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.set_exp_button = QPushButton("load experiment")
         self.set_exp_button.setStyleSheet("background-color:rgb(205,178,102)")
         downlayout.addWidget(self.set_exp_button)
@@ -1134,7 +1134,7 @@ class RecTab(QWidget):
         mlayout = QHBoxLayout()
 
         self.init_guess = QComboBox()
-        self.init_guess.InsertAtBottom
+        self.init_guess.InsertPolicy.InsertAtBottom
         self.init_guess.addItem("random")
         self.init_guess.addItem("continue")
         self.init_guess.addItem("AI algorithm")
@@ -1146,7 +1146,7 @@ class RecTab(QWidget):
         self.add_conf_button = QPushButton('add configuration', self)
         ulayout.addWidget(self.add_conf_button)
         self.rec_id = QComboBox()
-        self.rec_id.InsertAtBottom
+        self.rec_id.InsertPolicy.InsertAtBottom
         self.rec_id.addItem("main")
         ulayout.addWidget(self.rec_id)
         self.rec_id.hide()
@@ -3682,7 +3682,7 @@ def main():
     ex = cdi_gui()
     ex.set_args(sys.argv[1:], no_verify=args.no_verify, debug=args.debug)
     ex.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
 
 
 if __name__ == '__main__':

@@ -19,7 +19,7 @@ classifiers = [
 license-files = ["LICENSE"]
 
 dependencies = [
-                'pyqt5',
+                'pyqt6',
                 'scikit-image',
                 'pyvista',
                 'scipy',
