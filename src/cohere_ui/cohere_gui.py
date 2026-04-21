@@ -80,7 +80,7 @@ def msg_window(text):
     :param text: text to be displayed
     """
     msg = QMessageBox()
-    msg.setIcon(QMessageBox.Information)
+    msg.setIcon(QMessageBox.Icon.Information)
     msg.setText(text)
     msg.setWindowTitle("Info")
     msg.exec()
