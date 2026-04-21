@@ -202,6 +202,8 @@ def process_dir(config_maps, res_dir_scan):
         del res_viz_r
 
     if viz_params.get('write_recip', False):
+        while not res_dir.endswith('results_phasing'):
+            res_dir = os.path.split(res_dir)[0]
         dfile = ut.join(*(os.path.split(res_dir)[0], "phasing_data", "data.tif"))
         d = ut.read_tif(dfile)
         ftim = np.fft.ifftshift(np.fft.ifftn(np.fft.fftshift(image), norm='forward'))
