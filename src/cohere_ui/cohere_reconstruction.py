@@ -164,10 +164,12 @@ def process_scan_range(ga_method, pkg, conf_file, datafile, dir, picked_devs, ho
     elif ga_method is None:
         reconstruction_populous.reconstruction(pkg, conf_file, datafile, dir, picked_devs)
     elif ga_method == 'ga_fast':
+        if pkg == 'torch':
+            picked_devs = [-1 for d in picked_devs]
         mpi_cmd.run_with_mpi(pkg, conf_file, datafile, dir, picked_devs, hostfile)
     else:
         # populous ga reconstruction
-        if sys.platform == 'darwin':    # darwin mps does not support some functions thus choosing to run on cpu
+        if pkg == 'torch':    # darwin mps does not support some functions thus choosing to run on cpu
             picked_devs = [-1 for d in picked_devs]
         ga.reconstruction(pkg, conf_file, datafile, dir, picked_devs)
 
