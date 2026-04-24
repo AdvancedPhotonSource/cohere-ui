@@ -48,7 +48,7 @@ def select_file(start_dir):
     """
     start_dir = start_dir.replace(os.sep, '/')
     dialog = QFileDialog(None, 'select dir', start_dir)
-    dialog.setFileMode(QFileDialog.ExistingFile)
+    dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
     dialog.setSidebarUrls([QUrl.fromLocalFile(start_dir)])
     if dialog.exec() == QDialog.DialogCode.Accepted:
         return str(dialog.selectedFiles()[0]).replace(os.sep, '/')
