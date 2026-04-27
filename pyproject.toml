@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cohere_ui"
-version = "4.5.1"
+version = "4.5.2"
 authors = [
   { name="Barbara Frosik", email="bfrosik@anl.gov" },
   { name="Ross Harder", email="rharder@anl.gov" }
@@ -27,7 +27,8 @@ dependencies = [
                 'gputil',
                 'pandas',
                 'openpyxl',
-                'xlsxwriter'
+                'xlsxwriter',
+                'numpy>=2.0'
                 ]
 
 [project.scripts]
