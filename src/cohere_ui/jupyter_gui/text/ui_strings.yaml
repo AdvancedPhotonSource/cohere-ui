@@ -1,0 +1,20 @@
+# Inline HTML banners and prompts shown in tabs. Like features.yaml, the
+# values are HTML strings rendered directly by the GUI; non-developers
+# can change wording, color, or emphasis here.
+
+snapshot_panel:
+  idle: |
+    <i style="color:#888;">Snapshot panel: populates while a
+    reconstruction is running.</i>
+  running: |
+    <i style="color:#888;">Live snapshot: updating at
+    <code>live_trigger</code> cadence.</i>
+  final_caption: |
+    <b style="color:#2a7a2a;">Final result</b>
+    <small style="color:#444;">rendered from on-disk
+    <code>image.npy</code> / <code>support.npy</code> after iter {iter}.</small>
+
+progress_warning:
+  no_progress_lines: |
+    WARNING: no progress lines parsed yet; has the cohere print format
+    changed? Update PROGRESS_PATTERNS if so.

@@ -1,0 +1,203 @@
+# Feature descriptions shown in the FeaturePanel. Rendered as plain HTML
+# (widgets.HTML), so HTML tags like <b>, <i>, <code>, <br> work verbatim.
+#
+# Math: a tiny TeX-to-Unicode pass runs at load time. Currently handles
+# \(...\) / \[...\] (delimiters), \text{x} (strips wrapper), and the
+# commands \pi \sigma \sum \geq \approx \pm \cdot \%. Extend the
+# table in text/__init__.py if you need more (it's a 1-line addition).
+
+# --- Reconstruction features ---
+
+GA:
+  name: GA
+  description: |
+    Run multiple reconstructions in generations: after each generation the
+    best image (alpha) is bred with the others to seed the next, then the
+    population is culled by a configured metric. Improves robustness on
+    noisy data at the cost of running N reconstructions per generation.
+    <br><br>
+    <b>How to use:</b> set \(\text{reconstructions} \geq 2\) and
+    <code>generations</code> to 3-5 for a first try. <code>cullings</code>
+    (e.g. <code>[2]</code>) drops the worst per generation; ensure
+    \(\text{reconstructions} - \sum(\text{cullings}) \geq 2\).
+    <b>fast processing</b> uses MPI to run each reconstruction in parallel
+    on a separate device.
+
+low_resolution:
+  name: low resolution
+  description: |
+    Apply a Gaussian lowpass filter to the diffraction data, with sigma
+    narrowing linearly across the trigger window. Used at the start of
+    iterations to begin with smoothed data and progressively reveal
+    high-frequency detail, helps avoid early local minima.
+    <br><br>
+    <b>How to use:</b> trigger should cover the first half of iterations
+    with \(\text{stop} <  \text{total iterations}\), e.g. <code>[0, 1, 100]</code>
+    for a 200-iter run. Range like <code>[0.7, 1.0]</code> starts at
+    \(\sigma = 0.7\) and ends at \(\sigma = 1.0\) (no extra smoothing).
+
+shrink_wrap:
+  name: shrink wrap
+  description: |
+    Recalculate the support mask (the region where the image is
+    meaningful) at each trigger iteration. Mask shrinks as the
+    reconstruction develops by Gaussian-blurring the image magnitude
+    and thresholding at a fraction of the max. Almost always on.
+    <br><br>
+    <b>How to use:</b> trigger like <code>[1, 1]</code> fires every
+    iteration starting at iter 1. Threshold \(\approx 0.1\) and Gauss
+    \(\sigma \approx 1.0\) are typical defaults; raise threshold to
+    tighten the support, lower to be more permissive.
+
+phase_constrain:
+  name: phase constrain
+  description: |
+    Tighten the support to include only voxels whose reconstructed phase
+    falls within <code>[phase_min, phase_max]</code>. Useful in early
+    iterations to reject regions where the phase is non-physical.
+    <br><br>
+    <b>How to use:</b> trigger like <code>[0, 1, 100]</code> for the first
+    100 iters of a 200-iter run. Bounds in radians:
+    <code>[-1.57, 1.57]</code> (\(= \pm \pi/2\)) is conservative; widen to
+    \([-\pi, \pi]\) to disable the phase filter.
+
+pcdi:
+  name: pcdi
+  description: |
+    Mitigate partial coherence in the X-ray source by recovering a
+    coherence kernel via Lucy-Richardson deconvolution. The kernel is
+    convolved into the modulus projection on subsequent iterations.
+    <br><br>
+    <b>How to use:</b> requires <code>pc</code> in the algorithm sequence
+    (e.g. <code>50*ER+200*HIOpc</code>); without it, PCDI is silently
+    inactive. Trigger like <code>[50, 50]</code> updates the kernel every
+    50 iters starting at iter 50. \(\text{LUCY iterations} \approx 20\)
+    and kernel area \(\approx [16, 16, 16]\) are typical.
+
+twin:
+  name: twin
+  description: |
+    Eliminate the twin-image ambiguity (Friedel-pair degeneracy of the
+    reconstruction) by zeroing one half in x and y, preserving the
+    chosen quadrant. Typically fired once early.
+    <br><br>
+    <b>How to use:</b> trigger like <code>[2]</code> fires once at iter 2.
+    <code>twin_halves</code> picks which quadrant to keep,
+    <code>[0, 0]</code> (default) keeps the upper-left,
+    <code>[1, 1]</code> the lower-right, etc.
+
+average:
+  name: average
+  description: |
+    Accumulate the image amplitude across the last several iterations and
+    divide by the count at the end. Smooths per-iteration noise once the
+    reconstruction has converged.
+    <br><br>
+    <b>How to use:</b> negative trigger start counts back from the final
+    iteration. <code>[-50, 1]</code> averages every iteration over the
+    last 50; <code>[-1, 1]</code> averages just the final iteration
+    (rarely useful).
+
+progress:
+  name: progress
+  description: |
+    Print iteration number and current error to the console at each
+    trigger fire. The Jupyter GUI captures these prints and updates the
+    progress label and error-history plot above.
+    <br><br>
+    <b>How to use:</b> <code>[0, 20]</code> fires every 20 iterations
+    (default). Lower the period for a denser error plot at the cost of
+    stdout noise; the snapshot feature also feeds the error plot, so
+    progress can be sparse if snapshot is on.
+
+live:
+  name: live
+  description: |
+    Live in-notebook view of the reconstruction. Renders amplitude /
+    phase / support panels (or a 3D mosaic / PyVista isosurface) into
+    the Reconstruction tab and feeds the error-history plot at trigger
+    frequency. Driven by cohere's <code>live_trigger</code>.
+    <br><br>
+    <b>How to use:</b> <code>[0, 20]</code> fires every 20 iterations
+    (\(\approx 5\%\) overhead on a 1000-iter run). Pick a renderer to
+    trade fidelity for cost: 2D slice is cheapest; 3D mosaic and
+    PyVista transfer downsampled volumes.
+    <br><br>
+    <b>Note:</b> if <code>progress_trigger</code> is not set, this
+    feature auto-sets it to <code>[0, 1]</code> so the progress label
+    and error-history plot update every iteration. Override via the
+    Progress feature for sparser updates.
+  renderer_note: |
+    Renderer / slicing choices are GUI-only and not written to
+    <code>config_rec</code>. Lowest cost: matplotlib 2D slice. Higher
+    fidelity: 3D mosaic or PyVista (download larger downsampled volumes).
+
+# --- Display features (visualization / postprocessing) ---
+
+crop:
+  name: crop
+  description: |
+    Crop the reconstructed image to the region containing the object.
+    <code>fraction</code> keeps a fixed fraction of each dimension around
+    the maximum; <code>tight</code> derives the crop bounds from points
+    above \(\text{threshold} \cdot max\) with a configurable margin.
+    <br><br>
+    <b>How to use:</b> <code>fraction</code> with <code>[0.5, 0.5, 0.5]</code>
+    is a safe default. Use <code>tight</code> with margin <code>10</code>
+    and threshold <code>0.5</code> when the object is well-separated from
+    the array edges.
+
+interpolation:
+  name: interpolation
+  description: |
+    Interpolate the reconstructed image to a target resolution and write
+    a <code>.vts</code> file alongside the standard outputs.
+    <code>AmpPhase</code> interpolates amplitudes and phases directly;
+    <code>ReIm</code> interpolates real and imaginary, then derives
+    amplitude / phase.
+    <br><br>
+    <b>How to use:</b> set <code>resolution</code> to
+    <code>min_deconv_res</code> (requires the Resolution feature),
+    a single integer (same value per dimension), a single float, or a
+    list giving per-dimension resolution.
+
+resolution:
+  name: resolution
+  description: |
+    Compute resolution in direct and reciprocal space and write a
+    <code>.vts</code> file containing the result.
+    <br><br>
+    <b>How to use:</b> <code>determine_type</code> selects the method
+    (e.g. <code>deconv</code>). <code>deconv_contrast</code> sets the
+    contrast threshold for the deconvolution method; <code>0.25</code>
+    is a typical starting point. Required if Interpolation uses
+    <code>min_deconv_res</code>.
+
+reciprocal:
+  name: reciprocal
+  description: |
+    Write the reciprocal-space visualization (the phasing data and the
+    inverse Fourier transform of the reconstructed image) as a
+    <code>.vts</code> file viewable in Paraview alongside the direct-space
+    image.
+    <br><br>
+    <b>How to use:</b> just enable the feature; no parameters required.
+
+strain:
+  name: strain
+  description: |
+    Compute the strain field from the reconstructed phase and include it
+    in the output <code>.vts</code> file. Strain is the gradient of the
+    phase along the diffraction vector.
+    <br><br>
+    <b>How to use:</b> just enable the feature; no parameters required.
+    Pairs naturally with the Displacement feature.
+
+displacement:
+  name: displacement
+  description: |
+    Compute the Bragg displacement field (atomic displacement projected
+    along the Bragg vector) from the reconstructed phase and include it
+    in the output <code>.vts</code> file.
+    <br><br>
+    <b>How to use:</b> just enable the feature; no parameters required.
