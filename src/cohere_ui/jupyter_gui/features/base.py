@@ -1,6 +1,7 @@
 """Base class for toggleable features in reconstruction and display tabs."""
 
 from abc import ABC, abstractmethod
+from typing import Optional
 import ipywidgets as widgets
 import ast
 
@@ -55,8 +56,12 @@ class Feature(ABC):
             self._hide_params()
 
     def _show_params(self):
-        """Show parameter widgets when feature is activated."""
+        """Show parameter widgets when feature is activated. Auto-applies
+        set_defaults() so the feature is immediately usable — without it,
+        fields stay empty and add_config silently skips them, dropping the
+        feature from the saved config with no error."""
         param_widgets = self.fill_active()
+        self.set_defaults()
         param_widgets.append(self.defaults_btn)
         self.params_box.children = param_widgets
 
@@ -106,10 +111,20 @@ class Feature(ABC):
         """
         return ""
 
-    def _require_field(self, field, label: str = 'trigger') -> str:
-        """Return an error message if the feature is active but ``field`` is empty."""
-        if self.active.value and not field.value:
-            return f"{self.name} is active but {label} is not configured"
+    def _require_field(self, attr_name: str, label: Optional[str] = None) -> str:
+        """Verify a parameter widget exists and is non-empty when the feature
+        is active. Pass the attribute *name* (string), not the widget itself,
+        so the lookup is deferred until after the inactive-skip check —
+        parameter widgets are created lazily in fill_active(), which only
+        runs when the user toggles the feature active. Calling this with
+        self.foo when fill_active() has never run would AttributeError before
+        we get a chance to short-circuit on inactive.
+        """
+        if not self.active.value:
+            return ""
+        field = getattr(self, attr_name, None)
+        if field is None or not field.value:
+            return f"{self.name} is active but {label or attr_name} is not configured"
         return ""
 
     def clear(self):

@@ -23,6 +23,20 @@ from .runner import run_reconstruction
 _UI = load_text('ui_strings')
 
 
+def _format_eta(seconds: float) -> str:
+    """Format a remaining-time estimate as a short human string."""
+    s = int(round(seconds))
+    if s < 1:
+        return '<1s'
+    if s < 60:
+        return f'{s}s'
+    m, s = divmod(s, 60)
+    if m < 60:
+        return f'{m}m {s:02d}s'
+    h, m = divmod(m, 60)
+    return f'{h}h {m:02d}m {s:02d}s'
+
+
 class RecMonitor:
     """Manages a single reconstruction subprocess and its UI surface."""
 
@@ -349,10 +363,6 @@ class RecMonitor:
     def _on_iter(self, iteration, error):
         total = self.progress_bar.max
         label_total = f'/{total}' if total > 1 else ''
-        self.progress_label.value = (
-            f'<b>iter {iteration}{label_total}</b> &nbsp;&nbsp; '
-            f'error <code>{error:.6g}</code>'
-        )
         if total > 1:
             now = time.monotonic()
             if self._last_iter_wall is not None:
@@ -368,6 +378,18 @@ class RecMonitor:
             self._last_iter_value = int(iteration)
             self._last_iter_wall = now
             self.progress_bar.value = min(int(iteration), total)
+        parts = [
+            f'<b>iter {iteration}{label_total}</b>',
+            f'error <code>{error:.6g}</code>',
+        ]
+        rate = self._iter_rate
+        if rate and rate > 0:
+            parts.append(f'<code>{rate:.2f}</code> it/s')
+            if total > 1:
+                remaining = max(0, int(total) - int(iteration))
+                if remaining > 0:
+                    parts.append(f'ETA <code>{_format_eta(remaining / rate)}</code>')
+        self.progress_label.value = ' &nbsp;&middot;&nbsp; '.join(parts)
         self._record_error(iteration, error)
 
     def _on_stdout(self, record):

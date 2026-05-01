@@ -93,7 +93,7 @@ class GAFeature(Feature):
             conf_map['ga_gen_pc_start'] = self.parse_value(self.gen_pc_start.value)
 
     def verify_active(self) -> str:
-        return self._require_field(self.generations, 'generations')
+        return self._require_field('generations')
 
 
 class LowResolutionFeature(Feature):
@@ -133,7 +133,7 @@ class LowResolutionFeature(Feature):
             conf_map['lowpass_filter_range'] = self.parse_value(self.range.value)
 
     def verify_active(self) -> str:
-        return self._require_field(self.trigger)
+        return self._require_field('trigger')
 
 
 class ShrinkWrapFeature(Feature):
@@ -187,7 +187,7 @@ class ShrinkWrapFeature(Feature):
             conf_map['shrink_wrap_gauss_sigma'] = self.parse_value(self.gauss_sigma.value)
 
     def verify_active(self) -> str:
-        return self._require_field(self.trigger)
+        return self._require_field('trigger')
 
 
 class PhaseConstrainFeature(Feature):
@@ -234,7 +234,7 @@ class PhaseConstrainFeature(Feature):
             conf_map['phc_phase_max'] = self.parse_value(self.phase_max.value)
 
     def verify_active(self) -> str:
-        return self._require_field(self.trigger)
+        return self._require_field('trigger')
 
 
 class PCDIFeature(Feature):
@@ -295,7 +295,7 @@ class PCDIFeature(Feature):
             conf_map['pc_LUCY_kernel'] = self.parse_value(self.lucy_kernel.value)
 
     def verify_active(self) -> str:
-        return self._require_field(self.trigger)
+        return self._require_field('trigger')
 
 
 class TwinFeature(Feature):
@@ -335,7 +335,7 @@ class TwinFeature(Feature):
             conf_map['twin_halves'] = self.parse_value(self.halves.value)
 
     def verify_active(self) -> str:
-        return self._require_field(self.trigger)
+        return self._require_field('trigger')
 
 
 class AverageFeature(Feature):
@@ -368,7 +368,7 @@ class AverageFeature(Feature):
             conf_map['average_trigger'] = self.parse_value(self.trigger.value)
 
     def verify_active(self) -> str:
-        return self._require_field(self.trigger)
+        return self._require_field('trigger')
 
 
 class ProgressFeature(Feature):

@@ -216,6 +216,8 @@ class RecTab(BaseTab):
             return
 
         for feat in self.features.values():
+            if not feat.active.value:
+                continue
             err_msg = feat.verify_active()
             if err_msg:
                 self.monitor.log(_MSG['rec']['feature_error'].format(error=err_msg))

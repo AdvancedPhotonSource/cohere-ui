@@ -7,6 +7,11 @@ import subprocess
 
 import ipywidgets as widgets
 
+try:
+    from ipyfilechooser import FileChooser
+except ImportError:
+    FileChooser = None
+
 from .base import BaseTab, _MSG
 from ..widgets import form_row, text_field, dropdown, checkbox, button, LogPanel
 from ..imagej import resolve_imagej_path
@@ -68,9 +73,13 @@ class PrepTab(BaseTab):
         return layout
 
     def _build_tiff_viewer(self) -> widgets.Widget:
-        """Two-pane TIFF stack viewer. Left = raw (preprocessed_data/prep_data.tif),
-        right = prep result (phasing_data/data.tif). Each pane has its own slice
-        slider and path field; shared toggles control sync-scroll and log scale.
+        """Two-pane TIFF stack viewer.
+        Left  = raw per-frame TIFFs from <data_dir> (config_instr).
+        Right = beamline-preprocessed assembled stack (preprocessed_data/prep_data.tif).
+        Each pane has its own slice slider and path field; shared toggles
+        control sync-scroll and log scale. The path field accepts either a
+        single TIFF (loaded as a 1- or N-slice stack) or a directory (every
+        *.tif under it is loaded recursively, sorted by filename, and stacked).
         """
         self._tiff_data = {'raw': None, 'prep': None}
 
@@ -126,8 +135,14 @@ class PrepTab(BaseTab):
                   self.tiff_prep_vmin, self.tiff_prep_vmax):
             w.observe(lambda _c: self._tiff_render_all(), names='value')
 
-        self.tiff_raw_path = text_field(placeholder='preprocessed_data/prep_data.tif', width='340px')
-        self.tiff_prep_path = text_field(placeholder='phasing_data/data.tif', width='340px')
+        self.tiff_raw_path = text_field(
+            placeholder='dir / file / glob (e.g. <data_dir>, frame.tif, scan_*.tif)',
+            width='340px',
+        )
+        self.tiff_prep_path = text_field(
+            placeholder='dir / file / glob (e.g. preprocessed_data/prep_data.tif)',
+            width='340px',
+        )
         self.tiff_raw_load = button('Load', style='warning', width='70px')
         self.tiff_prep_load = button('Load', style='warning', width='70px')
         self.tiff_raw_load.on_click(lambda _b: self._tiff_load('raw'))
@@ -170,15 +185,46 @@ class PrepTab(BaseTab):
         self.tiff_raw_status = widgets.HTML(value='<i>not loaded</i>')
         self.tiff_prep_status = widgets.HTML(value='<i>not loaded</i>')
 
+        # Per-pane file/folder chooser. Default: file mode. The "Folder mode"
+        # checkbox flips show_only_dirs at runtime so the same chooser can
+        # pick either a single TIFF or a directory of per-frame TIFFs.
+        self.tiff_raw_chooser = self._build_chooser('raw') if FileChooser else None
+        self.tiff_prep_chooser = self._build_chooser('prep') if FileChooser else None
+        self.tiff_raw_dir_mode = widgets.Checkbox(
+            value=False, description='Folder mode', indent=False,
+            layout=widgets.Layout(width='130px'),
+        )
+        self.tiff_prep_dir_mode = widgets.Checkbox(
+            value=False, description='Folder mode', indent=False,
+            layout=widgets.Layout(width='130px'),
+        )
+        self.tiff_raw_dir_mode.observe(
+            lambda c: self._tiff_on_dir_mode('raw', c), names='value',
+        )
+        self.tiff_prep_dir_mode.observe(
+            lambda c: self._tiff_on_dir_mode('prep', c), names='value',
+        )
+
         # Pin the image widget into a fixed-height container so the slice
         # metadata (which lives BELOW the image) doesn't shove the panel
         # contents up/down between renders. Both panes share the same
         # geometry so they stay aligned when sync-scrolling.
         # Fixed-height box keeps the panes aligned; scroll if the image
         # would otherwise overflow. Image displays centered at native res.
+        raw_browse_row = (
+            widgets.HBox([self.tiff_raw_chooser, self.tiff_raw_dir_mode])
+            if self.tiff_raw_chooser is not None
+            else widgets.HTML('<small><i>install ipyfilechooser to browse</i></small>')
+        )
+        prep_browse_row = (
+            widgets.HBox([self.tiff_prep_chooser, self.tiff_prep_dir_mode])
+            if self.tiff_prep_chooser is not None
+            else widgets.HTML('<small><i>install ipyfilechooser to browse</i></small>')
+        )
         raw_pane = widgets.VBox([
-            widgets.HTML('<b>Raw (assembled stack)</b>'),
+            widgets.HTML('<b>Raw frames (per-frame detector TIFFs from data_dir)</b>'),
             widgets.HBox([self.tiff_raw_path, self.tiff_raw_load, self.tiff_raw_imagej]),
+            raw_browse_row,
             widgets.Box([self.tiff_raw_image],
                         layout=widgets.Layout(height='560px', overflow='auto',
                                               align_items='center', justify_content='center')),
@@ -186,8 +232,9 @@ class PrepTab(BaseTab):
             self.tiff_raw_status,
         ], layout=widgets.Layout(width='50%', padding='0 6px 0 0'))
         prep_pane = widgets.VBox([
-            widgets.HTML('<b>Prep result</b>'),
+            widgets.HTML('<b>Beamline-preprocessed (assembled stack)</b>'),
             widgets.HBox([self.tiff_prep_path, self.tiff_prep_load, self.tiff_prep_imagej]),
+            prep_browse_row,
             widgets.Box([self.tiff_prep_image],
                         layout=widgets.Layout(height='560px', overflow='auto',
                                               align_items='center', justify_content='center')),
@@ -212,6 +259,53 @@ class PrepTab(BaseTab):
         )
         self._tiff_render_all()
 
+    def _stack_frames(self, files, status, tifffile, np):
+        """Read a sorted list of per-frame TIFFs into a single 3D array.
+        On error, write to ``status`` and return None."""
+        first = tifffile.imread(files[0])
+        if first.ndim != 2:
+            status.value = (f'<span style="color:#a00;">'
+                            f'expected 2D frames, got ndim={first.ndim}</span>')
+            return None
+        arr = np.empty((len(files),) + first.shape, dtype=first.dtype)
+        arr[0] = first
+        for i, f in enumerate(files[1:], start=1):
+            arr[i] = tifffile.imread(f)
+        return arr
+
+    def _build_chooser(self, kind):
+        """Build an ipyfilechooser for one pane. Default: file mode.
+        The Folder-mode checkbox flips show_only_dirs at runtime."""
+        assert FileChooser is not None  # call sites guard with `if FileChooser`
+        fc = FileChooser(
+            path=os.getcwd(),
+            select_default=False,
+            show_only_dirs=False,
+            title='',
+        )
+        fc.register_callback(lambda c: self._tiff_on_chooser(kind, c))
+        return fc
+
+    def _tiff_on_chooser(self, kind, chooser):
+        """ipyfilechooser callback: copy selection to the path text and load."""
+        sel = chooser.selected_path if chooser.show_only_dirs else chooser.selected
+        if not sel:
+            return
+        path_widget = self.tiff_raw_path if kind == 'raw' else self.tiff_prep_path
+        path_widget.value = sel
+        self._tiff_load(kind)
+
+    def _tiff_on_dir_mode(self, kind, change):
+        """Toggle the chooser between file and folder mode at runtime."""
+        chooser = self.tiff_raw_chooser if kind == 'raw' else self.tiff_prep_chooser
+        if chooser is None:
+            return
+        chooser.show_only_dirs = bool(change.get('new'))
+        try:
+            chooser.refresh()
+        except Exception:
+            pass
+
     def _tiff_default_path(self, kind):
         try:
             base = self.main_gui.experiment_dir
@@ -219,11 +313,18 @@ class PrepTab(BaseTab):
             return None
         if not base:
             return None
-        if kind == 'raw':
+        if kind == 'prep':
             p = os.path.join(base, 'preprocessed_data', 'prep_data.tif')
-        else:
-            p = os.path.join(base, 'phasing_data', 'data.tif')
-        return p if os.path.isfile(p) else None
+            return p if os.path.isfile(p) else None
+        # 'raw': pull data_dir from config_instr (per-frame TIFFs live there)
+        try:
+            instr = self.main_gui.config_manager.get_cached('config_instr') or {}
+        except Exception:
+            instr = {}
+        data_dir = instr.get('data_dir')
+        if data_dir and os.path.isdir(data_dir):
+            return data_dir
+        return None
 
     def _tiff_load(self, kind):
         path_widget = self.tiff_raw_path if kind == 'raw' else self.tiff_prep_path
@@ -233,26 +334,58 @@ class PrepTab(BaseTab):
         if not path:
             status.value = '<span style="color:#a00;">no path provided</span>'
             return
-        if not os.path.isfile(path):
+        is_glob = '*' in path or '?' in path or '[' in path
+        if not is_glob and not (os.path.isfile(path) or os.path.isdir(path)):
             status.value = f'<span style="color:#a00;">not found: {path}</span>'
             return
         try:
+            import numpy as np
             import tifffile
-            arr = tifffile.imread(path)
+            import glob as _glob
+            if is_glob:
+                # User-supplied glob (e.g. "<dir>/scan_54_*.tif" or
+                # "<root>/**/*.tiff"). Honor the literal pattern; the user
+                # is in charge of which extension(s) to match.
+                files = sorted(f for f in _glob.glob(path, recursive=True)
+                               if os.path.isfile(f))
+                if not files:
+                    status.value = f'<span style="color:#a00;">no files match: {path}</span>'
+                    return
+                arr = self._stack_frames(files, status, tifffile, np)
+                if arr is None:
+                    return
+                display_name = f'{path}  ({len(files)} files)'
+            elif os.path.isdir(path):
+                # Per-frame TIFFs (e.g. <data_dir>/<scan>/<scan>_NNNNN.tif).
+                # Recursive glob both .tif and .tiff, sort, stack.
+                files = sorted(set(
+                    _glob.glob(os.path.join(path, '**', '*.tif'),  recursive=True) +
+                    _glob.glob(os.path.join(path, '**', '*.tiff'), recursive=True)
+                ))
+                if not files:
+                    status.value = (f'<span style="color:#a00;">'
+                                    f'no *.tif / *.tiff under {path}</span>')
+                    return
+                arr = self._stack_frames(files, status, tifffile, np)
+                if arr is None:
+                    return
+                display_name = f'{os.path.basename(path) or path} ({len(files)} frames)'
+            else:
+                arr = tifffile.imread(path)
+                if arr.ndim == 2:
+                    arr = arr[np.newaxis, :, :]
+                if arr.ndim != 3:
+                    status.value = f'<span style="color:#a00;">unexpected ndim={arr.ndim} (need 2 or 3)</span>'
+                    return
+                display_name = path.rsplit('/', 1)[-1]
         except Exception as e:
             status.value = f'<span style="color:#a00;">load failed: {e}</span>'
-            return
-        if arr.ndim == 2:
-            import numpy as np
-            arr = arr[np.newaxis, :, :]
-        if arr.ndim != 3:
-            status.value = f'<span style="color:#a00;">unexpected ndim={arr.ndim} (need 2 or 3)</span>'
             return
         self._tiff_data[kind] = arr
         self._tiff_scale_cache = None  # invalidate sync-mode bounds
         path_widget.value = path
         status.value = (
-            f'<small style="color:#444;">{path.rsplit("/", 1)[-1]} '
+            f'<small style="color:#444;">{display_name} '
             f'shape={arr.shape} dtype={arr.dtype}</small>'
         )
         slider.max = max(0, arr.shape[0] - 1)
