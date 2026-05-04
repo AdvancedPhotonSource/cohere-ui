@@ -1,0 +1,59 @@
+# Status / log messages used across the GUI's main window and tabs.
+# Grouped by area for navigation. Format strings use {placeholder}
+# substitution at the call site (e.g. .format(path=...)). Edit the
+# wording here without touching Python; just keep the {placeholders}
+# intact so the runtime substitution still works.
+
+main:
+  no_working_dir: "Please enter a working directory"
+  working_dir_missing: "Working directory does not exist: {path}"
+  no_experiment_id: "Please enter an experiment ID"
+  experiment_set: "Experiment set: {path}"
+  experiment_loaded: "Loaded experiment: {path}"
+  config_missing: "Missing conf/config file in {path}"
+  config_load_error: "Error loading configs: {error}"
+  experiment_dir_created: "Created experiment directory: {path}"
+  conf_dir_created: "Created conf directory: {path}"
+  configs_loaded: "Loaded {count} config file(s): {names}"
+  configs_missing: "No configs found for: {names}"
+
+tab:
+  not_initialized: "Tab not initialized"
+  experiment_not_set: "Experiment not set"
+  experiment_missing: "Experiment has not been created yet"
+  experiment_changed: "Experiment has changed, press 'Set Experiment' button"
+  config_not_found: "No {conf_name} found in {conf_dir}"
+  config_loaded: "Loaded {conf_name}"
+  config_error: "Config error: {error}"
+  config_created: "Created {name} at {path}"
+  config_updated: "Updated {name} at {path}"
+
+# File-event logging: each tab snapshots the experiment directory before
+# running its backend, then logs files that appeared or were rewritten.
+files:
+  created: "Created {path}"
+  updated: "Updated {path}"
+  no_changes: "No new or updated output files detected"
+
+prep:
+  running: "Running beamline preprocessing..."
+  complete: "Preprocessing complete"
+
+data:
+  no_prep_data: "Run data preparation in the previous tab first"
+  running: "Running data formatting..."
+  complete: "Data formatting complete"
+
+disp:
+  set_results_dir: "Setting results directory to: {path}"
+  running: "Running visualization..."
+  complete: "Visualization complete"
+
+instr:
+  saved: "Instrument configuration saved"
+  parse_spec_failed: "parse_spec failed: {error}"
+
+rec:
+  no_input_data: "Run data formatting in the previous tab first"
+  already_running: "Reconstruction already running. Click Stop first."
+  feature_error: "Feature error: {error}"

@@ -31,6 +31,19 @@ dependencies = [
                 'numpy>=2.0'
                 ]
 
+[project.optional-dependencies]
+# Opt in to the Jupyter GUI deps with: pip install cohere-ui[jupyter]
+# Headless users (CLI / Qt only) can skip these to avoid the widget stack.
+jupyter = [
+    'ipywidgets',
+    'ipympl',
+    'ipyfilechooser',
+    'matplotlib',
+    'trame',
+    'trame-vtk',
+    'trame-vuetify',
+]
+
 [project.scripts]
 beamline_preprocess = "cohere_ui.beamline_preprocess:main"
 beamline_visualization = "cohere_ui.beamline_visualization:main"
