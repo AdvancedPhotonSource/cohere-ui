@@ -4,11 +4,14 @@ import os
 import ipywidgets as widgets
 from IPython.display import display
 
-from .config import ConfigManager
-from .results import ResultsContainer
-from .styles import inject_custom_css
-from .text import load_text
-from .widgets import form_row, text_field, checkbox, button, dir_chooser, LogPanel
+from cohere_ui.jupyter_gui.config import ConfigManager
+import traceback
+
+from cohere_ui.jupyter_gui.error_format import format_error_summary
+from cohere_ui.jupyter_gui.results import ResultsContainer
+from cohere_ui.jupyter_gui.styles import inject_custom_css
+from cohere_ui.jupyter_gui.text import load_text
+from cohere_ui.jupyter_gui.widgets import form_row, text_field, checkbox, button, dir_chooser, LogPanel
 import cohere_core.utilities as ut
 
 _MSG = load_text('messages')
@@ -29,7 +32,12 @@ class CoherenceGUI:
 
         self._tabs = {}
         self._widget = None
+        self._linked_debug_panels = set()
         self._build_ui()
+        # Route ResultsContainer load failures into the main log panel
+        # instead of kernel stderr (where notebook users rarely look).
+        self.results._log_error = self.log_panel.error
+        self.results._log_debug = self.log_panel.debug
 
     def _build_ui(self):
         """Build the main GUI widget tree."""
@@ -102,7 +110,7 @@ class CoherenceGUI:
         Args:
             beamline: Optional beamline name to include InstrTab
         """
-        from .tabs import DataTab, PrepTab, RecTab, DispTab, InstrTab
+        from cohere_ui.jupyter_gui.tabs import DataTab, PrepTab, RecTab, DispTab, InstrTab
 
         self._tabs = {}
 
@@ -132,10 +140,34 @@ class CoherenceGUI:
         self.tab_widget.children = tab_children
         for i, title in enumerate(tab_titles):
             self.tab_widget.set_title(i, title)
+        self._sync_debug_panels()
+
+    def _sync_debug_panels(self):
+        """Link every log panel's show-debug checkbox to the main panel's,
+        so toggling any one reveals/hides debug lines everywhere."""
+        master = self.log_panel.show_debug_checkbox
+        candidates = []
+        for tab in self._tabs.values():
+            log_panel = getattr(tab, 'log_panel', None)
+            if log_panel is not None:
+                cb = getattr(log_panel, 'show_debug_checkbox', None)
+                if cb is not None:
+                    candidates.append(cb)
+            monitor = getattr(tab, 'monitor', None)
+            if monitor is not None:
+                cb = getattr(monitor, 'show_debug_checkbox', None)
+                if cb is not None:
+                    candidates.append(cb)
+        for cb in candidates:
+            key = id(cb)
+            if key in self._linked_debug_panels:
+                continue
+            widgets.link((master, 'value'), (cb, 'value'))
+            self._linked_debug_panels.add(key)
 
     def add_instr_tab(self, beamline: str):
         """Add or update the instrument tab for a beamline."""
-        from .tabs import InstrTab
+        from cohere_ui.jupyter_gui.tabs import InstrTab
 
         if 'instr' in self._tabs:
             self._tabs['instr'].set_beamline(beamline)
@@ -231,7 +263,9 @@ class CoherenceGUI:
             conf_list = ['config_prep', 'config_data', 'config_rec', 'config_disp', 'config_instr']
             conf_dicts, missing = self.config_manager.load_configs(conf_list, no_verify=True)
         except Exception as e:
-            self.log_panel.error(_MSG['main']['config_load_error'].format(error=e))
+            self.log_panel.error(_MSG['main']['config_load_error'].format(
+                error=format_error_summary(e)))
+            self.log_panel.debug(traceback.format_exc())
             return
 
         self._load_main(conf_dicts.get('config', {}))

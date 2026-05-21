@@ -30,7 +30,7 @@ _TEXT_CMD = re.compile(r'\\text\{([^}]*)\}')
 
 _TEX = {
     'pi': 'π', 'sigma': 'σ', 'sum': 'Σ',
-    'geq': '≥', 'approx': '≈', 'pm': '±', 'cdot': '·'
+    'geq': '≥', 'approx': '≈', 'pm': '±', 'cdot': '·', 'times': '×',
 }
 _CMD_PATTERN = re.compile(r'\\(' + '|'.join(_TEX) + r')(?![A-Za-z])')
 

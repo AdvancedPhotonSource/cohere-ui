@@ -1,10 +1,12 @@
 """Reconstruction features: GA, shrink_wrap, pcdi, twin, etc."""
 
+import math
+
 import ipywidgets as widgets
 
-from .base import Feature
-from ..text import load_text
-from ..widgets import form_row, text_field, checkbox
+from cohere_ui.jupyter_gui.features.base import Feature
+from cohere_ui.jupyter_gui.text import load_text
+from cohere_ui.jupyter_gui.widgets import form_row, text_field, checkbox
 
 _TEXT = load_text('features')
 
@@ -197,24 +199,73 @@ class PhaseConstrainFeature(Feature):
     description = _TEXT['phase_constrain']['description']
 
     def fill_active(self) -> list:
-        self.trigger = text_field(placeholder='[iter_start, iter_step]')
+        # phc_trigger MUST be 3-element [start, step, stop]; op_flow.py:308
+        # does params['phc_trigger'][2] unconditionally (IndexError otherwise).
+        self.trigger = text_field(placeholder='[start, step, stop]')
         self.phase_min = text_field(placeholder='-1.57')
         self.phase_max = text_field(placeholder='1.57')
-
+        self.pi_prefactor = checkbox(description='bounds in units of π')
+        self._phase_min_mul = widgets.HTML(
+            value='<small style="color:#666;">× π</small>',
+            layout=widgets.Layout(display='none', margin='0 0 0 6px'),
+        )
+        self._phase_max_mul = widgets.HTML(
+            value='<small style="color:#666;">× π</small>',
+            layout=widgets.Layout(display='none', margin='0 0 0 6px'),
+        )
+        self.pi_prefactor.observe(self._on_pi_toggle, 'value')
         return [
             form_row('Trigger', self.trigger),
-            form_row('Phase Min', self.phase_min),
-            form_row('Phase Max', self.phase_max),
+            self.pi_prefactor,
+            form_row('Phase Min', widgets.HBox([self.phase_min, self._phase_min_mul])),
+            form_row('Phase Max', widgets.HBox([self.phase_max, self._phase_max_mul])),
         ]
 
     def set_defaults(self):
-        self.trigger.value = '[0, 1]'
+        # Reset checkbox first so the observer (if it fires) operates on
+        # the OLD field values; the immediate writes below overwrite anyway.
+        self.pi_prefactor.value = False
+        # Default trigger MUST be 3-element; see fill_active() note.
+        self.trigger.value = '[0, 1, -1]'
         self.phase_min.value = '-1.57'
         self.phase_max.value = '1.57'
+
+    def _on_pi_toggle(self, change):
+        """Convert Phase Min/Max between radians and π-prefactors when the
+        checkbox flips, and show/hide the '× π' adornment to match."""
+        if change['new']:
+            op = lambda v: v / math.pi
+            display = ''
+        else:
+            op = lambda v: v * math.pi
+            display = 'none'
+        self._convert_phase_field(self.phase_min, op)
+        self._convert_phase_field(self.phase_max, op)
+        self._phase_min_mul.layout.display = display
+        self._phase_max_mul.layout.display = display
+
+    @staticmethod
+    def _convert_phase_field(field, op):
+        """Apply ``op`` to the field value, supporting single floats and lists."""
+        if not field.value.strip():
+            return
+        parsed = PhaseConstrainFeature.parse_value(field.value)
+        if isinstance(parsed, (int, float)) and not isinstance(parsed, bool):
+            field.value = str(round(op(parsed), 4))
+        elif isinstance(parsed, list):
+            converted = [
+                round(op(x), 4) if isinstance(x, (int, float)) and not isinstance(x, bool) else x
+                for x in parsed
+            ]
+            field.value = str(converted).replace(' ', '')
+        # Anything else: leave the field alone.
 
     def init_config(self, conf_map: dict):
         if 'phc_trigger' in conf_map:
             self.active.value = True
+            # Saved config is always in radians; reset checkbox before writing
+            # field values so the prefactor-conversion observer doesn't munge them.
+            self.pi_prefactor.value = False
             self.trigger.value = self.format_value(conf_map['phc_trigger'])
             if 'phc_phase_min' in conf_map:
                 self.phase_min.value = str(conf_map['phc_phase_min'])
@@ -229,9 +280,26 @@ class PhaseConstrainFeature(Feature):
         if self.trigger.value:
             conf_map['phc_trigger'] = self.parse_value(self.trigger.value)
         if self.phase_min.value:
-            conf_map['phc_phase_min'] = self.parse_value(self.phase_min.value)
+            conf_map['phc_phase_min'] = self._maybe_to_radians(
+                self.parse_value(self.phase_min.value)
+            )
         if self.phase_max.value:
-            conf_map['phc_phase_max'] = self.parse_value(self.phase_max.value)
+            conf_map['phc_phase_max'] = self._maybe_to_radians(
+                self.parse_value(self.phase_max.value)
+            )
+
+    def _maybe_to_radians(self, value):
+        """Multiply by π when the checkbox is on; element-wise for lists."""
+        if not self.pi_prefactor.value:
+            return value
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return value * math.pi
+        if isinstance(value, list):
+            return [
+                x * math.pi if isinstance(x, (int, float)) and not isinstance(x, bool) else x
+                for x in value
+            ]
+        return value
 
     def verify_active(self) -> str:
         return self._require_field('trigger')

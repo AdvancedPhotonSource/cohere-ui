@@ -2,9 +2,9 @@
 
 import ipywidgets as widgets
 
-from .base import Feature
-from ..text import load_text
-from ..widgets import form_row, text_field, checkbox, dropdown
+from cohere_ui.jupyter_gui.features.base import Feature
+from cohere_ui.jupyter_gui.text import load_text
+from cohere_ui.jupyter_gui.widgets import form_row, text_field, checkbox, dropdown
 
 _TEXT = load_text('features')
 

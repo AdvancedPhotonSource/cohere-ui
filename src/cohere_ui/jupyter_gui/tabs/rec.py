@@ -9,14 +9,19 @@ Run / Stop buttons through ``RecMonitor``.
 import ast
 import os
 import sys
-import traceback
 
 import ipywidgets as widgets
 
-from .base import BaseTab, _MSG
-from ..widgets import form_row, text_field, dropdown, button, FeaturePanel
-from ..rec_subprocess import RecMonitor
-from ..rec_subprocess.progress import total_iters_from_alg_sequence
+from cohere_ui.jupyter_gui.tabs.base import BaseTab, _MSG
+from cohere_ui.jupyter_gui.widgets import form_row, text_field, dropdown, button, FeaturePanel
+from cohere_ui.jupyter_gui.rec_subprocess import RecMonitor
+from cohere_ui.jupyter_gui.rec_subprocess.progress import total_iters_from_alg_sequence
+import traceback
+
+from cohere_ui.jupyter_gui.device_info import (
+    list_devices, format_devices, parse_device_field,
+)
+from cohere_ui.jupyter_gui.error_format import format_error_summary
 
 
 class RecTab(BaseTab):
@@ -24,6 +29,8 @@ class RecTab(BaseTab):
 
     name = "Reconstruction"
     conf_name = "config_rec"
+    # Flip to True once the backend honors the 'precision' config key.
+    _PRECISION_ENABLED = False
 
     def _build_ui(self) -> widgets.Widget:
         self.init_guess = dropdown(
@@ -37,8 +44,24 @@ class RecTab(BaseTab):
         if sys.platform != 'darwin':
             proc_options.insert(1, 'cp')
         self.proc = dropdown(options=proc_options, value='auto')
+        self.proc_status = widgets.HTML(
+            layout=widgets.Layout(width='180px', margin='0 0 0 8px')
+        )
         self.device = text_field(placeholder='e.g., [0] or "all"')
+        self.device_hint = widgets.HTML(value='')
         self.reconstructions = text_field(placeholder='e.g., 1')
+
+        # Precision: torch supports the full sweep (complex32/64/128); numpy.fft
+        # has no complex32 and cupy.fft's float16 path is too restrictive, so
+        # those backends only offer 'auto' / float64 / float32.
+        # bf16/fp8 are intentionally NOT exposed: torch.fft has no complex
+        # dtype paired to either, so the FFT path would silently upcast and
+        # the only "savings" would be the static intensity tensor, not worth
+        # the additional surface area.
+        self._precision_full = ('auto', 'float64', 'float32', 'float16')
+        self._precision_np_cp = ('auto', 'float64', 'float32')
+        self.precision = dropdown(options=self._precision_full, value='auto')
+        self.proc.observe(self._on_proc_change, 'value')
 
         self.alg_seq = text_field(placeholder='e.g., 3*(20*ER+180*HIO)+20*ER', width='300px')
         self.hio_beta = text_field(placeholder='0.9')
@@ -48,7 +71,7 @@ class RecTab(BaseTab):
         self.defaults_btn = button('Set Defaults', style='info', width='120px', role='info')
         self.defaults_btn.on_click(lambda b: self._set_defaults())
 
-        from ..features import REC_FEATURES
+        from cohere_ui.jupyter_gui.features import REC_FEATURES
         self.features = {name: cls() for name, cls in REC_FEATURES.items()}
         self.feature_panel = FeaturePanel(self.features)
 
@@ -65,11 +88,14 @@ class RecTab(BaseTab):
         self.monitor.on_finished = self._on_rec_finished
         # log_panel stays None; logging routes through the monitor instead.
 
+        proc_row = widgets.HBox([self.proc, self.proc_status])
         params_section = widgets.VBox([
             form_row('Initial Guess', self.init_guess),
             self.init_guess_params,
-            form_row('Processor', self.proc),
+            form_row('Processor', proc_row),
             form_row('Device(s)', self.device),
+            self.device_hint,
+            *([form_row('Precision', self.precision)] if self._PRECISION_ENABLED else []),
             form_row('Reconstructions', self.reconstructions),
             form_row('Algorithm Sequence', self.alg_seq),
             form_row('HIO Beta', self.hio_beta),
@@ -77,6 +103,17 @@ class RecTab(BaseTab):
             form_row('Initial Support Area', self.initial_support_area),
             self.defaults_btn,
         ])
+        # Apply initial backend-precision restriction + render initial status.
+        self._apply_precision_options(self.proc.value)
+        self._update_proc_status(self.proc.value)
+        # Probe devices once at tab load; live-highlight matches as the user
+        # edits the Device(s) field (no refresh button per design).
+        self._device_list = list_devices(
+            self._resolve_backend(self.proc.value)[1]
+        )
+        self.device.observe(self._on_device_change, 'value')
+        self._refresh_device_hint()
+        self._apply_device_enabled(self.proc.value)
 
         return widgets.VBox([
             params_section,
@@ -86,6 +123,96 @@ class RecTab(BaseTab):
             self.monitor.widgets_box(),
         ])
 
+    def _refresh_device_hint(self):
+        selected = parse_device_field(self.device.value, self._device_list)
+        self.device_hint.value = format_devices(self._device_list, selected=selected)
+
+    def _apply_device_enabled(self, proc_value):
+        """Grey out Device(s) when np is selected; field value is preserved
+        so anything downstream that requires a 'device' key still gets one."""
+        self.device.disabled = (proc_value == 'np')
+
+    @BaseTab._guard
+    def _on_device_change(self, _change):
+        self._refresh_device_hint()
+
+    @BaseTab._guard
+    def _on_proc_change(self, change):
+        self._apply_precision_options(change['new'])
+        self._update_proc_status(change['new'])
+        self._apply_device_enabled(change['new'])
+
+    @staticmethod
+    def _resolve_backend(name):
+        """Resolve a Processor selection to (available, resolved_name, reason).
+
+        Mirrors api.common.get_pkg without invoking it (avoids importing the
+        cohere_ui workflow module just to render a UI hint). 'auto' tries the
+        same chain get_pkg does: cupy, then torch, then numpy.
+        """
+        def _have(mod):
+            try:
+                __import__(mod)
+                return True
+            except Exception:
+                return False
+
+        if name == 'np':
+            return True, 'np', ''
+        if name == 'cp':
+            if sys.platform == 'darwin':
+                return False, 'cp', 'cupy is not supported on macOS'
+            if not _have('cupy'):
+                return False, 'cp', 'cupy is not installed'
+            return True, 'cp', ''
+        if name == 'torch':
+            if not _have('torch'):
+                return False, 'torch', 'torch is not installed'
+            return True, 'torch', ''
+        if name == 'auto':
+            if sys.platform != 'darwin' and _have('cupy'):
+                return True, 'cp', ''
+            if _have('torch'):
+                return True, 'torch', ''
+            return True, 'np', ''
+        return False, name, 'unknown backend'
+
+    def _update_proc_status(self, proc_value):
+        available, resolved, reason = self._resolve_backend(proc_value)
+        color = '#2e7d32' if available else '#c62828'
+        if proc_value == 'auto':
+            label = f'auto &rarr; {resolved}'
+            tooltip = f'auto-resolves to {resolved} on this machine'
+        elif available:
+            label = resolved
+            tooltip = f'{resolved} backend is available'
+        else:
+            label = f'{resolved} unavailable'
+            tooltip = reason
+        self.proc_status.value = (
+            f'<span title="{tooltip}" style="line-height:24px;">'
+            f'<span style="color:{color}; font-size:14px;">&#9679;</span>'
+            f' {label}</span>'
+        )
+
+    def _apply_precision_options(self, proc_value):
+        """Restrict the precision dropdown to options the chosen backend can run.
+
+        numpy.fft does not support complex32 and cupy.fft's float16 path is too
+        restrictive for general FFT shapes, so 'float16' is removed when the
+        Processor is fixed to 'np' or 'cp'. 'auto' keeps the full set since the
+        runtime backend isn't pinned yet.
+        """
+        if proc_value in ('np', 'cp'):
+            allowed = self._precision_np_cp
+        else:
+            allowed = self._precision_full
+        if self.precision.options != allowed:
+            current = self.precision.value
+            self.precision.options = allowed
+            self.precision.value = current if current in allowed else 'auto'
+
+    @BaseTab._guard
     def _on_init_guess_change(self, change):
         guess = change['new']
         self.init_guess_params.children = []
@@ -100,6 +227,7 @@ class RecTab(BaseTab):
         self.reconstructions.value = '1'
         self.proc.value = 'auto'
         self.device.value = '[0]'
+        self.precision.value = 'auto'
         self.alg_seq.value = '3*(20*ER+180*HIO)+20*ER'
         self.hio_beta.value = '.9'
         self.raar_beta.value = '.45'
@@ -122,6 +250,10 @@ class RecTab(BaseTab):
             self.proc.value = conf_map['processing']
         if 'device' in conf_map:
             self.device.value = self._fmt_value(conf_map['device'])
+        if 'precision' in conf_map and conf_map['precision'] in self.precision.options:
+            self.precision.value = conf_map['precision']
+        else:
+            self.precision.value = 'auto'
         if 'reconstructions' in conf_map:
             self.reconstructions.value = str(conf_map['reconstructions'])
         if 'algorithm_sequence' in conf_map:
@@ -149,22 +281,24 @@ class RecTab(BaseTab):
 
         if self.proc.value:
             conf_map['processing'] = self.proc.value
+        if self._PRECISION_ENABLED and self.precision.value and self.precision.value != 'auto':
+            conf_map['precision'] = self.precision.value
         if self.device.value:
             dev = self.device.value.strip()
             if dev == 'all':
                 conf_map['device'] = dev
             else:
-                conf_map['device'] = ast.literal_eval(dev)
+                conf_map['device'] = self._parse_field('device', dev)
         if self.reconstructions.value:
-            conf_map['reconstructions'] = ast.literal_eval(self.reconstructions.value)
+            conf_map['reconstructions'] = self._parse_field('reconstructions', self.reconstructions.value)
         if self.alg_seq.value:
             conf_map['algorithm_sequence'] = self.alg_seq.value.strip()
         if self.hio_beta.value:
-            conf_map['hio_beta'] = ast.literal_eval(self.hio_beta.value)
+            conf_map['hio_beta'] = self._parse_field('hio_beta', self.hio_beta.value)
         if self.raar_beta.value:
-            conf_map['raar_beta'] = ast.literal_eval(self.raar_beta.value)
+            conf_map['raar_beta'] = self._parse_field('raar_beta', self.raar_beta.value)
         if self.initial_support_area.value:
-            conf_map['initial_support_area'] = ast.literal_eval(self.initial_support_area.value)
+            conf_map['initial_support_area'] = self._parse_field('initial_support_area', self.initial_support_area.value)
 
         self.feature_panel.add_configs(conf_map)
         return conf_map
@@ -174,6 +308,7 @@ class RecTab(BaseTab):
         self.init_guess_params.children = []
         self.proc.value = 'auto'
         self.device.value = ''
+        self.precision.value = 'auto'
         self.reconstructions.value = ''
         self.alg_seq.value = ''
         self.hio_beta.value = ''
@@ -192,8 +327,8 @@ class RecTab(BaseTab):
         try:
             self._run_tab_impl()
         except Exception as e:
-            self.monitor.log(f'run_tab error: {e}')
-            self.monitor.log(traceback.format_exc())
+            self.monitor.log(format_error_summary(e, prefix='run_tab'), level='error')
+            self.monitor.log(traceback.format_exc(), level='debug')
             self.monitor.progress_label.value = '<i>Idle (error)</i>'
             self._on_running_changed(False)
 
@@ -249,7 +384,7 @@ class RecTab(BaseTab):
             backend_cfg=self._collect_backend_config(),
             kwargs={
                 'no_verify': self.main_gui.no_verify,
-                'debug': self.main_gui.debug,
+                'debug': True,
             },
             total_iters=total_iters_from_alg_sequence(self.alg_seq.value),
             show_progress_bar=progress_active and show_bar,
