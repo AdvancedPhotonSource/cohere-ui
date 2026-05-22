@@ -32,6 +32,7 @@ __all__ = ['handle_prep',
 
 import argparse
 import importlib
+import pyvista as pv
 import cohere_core.utilities as ut
 import cohere_ui.api.preprocessor as preprocessor
 import cohere_ui.api.common as com
@@ -72,8 +73,7 @@ def handle_prep(experiment_dir, **kwargs):
     beamline = main_conf_map['beamline']
     try:
         instr_module = importlib.import_module(f'cohere_beamlines.{beamline}.instrument')
-        need_detector = True # need to create for preprocessing
-        instr_obj = instr_module.create_instr(conf_maps, need_detector=need_detector)
+        instr_obj = instr_module.create_instr(conf_maps)
     except Exception as ex:
         print('exiting pre-processing')
         raise ex
@@ -99,22 +99,24 @@ def handle_prep(experiment_dir, **kwargs):
         print('no data found for scans, exiting')
         return 'no data found for scans, exiting'
 
+    do_RSM = conf_maps['config_prep'].get('do_RSM', None)
+
     outliers = []
     if separate_scans:
         # get all (scan, data info) tuples, process each scan and save the data in scans directories.
         single_scans_datainfo = [s_d for batch in scans_datainfo for s_d in batch]
         # passing in lambda: instr_obj.get_scan_array as the function is instrument dependent
-        preprocessor.process_separate_scans(instr_obj.get_scan_array, single_scans_datainfo, experiment_dir)
+        preprocessor.process_separate_scans(single_scans_datainfo, experiment_dir, instr_obj, do_RSM)
     elif separate_scan_ranges:
         # combine scans within ranges, save the data in scan ranges directories.
         for batch in scans_datainfo:
-            outliers.extend(preprocessor.process_batch(instr_obj.get_scan_array, batch, experiment_dir, separate_scan_ranges, remove_outliers))
+            outliers.extend(preprocessor.process_batch(batch, experiment_dir, separate_scan_ranges, remove_outliers, instr_obj, do_RSM))
     elif multipeak:
         outliers = mp.preprocess(instr_obj, scans_datainfo, experiment_dir, conf_maps)
     else:
         # combine all scans
         scans_datainfo = [e for batch in scans_datainfo for e in batch]
-        outliers = preprocessor.process_batch(instr_obj.get_scan_array, scans_datainfo, experiment_dir, separate_scan_ranges, remove_outliers)
+        outliers = preprocessor.process_batch(scans_datainfo, experiment_dir, separate_scan_ranges, remove_outliers, instr_obj, do_RSM)
 
     # save configuration with the auto found outliers. Save even if no outliers found to show it.
     if 'config_prep' in conf_maps.keys():
