@@ -604,6 +604,9 @@ class PrepTab(QWidget):
         self.roi_format.setToolTip('center point, distance : [center_point_x, center_point_y, distance_x, distance_y] \n start point, end point : [start_point_x, start_point_y, end_point_x, end_point_y] \n start point, distance : [start_point_x, distance_x, start_point_y, distance_y]')
         self.max_crop = QLineEdit()
         layout.addRow("max crop", self.max_crop)
+        self.do_RSM = QCheckBox('calculate RSM')
+        self.do_RSM.setChecked(False)
+        layout.addRow(self.do_RSM)
         self.remove_outliers = QCheckBox('remove outliers')
         self.remove_outliers.setChecked(False)
         layout.addRow(self.remove_outliers)
@@ -654,6 +657,7 @@ class PrepTab(QWidget):
             self.roi_format.setCurrentIndex(0)
         if 'max_crop' in conf_map:
             self.max_crop.setText(str(conf_map['max_crop']).replace(" ", ""))
+        self.do_RSM.setChecked('do_RSM' in conf_map and conf_map['do_RSM'])
         self.remove_outliers.setChecked('remove_outliers' in conf_map and conf_map['remove_outliers'])
         if 'outliers_scans' in conf_map:
             self.outliers_scans.setText(str(conf_map['outliers_scans']).replace(" ", ""))
@@ -665,6 +669,7 @@ class PrepTab(QWidget):
         self.roi.setText('')
         self.roi_format.setCurrentIndex(0)
         self.max_crop.setText('')
+        self.do_RSM.setChecked(False)
         self.outliers_scans.setText('')
         self.remove_outliers.setChecked(False)
 
@@ -715,6 +720,8 @@ class PrepTab(QWidget):
             conf_map['roi_format'] = 'start_point_dist'
         if len(self.max_crop.text()) > 0:
             conf_map['max_crop'] = ast.literal_eval(str(self.max_crop.text()).replace(os.linesep,''))
+        if self.do_RSM.isChecked():
+            conf_map['do_RSM'] = True
         if self.remove_outliers.isChecked():
             conf_map['remove_outliers'] = True
 

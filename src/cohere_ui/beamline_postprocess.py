@@ -36,6 +36,7 @@ __all__ = ['process_dir',
 
 import argparse
 import os
+from pathlib import Path
 import numpy as np
 from functools import partial
 from multiprocessing import cpu_count
@@ -95,7 +96,18 @@ def process_dir(config_maps, res_dir_scan):
     # get geometry
     ds = {}
     ds['res_dir'] = res_dir
-    geometry = instr_obj.get_geometry(image.shape, scan, config_maps)
+    # get max intensity location from preprocess.xlsx file
+    try:
+        df = pd.read_excel(ut.join(Path(res_dir).parent, 'preprocessed_data', 'preprocess.xlsx'), nrows=2)
+    except:
+        print('preprocessed_data is missing preprocess.xlsx file, rerun the preprocessing step')
+        raise
+
+    max_ind_x = df.loc[0, 'max ind (x)']
+    max_ind_y = df.loc[0, 'max ind (y)']
+    max_ind_frame = df.loc[0, 'max ind frame']
+
+    geometry = instr_obj.get_geometry([max_ind_x, max_ind_y, max_ind_frame], scan, config_maps)
     myq = geometry[2]
     ki = geometry[3]
     kf = geometry[4]

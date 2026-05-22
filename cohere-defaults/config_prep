@@ -13,3 +13,5 @@ remove_outliers = False
 
 //max_crop = [200,200]
                                             // Size of frame cut out around maximum
+
+do_RSM = True                              // Optional, boolean conveying if the reciprocal space mapping will be generated.
