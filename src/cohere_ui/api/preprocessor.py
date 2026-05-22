@@ -228,7 +228,7 @@ def process_batch(scans_infos, experiment_dir, separate_scan_ranges, remove_outl
     return outliers
 
 
-def process_separate_scans(read_scan_func, scans_datainfo, save_dir, instr, do_RSM):
+def process_separate_scans(scans_datainfo, save_dir, instr, do_RSM):
     for (scan, dinfo) in scans_datainfo:
         scan_save_dir = ut.join(save_dir, f'scan_{scan}', 'preprocessed_data')
         save_results4scan(scan, dinfo, instr, scan_save_dir, do_RSM)
