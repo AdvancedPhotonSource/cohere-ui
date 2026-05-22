@@ -1,12 +1,14 @@
 """DataTab: data formatting configuration and processing."""
 
-import ast
 import os
+import traceback
 
 import ipywidgets as widgets
 
-from .base import BaseTab, _MSG
-from ..widgets import form_row, text_field, dropdown, checkbox, button, LogPanel
+from cohere_ui.jupyter_gui.tabs.base import BaseTab, _MSG
+from cohere_ui.jupyter_gui.widgets import form_row, text_field, dropdown, checkbox, button, LogPanel
+from cohere_ui.jupyter_gui.tiff_viewer import TiffViewer
+from cohere_ui.jupyter_gui.error_format import format_error_summary
 
 
 class DataTab(BaseTab):
@@ -42,7 +44,31 @@ class DataTab(BaseTab):
 
         self.log_panel = LogPanel(height='150px')
 
-        layout = widgets.VBox([
+        self.tiff_viewer = TiffViewer(
+            panes=[
+                {
+                    'key': 'compare',
+                    'label': 'Comparison source',
+                    'placeholder': 'dir / file / glob -- or use Quick load below',
+                    'default_path': lambda: self._prep_default_path(),
+                    'shortcuts': [
+                        ('Raw scan', lambda: self._raw_default_path() or ''),
+                        ('Prep Data', lambda: self._prep_default_path() or ''),
+                    ],
+                },
+                {
+                    'key': 'data',
+                    'label': 'Data tab output (phasing_data/data.tif)',
+                    'placeholder': 'dir / file / glob (default: phasing_data/data.tif)',
+                    'default_path': lambda: self._data_default_path(),
+                },
+            ],
+            title='TIFF Viewer',
+            initial_visible=False,
+            log_debug=self.log_debug,
+        )
+
+        return widgets.VBox([
             form_row('Alien Algorithm', self.alien_alg),
             self.alien_params_box,
             self.auto_intensity_threshold,
@@ -53,10 +79,41 @@ class DataTab(BaseTab):
             self.no_center_max,
             widgets.HBox([self.load_btn, self.run_btn]),
             self.log_panel.widget,
+            widgets.HTML('<hr style="margin:12px 0;">'),
+            self.tiff_viewer.widget(),
         ])
 
-        return layout
+    def _raw_default_path(self):
+        """Per-frame raw TIFFs from <data_dir> in config_instr."""
+        if not self.main_gui or not self.main_gui.experiment_dir:
+            return None
+        try:
+            instr = self.main_gui.config_manager.get_cached('config_instr') or {}
+        except Exception as e:
+            self.log_debug(format_error_summary(e, prefix='_raw_default_path'))
+            return None
+        data_dir = instr.get('data_dir')
+        return data_dir if data_dir and os.path.isdir(data_dir) else None
 
+    def _prep_default_path(self):
+        """Assembled prep stack: <exp>/preprocessed_data/prep_data.tif."""
+        if not self.main_gui or not self.main_gui.experiment_dir:
+            return None
+        p = os.path.join(
+            self.main_gui.experiment_dir, 'preprocessed_data', 'prep_data.tif',
+        )
+        return p if os.path.isfile(p) else None
+
+    def _data_default_path(self):
+        """Data tab output: <exp>/phasing_data/data.tif."""
+        if not self.main_gui or not self.main_gui.experiment_dir:
+            return None
+        p = os.path.join(
+            self.main_gui.experiment_dir, 'phasing_data', 'data.tif',
+        )
+        return p if os.path.isfile(p) else None
+
+    @BaseTab._guard
     def _on_alien_change(self, change):
         """Update alien parameters based on selected algorithm."""
         alg = change['new']
@@ -144,6 +201,12 @@ class DataTab(BaseTab):
         if 'crop_pad' in conf_map:
             self.crop_pad.value = self._fmt_value(conf_map['crop_pad'])
         self.no_center_max.value = conf_map.get('no_center_max', False)
+        # Pre-fill TIFF viewer paths if the corresponding files exist.
+        for key, resolver in (('compare', self._prep_default_path),
+                              ('data', self._data_default_path)):
+            default = resolver()
+            if default:
+                self.tiff_viewer.path[key].value = default
 
     def get_config(self) -> dict:
         """Read current widget values into config dictionary."""
@@ -162,29 +225,29 @@ class DataTab(BaseTab):
         elif alg == 'AutoAlien1':
             conf_map['alien_alg'] = 'AutoAlien1'
             if hasattr(self, 'AA1_size_threshold') and self.AA1_size_threshold.value:
-                conf_map['AA1_size_threshold'] = ast.literal_eval(self.AA1_size_threshold.value)
+                conf_map['AA1_size_threshold'] = self._parse_field('AA1_size_threshold', self.AA1_size_threshold.value)
             if hasattr(self, 'AA1_asym_threshold') and self.AA1_asym_threshold.value:
-                conf_map['AA1_asym_threshold'] = ast.literal_eval(self.AA1_asym_threshold.value)
+                conf_map['AA1_asym_threshold'] = self._parse_field('AA1_asym_threshold', self.AA1_asym_threshold.value)
             if hasattr(self, 'AA1_min_pts') and self.AA1_min_pts.value:
-                conf_map['AA1_min_pts'] = ast.literal_eval(self.AA1_min_pts.value)
+                conf_map['AA1_min_pts'] = self._parse_field('AA1_min_pts', self.AA1_min_pts.value)
             if hasattr(self, 'AA1_eps') and self.AA1_eps.value:
-                conf_map['AA1_eps'] = ast.literal_eval(self.AA1_eps.value)
+                conf_map['AA1_eps'] = self._parse_field('AA1_eps', self.AA1_eps.value)
             if hasattr(self, 'AA1_amp_threshold') and self.AA1_amp_threshold.value:
-                conf_map['AA1_amp_threshold'] = ast.literal_eval(self.AA1_amp_threshold.value)
+                conf_map['AA1_amp_threshold'] = self._parse_field('AA1_amp_threshold', self.AA1_amp_threshold.value)
             if hasattr(self, 'AA1_save_arrs') and self.AA1_save_arrs.value:
                 conf_map['AA1_save_arrs'] = True
             if hasattr(self, 'AA1_expandcleanedsigma') and self.AA1_expandcleanedsigma.value:
-                conf_map['AA1_expandcleanedsigma'] = ast.literal_eval(self.AA1_expandcleanedsigma.value)
+                conf_map['AA1_expandcleanedsigma'] = self._parse_field('AA1_expandcleanedsigma', self.AA1_expandcleanedsigma.value)
 
         # Standard fields
         if self.intensity_threshold.value:
-            conf_map['intensity_threshold'] = ast.literal_eval(self.intensity_threshold.value)
+            conf_map['intensity_threshold'] = self._parse_field('intensity_threshold', self.intensity_threshold.value)
         if self.binning.value:
-            conf_map['binning'] = ast.literal_eval(self.binning.value)
+            conf_map['binning'] = self._parse_field('binning', self.binning.value)
         if self.shift.value:
-            conf_map['shift'] = ast.literal_eval(self.shift.value)
+            conf_map['shift'] = self._parse_field('shift', self.shift.value)
         if self.crop_pad.value:
-            conf_map['crop_pad'] = ast.literal_eval(self.crop_pad.value)
+            conf_map['crop_pad'] = self._parse_field('crop_pad', self.crop_pad.value)
         if self.auto_intensity_threshold.value:
             conf_map['auto_intensity_threshold'] = True
         if self.no_center_max.value:
@@ -230,7 +293,8 @@ class DataTab(BaseTab):
             run_dt.format_data(self.main_gui.experiment_dir, no_verify=self.main_gui.no_verify)
             self.log_success(_MSG['data']['complete'])
         except Exception as e:
-            self.log_error(f"{type(e).__name__}: {e}")
+            self.log_error(format_error_summary(e))
+            self.log_debug(traceback.format_exc())
         finally:
             self._log_file_changes(before)
 

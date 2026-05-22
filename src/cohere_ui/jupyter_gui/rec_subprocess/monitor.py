@@ -10,15 +10,18 @@ layout.
 
 import os
 import signal
+import sys
 import threading
 import time
+import traceback
 
 import ipywidgets as widgets
 
-from ..text import load_text
-from .progress import ErrorHistory, parse_progress_line
-from .log_view import render_error_plot, render_log_html
-from .runner import run_reconstruction
+from cohere_ui.jupyter_gui.error_format import format_error_summary
+from cohere_ui.jupyter_gui.text import load_text
+from cohere_ui.jupyter_gui.rec_subprocess.progress import ErrorHistory, parse_progress_line
+from cohere_ui.jupyter_gui.rec_subprocess.log_view import render_error_plot, render_log_html
+from cohere_ui.jupyter_gui.rec_subprocess.runner import run_reconstruction
 
 _UI = load_text('ui_strings')
 
@@ -41,7 +44,7 @@ class RecMonitor:
     """Manages a single reconstruction subprocess and its UI surface."""
 
     PROGRESS_WARN_SECONDS = 30.0
-    PSEUDO_TICK_SECONDS = 0.2
+    ITER_RATE_TICK_SECONDS = 0.2
     LOG_MAX_LINES = 1000
 
     def __init__(self):
@@ -70,6 +73,12 @@ class RecMonitor:
             layout=widgets.Layout(border='1px solid #ccc', height='150px',
                                   margin='4px 0 0 0'),
         )
+        self.show_debug = False
+        self.show_debug_checkbox = widgets.Checkbox(
+            value=False, description='show debug', indent=False,
+            layout=widgets.Layout(margin='2px 0 0 0', width='auto'),
+        )
+        self.show_debug_checkbox.observe(self._on_debug_toggle, names='value')
 
         self._log_lines = []
         self._error_history = ErrorHistory()
@@ -85,8 +94,8 @@ class RecMonitor:
         self._iter_rate = None
         self._last_iter_value = 0
         self._last_iter_wall = None
-        self._pseudo_ticker = None
-        self._pseudo_stop = threading.Event()
+        self._iter_rate_ticker = None
+        self._iter_rate_stop = threading.Event()
         self._last_exit_code = None
 
         self.on_running_changed = None
@@ -105,6 +114,7 @@ class RecMonitor:
             self.live_view,
             self.error_plot,
             self.log_widget,
+            self.show_debug_checkbox,
         ])
 
     def start(self, experiment_dir, backend_cfg, kwargs,
@@ -151,16 +161,14 @@ class RecMonitor:
         )
         self._watchdog_thread.start()
 
-        # Pseudo-progress ticker: when the bar is visible, interpolate
-        # between real iter events using the observed rate so the bar moves
-        # smoothly even when progress_trigger is sparse.
+        # Iter-rate ticker advances the bar between real iter events at the observed rate.
         if self.progress_bar.layout.visibility == 'visible':
-            self._pseudo_stop.clear()
-            self._pseudo_ticker = threading.Thread(
-                target=self._pseudo_progress_loop, daemon=True,
-                name='RecMonitor-pseudo-progress',
+            self._iter_rate_stop.clear()
+            self._iter_rate_ticker = threading.Thread(
+                target=self._iter_rate_progress_loop, daemon=True,
+                name='RecMonitor-iter-rate-progress',
             )
-            self._pseudo_ticker.start()
+            self._iter_rate_ticker.start()
 
     def stop(self):
         """Kill the running subprocess group."""
@@ -177,20 +185,41 @@ class RecMonitor:
             except Exception as e:
                 self.log(f'terminate fallback failed: {e}')
 
-    def log(self, msg):
-        """Append a line to the log widget."""
-        self._log_lines.append(str(msg))
+    def log(self, msg, level: str = 'info'):
+        """Append a line to the log widget at the given level."""
+        self._log_lines.append((level, str(msg)))
         if len(self._log_lines) > self.LOG_MAX_LINES:
             self._log_lines = self._log_lines[-self.LOG_MAX_LINES:]
-        try:
-            self.log_widget.value = render_log_html(self._log_lines)
-        except Exception:
-            pass
+        self._refresh_log()
 
     def clear_log(self):
         """Clear the log widget."""
         self._log_lines = []
-        self.log_widget.value = render_log_html([])
+        self._refresh_log()
+
+    def set_show_debug(self, value: bool):
+        value = bool(value)
+        if self.show_debug == value:
+            return
+        self.show_debug = value
+        if self.show_debug_checkbox.value != value:
+            self.show_debug_checkbox.value = value
+        self._refresh_log()
+
+    def _on_debug_toggle(self, change):
+        self.show_debug = bool(change['new'])
+        self._refresh_log()
+
+    def _refresh_log(self):
+        try:
+            self.log_widget.value = render_log_html(
+                self._log_lines, show_debug=self.show_debug,
+            )
+        except Exception as e:
+            sys.stderr.write(
+                f"RecMonitor._refresh_log failed: {type(e).__name__}: {e}\n"
+                f"{traceback.format_exc()}"
+            )
 
     def show_final_snapshot(self, image, support, errors, backend_cfg):
         """Render the converged image to the snapshot panel.
@@ -243,8 +272,12 @@ class RecMonitor:
                 if errs_list and self._error_history.last_iter() not in (final_iter, None):
                     final_err = float(errs_list[-1])
                     if self._error_history.append(final_iter, final_err):
-                        self.error_plot.value = render_error_plot(
-                            self._error_history.points_for_plot())
+                        try:
+                            self.error_plot.value = render_error_plot(
+                                self._error_history.points_for_plot())
+                        except Exception as e:
+                            self.log(format_error_summary(
+                                e, prefix='show_final_snapshot'), level='debug')
                 return
 
     def _reset_for_run(self, total_iters: int, show_progress_bar: bool):
@@ -303,10 +336,10 @@ class RecMonitor:
         if self._progress_warning_timer is not None:
             self._progress_warning_timer.cancel()
             self._progress_warning_timer = None
-        self._pseudo_stop.set()
-        if self._pseudo_ticker is not None:
-            self._pseudo_ticker.join(timeout=1)
-            self._pseudo_ticker = None
+        self._iter_rate_stop.set()
+        if self._iter_rate_ticker is not None:
+            self._iter_rate_ticker.join(timeout=1)
+            self._iter_rate_ticker = None
         # Drain remaining queue records before closing. Without this, the
         # listener can be stopped before the tail of the run's output (final
         # iter print, "iterate took", etc.) is dispatched, dropping the
@@ -323,8 +356,8 @@ class RecMonitor:
                 self._dispatch_record(rec)
             try:
                 self._msg_queue.close()
-            except Exception:
-                pass
+            except Exception as e:
+                self.log(format_error_summary(e, prefix='_cleanup_after_run'), level='debug')
             self._msg_queue = None
         exit_code = self._last_exit_code
         self._proc = None
@@ -414,25 +447,29 @@ class RecMonitor:
     def _on_message(self, record):
         level = record.get('level', 'info')
         text = record.get('text', '')
-        self.log(f'[{level}] {text}')
+        self.log(text, level=level)
 
     def _record_error(self, iteration, error):
         if self._error_history.append(iteration, error):
-            self.error_plot.value = render_error_plot(
-                self._error_history.points_for_plot())
+            try:
+                self.error_plot.value = render_error_plot(
+                    self._error_history.points_for_plot())
+            except Exception as e:
+                self.log(format_error_summary(e, prefix='_record_error'),
+                         level='debug')
 
     def _warn_if_no_progress(self):
         if not self._progress_seen and self.is_running:
             self.log(_UI['progress_warning']['no_progress_lines'])
 
-    def _pseudo_progress_loop(self):
+    def _iter_rate_progress_loop(self):
         # Tick ~5 Hz. Each tick, if we have a rate estimate and it's been a
         # while since the last real iter event, advance the bar by
         # rate * elapsed. Capped one short of max so the next real fire can
         # still snap to the truth without a regression.
-        while not self._pseudo_stop.is_set():
-            self._pseudo_stop.wait(self.PSEUDO_TICK_SECONDS)
-            if self._pseudo_stop.is_set():
+        while not self._iter_rate_stop.is_set():
+            self._iter_rate_stop.wait(self.ITER_RATE_TICK_SECONDS)
+            if self._iter_rate_stop.is_set():
                 break
             rate = self._iter_rate
             if rate is None or rate <= 0:
@@ -447,5 +484,7 @@ class RecMonitor:
             if new_value > self.progress_bar.value:
                 try:
                     self.progress_bar.value = new_value
-                except Exception:
+                except Exception as e:
+                    self.log(format_error_summary(e, prefix='_iter_rate_progress_loop'),
+                             level='debug')
                     return

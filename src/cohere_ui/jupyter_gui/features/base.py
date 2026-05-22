@@ -5,7 +5,7 @@ from typing import Optional
 import ipywidgets as widgets
 import ast
 
-from ..widgets import checkbox, button
+from cohere_ui.jupyter_gui.widgets import checkbox, button
 
 
 class Feature(ABC):
@@ -57,7 +57,7 @@ class Feature(ABC):
 
     def _show_params(self):
         """Show parameter widgets when feature is activated. Auto-applies
-        set_defaults() so the feature is immediately usable — without it,
+        set_defaults() so the feature is immediately usable. Without it,
         fields stay empty and add_config silently skips them, dropping the
         feature from the saved config with no error."""
         param_widgets = self.fill_active()
@@ -114,7 +114,7 @@ class Feature(ABC):
     def _require_field(self, attr_name: str, label: Optional[str] = None) -> str:
         """Verify a parameter widget exists and is non-empty when the feature
         is active. Pass the attribute *name* (string), not the widget itself,
-        so the lookup is deferred until after the inactive-skip check —
+        so the lookup is deferred until after the inactive-skip check;
         parameter widgets are created lazily in fill_active(), which only
         runs when the user toggles the feature active. Calling this with
         self.foo when fill_active() has never run would AttributeError before

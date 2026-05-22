@@ -82,8 +82,12 @@ class JupyterMatplotlibBackend(LiveViewBackend):
     def _send(self, record):
         try:
             self._queue.put(record, block=False)
-        except Exception:
-            pass
+        except Exception as e:
+            import sys
+            sys.__stderr__.write(
+                f"JupyterMatplotlibBackend._send: dropped {record.get('kind', '?')} "
+                f"record ({type(e).__name__}: {e})\n"
+            )
 
     @staticmethod
     def _iter_from_title(title):

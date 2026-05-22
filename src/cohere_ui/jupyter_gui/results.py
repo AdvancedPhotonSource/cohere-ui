@@ -3,10 +3,15 @@ ResultsContainer for exposing analysis variables to notebook users.
 """
 
 import os
-from typing import Optional
+import sys
+from typing import Callable, Optional
 import numpy as np
 
 import cohere_core.utilities as ut
+
+import traceback
+
+from cohere_ui.jupyter_gui.error_format import format_error_summary
 
 
 class ResultsContainer:
@@ -22,6 +27,9 @@ class ResultsContainer:
         self._support = None
         self._coherence = None
         self._errors = None
+        # Default sink is stderr; CoherenceGUI rewires to log_panel.error after _build_ui.
+        self._log_error: Callable[[str], object] = lambda msg: sys.stderr.write(msg + "\n")
+        self._log_debug: Callable[[str], object] = lambda msg: sys.stderr.write(msg + "\n")
 
     def set_config_manager(self, config_manager):
         """Set or update the config manager reference."""
@@ -113,7 +121,9 @@ class ResultsContainer:
                 import tifffile as tf
                 return tf.imread(filepath)
         except Exception as e:
-            print(f"Warning: Could not load {filepath}: {e}")
+            self._log_error(
+                format_error_summary(e, prefix='_load_array'))
+            self._log_debug(traceback.format_exc())
         return None
 
     def reload(self):

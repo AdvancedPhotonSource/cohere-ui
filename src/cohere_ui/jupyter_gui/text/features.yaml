@@ -47,19 +47,37 @@ shrink_wrap:
     <b>How to use:</b> trigger like <code>[1, 1]</code> fires every
     iteration starting at iter 1. Threshold \(\approx 0.1\) and Gauss
     \(\sigma \approx 1.0\) are typical defaults; raise threshold to
-    tighten the support, lower to be more permissive.
+    tighten the support, lower to be more permissive. For per-block
+    use, append <code>.SW#</code> to an algorithm block (e.g.
+    <code>200*HIOpc.SW0</code>); the three keys then become lists
+    indexed by <code>#</code>.
 
 phase_constrain:
   name: phase constrain
   description: |
-    Tighten the support to include only voxels whose reconstructed phase
-    falls within <code>[phase_min, phase_max]</code>. Useful in early
-    iterations to reject regions where the phase is non-physical.
+    Tighten the support to voxels whose reconstructed phase falls
+    within <code>[phase_min, phase_max]</code>. Useful early to reject
+    non-physical phase regions.
     <br><br>
-    <b>How to use:</b> trigger like <code>[0, 1, 100]</code> for the first
-    100 iters of a 200-iter run. Bounds in radians:
-    <code>[-1.57, 1.57]</code> (\(= \pm \pi/2\)) is conservative; widen to
-    \([-\pi, \pi]\) to disable the phase filter.
+    <b>How to use:</b> trigger MUST be 3-element
+    <code>[start, step, stop]</code> (1- or 2-element forms crash).
+    E.g. <code>[0, 1, 100]</code> fires every iter through iter 99;
+    <code>[0, 1, -1]</code> fires through <code>iter_no - 2</code>.
+    Bounds in radians (defaults \([-1.57, 1.57] \approx \pm \pi/2\));
+    tick <b>bounds in units of \(\pi\)</b> to enter as multiples of
+    \(\pi\) (a <code>\(\times \pi\)</code> label confirms). Saved
+    config is always in radians.
+    <br><br>
+    <b>Per-block (advanced):</b> append <code>.PHC#</code> to an
+    algorithm block (e.g. <code>200*HIO.PHC0 + 100*HIO.PHC1 + 10*ER</code>);
+    <code>phc_trigger</code>, <code>phc_phase_min</code>,
+    <code>phc_phase_max</code> then become lists indexed by
+    <code>#</code>, e.g. <code>phc_trigger=[[0,1,200],[0,1,100]]</code>,
+    <code>phc_phase_min=[-1.57,-0.5]</code>,
+    <code>phc_phase_max=[1.57,0.5]</code>. Inner triggers use
+    block-relative indices with positive <code>stop</code>. The last
+    <code>.PHC#</code> block can't be the final block in
+    <code>algorithm_sequence</code> (add a trailing <code>*ER</code>).
 
 pcdi:
   name: pcdi

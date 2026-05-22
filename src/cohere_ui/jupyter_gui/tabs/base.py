@@ -1,13 +1,16 @@
 """Base class for all tab implementations."""
 
+import functools
 import os
+import traceback
 from abc import ABC, abstractmethod
 from typing import Optional
 
 import ipywidgets as widgets
 
-from ..file_events import diff as file_diff, snapshot as file_snapshot
-from ..text import load_text
+from cohere_ui.jupyter_gui.file_events import diff as file_diff, snapshot as file_snapshot
+from cohere_ui.jupyter_gui.error_format import format_error_summary, safe_parse
+from cohere_ui.jupyter_gui.text import load_text
 
 _MSG = load_text('messages')
 
@@ -45,6 +48,22 @@ class BaseTab(ABC):
         self.main_gui = main_gui
         self._widget = self._build_ui()
 
+    @staticmethod
+    def _guard(fn):
+        """Decorator that surfaces widget-callback exceptions to the tab's
+        log panel instead of letting them die silently in ipywidgets'
+        event loop. Wrap ``observe`` / ``on_click`` handlers with this so
+        a missing file or a parser error becomes a visible ``[ERROR]``
+        plus ``[DEBUG]`` pair rather than a frozen UI."""
+        @functools.wraps(fn)
+        def wrapper(self, *args, **kwargs):
+            try:
+                return fn(self, *args, **kwargs)
+            except Exception as e:
+                self.log_error(format_error_summary(e, prefix=fn.__name__))
+                self.log_debug(traceback.format_exc())
+        return wrapper
+
     @property
     def widget(self) -> widgets.Widget:
         """The tab's root widget."""
@@ -79,15 +98,20 @@ class BaseTab(ABC):
         """
         if not self.main_gui or not self.main_gui.experiment_exists():
             return _MSG['tab']['experiment_not_set']
-        conf_map = self.get_config()
-        err, action = self.main_gui.config_manager.save_config(
-            self.conf_name,
-            conf_map,
-            no_verify=self.main_gui.no_verify
-        )
-        if action:
-            self._log_config_action(action)
-        return err
+        try:
+            conf_map = self.get_config()
+            err, action = self.main_gui.config_manager.save_config(
+                self.conf_name,
+                conf_map,
+                no_verify=self.main_gui.no_verify
+            )
+            if action:
+                self._log_config_action(action)
+            return err
+        except Exception as e:
+            self.log_error(format_error_summary(e, prefix='save_conf'))
+            self.log_debug(traceback.format_exc())
+            return str(e) or type(e).__name__
 
     def save_and_verify(self) -> str:
         """Get config, verify, save. Returns error string (empty when successful).
@@ -95,16 +119,21 @@ class BaseTab(ABC):
         Replaces the duplicated verify-then-save block in every tab's run_tab.
         Logs the create/update action through the tab's logging.
         """
-        conf_map = self.get_config()
-        err = self.main_gui.config_manager.verify(self.conf_name, conf_map)
-        if err and not self.main_gui.no_verify:
-            self.log_error(_MSG['tab']['config_error'].format(error=err))
-            return err
-        _, action = self.main_gui.config_manager.save_config(
-            self.conf_name, conf_map, self.main_gui.no_verify)
-        if action:
-            self._log_config_action(action)
-        return ""
+        try:
+            conf_map = self.get_config()
+            err = self.main_gui.config_manager.verify(self.conf_name, conf_map)
+            if err and not self.main_gui.no_verify:
+                self.log_error(_MSG['tab']['config_error'].format(error=err))
+                return err
+            _, action = self.main_gui.config_manager.save_config(
+                self.conf_name, conf_map, self.main_gui.no_verify)
+            if action:
+                self._log_config_action(action)
+            return ""
+        except Exception as e:
+            self.log_error(format_error_summary(e, prefix='save_and_verify'))
+            self.log_debug(traceback.format_exc())
+            return str(e) or type(e).__name__
 
     def _log_config_action(self, action: str):
         """Log a config save (action = 'created' or 'updated')."""
@@ -202,6 +231,25 @@ class BaseTab(ABC):
             self.log_panel.error(message)
         else:
             self.log(message)
+
+    def log_debug(self, message: str):
+        if self.log_panel is not None:
+            self.log_panel.debug(message)
+
+    def _parse_field(self, name: str, value):
+        """Parse a text-field value with field-named error reporting.
+
+        Wraps ``safe_parse`` so a malformed entry (unclosed bracket, wrong
+        type) lands in this tab's log as ``[ERROR] <name>: invalid ...``
+        and the full traceback as ``[DEBUG]``, never as an uncaught
+        Jupyter cell traceback. Returns the raw string on failure so the
+        verifier downstream can still flag it by name.
+        """
+        return safe_parse(
+            name, value,
+            log_error=self.log_error,
+            log_debug=self.log_debug,
+        )
 
     def clear_output(self):
         """Clear the log panel. Subclasses with a different sink override this."""

@@ -5,8 +5,11 @@ import os
 
 import ipywidgets as widgets
 
-from .base import BaseTab, _MSG
-from ..widgets import form_row, text_field, button, LogPanel
+from cohere_ui.jupyter_gui.tabs.base import BaseTab, _MSG
+from cohere_ui.jupyter_gui.widgets import form_row, text_field, button, LogPanel
+import traceback
+
+from cohere_ui.jupyter_gui.error_format import format_error_summary
 
 
 # Per-beamline field schema. General fields are always shown; spec fields
@@ -161,6 +164,7 @@ class InstrTab(BaseTab):
             widget.observe(self._on_spec_input_change, names='value')
         return form_row(label, widget, label_width='200px', right_align=True)
 
+    @BaseTab._guard
     def _on_spec_input_change(self, _change):
         # When the user changes specfile/diffractometer/scan they want fresh spec
         # values, so only protect general (non-spec) fields from being overwritten.
@@ -238,7 +242,9 @@ class InstrTab(BaseTab):
             )
             spec_dict = diff_obj.parse_metadata(last_scan)
         except Exception as e:
-            self.log_error(_MSG['instr']['parse_spec_failed'].format(error=e))
+            self.log_error(_MSG['instr']['parse_spec_failed'].format(
+                error=format_error_summary(e)))
+            self.log_debug(traceback.format_exc())
             return
         if not spec_dict:
             return

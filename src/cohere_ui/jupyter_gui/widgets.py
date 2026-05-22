@@ -3,10 +3,12 @@ Widget factory functions and helpers for building ipywidgets-based forms.
 """
 
 import os
+import sys
+import traceback
 import ipywidgets as widgets
 from IPython.display import display
 
-from .styles import apply_button_role
+from cohere_ui.jupyter_gui.styles import apply_button_role
 
 try:
     from ipyfilechooser import FileChooser
@@ -260,38 +262,38 @@ def section_header(text: str) -> widgets.HTML:
 
 
 class LogPanel:
-    """Auto-scrolling, level-styled log panel for tab status messages.
-
-    Each appended line is stamped with its level (info / success / warning
-    / error) which controls color and a short prefix. Newest line stays
-    pinned at the bottom via a column-reverse flexbox (the same trick chat
-    apps use; works without any JS hook).
-
-    Methods: ``info``, ``success``, ``warning``, ``error``, ``clear``.
-    The HTML widget is exposed as ``.widget`` for embedding in a layout.
-    """
+    """Auto-scrolling, level-styled log panel (info/success/warning/error/debug)."""
 
     _LEVEL_STYLE = {
         'info':    'color:#222;',
         'success': 'color:#1e7a1e; font-weight:600;',
         'warning': 'color:#a06000;',
         'error':   'color:#a02020; font-weight:600;',
+        'debug':   'color:#777; font-style:italic;',
     }
     _LEVEL_PREFIX = {
         'info':    '',
         'success': '[OK] ',
         'warning': '[WARN] ',
         'error':   '[ERROR] ',
+        'debug':   '[DEBUG] ',
     }
 
     def __init__(self, height: str = '150px', max_lines: int = 500):
         self._lines = []
         self._max_lines = max_lines
-        self.widget = widgets.HTML(
+        self.show_debug = False
+        self._html = widgets.HTML(
             value=self._render(),
             layout=widgets.Layout(border='1px solid #ccc', height=height,
                                   margin='4px 0 0 0'),
         )
+        self.show_debug_checkbox = widgets.Checkbox(
+            value=False, description='show debug', indent=False,
+            layout=widgets.Layout(margin='2px 0 0 0', width='auto'),
+        )
+        self.show_debug_checkbox.observe(self._on_debug_toggle, names='value')
+        self.widget = widgets.VBox([self._html, self.show_debug_checkbox])
 
     def info(self, msg):
         self._append('info', msg)
@@ -305,26 +307,54 @@ class LogPanel:
     def error(self, msg):
         self._append('error', msg)
 
+    def debug(self, msg):
+        self._append('debug', msg)
+
     def clear(self):
         self._lines = []
-        self.widget.value = self._render()
+        self._refresh()
+
+    def set_show_debug(self, value: bool):
+        value = bool(value)
+        if self.show_debug == value:
+            return
+        self.show_debug = value
+        if self.show_debug_checkbox.value != value:
+            self.show_debug_checkbox.value = value
+        self._refresh()
+
+    def _on_debug_toggle(self, change):
+        self.show_debug = bool(change['new'])
+        self._refresh()
 
     def _append(self, level: str, msg):
         self._lines.append((level, str(msg)))
         if len(self._lines) > self._max_lines:
             self._lines = self._lines[-self._max_lines:]
+        self._refresh()
+
+    def _refresh(self):
         try:
-            self.widget.value = self._render()
-        except Exception:
-            pass
+            self._html.value = self._render()
+        except Exception as e:
+            sys.stderr.write(
+                f"LogPanel._refresh failed: {type(e).__name__}: {e}\n"
+                f"{traceback.format_exc()}"
+            )
 
     def _render(self) -> str:
         from html import escape
         rows = []
-        for level, msg in reversed(self._lines):
+        visible_idx = 0
+        for level, msg in self._lines:
+            if level == 'debug' and not self.show_debug:
+                continue
             style = self._LEVEL_STYLE.get(level, '')
             prefix = self._LEVEL_PREFIX.get(level, '')
-            rows.append(f'<div style="{style}">{prefix}{escape(msg)}</div>')
+            rows.append(
+                f'<div style="order:{-visible_idx};{style}">{prefix}{escape(msg)}</div>'
+            )
+            visible_idx += 1
         return (
             '<div style="height:100%;overflow-y:auto;'
             'display:flex;flex-direction:column-reverse;'
@@ -347,12 +377,17 @@ class FeaturePanel:
         self.feature_names = list(features.keys())
 
         self.selector = widgets.Select(
-            options=self.feature_names,
+            options=self._build_options(),
             value=self.feature_names[0] if self.feature_names else None,
-            layout=widgets.Layout(width='160px', height='220px')
+            layout=widgets.Layout(width='180px', height='220px')
         )
 
-        
+        for feature in self.features.values():
+            feature.active.observe(
+                lambda _change: self._refresh_selector_options(),
+                names='value',
+            )
+
         self._info_area = widgets.HTML()
         self._params_holder = widgets.VBox()
 
@@ -370,6 +405,39 @@ class FeaturePanel:
         self._update_params_display()
 
         self.widget = widgets.HBox([self.selector, self.params_area])
+
+    _ACTIVE_PREFIX = '● '   # filled circle + space
+    _INACTIVE_PREFIX = '○ '  # hollow circle + space
+
+    def _build_options(self):
+        """Return [(display_label, value)] tuples with ●/○ prefix per feature."""
+        return [
+            (
+                (self._ACTIVE_PREFIX if feature.active.value else self._INACTIVE_PREFIX)
+                + name,
+                name,
+            )
+            for name, feature in self.features.items()
+        ]
+
+    def _refresh_selector_options(self):
+        """Rebuild active/inactive label prefixes; suppress _on_select during the swap."""
+        current = self.selector.value
+        try:
+            self.selector.unobserve(self._on_select, 'value')
+        except (ValueError, RuntimeError):
+            pass
+        try:
+            self.selector.options = self._build_options()
+            if current is not None and current in self.feature_names:
+                self.selector.value = current
+        except Exception as e:
+            sys.stderr.write(
+                f"FeaturePanel._refresh_selector_options failed: "
+                f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
+            )
+        finally:
+            self.selector.observe(self._on_select, 'value')
 
     def _on_select(self, change):
         self._update_params_display()

@@ -1,10 +1,14 @@
 """DispTab: display/visualization configuration and processing."""
 
 import ast
+
 import ipywidgets as widgets
 
-from .base import BaseTab, _MSG
-from ..widgets import form_row, text_field, dropdown, checkbox, button, FeaturePanel, LogPanel
+from cohere_ui.jupyter_gui.tabs.base import BaseTab, _MSG
+from cohere_ui.jupyter_gui.widgets import form_row, text_field, dropdown, checkbox, button, FeaturePanel, LogPanel
+import traceback
+
+from cohere_ui.jupyter_gui.error_format import format_error_summary
 
 
 class DispTab(BaseTab):
@@ -24,7 +28,7 @@ class DispTab(BaseTab):
         self.complex_mode = dropdown(options=['AmpPhase', 'ReIm'], value='AmpPhase')
 
         # Features panel
-        from ..features import DISP_FEATURES
+        from cohere_ui.jupyter_gui.features import DISP_FEATURES
         self.features = {name: cls() for name, cls in DISP_FEATURES.items()}
         self.feature_panel = FeaturePanel(self.features)
 
@@ -78,7 +82,7 @@ class DispTab(BaseTab):
         if self.unwrap.value:
             conf_map['unwrap'] = True
         if self.rampups.value:
-            conf_map['rampups'] = ast.literal_eval(self.rampups.value)
+            conf_map['rampups'] = self._parse_field('rampups', self.rampups.value)
         conf_map['complex_mode'] = self.complex_mode.value
 
         # Features
@@ -118,8 +122,9 @@ class DispTab(BaseTab):
             self.log_info(_MSG['disp']['running'])
             dp.handle_visualization(self.main_gui.experiment_dir, no_verify=self.main_gui.no_verify)
             self.log_success(_MSG['disp']['complete'])
-        except (ValueError, FileNotFoundError, KeyError) as e:
-            self.log_error(f"{type(e).__name__}: {e}")
+        except Exception as e:
+            self.log_error(format_error_summary(e))
+            self.log_debug(traceback.format_exc())
         finally:
             self._log_file_changes(before)
 

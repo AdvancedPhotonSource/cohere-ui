@@ -1,11 +1,14 @@
 """Progress-line parsing and error-history bookkeeping.
 
-Pure parsing + a small dataclass-style history container; no UI, no
-threading, no subprocess. Imported by both the listener (which feeds
+Pure parsing + a small dataclass-style history container. 
+Imported by both the listener (which feeds
 records in) and the log-view module (which renders them out).
 """
 
 import re
+import sys
+
+from cohere_ui.jupyter_gui.error_format import format_error_summary
 
 PROGRESS_PATTERNS = (
     re.compile(r'^------iter\s+(\d+)\s+error\s+(\S+)\s*$'),
@@ -26,7 +29,12 @@ def total_iters_from_alg_sequence(seq: str) -> int:
     arithmetic = re.sub(r'\*[A-Za-z][A-Za-z0-9.]*', '*1', seq.replace(' ', ''))
     try:
         return int(eval(arithmetic, {'__builtins__': {}}, {}))
-    except Exception:
+    except Exception as e:
+        sys.stderr.write(
+            f"total_iters_from_alg_sequence: could not parse {seq!r} "
+            f"(reduced to {arithmetic!r}); progress bar will stay indeterminate. "
+            f"{format_error_summary(e)}\n"
+        )
         return 0
 
 

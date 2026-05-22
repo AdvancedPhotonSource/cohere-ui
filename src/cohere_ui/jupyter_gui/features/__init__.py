@@ -1,12 +1,12 @@
 """Feature implementations for reconstruction and display tabs."""
 
-from .base import Feature
-from .rec_features import (
+from cohere_ui.jupyter_gui.features.base import Feature
+from cohere_ui.jupyter_gui.features.rec_features import (
     GAFeature, LowResolutionFeature, ShrinkWrapFeature,
     PhaseConstrainFeature, PCDIFeature, TwinFeature,
     AverageFeature, ProgressFeature, LiveFeature
 )
-from .disp_features import (
+from cohere_ui.jupyter_gui.features.disp_features import (
     CropFeature, InterpolationFeature, ResolutionFeature,
     ReciprocalFeature, StrainFeature, DisplacementFeature
 )

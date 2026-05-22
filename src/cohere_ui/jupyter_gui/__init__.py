@@ -33,9 +33,9 @@ except ImportError as e:
         "pip install --upgrade cohere_core"
     ) from e
 
-from .core import CoherenceGUI
-from .config import ConfigManager
-from .results import ResultsContainer
+from cohere_ui.jupyter_gui.core import CoherenceGUI
+from cohere_ui.jupyter_gui.config import ConfigManager
+from cohere_ui.jupyter_gui.results import ResultsContainer
 
 # User-overridable path to an ImageJ install (the resolver also finds
 # ImageJ-distributions like Fiji automatically). Set this from a notebook

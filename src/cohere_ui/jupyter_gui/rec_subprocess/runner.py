@@ -24,8 +24,12 @@ class QueueWriter:
             line, _, self._buf = self._buf.partition('\n')
             try:
                 self._queue.put({'kind': 'stdout', 'stream': self._stream, 'line': line})
-            except Exception:
-                pass
+            except Exception as e:
+                # Use __stderr__ to avoid recursing into self (sys.stderr IS this QueueWriter).
+                sys.__stderr__.write(
+                    f"QueueWriter.write failed ({type(e).__name__}: {e}); "
+                    f"dropped line on {self._stream}: {line}\n"
+                )
 
     def flush(self):
         pass
@@ -92,9 +96,14 @@ def run_reconstruction(experiment_dir, msg_queue, backend_cfg, kwargs):
         run_rc.manage_reconstruction(experiment_dir, **kwargs)
         msg_queue.put({'kind': 'message', 'level': 'info', 'text': 'reconstruction finished'})
     except Exception as e:
+        from cohere_ui.jupyter_gui.error_format import format_error_summary
         msg_queue.put({
             'kind': 'message', 'level': 'error',
-            'text': f'reconstruction failed: {e}\n{traceback.format_exc()}',
+            'text': format_error_summary(e, prefix='run_reconstruction'),
+        })
+        msg_queue.put({
+            'kind': 'message', 'level': 'debug',
+            'text': traceback.format_exc(),
         })
         raise
     finally:
