@@ -100,8 +100,6 @@ def process_batch(scans_infos, experiment_dir, separate_scan_ranges, remove_outl
     scans = list(scans)
     arrays_offsets = [instrument.get_scan_array(scan_info) for scan_info in info]
     arrays = [array_offset[0] for array_offset in arrays_offsets]
-    # for ar in arrays:
-    #     ar =
     offsets = [array_offset[1] for array_offset in arrays_offsets]
     # check if shapes are the same. It is possible that max_crop if applied may return array size
     # smaller than the crop if the maximum is close to the edge of frame.
@@ -175,7 +173,6 @@ def process_batch(scans_infos, experiment_dir, separate_scan_ranges, remove_outl
 
     # save the data file
     ut.save_tif(sum_arr, ut.join(save_dir, 'prep_data.tif'))
-
     if do_RSM:
         # calculate for the first scan
         rsmlab = instrument.get_RSM(scans[0])
