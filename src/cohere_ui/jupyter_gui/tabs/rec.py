@@ -7,21 +7,34 @@ Run / Stop buttons through ``RecMonitor``.
 """
 
 import ast
+import importlib.util
 import os
 import sys
+from contextlib import nullcontext as _nullcontext
 
 import ipywidgets as widgets
 
+from cohere_ui.jupyter_gui._validation import (
+    ValidationError as _ValidationError,
+    parse_algorithm_sequence,
+    validate_device_field,
+)
 from cohere_ui.jupyter_gui.tabs.base import BaseTab, _MSG
-from cohere_ui.jupyter_gui.widgets import form_row, text_field, dropdown, button, FeaturePanel
+from cohere_ui.jupyter_gui.widgets import (
+    FeaturePanel, PathChooser, button, dropdown, form_row, text_field,
+)
 from cohere_ui.jupyter_gui.rec_subprocess import RecMonitor
 from cohere_ui.jupyter_gui.rec_subprocess.progress import total_iters_from_alg_sequence
 import traceback
 
-from cohere_ui.jupyter_gui.device_info import (
+from cohere_ui.jupyter_gui.utils.device_info import (
     list_devices, format_devices, parse_device_field,
 )
-from cohere_ui.jupyter_gui.error_format import format_error_summary
+from cohere_ui.jupyter_gui.utils.error_format import format_error_summary
+from cohere_ui.jupyter_gui.text import load_text
+
+_UI = load_text('ui_strings')
+_URLS = load_text('urls')
 
 
 class RecTab(BaseTab):
@@ -37,12 +50,16 @@ class RecTab(BaseTab):
             options=['random', 'continue', 'AI algorithm'],
             value='random'
         )
+        # Colored-dot status beside Initial Guess; only shown for AI algorithm.
+        self.ai_status = widgets.HTML(
+            layout=widgets.Layout(width='180px', margin='0 0 0 8px')
+        )
         self.init_guess_params = widgets.VBox()
         self.init_guess.observe(self._on_init_guess_change, 'value')
 
-        proc_options = ['auto', 'np', 'torch']
-        if sys.platform != 'darwin':
-            proc_options.insert(1, 'cp')
+        # List all backends; the status dot shows which are available on this
+        # machine. An unavailable pick is refused at Run time with a clear message.
+        proc_options = ['auto', 'np', 'cp', 'torch']
         self.proc = dropdown(options=proc_options, value='auto')
         self.proc_status = widgets.HTML(
             layout=widgets.Layout(width='180px', margin='0 0 0 8px')
@@ -69,19 +86,16 @@ class RecTab(BaseTab):
         self.initial_support_area = text_field(placeholder='[0.5, 0.5, 0.5]')
 
         self.defaults_btn = button('Set Defaults', style='info', width='120px', role='info')
-        self.defaults_btn.on_click(lambda b: self._set_defaults())
+        self.defaults_btn.on_click(lambda b: self._set_defaults_guarded())
 
         from cohere_ui.jupyter_gui.features import REC_FEATURES
         self.features = {name: cls() for name, cls in REC_FEATURES.items()}
         self.feature_panel = FeaturePanel(self.features)
 
-        self.load_btn = button('Load Config', style='warning', width='120px', role='load')
-        self.run_btn = button('Run Reconstruction', style='success', width='150px', role='run')
+        self.action_row = self._build_action_row(run_label='Run Reconstruction', run_width='180px')
         self.stop_btn = button('Stop', style='danger', width='80px')
         self.stop_btn.disabled = True
-        self.load_btn.on_click(lambda b: self._load_config_dialog())
-        self.run_btn.on_click(lambda b: self.run_tab())
-        self.stop_btn.on_click(lambda b: self._on_stop())
+        self.stop_btn.on_click(lambda b: self._on_stop_guarded())
 
         self.monitor = RecMonitor()
         self.monitor.on_running_changed = self._on_running_changed
@@ -89,8 +103,9 @@ class RecTab(BaseTab):
         # log_panel stays None; logging routes through the monitor instead.
 
         proc_row = widgets.HBox([self.proc, self.proc_status])
+        init_guess_row = widgets.HBox([self.init_guess, self.ai_status])
         params_section = widgets.VBox([
-            form_row('Initial Guess', self.init_guess),
+            form_row('Initial Guess', init_guess_row),
             self.init_guess_params,
             form_row('Processor', proc_row),
             form_row('Device(s)', self.device),
@@ -117,15 +132,25 @@ class RecTab(BaseTab):
 
         return widgets.VBox([
             params_section,
-            widgets.HTML('<h4>Features</h4>'),
+            # FeaturePanel draws its own "Features (k/N active)" header.
             self.feature_panel.widget,
-            widgets.HBox([self.load_btn, self.run_btn, self.stop_btn]),
+            widgets.HBox([self.action_row, self.stop_btn]),
             self.monitor.widgets_box(),
         ])
 
     def _refresh_device_hint(self):
         selected = parse_device_field(self.device.value, self._device_list)
         self.device_hint.value = format_devices(self._device_list, selected=selected)
+        # Flag typos / unknown device ids before Run so the user doesn't wait
+        # on a subprocess that crashes immediately.
+        text = (self.device.value or '').strip()
+        if not text or text == 'all':
+            return
+        if selected:
+            return
+        err = validate_device_field(text, self._device_list or [])
+        if err is not None:
+            self.monitor.log(str(err), level='warning')
 
     def _apply_device_enabled(self, proc_value):
         """Grey out Device(s) when np is selected; field value is preserved
@@ -143,6 +168,25 @@ class RecTab(BaseTab):
         self._apply_device_enabled(change['new'])
 
     @staticmethod
+    def _resolve_ai_runtime():
+        """Return (available, reason) for the AI init_guess runtime.
+
+        Checks tensorflow presence without importing it (importing tensorflow
+        pulls in CUDA libs and is slow). Presence on sys.path does not
+        guarantee a successful import, so _run_tab_impl re-checks at Run time.
+        """
+        try:
+            present = importlib.util.find_spec('tensorflow') is not None
+        except (ImportError, ValueError):
+            present = False
+        if present:
+            return True, ''
+        return False, (
+            'tensorflow is not installed - '
+            '`pip install tensorflow`, then restart the Jupyter kernel'
+        )
+
+    @staticmethod
     def _resolve_backend(name):
         """Resolve a Processor selection to (available, resolved_name, reason).
 
@@ -151,10 +195,12 @@ class RecTab(BaseTab):
         same chain get_pkg does: cupy, then torch, then numpy.
         """
         def _have(mod):
+            # Probe without importing. On macOS, importing torch loads its
+            # bundled libomp.dylib and later collides with xrayutilities'
+            # libomp during postprocessing (Fatal Python error: Aborted).
             try:
-                __import__(mod)
-                return True
-            except Exception:
+                return importlib.util.find_spec(mod) is not None
+            except (ImportError, ValueError):
                 return False
 
         if name == 'np':
@@ -216,12 +262,88 @@ class RecTab(BaseTab):
     def _on_init_guess_change(self, change):
         guess = change['new']
         self.init_guess_params.children = []
+        # Only show the tensorflow status dot when the AI path is selected.
+        if guess == 'AI algorithm':
+            self._update_ai_status()
+        else:
+            self.ai_status.value = ''
         if guess == 'continue':
-            self.cont_dir = text_field(placeholder='Path to continue directory')
-            self.init_guess_params.children = [form_row('Continue Directory', self.cont_dir)]
+            self.cont_dir = PathChooser(
+                kind='dir',
+                placeholder=_UI['placeholders']['prev_recon_dir'],
+                width='350px',
+            )
+            self.init_guess_params.children = [
+                form_row('Continue Directory', self.cont_dir.widget),
+            ]
         elif guess == 'AI algorithm':
-            self.ai_model = text_field(placeholder='Path to trained model .hdf5')
-            self.init_guess_params.children = [form_row('AI Model File', self.ai_model)]
+            # Same PathChooser used by InstrTab's specfile / data_dir fields.
+            self.ai_model = PathChooser(
+                kind='file',
+                placeholder=_UI['placeholders']['ai_model_path'],
+                width='350px',
+            )
+
+            # Link to the pre-trained .hdf5 model on the Globus distribution.
+            # FontAwesome `fa-download` is monochrome and inherits the
+            # link color; the previous Unicode downward-arrow glyph rendered
+            # as a color emoji on macOS/Windows and clashed with the rest of
+            # the GUI's FontAwesome iconography (copy, folder, etc.).
+            download_link = widgets.HTML(
+                value=(
+                    f'<a href="{_URLS["pretrained_ai"]}" '
+                    f'target="_blank" rel="noopener" '
+                    f'download="cohere-trained_model.hdf5" '
+                    f'title="{_UI["tooltips"]["ai_model_download"]}" '
+                    f'style="margin-left:8px; font-size:12px;">'
+                    f'<i class="fa fa-download" '
+                    f'style="margin-right:4px;"></i>'
+                    f'Download .hdf5</a>'
+                ),
+                layout=widgets.Layout(margin='4px 0 0 0'),
+            )
+
+            self.init_guess_params.children = [
+                form_row(
+                    'AI Model File',
+                    widgets.HBox(
+                        [self.ai_model.widget, download_link],
+                        layout=widgets.Layout(align_items='center'),
+                    ),
+                ),
+            ]
+
+    def _update_ai_status(self) -> None:
+        """Render the tensorflow availability dot beside Initial Guess.
+
+        Colored dot + label, with the full reason in the tooltip.
+        """
+        if not hasattr(self, 'ai_status'):
+            return
+        available, reason = self._resolve_ai_runtime()
+        color = '#2e7d32' if available else '#c62828'
+        if available:
+            label = 'tensorflow'
+            tooltip = (
+                'tensorflow is importable. Import may still fail if '
+                'CUDA/ROCm libraries are missing.'
+            )
+        else:
+            label = 'tensorflow unavailable'
+            tooltip = reason
+        self.ai_status.value = (
+            f'<span title="{tooltip}" style="line-height:24px;">'
+            f'<span style="color:{color}; font-size:14px;">&#9679;</span>'
+            f' {label}</span>'
+        )
+
+    @BaseTab._guard
+    def _set_defaults_guarded(self):
+        self._set_defaults()
+
+    @BaseTab._guard
+    def _on_stop_guarded(self):
+        self._on_stop()
 
     def _set_defaults(self):
         self.reconstructions.value = '1'
@@ -322,55 +444,115 @@ class RecTab(BaseTab):
     def log(self, message: str):
         self.monitor.log(message)
 
-    def run_tab(self):
+    def run_tab(self, skip_save: bool = False):
         """Validate config, save, and ask the monitor to start the subprocess."""
         try:
-            self._run_tab_impl()
+            self._run_tab_impl(skip_save=skip_save)
         except Exception as e:
             self.monitor.log(format_error_summary(e, prefix='run_tab'), level='error')
             self.monitor.log(traceback.format_exc(), level='debug')
             self.monitor.progress_label.value = '<i>Idle (error)</i>'
             self._on_running_changed(False)
 
-    def _run_tab_impl(self):
+    def _run_tab_impl(self, *, skip_save: bool = False):
         if self.monitor.is_running:
             self.monitor.log(_MSG['rec']['already_running'])
             return
 
-        err = self._validate_experiment()
-        if err:
-            self.monitor.log(err)
+        # Refuse early if the selected Processor isn't available, to skip the
+        # 30 s subprocess spin-up that would crash on the cupy/torch import.
+        # Logging at 'error' triggers the auto-reveal so the user sees it.
+        ok, _resolved, reason = self._resolve_backend(self.proc.value)
+        if not ok:
+            self.monitor.log(
+                f"Cannot run: {reason}. Pick a different Processor.",
+                level='error',
+            )
             return
 
-        found = any(
-            'data.tif' in f or 'data.npy' in f
-            for _, _, f in os.walk(self.main_gui.experiment_dir)
-        )
-        if not found:
-            self.monitor.log(_MSG['rec']['no_input_data'])
-            return
-
-        for feat in self.features.values():
-            if not feat.active.value:
-                continue
-            err_msg = feat.verify_active()
-            if err_msg:
-                self.monitor.log(_MSG['rec']['feature_error'].format(error=err_msg))
+        # busy() blocks re-entry while the filesystem walk and feature checks run.
+        busy_cm = self.split_run.busy('Validating...') if self.split_run else _nullcontext()
+        with busy_cm:
+            err = self._validate_experiment()
+            if err:
+                self.monitor.log(err)
                 return
 
-        conf_map = self.get_config()
-        if not conf_map:
-            return
+            # Parse the algorithm sequence here so a typo surfaces inline
+            # ("did you mean 'ER'?") instead of crashing the subprocess later.
+            if self.alg_seq.value:
+                parsed = parse_algorithm_sequence(self.alg_seq.value)
+                if isinstance(parsed, _ValidationError):
+                    self.monitor.log(
+                        _MSG['tab']['config_error'].format(error=str(parsed)),
+                        level='error',
+                    )
+                    return
 
-        err = self.main_gui.config_manager.verify(self.conf_name, conf_map)
-        if err and not self.main_gui.no_verify:
-            self.monitor.log(_MSG['tab']['config_error'].format(error=err))
-            return
+            # AI guess requires tensorflow (imported by cohere_core.controller.AI_guess).
+            # Fail fast with an install hint rather than crashing 30 s into the subprocess.
+            if self.init_guess.value == 'AI algorithm':
+                if importlib.util.find_spec('tensorflow') is None:
+                    self.monitor.log(
+                        "init_guess='AI algorithm' selected but tensorflow "
+                        "is not installed in this environment. Install it "
+                        "first: `pip install tensorflow` (then restart the "
+                        "Jupyter kernel).",
+                        level='error',
+                    )
+                    return
+                model_path = (
+                    self.ai_model.value.strip()
+                    if hasattr(self, 'ai_model') and self.ai_model.value
+                    else ''
+                )
+                if not model_path or not os.path.isfile(model_path):
+                    self.monitor.log(
+                        f"init_guess='AI algorithm' requires AI_trained_model "
+                        f"to point at an existing model file (.keras or .hdf5)"
+                        f"{f' (got: {model_path!r})' if model_path else ''}. "
+                        f"Use the Download .hdf5 link to grab the public "
+                        f"trained model. On Python 3.11+ the .hdf5 file must "
+                        f"first be converted with "
+                        f"`python tools/convert_ai_model.py SRC.hdf5 DST.keras` "
+                        f"(see tools/convert_ai_model.py for the rationale).",
+                        level='error',
+                    )
+                    return
 
-        _, action = self.main_gui.config_manager.save_config(
-            self.conf_name, conf_map, self.main_gui.no_verify)
-        if action:
-            self._log_config_action(action)
+            found = any(
+                'data.tif' in f or 'data.npy' in f
+                for _, _, f in os.walk(self.main_gui.experiment_dir)
+            )
+            if not found:
+                self.monitor.log(_MSG['rec']['no_input_data'])
+                return
+
+            for feat in self.features.values():
+                if not feat.active.value:
+                    continue
+                err_msg = feat.verify_active()
+                if err_msg:
+                    self.monitor.log(_MSG['rec']['feature_error'].format(error=err_msg))
+                    return
+
+        if skip_save:
+            self.monitor.log(_MSG['tab']['run_modified_warning'], level='warning')
+        else:
+            conf_map = self.get_config()
+            if not conf_map:
+                return
+
+            err = self.main_gui.config_manager.verify(self.conf_name, conf_map)
+            if err and not self.main_gui.no_verify:
+                self.monitor.log(_MSG['tab']['config_error'].format(error=err))
+                return
+
+            _, action = self.main_gui.config_manager.save_config(
+                self.conf_name, conf_map, self.main_gui.no_verify)
+            if action:
+                self._log_config_action(action)
+                self._notify_save()
 
         progress_feature = self.features.get('progress')
         show_bar_widget = getattr(progress_feature, 'show_progress_bar', None) if progress_feature else None
@@ -394,7 +576,12 @@ class RecTab(BaseTab):
         self.monitor.stop()
 
     def _on_running_changed(self, running: bool):
-        self.run_btn.disabled = running
+        if self.split_run is not None:
+            self.split_run.set_enabled(not running)
+        if self.save_button is not None:
+            self.save_button.widget.disabled = running or self.save_button.widget.disabled
+        if self.load_btn is not None:
+            self.load_btn.disabled = running
         self.stop_btn.disabled = not running
 
     def _on_rec_finished(self, exit_code):

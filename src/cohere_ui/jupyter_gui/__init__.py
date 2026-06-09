@@ -36,6 +36,9 @@ except ImportError as e:
 from cohere_ui.jupyter_gui.core import CoherenceGUI
 from cohere_ui.jupyter_gui.config import ConfigManager
 from cohere_ui.jupyter_gui.results import ResultsContainer
+from cohere_ui.jupyter_gui.header.layout import (
+    format_tree, parse_scan, project_layout,
+)
 
 # User-overridable path to an ImageJ install (the resolver also finds
 # ImageJ-distributions like Fiji automatically). Set this from a notebook
@@ -51,5 +54,19 @@ from cohere_ui.jupyter_gui.results import ResultsContainer
 # so this always wins.
 IMAGEJ_PATH: str | None = None
 
-__all__ = ['CoherenceGUI', 'ConfigManager', 'ResultsContainer', 'IMAGEJ_PATH']
+# User-overridable path to a ParaView install. Same precedence rule as
+# IMAGEJ_PATH: checked first by the Postprocess tab's "Open in ParaView"
+# button, ahead of the PARAVIEW env var and the standard install paths.
+#
+#     import cohere_ui.jupyter_gui as cgui
+#     cgui.PARAVIEW_PATH = '/Applications/ParaView.app'              # macOS .app
+#     cgui.PARAVIEW_PATH = '/opt/paraview/bin/paraview'              # Linux binary
+#     cgui.PARAVIEW_PATH = r'C:\Program Files\ParaView 5.11\bin\paraview.exe'
+PARAVIEW_PATH: str | None = None
+
+__all__ = [
+    'CoherenceGUI', 'ConfigManager', 'ResultsContainer',
+    'parse_scan', 'project_layout', 'format_tree',
+    'IMAGEJ_PATH', 'PARAVIEW_PATH',
+]
 __version__ = '0.2.0'

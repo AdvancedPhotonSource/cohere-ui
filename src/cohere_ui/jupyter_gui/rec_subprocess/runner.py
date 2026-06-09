@@ -96,7 +96,7 @@ def run_reconstruction(experiment_dir, msg_queue, backend_cfg, kwargs):
         run_rc.manage_reconstruction(experiment_dir, **kwargs)
         msg_queue.put({'kind': 'message', 'level': 'info', 'text': 'reconstruction finished'})
     except Exception as e:
-        from cohere_ui.jupyter_gui.error_format import format_error_summary
+        from cohere_ui.jupyter_gui.utils.error_format import format_error_summary
         msg_queue.put({
             'kind': 'message', 'level': 'error',
             'text': format_error_summary(e, prefix='run_reconstruction'),

@@ -6,8 +6,9 @@
 
 main:
   no_working_dir: "Please enter a working directory"
-  working_dir_missing: "Working directory does not exist: {path}"
-  no_experiment_id: "Please enter an experiment ID"
+  working_dir_missing: "Parent directory does not exist: {path}"
+  parent_dir_missing: "Pick a parent directory in the header first."
+  no_experiment_id: "Folder name is empty; fill in the Root field or adjust the template."
   experiment_set: "Experiment set: {path}"
   experiment_loaded: "Loaded experiment: {path}"
   config_missing: "Missing conf/config file in {path}"
@@ -16,17 +17,88 @@ main:
   conf_dir_created: "Created conf directory: {path}"
   configs_loaded: "Loaded {count} config file(s): {names}"
   configs_missing: "No configs found for: {names}"
+  collision: "Experiment already exists at {path}. Pick a different folder name (change Root, Serial, or date), or switch to Load."
+
+wizard:
+  collision: "Folder exists. Change Root, Serial, or date."
+  serial_bumped: "(serial bumped to {next} to avoid collision)"
+  parent_dir_prompt: "Pick a parent directory above to enable Create."
+  heading: "Create a new experiment"
+  heading_note: "(template is shared between Load and Create; edit either)"
+  mode_section: "Mode"
+  serial_hint: "integer (auto-bumps for uniqueness) or scan range like 2-7,10-15"
+  layout_preview_heading: "Files and folders that will be created:"
+  unknown_tokens: "Unknown template tokens ignored: {names}. Supported: {{root}}, {{serial}}, {{date}}."
+  scan_unparseable: "Serial value is not a parseable scan range; layout preview hidden."
+
+# Header experiment-picker labels and empty-list hints.
+picker:
+  parent_section: "Parent directory"
+  parent_section_note: "(contains experiment folders)"
+  template_section: "Folder-name template"
+  template_section_note: "(saved per parent dir)"
+  template_saved_hint: "Saved automatically per parent directory."
+  empty_no_parent: "Pick a parent directory above."
+  empty_no_subdirs: "No subdirectories under this parent."
+  empty_no_matches: "No matches. Try \"Show non-experiment subdirs\" or switch to Create new."
+  path_mirror_empty: "(no directory selected)"
+
+# Tooltips rendered as title-attribute text on hover over header
+# controls (wizard mode buttons, template field, form-row labels).
+tooltip:
+  single: >-
+    Single-experiment mode. Treats the scan input as one unit and
+    produces a single reconstruction at the experiment root (no
+    scan_*/ or mp_*/ subdirs).
+  multipeak: >-
+    Multi-peak mode. Use when one experiment captures multiple Bragg peaks
+    of the same crystal (each peak has its own scan range and HKL). Prep
+    writes one mp_<scan>_<hkl>/ subdir per peak, and reconstruction couples
+    all peaks into one shared image. REQUIRES the Multi-peak tab to be
+    populated and Saved before Prepare, or prep will fail with a missing
+    config_mp error.
+  separate_scans: >-
+    Separate-scans mode. Treats each scan in your Scan(s) range as an
+    independent experiment: prep writes one scan_<N>/ subdir per scan
+    (no alignment between them), and each is reconstructed independently.
+    For scan="2-7" you'll end up with scan_2/ through scan_7/, each with
+    its own results_phasing/image.npy.
+  separate_scan_ranges: >-
+    Separate-scan-ranges mode. Each comma-separated range becomes one
+    scan_<range>/ subdir; scans WITHIN a range are cross-correlation
+    aligned and summed before reconstruction. For scan="2-7,10-15" you'll
+    get scan_2-7/ and scan_10-15/, each reconstructed separately.
+  # Plain-text block; rendered verbatim inside a title= tooltip so
+  # browsers preserve the column alignment.
+  template_hint: |-
+    Tokens
+      {root}        your project root (e.g. cdi)
+      {date:fmt}    strftime spec; default %Y%m%d (date only)
+      {serial:fmt}  integer (auto-bumps; :03d -> 001) or
+                    scan range like 2-7,10-15 (kept verbatim)
+
+    Date format examples
+      %Y%m%d         20260527
+      %Y-%m-%d       2026-05-27
+      %Y%m%d_%H%M    20260527_1432
+      %H:%M          14:32
+
+    Serial format examples
+      :d             7
+      :03d           007
 
 tab:
-  not_initialized: "Tab not initialized"
-  experiment_not_set: "Experiment not set"
+  not_initialized: "Tab not initialized."
+  experiment_not_set: "Create or load an experiment in the header above."
   experiment_missing: "Experiment has not been created yet"
-  experiment_changed: "Experiment has changed, press 'Set Experiment' button"
+  experiment_changed: "Experiment folder name no longer matches; reload or re-create."
   config_not_found: "No {conf_name} found in {conf_dir}"
   config_loaded: "Loaded {conf_name}"
   config_error: "Config error: {error}"
   config_created: "Created {name} at {path}"
   config_updated: "Updated {name} at {path}"
+  run_modified_warning: "Run anyway: using on-disk config; unsaved form changes ignored."
+  run_absent_warning: "No config on disk; saving form and running."
 
 # File-event logging: each tab snapshots the experiment directory before
 # running its backend, then logs files that appeared or were rewritten.
@@ -38,6 +110,10 @@ files:
 prep:
   running: "Running beamline preprocessing..."
   complete: "Preprocessing complete"
+  roi_formats: >-
+    center_point_dist: [cx, cy, dx, dy] |
+    start_point_end_point: [x1, y1, x2, y2] |
+    start_point_dist: [x1, dx, y1, dy]
 
 data:
   no_prep_data: "Run data preparation in the previous tab first"
@@ -51,9 +127,31 @@ disp:
 
 instr:
   saved: "Instrument configuration saved"
-  parse_spec_failed: "parse_spec failed: {error}"
+  parse_spec_failed: "Couldn't parse scan metadata: {error}"
+  no_beamline_save: "No beamline selected; nothing to save."
+  nothing_to_run: "Nothing to run on this tab; use Save to write the configuration."
+  placeholder: >-
+    No beamline selected. Open the <b>Create new</b> wizard in the
+    header above to pick one, or load an existing experiment that
+    already has a beamline configured.
+
+mp:
+  intro: "Multi-peak parameters. Save then re-run Prepare to apply."
+  invalid_field: "{name}: invalid value {value} (expected {expected}); field omitted from save."
+  nothing_to_run: "Nothing to run on this tab; use Save to write the configuration."
 
 rec:
   no_input_data: "Run data formatting in the previous tab first"
   already_running: "Reconstruction already running. Click Stop first."
   feature_error: "Feature error: {error}"
+
+# Reusable button tooltips for the common action row.
+buttons:
+  save_saved: "Config on disk matches form; nothing to save."
+  save_modified: "Form differs from saved config; click to save."
+  save_absent: "No config on disk yet; click to write it."
+  run_saved: "Config on disk matches form; run now."
+  run_modified: "Unsaved changes; click to choose Save & Run / Run anyway."
+  run_absent: "No config on disk yet; click to save & run."
+  run_options: "Run options"
+  run_only: "Run against the on-disk config, ignoring unsaved form changes."

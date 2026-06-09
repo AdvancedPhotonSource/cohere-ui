@@ -11,7 +11,14 @@ import cohere_core.utilities as ut
 
 import traceback
 
-from cohere_ui.jupyter_gui.error_format import format_error_summary
+from cohere_ui.jupyter_gui.utils.error_format import format_error_summary
+
+
+# Files larger than this fall back to memory-mapped loading by default.
+# 2 GB is a deliberate floor, well below the 4 GB phasing volumes that
+# come out of binned 3D BCDI scans, but high enough that small inspection
+# loads stay fully in RAM where slicing is cheap.
+DEFAULT_MMAP_THRESHOLD_BYTES = 2 * 1024 * 1024 * 1024
 
 
 class ResultsContainer:
@@ -20,13 +27,20 @@ class ResultsContainer:
     Exposes experiment data and results as properties for interactive analysis.
     """
 
-    def __init__(self, config_manager=None):
+    def __init__(self, config_manager=None,
+                 mmap_threshold_bytes: int = DEFAULT_MMAP_THRESHOLD_BYTES,
+                 force_mmap: bool = False):
         self._config_manager = config_manager
         self._data = None
         self._image = None
         self._support = None
         self._coherence = None
         self._errors = None
+        # Files at/above the threshold load read-only via memory map
+        # so multi-GB phasing volumes don't exhaust kernel memory.
+        # force_mmap bypasses the threshold for slicing small files.
+        self._mmap_threshold_bytes = int(mmap_threshold_bytes)
+        self._force_mmap = bool(force_mmap)
         # Default sink is stderr; CoherenceGUI rewires to log_panel.error after _build_ui.
         self._log_error: Callable[[str], object] = lambda msg: sys.stderr.write(msg + "\n")
         self._log_debug: Callable[[str], object] = lambda msg: sys.stderr.write(msg + "\n")
@@ -113,13 +127,38 @@ class ResultsContainer:
         return None
 
     def _load_array(self, filepath: str) -> Optional[np.ndarray]:
-        """Load an array from .npy or .tif file."""
+        """Load an array from ``.npy`` or ``.tif``.
+
+        Files at or above :attr:`_mmap_threshold_bytes` (or whenever
+        ``force_mmap`` is set) load via read-only memory map so
+        multi-GB phasing volumes do not exhaust kernel memory.
+        Slicing and viewing work on the mmap; writing does not.
+        """
         try:
+            try:
+                size = os.path.getsize(filepath)
+            except OSError:
+                size = -1
+            use_mmap = self._force_mmap or (
+                size >= 0 and size >= self._mmap_threshold_bytes
+            )
+            if use_mmap:
+                self._log_debug(
+                    f'_load_array: mmap loading {filepath} '
+                    f'({size / (1024 * 1024):.0f} MB)'
+                )
             if filepath.endswith('.npy'):
-                return np.load(filepath)
+                return np.load(filepath, mmap_mode='r') if use_mmap else np.load(filepath)
             elif filepath.endswith('.tif'):
                 import tifffile as tf
-                return tf.imread(filepath)
+                return tf.memmap(filepath) if use_mmap else tf.imread(filepath)
+        except MemoryError as e:
+            self._log_error(
+                f'_load_array: out of memory loading {filepath}; '
+                f'try ResultsContainer(force_mmap=True) to memory-map instead. '
+                f'{format_error_summary(e)}'
+            )
+            self._log_debug(traceback.format_exc())
         except Exception as e:
             self._log_error(
                 format_error_summary(e, prefix='_load_array'))

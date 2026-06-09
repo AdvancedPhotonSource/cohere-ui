@@ -6,9 +6,12 @@ import ipywidgets as widgets
 
 from cohere_ui.jupyter_gui.features.base import Feature
 from cohere_ui.jupyter_gui.text import load_text
-from cohere_ui.jupyter_gui.widgets import form_row, text_field, checkbox
+from cohere_ui.jupyter_gui.widgets import (
+    FEATURE_INPUT_WIDTH, checkbox, form_row, grid_field, grid_full, text_field,
+)
 
 _TEXT = load_text('features')
+_UI = load_text('ui_strings')
 
 
 class GAFeature(Feature):
@@ -19,25 +22,25 @@ class GAFeature(Feature):
 
     def fill_active(self) -> list:
         self.ga_fast = checkbox('fast processing (size limited)')
-        self.generations = text_field(placeholder='e.g., 3')
-        self.metrics = text_field(placeholder='["chi"]')
-        self.breed_modes = text_field(placeholder='["sqrt_ab"]')
-        self.cullings = text_field(placeholder='e.g., [2]')
-        self.sw_thresholds = text_field(placeholder='[0.1]')
-        self.sw_gauss_sigmas = text_field(placeholder='[1.0]')
-        self.lpf_sigmas = text_field(placeholder='')
-        self.gen_pc_start = text_field(placeholder='3')
+        self.generations = text_field(placeholder='e.g., 3', width=FEATURE_INPUT_WIDTH)
+        self.metrics = text_field(placeholder='["chi"]', width=FEATURE_INPUT_WIDTH)
+        self.breed_modes = text_field(placeholder='["sqrt_ab"]', width=FEATURE_INPUT_WIDTH)
+        self.cullings = text_field(placeholder='e.g., [2]', width=FEATURE_INPUT_WIDTH)
+        self.sw_thresholds = text_field(placeholder='[0.1]', width=FEATURE_INPUT_WIDTH)
+        self.sw_gauss_sigmas = text_field(placeholder='[1.0]', width=FEATURE_INPUT_WIDTH)
+        self.lpf_sigmas = text_field(placeholder='', width=FEATURE_INPUT_WIDTH)
+        self.gen_pc_start = text_field(placeholder='3', width=FEATURE_INPUT_WIDTH)
 
         return [
-            self.ga_fast,
-            form_row('Generations', self.generations),
-            form_row('Fitness Metrics', self.metrics),
-            form_row('Breed Modes', self.breed_modes),
-            form_row('Cullings', self.cullings),
-            form_row('SW Thresholds', self.sw_thresholds),
-            form_row('SW Gauss Sigmas', self.sw_gauss_sigmas),
-            form_row('LPF Sigmas', self.lpf_sigmas),
-            form_row('Gen PC Start', self.gen_pc_start),
+            grid_full(self.ga_fast),
+            grid_field('Generations', self.generations),
+            grid_field('Fitness Metrics', self.metrics),
+            grid_field('Breed Modes', self.breed_modes),
+            grid_field('Cullings', self.cullings),
+            grid_field('SW Thresholds', self.sw_thresholds),
+            grid_field('SW Gauss Sigmas', self.sw_gauss_sigmas),
+            grid_field('LPF Sigmas', self.lpf_sigmas),
+            grid_field('Gen PC Start', self.gen_pc_start),
         ]
 
     def set_defaults(self):
@@ -105,12 +108,12 @@ class LowResolutionFeature(Feature):
     description = _TEXT['low_resolution']['description']
 
     def fill_active(self) -> list:
-        self.trigger = text_field(placeholder='[iter_start, iter_step]')
-        self.range = text_field(placeholder='[sigma_start, sigma_end]')
+        self.trigger = text_field(placeholder='[iter_start, iter_step]', width=FEATURE_INPUT_WIDTH)
+        self.range = text_field(placeholder='[sigma_start, sigma_end]', width=FEATURE_INPUT_WIDTH)
 
         return [
-            form_row('Trigger', self.trigger),
-            form_row('Range', self.range),
+            grid_field('Trigger', self.trigger),
+            grid_field('Range', self.range),
         ]
 
     def set_defaults(self):
@@ -145,16 +148,16 @@ class ShrinkWrapFeature(Feature):
     description = _TEXT['shrink_wrap']['description']
 
     def fill_active(self) -> list:
-        self.trigger = text_field(placeholder='[iter_start, iter_step]')
-        self.sw_type = text_field(placeholder='GAUSS')
-        self.threshold = text_field(placeholder='0.1')
-        self.gauss_sigma = text_field(placeholder='1.0')
+        self.trigger = text_field(placeholder='[iter_start, iter_step]', width=FEATURE_INPUT_WIDTH)
+        self.sw_type = text_field(placeholder='GAUSS', width=FEATURE_INPUT_WIDTH)
+        self.threshold = text_field(placeholder='0.1', width=FEATURE_INPUT_WIDTH)
+        self.gauss_sigma = text_field(placeholder='1.0', width=FEATURE_INPUT_WIDTH)
 
         return [
-            form_row('Trigger', self.trigger),
-            form_row('Type', self.sw_type),
-            form_row('Threshold', self.threshold),
-            form_row('Gauss Sigma', self.gauss_sigma),
+            grid_field('Trigger', self.trigger),
+            grid_field('Type', self.sw_type),
+            grid_field('Threshold', self.threshold),
+            grid_field('Gauss Sigma', self.gauss_sigma),
         ]
 
     def set_defaults(self):
@@ -201,10 +204,10 @@ class PhaseConstrainFeature(Feature):
     def fill_active(self) -> list:
         # phc_trigger MUST be 3-element [start, step, stop]; op_flow.py:308
         # does params['phc_trigger'][2] unconditionally (IndexError otherwise).
-        self.trigger = text_field(placeholder='[start, step, stop]')
-        self.phase_min = text_field(placeholder='-1.57')
-        self.phase_max = text_field(placeholder='1.57')
-        self.pi_prefactor = checkbox(description='bounds in units of π')
+        self.trigger = text_field(placeholder='[start, step, stop]', width=FEATURE_INPUT_WIDTH)
+        self.phase_min = text_field(placeholder='-1.57', width=FEATURE_INPUT_WIDTH)
+        self.phase_max = text_field(placeholder='1.57', width=FEATURE_INPUT_WIDTH)
+        self.pi_prefactor = checkbox(description=_UI['feature_options']['pi_prefactor'])
         self._phase_min_mul = widgets.HTML(
             value='<small style="color:#666;">× π</small>',
             layout=widgets.Layout(display='none', margin='0 0 0 6px'),
@@ -215,15 +218,15 @@ class PhaseConstrainFeature(Feature):
         )
         self.pi_prefactor.observe(self._on_pi_toggle, 'value')
         return [
-            form_row('Trigger', self.trigger),
-            self.pi_prefactor,
-            form_row('Phase Min', widgets.HBox([self.phase_min, self._phase_min_mul])),
-            form_row('Phase Max', widgets.HBox([self.phase_max, self._phase_max_mul])),
+            grid_field('Trigger', self.trigger),
+            grid_full(self.pi_prefactor),
+            grid_field('Phase Min', widgets.HBox([self.phase_min, self._phase_min_mul])),
+            grid_field('Phase Max', widgets.HBox([self.phase_max, self._phase_max_mul])),
         ]
 
     def set_defaults(self):
-        # Reset checkbox first so the observer (if it fires) operates on
-        # the OLD field values; the immediate writes below overwrite anyway.
+        # Reset checkbox first so the observer operates on the OLD field
+        # values; the writes below overwrite anyway.
         self.pi_prefactor.value = False
         # Default trigger MUST be 3-element; see fill_active() note.
         self.trigger.value = '[0, 1, -1]'
@@ -231,8 +234,8 @@ class PhaseConstrainFeature(Feature):
         self.phase_max.value = '1.57'
 
     def _on_pi_toggle(self, change):
-        """Convert Phase Min/Max between radians and π-prefactors when the
-        checkbox flips, and show/hide the '× π' adornment to match."""
+        """Convert Phase Min/Max between radians and pi-prefactors and
+        show/hide the '* pi' label to match."""
         if change['new']:
             op = lambda v: v / math.pi
             display = ''
@@ -258,13 +261,13 @@ class PhaseConstrainFeature(Feature):
                 for x in parsed
             ]
             field.value = str(converted).replace(' ', '')
-        # Anything else: leave the field alone.
 
     def init_config(self, conf_map: dict):
         if 'phc_trigger' in conf_map:
             self.active.value = True
-            # Saved config is always in radians; reset checkbox before writing
-            # field values so the prefactor-conversion observer doesn't munge them.
+            # Saved config is always in radians; reset checkbox before
+            # writing field values so the prefactor-conversion observer
+            # doesn't munge them.
             self.pi_prefactor.value = False
             self.trigger.value = self.format_value(conf_map['phc_trigger'])
             if 'phc_phase_min' in conf_map:
@@ -289,7 +292,7 @@ class PhaseConstrainFeature(Feature):
             )
 
     def _maybe_to_radians(self, value):
-        """Multiply by π when the checkbox is on; element-wise for lists."""
+        """Multiply by pi when the checkbox is on; element-wise for lists."""
         if not self.pi_prefactor.value:
             return value
         if isinstance(value, (int, float)) and not isinstance(value, bool):
@@ -312,18 +315,18 @@ class PCDIFeature(Feature):
     description = _TEXT['pcdi']['description']
 
     def fill_active(self) -> list:
-        self.trigger = text_field(placeholder='[iter_start, iter_step]')
-        self.pc_type = text_field(placeholder='LUCY')
-        self.lucy_iterations = text_field(placeholder='20')
+        self.trigger = text_field(placeholder='[iter_start, iter_step]', width=FEATURE_INPUT_WIDTH)
+        self.pc_type = text_field(placeholder='LUCY', width=FEATURE_INPUT_WIDTH)
+        self.lucy_iterations = text_field(placeholder='20', width=FEATURE_INPUT_WIDTH)
         self.normalize = checkbox('normalize')
-        self.lucy_kernel = text_field(placeholder='[16, 16, 16]')
+        self.lucy_kernel = text_field(placeholder='[16, 16, 16]', width=FEATURE_INPUT_WIDTH)
 
         return [
-            form_row('Trigger', self.trigger),
-            form_row('Type', self.pc_type),
-            form_row('LUCY Iterations', self.lucy_iterations),
-            self.normalize,
-            form_row('LUCY Kernel', self.lucy_kernel),
+            grid_field('Trigger', self.trigger),
+            grid_field('Type', self.pc_type),
+            grid_field('LUCY Iterations', self.lucy_iterations),
+            grid_full(self.normalize),
+            grid_field('LUCY Kernel', self.lucy_kernel),
         ]
 
     def set_defaults(self):
@@ -373,12 +376,12 @@ class TwinFeature(Feature):
     description = _TEXT['twin']['description']
 
     def fill_active(self) -> list:
-        self.trigger = text_field(placeholder='[2]')
-        self.halves = text_field(placeholder='[0, 0]')
+        self.trigger = text_field(placeholder='[2]', width=FEATURE_INPUT_WIDTH)
+        self.halves = text_field(placeholder='[0, 0]', width=FEATURE_INPUT_WIDTH)
 
         return [
-            form_row('Trigger', self.trigger),
-            form_row('Halves', self.halves),
+            grid_field('Trigger', self.trigger),
+            grid_field('Halves', self.halves),
         ]
 
     def set_defaults(self):
@@ -413,10 +416,10 @@ class AverageFeature(Feature):
     description = _TEXT['average']['description']
 
     def fill_active(self) -> list:
-        self.trigger = text_field(placeholder='[-1, 1]')
+        self.trigger = text_field(placeholder='[-1, 1]', width=FEATURE_INPUT_WIDTH)
 
         return [
-            form_row('Trigger', self.trigger),
+            grid_field('Trigger', self.trigger),
         ]
 
     def set_defaults(self):
@@ -446,14 +449,14 @@ class ProgressFeature(Feature):
     description = _TEXT['progress']['description']
 
     def fill_active(self) -> list:
-        self.trigger = text_field(placeholder='[0, 20]')
+        self.trigger = text_field(placeholder='[0, 20]', width=FEATURE_INPUT_WIDTH)
         self.show_progress_bar = widgets.Checkbox(
-            value=True, description='Show progress bar (with rate-based interpolation)',
+            value=True, description=_UI['feature_options']['progress_bar'],
             indent=False,
         )
         return [
-            form_row('Trigger', self.trigger),
-            form_row('', self.show_progress_bar),
+            grid_field('Trigger', self.trigger),
+            grid_full(self.show_progress_bar),
         ]
 
     def set_defaults(self):
@@ -475,19 +478,19 @@ class ProgressFeature(Feature):
 
 
 class LiveFeature(Feature):
-    """Live in-notebook view driven by cohere's ``live_trigger`` mechanism.
+    """Live in-notebook view driven by cohere's ``live_trigger``.
 
-    Writes ``live_trigger`` into ``config_rec``. Renderer / slicing options
-    are GUI-only (passed to the wrapper subprocess as a BackendConfig) and
-    don't appear in ``config_rec``; cohere itself doesn't need to know which
-    backend the GUI registered.
+    Writes ``live_trigger`` into ``config_rec``. Renderer / slicing
+    options are GUI-only, they don't appear in ``config_rec`` and pass
+    to the wrapper subprocess as a BackendConfig (cohere itself doesn't
+    need to know which backend the GUI registered).
     """
 
     name = _TEXT['live']['name']
     description = _TEXT['live']['description']
 
     def fill_active(self) -> list:
-        self.trigger = text_field(placeholder='[0, 20]')
+        self.trigger = text_field(placeholder='[0, 20]', width=FEATURE_INPUT_WIDTH)
 
         self.renderer = widgets.Dropdown(
             options=[
@@ -496,13 +499,13 @@ class LiveFeature(Feature):
                 ('PyVista (3D static)', 'pyvista_static'),
             ],
             value='matplotlib_2d',
-            layout=widgets.Layout(width='260px'),
+            layout=widgets.Layout(width=FEATURE_INPUT_WIDTH),
         )
 
         self.slice_axis = widgets.Dropdown(
             options=[('z', 2), ('y', 1), ('x', 0)],
             value=2,
-            layout=widgets.Layout(width='80px'),
+            layout=widgets.Layout(width=FEATURE_INPUT_WIDTH),
         )
 
         self.slice_method = widgets.RadioButtons(
@@ -513,9 +516,9 @@ class LiveFeature(Feature):
             value='center_of_mass',
         )
 
-        self.stride = text_field(placeholder='4')
+        self.stride = text_field(placeholder='4', width=FEATURE_INPUT_WIDTH)
 
-        self.iso_level = text_field(placeholder='0.3')
+        self.iso_level = text_field(placeholder='0.3', width=FEATURE_INPUT_WIDTH)
 
         self.phase_cmap = widgets.Dropdown(
             options=[
@@ -526,31 +529,31 @@ class LiveFeature(Feature):
                 ('plasma (non-cyclic)', 'plasma'),
             ],
             value='twilight',
-            layout=widgets.Layout(width='220px'),
+            layout=widgets.Layout(width=FEATURE_INPUT_WIDTH),
         )
 
         self.apply_support_mask = widgets.Checkbox(
-            value=True, description='Apply support mask to phase',
+            value=True, description=_UI['feature_options']['apply_support_mask'],
             indent=False,
         )
 
-        # Toggle visibility of the per-renderer options as the user picks one.
-        self._slice_row = form_row('Slice axis', self.slice_axis)
-        self._method_row = form_row('Slice method', self.slice_method)
-        self._stride_row = form_row('Stride', self.stride)
-        self._iso_row = form_row('Iso level', self.iso_level)
-        self._cmap_row = form_row('Phase cmap', self.phase_cmap)
-        self._mask_row = form_row('', self.apply_support_mask)
+        self._slice_row = grid_field('Slice axis', self.slice_axis)
+        self._method_row = grid_field('Slice method', self.slice_method)
+        self._stride_row = grid_field('Stride', self.stride)
+        self._iso_row = grid_field('Iso level', self.iso_level)
+        self._cmap_row = grid_field('Phase cmap', self.phase_cmap)
+        self._mask_row = grid_full(self.apply_support_mask)
 
         self.renderer.observe(self._on_renderer_change, names='value')
         self._on_renderer_change({'new': self.renderer.value})
 
-        # Renderer-overhead benchmark. Synthetic 256^3 array, runs every
-        # registered backend N times, reports mean ms/call so the user can
-        # pick a renderer with the cost in plain sight.
+        # Renderer-overhead benchmark: synthetic 256^3 reconstruction,
+        # runs each registered backend N times, reports mean ms/call.
+        # Wrapped in a collapsible section because the benchmark is a
+        # one-off tuning aid, not something the user re-checks each run.
         self.benchmark_btn = widgets.Button(
-            description='Benchmark renderers',
-            tooltip='Times each backend on a synthetic 256^3 reconstruction',
+            description=_UI['feature_options']['benchmark'],
+            tooltip=_UI['tooltips']['benchmark'],
             layout=widgets.Layout(width='220px'),
         )
         self.benchmark_size = widgets.Dropdown(
@@ -566,26 +569,54 @@ class LiveFeature(Feature):
         self.benchmark_output = widgets.HTML(value='')
         self.benchmark_btn.on_click(lambda _b: self._run_benchmark())
 
+        self._benchmark_box = widgets.VBox(
+            [
+                widgets.HBox([
+                    self.benchmark_btn,
+                    form_row('Volume', self.benchmark_size),
+                    form_row('Iters', self.benchmark_iters),
+                ]),
+                self.benchmark_output,
+            ],
+            layout=widgets.Layout(display='none'),  # collapsed by default
+        )
+        self._benchmark_collapsed = True
+        self._benchmark_toggle = widgets.Button(
+            description=f'\u25b8  {_UI["feature_options"]["benchmark"]}',
+            layout=widgets.Layout(width='auto', height='28px', padding='0',
+                                  margin='4px 0 0 0'),
+        )
+        # Reuse the FeaturePanel title-toggle style so this reads as a
+        # clickable heading rather than a button.
+        self._benchmark_toggle.add_class('jup-gui-feature-title-toggle')
+        self._benchmark_toggle.on_click(self._toggle_benchmark)
+
         return [
-            form_row('Trigger', self.trigger),
-            form_row('Renderer', self.renderer),
+            grid_field('Trigger', self.trigger),
+            grid_field('Renderer', self.renderer),
             self._slice_row,
             self._method_row,
             self._stride_row,
             self._iso_row,
             self._cmap_row,
             self._mask_row,
-            widgets.HTML(
-                f'<small style="color:#888;">{_TEXT["live"]["renderer_note"]}</small>'
-            ),
-            widgets.HTML('<hr style="margin:8px 0;">'),
-            widgets.HBox([
-                self.benchmark_btn,
-                form_row('Volume', self.benchmark_size),
-                form_row('Iters', self.benchmark_iters),
-            ]),
-            self.benchmark_output,
+            grid_full(widgets.HTML(
+                '<hr style="margin:8px 0; border:none; '
+                'border-top:1px solid #ddd; width:100%;">'
+            )),
+            grid_full(self._benchmark_toggle),
+            grid_full(self._benchmark_box),
         ]
+
+    def _toggle_benchmark(self, _btn):
+        self._benchmark_collapsed = not self._benchmark_collapsed
+        self._benchmark_box.layout.display = (
+            'none' if self._benchmark_collapsed else ''
+        )
+        chevron = '\u25b8' if self._benchmark_collapsed else '\u25be'
+        self._benchmark_toggle.description = (
+            f'{chevron}  {_UI["feature_options"]["benchmark"]}'
+        )
 
     def _on_renderer_change(self, change):
         value = change['new']

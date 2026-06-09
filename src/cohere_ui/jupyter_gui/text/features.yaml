@@ -145,10 +145,11 @@ live:
     feature auto-sets it to <code>[0, 1]</code> so the progress label
     and error-history plot update every iteration. Override via the
     Progress feature for sparser updates.
-  renderer_note: |
-    Renderer / slicing choices are GUI-only and not written to
-    <code>config_rec</code>. Lowest cost: matplotlib 2D slice. Higher
-    fidelity: 3D mosaic or PyVista (download larger downsampled volumes).
+    <br><br>
+    <b>Note:</b> renderer / slicing choices are GUI-only and not
+    written to <code>config_rec</code>. Lowest cost: matplotlib 2D
+    slice. Higher fidelity: 3D mosaic or PyVista (download larger
+    downsampled volumes).
 
 # --- Display features (visualization / postprocessing) ---
 

@@ -18,3 +18,66 @@ progress_warning:
   no_progress_lines: |
     WARNING: no progress lines parsed yet; has the cohere print format
     changed? Update PROGRESS_PATTERNS if so.
+
+# Action-row buttons visible on every tab.
+action_buttons:
+  save:         Save
+  save_and_run: Save & Run
+  run_anyway:   Run anyway
+  cancel:       Cancel
+  run_all:      Run All
+  close:        Close
+  browse:       Browse...
+  log_show:     show log
+  log_debug:    show debug
+
+# Short inline status strings (italic placeholders).
+status:
+  idle:       '<i>Idle</i>'
+  not_loaded: '<i>not loaded</i>'
+
+# Hover tooltips. Multi-line entries render as multi-line tooltips.
+tooltips:
+  run_all:        'Run Prep -> Data -> Reconstruction -> Display in sequence'
+  back_to_picker: Back to picker
+  rescan_parent:  Re-scan parent dir
+  log_show:       Reveal the in-tab log lines
+  log_show_rec:   Reveal the reconstruction log lines
+  log_debug:      'Include [DEBUG] lines (full traces, observer noise)'
+  log_copy:       Copy visible log lines to clipboard
+  log_copy_rec:   Copy visible reconstruction log lines to clipboard
+  benchmark:      Times each backend on a synthetic 256^3 reconstruction
+  ai_model_download: Download the pre-trained AI model (.hdf5)
+  docs_open:         Open the documentation in a new tab
+  github_open:       Open the GitHub repository in a new tab
+  make_twin: |
+    Write a conjugate-flipped copy of the reconstruction
+    (twin_direct_space_images.vts) for ambiguity diagnostics.
+  unwrap: |
+    Run skimage phase unwrap and write unwrapped_phase into the
+    direct-space VTS. Note: displacement still uses wrapped phase per
+    the postprocessor; this only adds an extra array to the VTS.
+
+# Descriptive placeholders (user-help text shown in empty fields).
+# Format-example placeholders ('e.g., [1, 2, 3]', '0.9', etc.) stay
+# inline in the .py source - they document the field's expected type.
+placeholders:
+  custom_value:    type a custom value
+  browse_or_path:  Click Browse or enter path...
+  enter_path:      Enter file path...
+  alien_file:      Path to alien file
+  prev_recon_dir:  Path to previous reconstruction directory
+  ai_model_path:   'Path to trained model (.keras preferred, .hdf5 legacy)'
+  phasing_results: 'Path to phasing results (default: experiment dir)'
+  auto_after_prep: Auto-populated after prep
+
+# Feature / option checkbox labels.
+feature_options:
+  active:             active
+  make_twin:          make twin image
+  include_unwrap:     include unwrapped phase
+  pi_prefactor:       bounds in units of \pi
+  progress_bar:       Show progress bar (with rate-based interpolation)
+  apply_support_mask: Apply support mask to phase
+  benchmark:          Benchmark renderers
+  sync_scroll:        Sync scroll

@@ -17,7 +17,7 @@ import traceback
 
 import ipywidgets as widgets
 
-from cohere_ui.jupyter_gui.error_format import format_error_summary
+from cohere_ui.jupyter_gui.utils.error_format import format_error_summary
 from cohere_ui.jupyter_gui.text import load_text
 from cohere_ui.jupyter_gui.rec_subprocess.progress import ErrorHistory, parse_progress_line
 from cohere_ui.jupyter_gui.rec_subprocess.log_view import render_error_plot, render_log_html
@@ -46,9 +46,33 @@ class RecMonitor:
     PROGRESS_WARN_SECONDS = 30.0
     ITER_RATE_TICK_SECONDS = 0.2
     LOG_MAX_LINES = 1000
+    # Graceful-shutdown window (seconds) before force-kill.
+    STOP_GRACE_SECONDS = 5.0
+    # Stuck-process watchdog: warn once if no progress line arrives
+    # within this window while the subprocess is alive. Never auto-kills
+    # - the user owns that decision.
+    STUCK_WARN_SECONDS = 300.0
+    STUCK_POLL_SECONDS = 30.0
+
+    # Small / medium / large in-tab image sizes selected from the
+    # toolbar dropdown. Defaults keep the rec tab compact.
+    _IMAGE_SIZE_OPTIONS = {
+        # 'M' fits two images side-by-side with the 12 px container gap.
+        # The calc() subtracts half the gap (6 px) plus a 2 px safety
+        # margin: ipywidgets' `widgets.Image` has a `box-sizing: content-box`
+        # default whose 1 px border isn't counted in max-width, so a bare
+        # `50% - 6px` makes each rendered child 1 px too wide and the
+        # second image wraps. The 2 px slack also covers sub-pixel
+        # rounding in the flex container. `flex='1 1 0'` lets each image
+        # actually grow to that half; without it the <img> stays at its
+        # intrinsic PNG width.
+        'S': {'min_height': '180px', 'max_width': '420px', 'flex': '0 1 auto'},
+        'M': {'min_height': '260px', 'max_width': 'calc(50% - 8px)', 'flex': '1 1 0'},
+        'L': {'min_height': '360px', 'max_width': '900px', 'flex': '0 1 auto'},
+    }
 
     def __init__(self):
-        self.progress_label = widgets.HTML(value='<i>Idle</i>')
+        self.progress_label = widgets.HTML(value=_UI['status']['idle'])
         self.progress_bar = widgets.IntProgress(
             value=0, min=0, max=1,
             bar_style='info',
@@ -60,28 +84,99 @@ class RecMonitor:
         )
         self.live_view = widgets.Image(
             format='png',
-            layout=widgets.Layout(border='1px solid #ddd', min_height='280px',
-                                  max_width='800px'),
+            layout=widgets.Layout(border='1px solid #ddd', min_height='180px',
+                                  max_width='420px'),
         )
+        # No top margin: the live_view + error_plot are siblings inside the
+        # flex-wrap container `self._images_row`. Spacing between them comes
+        # from the container's CSS gap (.jup-gui-rec-images), which handles
+        # both side-by-side and wrapped-to-new-line layouts uniformly.
         self.error_plot = widgets.Image(
             format='png',
-            layout=widgets.Layout(border='1px solid #ddd', min_height='200px',
-                                  max_width='800px', margin='8px 0 0 0'),
+            layout=widgets.Layout(border='1px solid #ddd', min_height='160px',
+                                  max_width='420px'),
         )
+        # Pair the two image panels in a row that wraps to the next line
+        # when the viewport is narrower than two image columns. Both child
+        # images keep their own max_width so wide layouts use the space
+        # efficiently and narrow layouts simply stack them.
+        self._images_row = widgets.HBox(
+            [self.live_view, self.error_plot],
+            layout=widgets.Layout(
+                width='100%',
+                flex_flow='row wrap',
+                align_items='flex-start',
+                margin='4px 0 0 0',
+            ),
+        )
+        self._images_row.add_class('jup-gui-rec-images')
+        # Shared size selector above the live view and error plot.
+        self.image_toolbar = self._make_shared_image_toolbar()
+
         self.log_widget = widgets.HTML(
             value=render_log_html([]),
             layout=widgets.Layout(border='1px solid #ccc', height='150px',
-                                  margin='4px 0 0 0'),
+                                  margin='4px 0 0 0', overflow='hidden'),
         )
+        # Reconstruction log mirrors LogPanel's show_log + show_debug +
+        # copy controls. Plain HTML copy button (not ipywidgets) so the
+        # browser keeps clipboard permission tied to the user's click.
+        from cohere_ui.jupyter_gui.widgets import make_copy_to_clipboard_html
+        self._make_copy_html = make_copy_to_clipboard_html
+
+        self.show_log_checkbox = widgets.Checkbox(
+            value=False, description=_UI['action_buttons']['log_show'], indent=False,
+            tooltip=_UI['tooltips']['log_show_rec'],
+            layout=widgets.Layout(margin='0 12px 0 0', width='auto'),
+        )
+        self.show_log_checkbox.observe(self._on_show_log_toggle, names='value')
         self.show_debug = False
         self.show_debug_checkbox = widgets.Checkbox(
-            value=False, description='show debug', indent=False,
-            layout=widgets.Layout(margin='2px 0 0 0', width='auto'),
+            value=False, description=_UI['action_buttons']['log_debug'], indent=False,
+            tooltip=_UI['tooltips']['log_debug'],
+            layout=widgets.Layout(margin='0 12px 0 0', width='auto'),
         )
         self.show_debug_checkbox.observe(self._on_debug_toggle, names='value')
+        # Icon-only FontAwesome fa-copy, right-aligned via margin:auto.
+        snippet, self._copy_log_uid = self._make_copy_html(
+            '', icon='copy', label='',
+            tooltip=_UI['tooltips']['log_copy_rec'],
+        )
+        self.copy_log_button = widgets.HTML(
+            value=snippet,
+            layout=widgets.Layout(width='auto', margin='0 0 0 auto'),
+        )
+        self.log_toolbar = widgets.HBox(
+            [
+                self.show_log_checkbox,
+                self.show_debug_checkbox,
+                self.copy_log_button,
+            ],
+            layout=widgets.Layout(
+                # overflow=visible avoids a stray scrollbar when toolbar
+                # widths approach 100%.
+                width='100%', align_items='center', margin='4px 0 0 0',
+                overflow='visible',
+            ),
+        )
+        # Log hidden by default; user toggles to reveal.
+        self.log_widget.layout.display = 'none'
 
         self._log_lines = []
         self._error_history = ErrorHistory()
+
+        # Capture the kernel's IOLoop now (we're on the main thread during
+        # CoherenceGUI construction). The watchdog thread later uses this
+        # handle to marshal main-thread-only renders (PyVista's OpenGL
+        # context on macOS / Cocoa) back onto the kernel's main thread.
+        # In non-Jupyter contexts (e.g. unit-test instantiation) no IOLoop
+        # is current; we fall back to inline rendering, which is fine
+        # since those contexts don't have Cocoa to crash into.
+        try:
+            import tornado.ioloop
+            self._main_loop = tornado.ioloop.IOLoop.current(instance=False)
+        except Exception:
+            self._main_loop = None
 
         self._proc = None
         self._msg_queue = None
@@ -97,6 +192,14 @@ class RecMonitor:
         self._iter_rate_ticker = None
         self._iter_rate_stop = threading.Event()
         self._last_exit_code = None
+        self._stuck_thread = None
+        self._stuck_stop = threading.Event()
+        self._stuck_warned = False
+        self._expected_total_iters = 0
+        # Stashed at start() so show_final_snapshot can honor the user's
+        # selected renderer instead of forcing matplotlib center_slice.
+        self._backend_cfg = None
+        self._experiment_dir = None
 
         self.on_running_changed = None
         self.on_finished = None
@@ -111,11 +214,41 @@ class RecMonitor:
             self.progress_label,
             self.progress_bar,
             self.live_view_caption,
-            self.live_view,
-            self.error_plot,
+            self.image_toolbar,
+            self._images_row,
+            self.log_toolbar,
             self.log_widget,
-            self.show_debug_checkbox,
         ])
+
+    def _make_shared_image_toolbar(self) -> widgets.HBox:
+        """Shared image size selector above the live_view / error_plot stack."""
+        self.image_size_dropdown = widgets.Dropdown(
+            options=list(self._IMAGE_SIZE_OPTIONS),
+            value='M',
+            description='Image size:',
+            style={'description_width': '80px'},
+            layout=widgets.Layout(width='160px'),
+        )
+        self.image_size_dropdown.observe(self._apply_image_size, 'value')
+        # Apply the initial size so the images render with the M layout
+        # (half-width + flex-grow) on first display, not S's defaults
+        # that the bare widgets.Image layouts inherit.
+        self._apply_image_size({'new': self.image_size_dropdown.value})
+
+        return widgets.HBox(
+            [self.image_size_dropdown],
+            layout=widgets.Layout(
+                align_items='center', margin='4px 0 4px 0',
+            ),
+        )
+
+    def _apply_image_size(self, change) -> None:
+        opts = self._IMAGE_SIZE_OPTIONS[change['new']]
+        for img in (self.live_view, self.error_plot):
+            img.layout.min_height = opts['min_height']
+            img.layout.max_width = opts['max_width']
+            img.layout.flex = opts.get('flex', '')
+
 
     def start(self, experiment_dir, backend_cfg, kwargs,
               total_iters: int, show_progress_bar: bool):
@@ -126,9 +259,27 @@ class RecMonitor:
             self.log('Reconstruction already running. Click Stop first.')
             return
 
+        # Saved for show_final_snapshot to honor the user's renderer.
+        self._backend_cfg = backend_cfg
+        self._experiment_dir = experiment_dir
+
         self._reset_for_run(total_iters, show_progress_bar)
 
         ctx = mp.get_context('spawn')
+        # macOS: Jupyter may launch via framework Python even inside a venv.
+        # Force the child to the venv's python so it sees the kernel's
+        # packages (otherwise the subprocess hits ModuleNotFoundError).
+        venv_root = os.environ.get('VIRTUAL_ENV')
+        if venv_root:
+            venv_python = os.path.join(venv_root, 'bin', 'python')
+            if os.path.isfile(venv_python):
+                try:
+                    ctx.set_executable(venv_python)
+                except Exception as e:
+                    self.log(
+                        f'could not pin spawn executable to {venv_python}: {e}',
+                        level='debug',
+                    )
         self._msg_queue = ctx.Queue()
         self._proc = ctx.Process(
             target=run_reconstruction,
@@ -170,20 +321,62 @@ class RecMonitor:
             )
             self._iter_rate_ticker.start()
 
+        # Stuck-process watchdog: warn once after STUCK_WARN_SECONDS of
+        # silence. Never auto-kills.
+        self._stuck_warned = False
+        self._expected_total_iters = max(0, int(total_iters))
+        if self._expected_total_iters > 0:
+            self._stuck_stop.clear()
+            self._stuck_thread = threading.Thread(
+                target=self._stuck_watchdog_loop, daemon=True,
+                name='RecMonitor-stuck-watchdog',
+            )
+            self._stuck_thread.start()
+
     def stop(self):
-        """Kill the running subprocess group."""
+        """Graceful stop: SIGTERM (terminate request), wait
+        STOP_GRACE_SECONDS, then SIGKILL (force-kill).
+
+        The soft kill lets the reconstruction loop flush the last image
+        and error history before exiting. SIGKILL is the fallback when
+        the worker is wedged inside a C extension.
+        """
         proc = self._proc
         if proc is None or not proc.is_alive():
             return
-        self.log(f'Stop clicked: killing process group of pid {proc.pid}')
+
+        self.log(f'Stop clicked: sending SIGTERM to process group of pid {proc.pid}')
+        sent_term = False
         try:
-            os.killpg(proc.pid, signal.SIGKILL)
-        except (AttributeError, ProcessLookupError, OSError):
-            # Windows or already-dead: fall back to terminating just the wrapper.
+            os.killpg(proc.pid, signal.SIGTERM)
+            sent_term = True
+        except (AttributeError, ProcessLookupError, OSError) as e:
+            # Windows or already-dead: fall back to multiprocessing terminate
+            # (SIGTERM on Unix, CTRL_BREAK_EVENT on Windows).
+            self.log(f'killpg(SIGTERM) failed ({e}); falling back to proc.terminate()')
             try:
                 proc.terminate()
-            except Exception as e:
-                self.log(f'terminate fallback failed: {e}')
+                sent_term = True
+            except Exception as e2:
+                self.log(f'terminate fallback failed: {e2}')
+
+        if not sent_term:
+            return
+
+        proc.join(timeout=self.STOP_GRACE_SECONDS)
+        if proc.is_alive():
+            self.log(
+                f'Process still alive after {self.STOP_GRACE_SECONDS}s; '
+                f'sending SIGKILL to process group of pid {proc.pid}'
+            )
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except (AttributeError, ProcessLookupError, OSError) as e:
+                self.log(f'killpg(SIGKILL) failed ({e}); calling proc.kill()')
+                try:
+                    proc.kill()
+                except Exception as e2:
+                    self.log(f'proc.kill() failed: {e2}')
 
     def log(self, msg, level: str = 'info'):
         """Append a line to the log widget at the given level."""
@@ -191,6 +384,8 @@ class RecMonitor:
         if len(self._log_lines) > self.LOG_MAX_LINES:
             self._log_lines = self._log_lines[-self.LOG_MAX_LINES:]
         self._refresh_log()
+        if level == 'error' and not self.show_log_checkbox.value:
+            self.show_log_checkbox.value = True
 
     def clear_log(self):
         """Clear the log widget."""
@@ -210,6 +405,36 @@ class RecMonitor:
         self.show_debug = bool(change['new'])
         self._refresh_log()
 
+    def _on_show_log_toggle(self, change):
+        """Reveal or hide the log panel without losing its contents."""
+        self.log_widget.layout.display = '' if change['new'] else 'none'
+
+    def _log_copy_text(self) -> str:
+        """Plain-text log dump (one line per entry, respecting show_debug).
+
+        Uses the same level prefixes as the rendered view so clipboard
+        output matches what's on screen.
+        """
+        prefix = {
+            'info': '', 'success': '[OK] ',
+            'warning': '[WARN] ', 'error': '[ERROR] ',
+            'debug': '[DEBUG] ',
+        }
+        out = []
+        for level, msg in self._log_lines:
+            if level == 'debug' and not self.show_debug:
+                continue
+            out.append(f'{prefix.get(level, "")}{msg}')
+        return '\n'.join(out)
+
+    def _refresh_copy_log_button(self) -> None:
+        """Re-render the copy button HTML with the current log text."""
+        snippet, _ = self._make_copy_html(
+            self._log_copy_text(), icon='copy', label='',
+            tooltip=_UI['tooltips']['log_copy_rec'],
+        )
+        self.copy_log_button.value = snippet
+
     def _refresh_log(self):
         try:
             self.log_widget.value = render_log_html(
@@ -220,24 +445,83 @@ class RecMonitor:
                 f"RecMonitor._refresh_log failed: {type(e).__name__}: {e}\n"
                 f"{traceback.format_exc()}"
             )
+        # Keep the copy button's embedded text in sync with the visible log.
+        try:
+            self._refresh_copy_log_button()
+        except Exception as e:
+            sys.stderr.write(
+                f"RecMonitor._refresh_copy_log_button failed: "
+                f"{type(e).__name__}: {e}\n"
+            )
 
     def show_final_snapshot(self, image, support, errors, backend_cfg):
         """Render the converged image to the snapshot panel.
 
-        The last live_trigger fire usually lags a few iterations behind
-        the final state; this overrides it with what cohere actually
-        wrote to disk.
+        The last live preview lags a few iterations behind the converged
+        state, so this re-reads what cohere wrote to disk and uses the
+        renderer the user picked in the Live feature for consistency
+        with the in-flight previews.
+
+        PyVista mode marshals the actual render to the kernel's main
+        thread because PyVista's off-screen Plotter creates an OpenGL
+        context (CGL on macOS) that must originate on the Cocoa main
+        thread. The watchdog thread that drives _on_rec_finished isn't
+        that thread, so calling pv.Plotter directly here crashes the
+        kernel.
         """
         if image is None:
             return
+        cfg = backend_cfg or self._backend_cfg or {}
+
+        if cfg.get('kind') == 'pyvista' and self._main_loop is not None:
+            # Reschedule the entire impl onto the kernel IOLoop. The
+            # other branches (matplotlib Agg) are thread-safe and stay
+            # on the watchdog thread to avoid unnecessary latency.
+            self._main_loop.add_callback(
+                self._show_final_snapshot_impl,
+                image, support, errors, cfg,
+            )
+            return
+        self._show_final_snapshot_impl(image, support, errors, cfg)
+
+    def _show_final_snapshot_impl(self, image, support, errors, cfg):
+        kind = cfg.get('kind')
+        errs_list = list(errors) if errors is not None else []
+        final_iter = len(errs_list)
+        title = f'Final result (iter {final_iter})'
+
+        if kind == 'pyvista':
+            rendered = self._render_final_pyvista(image, support, errs_list, cfg, title)
+        else:
+            rendered = self._render_final_matplotlib(image, support, errs_list, cfg, title)
+
+        if not rendered:
+            return
+
+        self.live_view_caption.value = (
+            _UI['snapshot_panel']['final_caption'].format(iter=final_iter)
+        )
+        self.log('Final result rendered.')
+
+        # Push the closing error value if not already in the history.
+        if errs_list and self._error_history.last_iter() not in (final_iter, None):
+            final_err = float(errs_list[-1])
+            if self._error_history.append(final_iter, final_err):
+                try:
+                    self.error_plot.value = render_error_plot(
+                        self._error_history.points_for_plot())
+                except Exception as e:
+                    self.log(format_error_summary(
+                        e, prefix='show_final_snapshot'), level='debug')
+
+    def _render_final_matplotlib(self, image, support, errs_list, cfg, title) -> bool:
+        """Render the final snapshot via JupyterMatplotlibBackend in the
+        mode the user picked in the Live feature."""
         try:
             from cohere_ui.jupyter_gui._backends import JupyterMatplotlibBackend
         except Exception as e:
             self.log(f'final snapshot: backend import failed ({e})')
-            return
-        cfg = backend_cfg or {}
-        if cfg.get('kind') != 'matplotlib':
-            cfg = {'kind': 'matplotlib', 'mode': 'center_slice'}
+            return False
         captured = []
 
         class _Box:
@@ -253,32 +537,100 @@ class RecMonitor:
             phase_cmap=cfg.get('phase_cmap', 'twilight'),
             apply_support_mask=cfg.get('apply_support_mask', True),
         )
-        errs_list = list(errors) if errors is not None else []
-        title = f'Final result (iter {len(errs_list)})'
         try:
             backend.update_singlepeak(image, errs_list, support, title)
         except Exception as e:
-            self.log(f'final snapshot render failed: {e}')
-            return
+            self.log(f'final snapshot (matplotlib) render failed: {e}')
+            return False
         for rec in captured:
             if rec.get('kind') == 'snapshot' and rec.get('image_bytes'):
                 self.live_view.value = rec['image_bytes']
-                final_iter = len(errs_list)
-                self.live_view_caption.value = (
-                    _UI['snapshot_panel']['final_caption'].format(iter=final_iter)
-                )
-                self.log('Final result rendered.')
-                # Push the closing error value if not already in the history.
-                if errs_list and self._error_history.last_iter() not in (final_iter, None):
-                    final_err = float(errs_list[-1])
-                    if self._error_history.append(final_iter, final_err):
-                        try:
-                            self.error_plot.value = render_error_plot(
-                                self._error_history.points_for_plot())
-                        except Exception as e:
-                            self.log(format_error_summary(
-                                e, prefix='show_final_snapshot'), level='debug')
-                return
+                return True
+        return False
+
+    def _render_final_pyvista(self, image, support, errs_list, cfg, title) -> bool:
+        """Final-snapshot render in PyVista mode.
+
+        Uses the same PyVistaBackend the live preview used in the
+        subprocess so the final still matches the in-flight previews in
+        style (isosurface, white background, etc.). Must run on the
+        kernel's main thread because pv.Plotter's off-screen renderer
+        creates an OpenGL context that on macOS is bound to Cocoa; the
+        watchdog thread that triggers show_final_snapshot can't safely
+        do that, which is why show_final_snapshot marshals here via the
+        IOLoop captured at construction.
+
+        Falls back to a matplotlib 3D mosaic when PyVista is unavailable
+        or the render itself raises (e.g. no GPU, missing OSMesa on
+        headless Linux). The fallback path keeps a still showing in the
+        panel rather than leaving it blank.
+        """
+        try:
+            from cohere_ui.jupyter_gui._backends import PyVistaBackend
+        except Exception as e:
+            self.log(
+                f'final snapshot: PyVista backend import failed ({e}); '
+                f'falling back to matplotlib 3D mosaic.',
+                level='warning',
+            )
+            return self._render_final_pyvista_fallback(
+                image, support, errs_list, cfg, title,
+            )
+
+        captured = []
+
+        class _Box:
+            def put(self, rec, **_kw):
+                captured.append(rec)
+
+        try:
+            backend = PyVistaBackend(
+                _Box(),
+                stride=int(cfg.get('stride', 4)),
+                iso_level=float(cfg.get('iso_level', 0.3)),
+            )
+            backend.update_singlepeak(image, errs_list, support, title)
+        except Exception as e:
+            self.log(
+                f'final snapshot (PyVista) render failed: {e}; '
+                f'falling back to matplotlib 3D mosaic.',
+                level='warning',
+            )
+            return self._render_final_pyvista_fallback(
+                image, support, errs_list, cfg, title,
+            )
+
+        for rec in captured:
+            if rec.get('kind') == 'snapshot' and rec.get('image_bytes'):
+                self.live_view.value = rec['image_bytes']
+                return True
+        # update_singlepeak returned without emitting a snapshot record
+        # (e.g. it logged a warning instead). Fall back so the panel
+        # isn't left empty.
+        return self._render_final_pyvista_fallback(
+            image, support, errs_list, cfg, title,
+        )
+
+    def _render_final_pyvista_fallback(self, image, support, errs_list, cfg, title) -> bool:
+        """Matplotlib 3D mosaic as a last-resort final snapshot.
+
+        Used when PyVista isn't importable or the off-screen plotter
+        raises (no GPU, missing OSMesa, etc.). The mosaic mode + the
+        user's selected slice method roughly mirrors the PyVista
+        isosurface's intent (a 3D-aware overview rather than a single
+        2D slice), so the panel still conveys converged 3D structure.
+        """
+        mp_cfg = {
+            'kind': 'matplotlib',
+            'mode': 'strided_3d',
+            'stride': int(cfg.get('stride', 4)),
+            'slice_method': cfg.get('slice_method', 'center_of_mass'),
+            'phase_cmap': cfg.get('phase_cmap', 'twilight'),
+            'apply_support_mask': bool(cfg.get('apply_support_mask', True)),
+        }
+        return self._render_final_matplotlib(
+            image, support, errs_list, mp_cfg, title,
+        )
 
     def _reset_for_run(self, total_iters: int, show_progress_bar: bool):
         self.clear_log()
@@ -340,6 +692,10 @@ class RecMonitor:
         if self._iter_rate_ticker is not None:
             self._iter_rate_ticker.join(timeout=1)
             self._iter_rate_ticker = None
+        self._stuck_stop.set()
+        if self._stuck_thread is not None:
+            self._stuck_thread.join(timeout=1)
+            self._stuck_thread = None
         # Drain remaining queue records before closing. Without this, the
         # listener can be stopped before the tail of the run's output (final
         # iter print, "iterate took", etc.) is dispatched, dropping the
@@ -461,6 +817,33 @@ class RecMonitor:
     def _warn_if_no_progress(self):
         if not self._progress_seen and self.is_running:
             self.log(_UI['progress_warning']['no_progress_lines'])
+
+    def _stuck_watchdog_loop(self):
+        """Warn once if no progress line arrives within STUCK_WARN_SECONDS
+        while the subprocess is alive. Never auto-kills - the user owns
+        that decision via the Stop button.
+        """
+        while not self._stuck_stop.is_set():
+            self._stuck_stop.wait(self.STUCK_POLL_SECONDS)
+            if self._stuck_stop.is_set():
+                return
+            if self._stuck_warned:
+                continue
+            if not self.is_running:
+                return
+            last = self._last_iter_wall
+            if last is None:
+                continue
+            elapsed = time.monotonic() - last
+            if elapsed >= self.STUCK_WARN_SECONDS:
+                self.log(
+                    f'No progress line in {int(elapsed)}s '
+                    f'(last iter {self._last_iter_value}/'
+                    f'{self._expected_total_iters}). Subprocess may be '
+                    f'stuck; click Stop to abort if needed.',
+                    level='warning',
+                )
+                self._stuck_warned = True
 
     def _iter_rate_progress_loop(self):
         # Tick ~5 Hz. Each tick, if we have a rate estimate and it's been a

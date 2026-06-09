@@ -4,14 +4,11 @@ YAML files in this directory hold short HTML strings rendered to users
 (feature descriptions, info banners, log messages). Use ``load_text``
 to get a parsed dict; results are cached.
 
-Quick patch for math symbols
-----------------------------
-ipywidgets 8's ``HTMLMath`` is broken in JupyterLab 4 (it calls a
-MathJax v2 API that no longer exists), so LaTeX in
-descriptions wouldn't actually typeset. Rather than wire a real LaTeX
-renderer, the loader runs a tiny substitution pass that converts the
-handful of TeX commands we use into Unicode glyphs. Limited to what's
-in the YAML today; extend the ``_TEX`` table below if you add more.
+ipywidgets 8's ``HTMLMath`` is broken in JupyterLab 4 (calls a MathJax
+v2 API that no longer exists), so LaTeX in descriptions wouldn't
+typeset. The loader runs a substitution pass that converts the handful
+of TeX commands we use into Unicode glyphs; extend the ``_TEX`` table
+below if you add more.
 """
 
 import re

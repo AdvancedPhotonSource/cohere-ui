@@ -8,7 +8,7 @@ records in) and the log-view module (which renders them out).
 import re
 import sys
 
-from cohere_ui.jupyter_gui.error_format import format_error_summary
+from cohere_ui.jupyter_gui.utils.error_format import format_error_summary
 
 PROGRESS_PATTERNS = (
     re.compile(r'^------iter\s+(\d+)\s+error\s+(\S+)\s*$'),

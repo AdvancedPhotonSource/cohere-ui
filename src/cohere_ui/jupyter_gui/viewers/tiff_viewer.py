@@ -14,9 +14,12 @@ try:
 except ImportError:
     FileChooser = None
 
-from cohere_ui.jupyter_gui.error_format import format_error_summary
-from cohere_ui.jupyter_gui.imagej import resolve_imagej_path
+from cohere_ui.jupyter_gui.text import load_text
+from cohere_ui.jupyter_gui.utils.error_format import format_error_summary
+from cohere_ui.jupyter_gui.viewers.imagej import resolve_imagej_path
 from cohere_ui.jupyter_gui.widgets import text_field, button
+
+_UI = load_text('ui_strings')
 
 
 def _html_escape(text):
@@ -65,7 +68,7 @@ class TiffViewer:
         self.shortcut_box = {}
 
         self.sync = widgets.Checkbox(
-            value=True, description='Sync scroll', indent=False,
+            value=True, description=_UI['feature_options']['sync_scroll'], indent=False,
         )
         self.log = widgets.Checkbox(
             value=False, description='Log scale', indent=False,
@@ -128,7 +131,7 @@ class TiffViewer:
                 lambda c, k=key: self._safe('_tiff_on_slice', self._on_slice, k, c),
                 names='value',
             )
-            self.status[key] = widgets.HTML(value='<i>not loaded</i>')
+            self.status[key] = widgets.HTML(value=_UI['status']['not_loaded'])
             self.vmin[key] = text_field(placeholder='auto', width='90px')
             self.vmax[key] = text_field(placeholder='auto', width='90px')
             self.chooser[key] = self._build_chooser(key) if FileChooser else None
@@ -156,8 +159,8 @@ class TiffViewer:
                     layout=widgets.Layout(margin='0 0 4px 0'),
                 )
             else:
-                # Placeholder is filled in after the loop, once we know whether
-                # any pane has shortcuts -- it keeps the image rows aligned.
+                # Filled in below if the other pane has shortcuts, to keep
+                # image rows aligned.
                 self.shortcut_box[key] = None
 
         # If ANY pane has shortcuts, give the others an empty same-height
@@ -266,7 +269,6 @@ class TiffViewer:
             self._log_debug(format_error_summary(e, prefix=prefix))
             self._log_debug(traceback.format_exc())
 
-    # ---------- Path resolution ----------
 
     def _load_path(self, key):
         """Resolve the path text or default-path callback, then load."""
@@ -293,7 +295,6 @@ class TiffViewer:
             self._log_debug(format_error_summary(e, prefix='_default_path'))
             return None
 
-    # ---------- Chooser ----------
 
     def _build_chooser(self, key):
         assert FileChooser is not None
@@ -325,7 +326,6 @@ class TiffViewer:
         except Exception as e:
             self._log_debug(format_error_summary(e, prefix='_on_dir_mode'))
 
-    # ---------- Scale-mode toggle ----------
 
     def _on_scale_mode(self, change):
         self._manual_row.layout.display = (
@@ -333,7 +333,6 @@ class TiffViewer:
         )
         self._render_all()
 
-    # ---------- Stack loading ----------
 
     def _stack_frames(self, files, status, tifffile, np):
         first = tifffile.imread(files[0])
@@ -407,7 +406,6 @@ class TiffViewer:
         slider.value = arr.shape[0] // 2
         self._render(key)
 
-    # ---------- Slice / render ----------
 
     def _on_slice(self, key, change):
         if self._tiff_data.get(key) is None:
@@ -530,7 +528,6 @@ class TiffViewer:
             f'scale <i>{scale_label}</i> <code>[{mn:.4g}, {mx:.4g}]</code></small>'
         )
 
-    # ---------- ImageJ launch ----------
 
     def _open_imagej(self, key):
         path_widget = self.path[key]

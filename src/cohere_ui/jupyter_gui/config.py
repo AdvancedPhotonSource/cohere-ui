@@ -98,12 +98,50 @@ class ConfigManager:
         return ut.join(self.conf_dir, conf_name)
 
     def verify(self, conf_name: str, conf_map: dict) -> str:
-        """Verify configuration dictionary. Returns error string (empty if valid)."""
-        return ut.verify(conf_name, conf_map)
+        """Verify configuration dictionary. Returns error string (empty if valid).
+
+        ``cohere_core.utilities.verify`` returns a tuple when no schema
+        is registered (e.g. ``config_mp``); treat that as "no verifier"
+        and pass rather than blocking the save.
+        """
+        result = ut.verify(conf_name, conf_map)
+        if isinstance(result, tuple):
+            return ''
+        return result
 
     def get_cached(self, conf_name: str) -> Optional[dict]:
         """Get a previously loaded config from cache."""
         return self._config_maps.get(conf_name)
+
+    def disk_mtime(self, conf_name: str) -> Optional[float]:
+        """Return the on-disk mtime of ``conf_name``, or None if absent
+        or the experiment dir isn't set. Used to detect edits made
+        outside the GUI between load and the next save.
+        """
+        path = self.conf_path(conf_name)
+        if path is None or not os.path.isfile(path):
+            return None
+        try:
+            return os.path.getmtime(path)
+        except OSError:
+            return None
+
+    def is_stale_vs_widgets(self, conf_name: str, widget_map: dict) -> bool:
+        """Return True when on-disk ``conf_name`` differs from ``widget_map``.
+
+        The disk copy is read fresh (NOT from cache) so external edits
+        are visible. Returns False when the file is absent or parses
+        equal to ``widget_map``. Unparseable files return True so the
+        caller can surface the problem.
+        """
+        path = self.conf_path(conf_name)
+        if path is None or not os.path.isfile(path):
+            return False
+        try:
+            on_disk = ut.read_config(path) or {}
+        except Exception:
+            return True
+        return dict(on_disk) != dict(widget_map or {})
 
     @property
     def all_configs(self) -> dict:

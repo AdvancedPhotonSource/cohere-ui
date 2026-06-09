@@ -42,7 +42,16 @@ jupyter = [
     'trame',
     'trame-vtk',
     'trame-vuetify',
+    'trame-jupyter-extension',
 ]
+# Opt in to the test stack with: pip install cohere-ui[jupyter,test]
+# test = [
+#     'pytest>=8',
+#     'pytest-cov>=5',
+#     'pytest-xdist>=3',
+#     'nbmake>=1.5',
+#     'ipykernel>=6',
+# ]
 
 [project.scripts]
 beamline_preprocess = "cohere_ui.beamline_preprocess:main"
@@ -67,3 +76,11 @@ standard_preprocess = "cohere_ui.standard_preprocess:main"
         "sphinx.ext.napoleon",
         'sphinx.ext.intersphinx',
 ]
+
+# pytest/ruff config lives in the repo-root pyproject.toml (run pytest from
+# the repo root). The [test] extra above is enough on the cohere-ui side.
+# testing will be included in future PRs
+
+# [tool.coverage.run]
+# source = ["src/cohere_ui/jupyter_gui"]
+# branch = true

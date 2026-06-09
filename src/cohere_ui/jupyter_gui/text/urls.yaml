@@ -1,0 +1,6 @@
+# External URLs referenced by the Jupyter GUI. Keep in one place so a
+# moved doc site or a new download mirror is a one-key edit.
+
+docs:          'https://cohere.readthedocs.io/en/latest/index.html'
+github:        'https://github.com/AdvancedPhotonSource/cohere'
+pretrained_ai: 'https://g-29c18.fd635.8443.data.globus.org/cherukara/cohere-trained_model.hdf5'
