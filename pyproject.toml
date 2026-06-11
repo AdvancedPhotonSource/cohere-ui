@@ -44,6 +44,8 @@ jupyter = [
     'trame-vuetify',
     'trame-jupyter-extension',
 ]
+[tool.setuptools.package-data]
+"cohere_ui.jupyter_gui.text" = ["*.yaml"]
 # Opt in to the test stack with: pip install cohere-ui[jupyter,test]
 # test = [
 #     'pytest>=8',
