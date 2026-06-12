@@ -6,8 +6,38 @@
 
 import sys
 import os
+import contextlib
 import cohere_core.utilities as ut
 import cohere_ui.api.convertconfig as conv
+
+
+@contextlib.contextmanager
+def preserve_devlib():
+    """Snapshot and restore the cohere_core dvc_utils device-lib global.
+
+    The dvc_utils helpers (cross-correlation, fast_shift, lucy_deconvolution,
+    remove_ramp, ...) read a process-global ``cohere_core.utilities.dvc_utils.devlib``,
+    so a stage that needs them on the CPU pins it to numpy. In a long-lived
+    kernel that pin would persist and silently force any later in-kernel
+    dvc_utils call (or an advanced-user Rec) onto numpy. Wrap the numpy-pinning
+    region with this so the prior lib (a GPU backend, or unset on a fresh
+    kernel) is put back on exit.
+
+    Usable as a context manager (``with preserve_devlib():``) or a decorator
+    (``@preserve_devlib()``).
+    """
+    import cohere_core.utilities.dvc_utils as dvut
+    _missing = object()
+    saved = getattr(dvut, 'devlib', _missing)
+    try:
+        yield
+    finally:
+        if saved is _missing:
+            # Nothing was set before this region; remove what we pinned.
+            if hasattr(dvut, 'devlib'):
+                del dvut.devlib
+        else:
+            dvut.devlib = saved
 
 
 def get_config_maps(experiment_dir, configs, **kwargs):

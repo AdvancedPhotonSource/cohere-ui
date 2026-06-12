@@ -9,6 +9,7 @@ import numpy as np
 import pyvista as pv
 import cohere_core.utilities as ut
 import cohere_core.utilities.dvc_utils as dvut
+import cohere_ui.api.common as com
 import cohere_ui.api.auto_data as ad
 import matplotlib.pyplot as plt
 from functools import partial
@@ -37,7 +38,8 @@ def get_corr(arrays, cc_shift_dict, scans, pair):
 
 
 def save_results4scan(scan, info, instrument, save_dir, do_RSM):
-    set_lib_from_pkg('np')
+    # This path is numpy-only and calls no dvc_utils helper, so it uses numpy
+    # directly rather than pinning the shared dvc_utils device-lib global.
     arr, offset = instrument.get_scan_array(info)
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
@@ -50,7 +52,7 @@ def save_results4scan(scan, info, instrument, save_dir, do_RSM):
         dl.save(ut.join(save_dir, 'rsmlab.vts'))
 
     # process data info
-    max_ind = [int(ind) for ind in devlib.unravel_index(devlib.argmax(arr), arr.shape)]
+    max_ind = [int(ind) for ind in np.unravel_index(np.argmax(arr), arr.shape)]
     # add offset obtain from get_scan_array (roi and/or max_crop)
     max_ind[0] = max_ind[0] + int(offset[0])
     max_ind[1] = max_ind[1] + int(offset[1])
@@ -61,7 +63,7 @@ def save_results4scan(scan, info, instrument, save_dir, do_RSM):
                            'max ind (x)': max_ind[0],
                            'max ind (y)': max_ind[1],
                            'max ind frame': max_ind[2],
-                           'max intensity': devlib.amax(arr),
+                           'max intensity': np.amax(arr),
                            'peak_qx': PeakQ[0],
                            'peak_qy': PeakQ[1],
                            'peak_qz': PeakQ[2],
@@ -72,7 +74,11 @@ def save_results4scan(scan, info, instrument, save_dir, do_RSM):
     print('preprocessed data shape ', arr.shape)
 
 
+@com.preserve_devlib()
 def process_batch(scans_infos, experiment_dir, separate_scan_ranges, remove_outliers, instrument, do_RSM):
+    # The multi-scan branch pins the dvc_utils lib to numpy for the
+    # cross-correlation / fast_shift helpers; preserve_devlib restores the
+    # prior (possibly GPU) lib on exit so the pin does not leak to later stages.
     save_dir = ut.join(experiment_dir, 'preprocessed_data')
     # read the data in batch into memory
     if len(scans_infos) == 1:
