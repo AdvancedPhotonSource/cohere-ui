@@ -260,15 +260,10 @@ class InstrTab(BaseTab):
             skip_keys = set()
         if not self.beamline:
             return
-        diffractometer = self._fields.get('diffractometer')
-        if diffractometer is None or not diffractometer.value:
-            return
         params = {}
         # Silent on incomplete driver fields - avoids parse-error spam
         # while the user is still typing.
         for key in self._spec_drivers:
-            if key == 'diffractometer':
-                continue
             w = self._fields.get(key)
             if w is None:
                 continue
@@ -285,17 +280,48 @@ class InstrTab(BaseTab):
         if not scan_value:
             return
         try:
-            last_scan = int(scan_value.split('-')[-1].split(',')[-1])
+            first_scan = int(scan_value.split(',')[0].split('-')[0])
         except ValueError:
             return
 
+        # The instrument rework moved spec/metadata parsing off the
+        # diffractometer onto the beamline Instrument. Build the per-beamline
+        # Instrument subclass without a detector (parse_metadata never touches
+        # det_obj) and read the metadata from it; the driver values (specfile /
+        # h5file / data_dir) are passed in via config_instr. Fall back to the
+        # legacy create_diffractometer API for any beamline not yet migrated.
         try:
             import importlib
+            import inspect
+            instr_mod = importlib.import_module(
+                f'cohere_beamlines.{self.beamline}.instrument'
+            )
             diff_mod = importlib.import_module(
                 f'cohere_beamlines.{self.beamline}.diffractometers'
             )
-            diff_obj = diff_mod.create_diffractometer(diffractometer.value, params)
-            spec_dict = diff_obj.parse_metadata(last_scan)
+            try:
+                from cohere_beamlines.common.instr import Instrument as _InstrBase
+                instr_cls = next(
+                    (c for _, c in inspect.getmembers(instr_mod, inspect.isclass)
+                     if issubclass(c, _InstrBase) and c is not _InstrBase),
+                    None,
+                )
+            except ImportError:
+                instr_cls = None
+
+            if instr_cls is not None:
+                instr_obj = instr_cls(
+                    None, diff_mod.Diffractometer(),
+                    {'config': {}, 'config_instr': dict(params)},
+                )
+                spec_dict = instr_obj.parse_metadata(first_scan)
+            elif hasattr(diff_mod, 'create_diffractometer'):
+                diff_field = self._fields.get('diffractometer')
+                diff_name = getattr(diff_field, 'value', None)
+                spec_dict = diff_mod.create_diffractometer(
+                    diff_name, params).parse_metadata(first_scan)
+            else:
+                return
         except Exception as e:
             self.log_error(_MSG['instr']['parse_spec_failed'].format(
                 error=format_error_summary(e)))
