@@ -998,6 +998,12 @@ class LogPanel:
                 overflow='visible',
             ),
         )
+        self.show_debug_checkbox = widgets.Checkbox(
+            value=False, description='show debug', indent=False,
+            layout=widgets.Layout(margin='2px 0 0 0', width='auto'),
+        )
+        self.show_debug_checkbox.observe(self._on_debug_toggle, names='value')
+        self.widget = widgets.VBox([self._html, self.show_debug_checkbox])
 
         self.widget = widgets.VBox(
             [toolbar, self._html],
@@ -1288,6 +1294,39 @@ class FeaturePanel:
 
     def _build_options(self):
         """Return [(display_label, value)] tuples with active/inactive prefix."""
+        return [
+            (
+                (self._ACTIVE_PREFIX if feature.active.value else self._INACTIVE_PREFIX)
+                + name,
+                name,
+            )
+            for name, feature in self.features.items()
+        ]
+
+    def _refresh_selector_options(self):
+        """Rebuild active/inactive label prefixes; suppress _on_select during the swap."""
+        current = self.selector.value
+        try:
+            self.selector.unobserve(self._on_select, 'value')
+        except (ValueError, RuntimeError):
+            pass
+        try:
+            self.selector.options = self._build_options()
+            if current is not None and current in self.feature_names:
+                self.selector.value = current
+        except Exception as e:
+            sys.stderr.write(
+                f"FeaturePanel._refresh_selector_options failed: "
+                f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
+            )
+        finally:
+            self.selector.observe(self._on_select, 'value')
+
+    _ACTIVE_PREFIX = '● '   # filled circle + space
+    _INACTIVE_PREFIX = '○ '  # hollow circle + space
+
+    def _build_options(self):
+        """Return [(display_label, value)] tuples with ●/○ prefix per feature."""
         return [
             (
                 (self._ACTIVE_PREFIX if feature.active.value else self._INACTIVE_PREFIX)

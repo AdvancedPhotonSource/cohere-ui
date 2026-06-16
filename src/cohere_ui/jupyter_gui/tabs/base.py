@@ -90,6 +90,22 @@ class BaseTab(ABC):
                 self.log_debug(traceback.format_exc())
         return wrapper
 
+    @staticmethod
+    def _guard(fn):
+        """Decorator that surfaces widget-callback exceptions to the tab's
+        log panel instead of letting them die silently in ipywidgets'
+        event loop. Wrap ``observe`` / ``on_click`` handlers with this so
+        a missing file or a parser error becomes a visible ``[ERROR]``
+        plus ``[DEBUG]`` pair rather than a frozen UI."""
+        @functools.wraps(fn)
+        def wrapper(self, *args, **kwargs):
+            try:
+                return fn(self, *args, **kwargs)
+            except Exception as e:
+                self.log_error(format_error_summary(e, prefix=fn.__name__))
+                self.log_debug(traceback.format_exc())
+        return wrapper
+
     @property
     def widget(self) -> widgets.Widget:
         """The tab's root widget."""
