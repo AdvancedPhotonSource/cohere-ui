@@ -72,10 +72,6 @@ standard_preprocess = "cohere_ui.standard_preprocess:main"
 [project.urls]
     Homepage = "https://github.com/AdvancedPhotonSource/cohere-ui"
 
-# Non-.py runtime data files. Default setuptools only ships *.py into the
-# wheel, so editable installs work but wheel/PyPI/git-URL installs lose
-# these and the GUI fails at load_text(). Keep in sync with what
-# jupyter_gui actually loads from disk at runtime.
 [tool.setuptools.package-data]
 "cohere_ui.jupyter_gui.text" = ["*.yaml"]
 
