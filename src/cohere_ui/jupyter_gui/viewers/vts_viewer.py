@@ -250,7 +250,7 @@ class VtsViewer:
         """
         return self._body.layout.display != 'none'
 
-    # ----- UI assembly -----
+    # UI assembly
 
     def _build_ui(self):
         """Construct the collapsible title row + hidden body.
@@ -270,7 +270,7 @@ class VtsViewer:
           [status line]
           [trame iframe]
         """
-        # ----- title -----
+        # title
         # Placeholder description; _refresh_title() at the end of
         # _build_ui rewrites it once file_picker exists.
         self._title_btn = widgets.Button(
@@ -283,7 +283,7 @@ class VtsViewer:
         self._title_btn.add_class('jup-gui-feature-title-toggle')
         self._title_btn.on_click(self._on_toggle)
 
-        # ----- top row: file / scalar / mode -----
+        # top row: file / scalar / mode
         self.file_picker = widgets.Dropdown(
             options=[], value=None,
             layout=widgets.Layout(width='300px'),
@@ -305,7 +305,7 @@ class VtsViewer:
             layout=widgets.Layout(width='160px'),
         )
 
-        # ----- render row (iso / opacity / cmap) -----
+        # render row (iso / opacity / cmap)
         # continuous_update=False keeps slider drags from flooding the
         # browser with intermediate frames.
         self.iso_slider = widgets.FloatSlider(
@@ -326,7 +326,7 @@ class VtsViewer:
         self._opacity_box = self._labeled('Opacity', self.opacity_slider, label_w='60px')
         self._cmap_box = self._labeled('Cmap', self.cmap_selector, label_w='50px')
 
-        # ----- conditional row -----
+        # conditional row
         self.color_dd = widgets.Dropdown(
             options=[], value=None,
             layout=widgets.Layout(width='160px'),
@@ -384,7 +384,7 @@ class VtsViewer:
             layout=widgets.Layout(align_items='center', flex_flow='row wrap', margin='0'),
         )
 
-        # ----- actions -----
+        # actions
         self.reload_btn = widgets.Button(
             description='Reload',
             tooltip='Rescan results_viz/ and re-read the current file',
@@ -401,7 +401,7 @@ class VtsViewer:
             layout=widgets.Layout(width='160px'),
         )
 
-        # ----- Display options collapsible -----
+        # Display options collapsible
         # Chevron-toggle pattern copied from LiveFeature._benchmark_toggle
         # in features/rec_features.py, same idiom as the outer viewer
         # toggle so the visual language is consistent.
@@ -492,7 +492,7 @@ class VtsViewer:
             ),
         )
 
-        # ----- status + viewer output -----
+        # status + viewer output
         self.status = widgets.HTML(
             value='', layout=widgets.Layout(margin='2px 0 2px 0'),
         )
@@ -503,7 +503,7 @@ class VtsViewer:
             ),
         )
 
-        # ----- assemble rows -----
+        # assemble rows
         controls_top = widgets.HBox(
             [self._labeled('File',   self.file_picker, label_w='40px'),
              self._labeled('Scalar', self.scalar_selector, label_w='55px'),
@@ -538,7 +538,7 @@ class VtsViewer:
 
         self._widget = widgets.VBox([self._title_btn, self._body])
 
-        # ----- observers -----
+        # observers
         self.file_picker.observe(self._on_file_change, names='value')
         self.scalar_selector.observe(self._on_scalar_change, names='value')
         self.mode_dd.observe(self._on_mode_change, names='value')
@@ -585,7 +585,7 @@ class VtsViewer:
             ),
         )
 
-    # ----- collapse / expand -----
+    # collapse / expand
 
     def _on_toggle(self, _b):
         if self.is_visible:
@@ -644,7 +644,7 @@ class VtsViewer:
         plural = 's' if n != 1 else ''
         return f'({n} file{plural})'
 
-    # ----- file discovery -----
+    # file discovery
 
     def set_scope(self, viz_dirname):
         """Restrict discovery to a single ``results_viz*`` dir, or all of them.
@@ -748,7 +748,7 @@ class VtsViewer:
                 ordered.append(path)
         return ordered
 
-    # ----- plotter lifecycle -----
+    # plotter lifecycle
 
     def _ensure_plotter(self) -> bool:
         """Construct the Plotter + trame widget if not already up.
@@ -857,7 +857,7 @@ class VtsViewer:
             display(self._viewer_widget)
         return True
 
-    # ----- file load / render -----
+    # file load / render
 
     def _load_file(self, path: str):
         if not self._ensure_plotter():
@@ -1410,7 +1410,7 @@ class VtsViewer:
                         vec_name, color_scalar, cmap, clim, sbar,
                     )
 
-            # ----- common appearance + camera -----
+            # common appearance + camera
             try:
                 self._plotter.set_background(self.bg_dd.value)
             except Exception:
@@ -1506,7 +1506,7 @@ class VtsViewer:
                 self._mesh.outline(), color=self._outline_color(),
             )
 
-    # ----- mode + visibility helpers -----
+    # mode + visibility helpers
 
     def _apply_mode_visibility(self, mode: str):
         """Hide/show per-mode control boxes based on the active mode.
@@ -1571,7 +1571,7 @@ class VtsViewer:
         if target != current_mode:
             self._apply_mode_visibility(target)
 
-    # ----- observers / handlers -----
+    # observers / handlers
 
     def _on_file_change(self, change):
         if self._suppress_observers:
@@ -1796,7 +1796,7 @@ class VtsViewer:
         ok, msg = open_in_paraview(path)
         self._set_status(msg, kind='success' if ok else 'error')
 
-    # ----- public reload / dispose -----
+    # public reload / dispose
 
     def reload(self):
         """Rescan ``results_viz*/`` and re-read the current file in place.
@@ -1875,7 +1875,7 @@ class VtsViewer:
         with self.viewer_output:
             self.viewer_output.clear_output()
 
-    # ----- helpers -----
+    # helpers
 
     @contextmanager
     def _silence_observers(self):

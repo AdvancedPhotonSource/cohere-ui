@@ -47,7 +47,7 @@ _URLS = load_text('urls')
 class RecTab(BaseTab):
     """Tab for reconstruction configuration.
 
-    Supports the Qt GUI's named alternative rec configurations: a
+    Supports named alternative rec configurations: a
     ``rec_id`` dropdown above the form selects which of
     ``config_rec`` / ``config_rec_<id>`` the widgets read from and
     write to. The "+" button creates a new id by copying the current
@@ -65,7 +65,7 @@ class RecTab(BaseTab):
     def __init__(self):
         super().__init__()
         # '' = the canonical 'config_rec' (UI label: 'main'); anything
-        # else maps to 'config_rec_<id>'. Mirrors Qt's old_rec_id.
+        # else maps to 'config_rec_<id>'.
         self._rec_id: str = ''
 
     @property
@@ -76,8 +76,8 @@ class RecTab(BaseTab):
     def _output_dirname(self) -> str:
         """Reconstruction output directory for the active rec id.
 
-        Mirrors manage_reconstruction(rec_id=...): 'main' writes to
-        results_phasing/, a named id to results_phasing_<id>/.
+        'main' writes to results_phasing/, a named id to
+        results_phasing_<id>/.
         """
         return 'results_phasing' if not self._rec_id else f'results_phasing_{self._rec_id}'
 
@@ -179,7 +179,7 @@ class RecTab(BaseTab):
         self._apply_device_enabled(self.proc.value)
 
         # Named alternative rec configurations row. Hidden until the
-        # user creates the first non-'main' id (matches Qt parity).
+        # user creates the first non-'main' id.
         self.rec_id_dropdown = dropdown(
             options=[_MAIN_REC_ID_LABEL], value=_MAIN_REC_ID_LABEL, width='180px',
         )
@@ -222,7 +222,7 @@ class RecTab(BaseTab):
             self.monitor.widgets_box(),
         ])
 
-    # --- Named alternative rec configs (Qt parity) ---
+    # Named alternative rec configs
 
     def _discover_rec_ids(self) -> list:
         """Return the sorted list of '<id>' names found in ``conf/config_rec_*``.
@@ -265,9 +265,8 @@ class RecTab(BaseTab):
     def _on_rec_id_change(self, change):
         """Save the previous selection's widget state, then load the new one.
 
-        Mirrors Qt's ``toggle_conf`` (cohere_gui.py:1418). Best-effort
-        save: a validation error on the OLD config still allows the
-        switch, because the user wants to look at the NEW config.
+        Best-effort save: a validation error on the OLD config still
+        allows the switch, because the user wants to look at the NEW config.
         """
         if self.main_gui is None or not self.main_gui.experiment_exists():
             return
@@ -689,9 +688,8 @@ class RecTab(BaseTab):
         self.raar_beta.value = ''
         self.initial_support_area.value = ''
         self.feature_panel.clear_all()
-        # Reset rec-id state to 'main' on a full clear (matches Qt's
-        # clear_conf at cohere_gui.py:1257-1271). The dropdown options
-        # are refreshed on the next load_tab.
+        # Reset rec-id state to 'main' on a full clear. The dropdown
+        # options are refreshed on the next load_tab.
         self._rec_id = ''
         if hasattr(self, 'rec_id_dropdown'):
             self.rec_id_dropdown.unobserve(self._on_rec_id_change, 'value')

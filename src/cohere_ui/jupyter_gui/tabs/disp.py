@@ -42,7 +42,7 @@ class DispTab(BaseTab):
         # file whose results_dir pointer encodes the choice.
         self._rec_id: str = ''
 
-    # reconstruction-id helpers (mirror RecTab) 
+    # reconstruction-id helpers
 
     def _output_dirname(self) -> str:
         """Input reconstruction dir for the active id."""
@@ -114,9 +114,9 @@ class DispTab(BaseTab):
         ])
 
         # Reconstruction selector: quick-switch which reconstruction this
-        # tab post-processes. Mirrors the rec tab's config dropdown.
-        # Selecting an id points result_dir at results_phasing[_<id>]/ so
-        # output lands in results_viz[_<id>]/ (backend-derived).
+        # tab post-processes. Selecting an id points result_dir at
+        # results_phasing[_<id>]/ so output lands in results_viz[_<id>]/
+        # (backend-derived).
         self.disp_rec_id_dropdown = dropdown(
             options=[_MAIN_DISP_ID_LABEL], value=_MAIN_DISP_ID_LABEL, width='180px',
         )
@@ -152,7 +152,7 @@ class DispTab(BaseTab):
 
         return layout
 
-    # --- reconstruction selector machinery (mirror RecTab) ---
+    # reconstruction selector machinery
 
     def _apply_multipeak_visibility(self) -> None:
         """Hide the reconstruction selector in multipeak experiments.
@@ -384,7 +384,7 @@ class DispTab(BaseTab):
         self.rampups.value = ''
         self.complex_mode.value = 'AmpPhase'
         self.feature_panel.clear_all()
-        # Reset the reconstruction selector to 'main' (mirrors RecTab).
+        # Reset the reconstruction selector to 'main'.
         self._rec_id = ''
         if hasattr(self, 'disp_rec_id_dropdown'):
             self.disp_rec_id_dropdown.unobserve(self._on_disp_rec_id_change, 'value')
@@ -457,8 +457,8 @@ class DispTab(BaseTab):
     def _missing_required_inputs(self) -> list:
         """Return descriptions of any required input file that's absent.
 
-        Mirrors ``handle_visualization``'s search: at least one
-        ``results_phasing/<*>/image.npy`` must exist under the experiment dir.
+        At least one ``results_phasing/<*>/image.npy`` must exist under
+        the experiment dir.
         """
         if not self.main_gui or not self.main_gui.experiment_dir:
             return ["experiment directory not set"]

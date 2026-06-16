@@ -14,10 +14,8 @@ and embeds ``monitor.widgets_box()`` in its layout.
 
 import os
 import signal
-import sys
 import threading
 import time
-import traceback
 
 import ipywidgets as widgets
 
@@ -254,7 +252,7 @@ class RecMonitor:
                 except Exception as e2:
                     self.log(f'proc.kill() failed: {e2}')
 
-    # log / debug forwarding to RecMonitorWidgets 
+    # log / debug forwarding to RecMonitorWidgets
 
     def log(self, msg, level: str = 'info'):
         """Append a line to the log widget at the given level."""
@@ -271,7 +269,7 @@ class RecMonitor:
     def show_debug(self) -> bool:
         return self._w.show_debug
 
-    # image setters (route through the widgets' visibility logic) 
+    # image setters (route through the widgets' visibility logic)
 
     def set_live_view(self, png):
         """Set the live-view image; revealed only when it has bytes."""
@@ -287,7 +285,7 @@ class RecMonitor:
         """See :func:`monitor_snapshot.show_final_snapshot`."""
         _do_show_final_snapshot(self, image, support, errors, backend_cfg)
 
-    # internal lifecycle 
+    # internal lifecycle
 
     def _reset_for_run(self, total_iters: int, show_progress_bar: bool):
         self.clear_log()
