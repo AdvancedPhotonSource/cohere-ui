@@ -209,11 +209,11 @@ class PhaseConstrainFeature(Feature):
         self.phase_max = text_field(placeholder='1.57', width=FEATURE_INPUT_WIDTH)
         self.pi_prefactor = checkbox(description=_UI['feature_options']['pi_prefactor'])
         self._phase_min_mul = widgets.HTML(
-            value='<small style="color:#666;">× π</small>',
+            value='<small style="color:var(--jup-fg-muted);">&times; &pi;</small>',
             layout=widgets.Layout(display='none', margin='0 0 0 6px'),
         )
         self._phase_max_mul = widgets.HTML(
-            value='<small style="color:#666;">× π</small>',
+            value='<small style="color:var(--jup-fg-muted);">&times; &pi;</small>',
             layout=widgets.Layout(display='none', margin='0 0 0 6px'),
         )
         self.pi_prefactor.observe(self._on_pi_toggle, 'value')
@@ -602,7 +602,7 @@ class LiveFeature(Feature):
             self._mask_row,
             grid_full(widgets.HTML(
                 '<hr style="margin:8px 0; border:none; '
-                'border-top:1px solid #ddd; width:100%;">'
+                'border-top:1px solid var(--jup-border); width:100%;">'
             )),
             grid_full(self._benchmark_toggle),
             grid_full(self._benchmark_box),
@@ -704,17 +704,17 @@ class LiveFeature(Feature):
         html_rows = ''.join(
             f'<tr><td style="padding:2px 12px 2px 0;">{name}</td>'
             f'<td style="padding:2px 12px 2px 0;font-family:monospace;">{cost}</td>'
-            f'<td style="padding:2px;color:#888;font-family:monospace;">{note}</td></tr>'
+            f'<td style="padding:2px;color:var(--jup-fg-faint);font-family:monospace;">{note}</td></tr>'
             for name, cost, note in rows
         )
         self.benchmark_output.value = (
             f'<table style="border-collapse:collapse;margin-top:6px;">'
-            f'<thead><tr style="border-bottom:1px solid #ccc;">'
+            f'<thead><tr style="border-bottom:1px solid var(--jup-border);">'
             f'<th style="text-align:left;padding:2px 12px 2px 0;">Renderer</th>'
             f'<th style="text-align:left;padding:2px 12px 2px 0;">Cost</th>'
             f'<th style="text-align:left;padding:2px;">Notes</th></tr></thead>'
             f'<tbody>{html_rows}</tbody></table>'
-            f'<small style="color:#888;">Synthetic {n}^3 complex array, '
+            f'<small style="color:var(--jup-fg-faint);">Synthetic {n}^3 complex array, '
             f'{iters} update_singlepeak calls per renderer (warmup discarded). '
             f'Multiply by your reconstruction\'s live_trigger fire count to '
             f'estimate total snapshot overhead.</small>'

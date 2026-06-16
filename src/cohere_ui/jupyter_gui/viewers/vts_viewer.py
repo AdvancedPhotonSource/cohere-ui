@@ -90,11 +90,18 @@ class VtsViewer:
 
     # Match the FeaturePanel chevron convention so the toggle reads as
     # a heading instead of a button.
-    _COLLAPSED_GLYPH = '▸'
-    _EXPANDED_GLYPH = '▾'
+    _COLLAPSED_GLYPH = chr(0x25b8)  # U+25B8 right-pointing triangle (collapsed)
+    _EXPANDED_GLYPH = chr(0x25be)   # U+25BE down-pointing triangle (expanded)
 
     def __init__(self, main_gui):
         self.main_gui = main_gui
+
+        # Discovery scope: None means glob every ``results_viz*/`` (the
+        # default, used for multipeak). A concrete dir name (e.g.
+        # ``results_viz`` or
+        # ``results_viz_foo``) restricts discovery to that one viz dir so
+        # the picker shows only the selected reconstruction's output.
+        self._viz_scope = None
 
         # Render state. None until the user expands the panel for the
         # first time; recreated by _ensure_plotter() on next expand
@@ -267,7 +274,7 @@ class VtsViewer:
         # Placeholder description; _refresh_title() at the end of
         # _build_ui rewrites it once file_picker exists.
         self._title_btn = widgets.Button(
-            description='▸  3D Viewer',
+            description=f'{self._COLLAPSED_GLYPH}  3D Viewer',
             layout=widgets.Layout(
                 width='100%', height='28px', padding='0',
                 margin='8px 0 0 0',
@@ -399,7 +406,7 @@ class VtsViewer:
         # in features/rec_features.py, same idiom as the outer viewer
         # toggle so the visual language is consistent.
         self._disp_toggle_btn = widgets.Button(
-            description='▸  Display options',
+            description=f'{self._COLLAPSED_GLYPH}  Display options',
             layout=widgets.Layout(
                 width='auto', height='24px', padding='0',
                 margin='6px 0 0 0',
@@ -639,6 +646,21 @@ class VtsViewer:
 
     # ----- file discovery -----
 
+    def set_scope(self, viz_dirname):
+        """Restrict discovery to a single ``results_viz*`` dir, or all of them.
+
+        Pass an exact directory name (``'results_viz'`` for the main
+        reconstruction, ``'results_viz_<id>'`` for a named one) to scope
+        the picker to that reconstruction's output; pass ``None`` to glob
+        every ``results_viz*/`` (the default, and what multipeak needs).
+        Refreshes the picker + title when the scope actually changes.
+        """
+        if viz_dirname == self._viz_scope:
+            return
+        self._viz_scope = viz_dirname
+        self._refresh_file_options()
+        self._refresh_title()
+
     def _refresh_file_options(self):
         """Re-glob ``results_viz*/`` and update the picker options.
 
@@ -694,8 +716,7 @@ class VtsViewer:
                 # _on_toggle handles initial auto-load on first expand.
                 self.file_picker.value = new_opts[0][1]
 
-    @staticmethod
-    def _discover_vts(exp_dir: str) -> list:
+    def _discover_vts(self, exp_dir: str) -> list:
         """Recursive glob of ``results_viz*/`` under ``exp_dir``.
 
         Returns files ordered by ``_VTS_PRIORITY`` (canonical viz files
@@ -706,15 +727,20 @@ class VtsViewer:
             literal ``[``, ``?``, or ``*`` (e.g. ``scan[1].run/``)
             aren't interpreted as glob metacharacters and made to
             silently miss every file.
-          * ``results_viz*`` (trailing wildcard) matches both
+          * When ``self._viz_scope`` is None the dir segment is
+            ``results_viz*`` (trailing wildcard) which matches both
             single-peak ``results_viz/`` and multipeak
-            ``results_viz_<hkl>/`` directory layouts.
+            ``results_viz_<hkl>/`` layouts. When a scope is set it is
+            the exact viz dir name for the selected reconstruction, which
+            is escaped so any glob metacharacters in it are treated
+            literally.
         """
         seen = set()
         ordered = []
         safe_root = glob.escape(exp_dir)
+        viz_glob = glob.escape(self._viz_scope) if self._viz_scope else 'results_viz*'
         for pat in _VTS_PRIORITY:
-            full_pat = os.path.join(safe_root, '**', 'results_viz*', pat)
+            full_pat = os.path.join(safe_root, '**', viz_glob, pat)
             for path in sorted(glob.glob(full_pat, recursive=True)):
                 if path in seen:
                     continue
@@ -857,7 +883,7 @@ class VtsViewer:
         self._current_file = path
         # Fresh data warrants fresh defaults; drop the user-touched
         # cmap / clim memory so the BCDI defaults (twilight for phase,
-        # ±π clim, etc.) re-apply for the new file's scalars.
+        # +/-pi clim, etc.) re-apply for the new file's scalars.
         self._user_cmap_dirty = False
         self._user_clim_dirty = False
 

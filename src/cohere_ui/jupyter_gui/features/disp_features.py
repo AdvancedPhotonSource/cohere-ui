@@ -314,12 +314,12 @@ class DisplacementFeature(Feature):
     * ``"Q"``: d-spacing derived geometrically from the q-vector
       (uses energy, detector position, and sample orientation from
       ``config_instr``). Usual choice.
-    * ``<float>``: explicit d-spacing in Å; bypasses the geometric
+    * ``<float>``: explicit d-spacing in angstroms; bypasses the geometric
       derivation. Use when geometry metadata is incomplete or to lock
       the conversion factor.
 
     ``make_image_viz`` computes ``displacement = phase * d_spacing / 10``
-    (Å -> nm).
+    (angstroms to nm).
     """
 
     name = _TEXT['displacement']['name']

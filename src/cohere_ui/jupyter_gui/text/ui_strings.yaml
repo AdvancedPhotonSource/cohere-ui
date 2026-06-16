@@ -38,7 +38,7 @@ status:
 
 # Hover tooltips. Multi-line entries render as multi-line tooltips.
 tooltips:
-  run_all:        'Run Prep -> Data -> Reconstruction -> Display in sequence'
+  run_all:        'Run Prep, Data, Reconstruction, then Display in sequence'
   back_to_picker: Back to picker
   rescan_parent:  Re-scan parent dir
   log_show:       Reveal the in-tab log lines

@@ -75,19 +75,19 @@ class MpTab(BaseTab):
         self._fields = {}
         sections = [
             widgets.HTML(
-                f'<small style="color:#888;">{_MSG["mp"]["intro"]}</small>'
+                f'<small style="color:var(--jup-fg-faint);">{_MSG["mp"]["intro"]}</small>'
             ),
             widgets.HTML('<b>Geometry</b>'),
             widgets.VBox([self._make_row(spec) for spec in _GEOMETRY_FIELDS]),
             widgets.HTML(
                 '<div style="margin:8px 0 4px 0; padding-top:4px;'
-                ' border-top:1px solid #ddd;"><b>Reconstruction control</b></div>'
+                ' border-top:1px solid var(--jup-border);"><b>Reconstruction control</b></div>'
             ),
             widgets.VBox([self._make_row(spec) for spec in _REC_CONTROL_FIELDS]),
         ]
 
         self.action_row = self._build_action_row(run_label=None)
-        self.log_panel = LogPanel(height='100px')
+        self.log_panel = LogPanel()
 
         return widgets.VBox([
             *sections,

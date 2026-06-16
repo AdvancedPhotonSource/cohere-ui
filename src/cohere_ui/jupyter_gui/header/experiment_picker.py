@@ -237,7 +237,9 @@ class ExperimentList:
 
     @staticmethod
     def _format_option(name: str, has_conf: bool) -> str:
-        return f'{"●" if has_conf else "○"} {name}'
+        # U+25CF black circle (has conf/), U+25CB white circle (none yet)
+        dot = chr(0x25cf) if has_conf else chr(0x25cb)
+        return f'{dot} {name}'
 
     def _update_hint(self, items: list):
         if not self._parent_dir:
@@ -249,7 +251,7 @@ class ExperimentList:
         else:
             self._empty_hint.value = ''
             return
-        self._empty_hint.value = f'<i style="color:#888;">{_PIK[key]}</i>'
+        self._empty_hint.value = f'<i style="color:var(--jup-fg-faint);">{_PIK[key]}</i>'
 
     def _on_select_change(self, change):
         name = change.get('new') if isinstance(change, dict) else None
@@ -463,7 +465,7 @@ class ExperimentWizard:
     def _refresh_preview(self, _change):
         if not self._parent_dir:
             self.preview.value = (
-                f'<i style="color:#888;">{_WIZ["parent_dir_prompt"]}</i>'
+                f'<i style="color:var(--jup-fg-faint);">{_WIZ["parent_dir_prompt"]}</i>'
             )
             self.layout_preview.value = ''
             self.create_btn.disabled = True
@@ -474,7 +476,7 @@ class ExperimentWizard:
         unknown = naming.unknown_tokens(self.template_value)
         if unknown:
             warn_html = (
-                f'<div style="color:#a06000; font-family:Menlo,Consolas,monospace;">'
+                f'<div style="color:var(--jup-warn); font-family:Menlo,Consolas,monospace;">'
                 f'{_WIZ["unknown_tokens"].format(names=", ".join(unknown))}</div>'
             )
 
@@ -485,7 +487,7 @@ class ExperimentWizard:
             not user_serial or (user_serial.isdigit() and int(user_serial) < resolved)
         ):
             bump_note = (
-                f' <span style="color:#888;">'
+                f' <span style="color:var(--jup-fg-faint);">'
                 f'{_WIZ["serial_bumped"].format(next=resolved)}</span>'
             )
 
@@ -494,7 +496,7 @@ class ExperimentWizard:
                 f'{warn_html}'
                 f'<div style="font-family:Menlo,Consolas,monospace;">'
                 f'<b>Folder name:</b> {rendered}{bump_note}<br>'
-                f'<span style="color:#a02020;">{_WIZ["collision"]}</span>'
+                f'<span style="color:var(--jup-error);">{_WIZ["collision"]}</span>'
                 f'</div>'
             )
             self.create_btn.disabled = True
@@ -526,17 +528,17 @@ class ExperimentWizard:
             )
         except ValueError:
             return (
-                f'<div style="color:#a06000;">{_WIZ["scan_unparseable"]}</div>'
+                f'<div style="color:var(--jup-warn);">{_WIZ["scan_unparseable"]}</div>'
             )
         tree_text = layout.format_tree(entries, root=folder_name)
         return (
-            f'<div style="background:#fafafa; padding:6px 10px; '
-            f'border:1px solid #eee; border-radius:4px; margin:6px 0;">'
-            f'<div style="color:#666; font-style:italic; font-size:11px; '
+            f'<div style="background:var(--jup-card-bg); padding:6px 10px; '
+            f'border:1px solid var(--jup-border); border-radius:4px; margin:6px 0;">'
+            f'<div style="color:var(--jup-fg-muted); font-style:italic; font-size:11px; '
             f'margin-bottom:4px;">{_WIZ["layout_preview_heading"]}</div>'
             f'<pre style="margin:0; padding:0; max-height:300px; overflow:auto; '
             f'font-family:Menlo,Consolas,monospace; font-size:11px; '
-            f'line-height:1.35; color:#444;">'
+            f'line-height:1.35; color:var(--jup-fg-muted);">'
             f'{html.escape(tree_text)}</pre>'
             f'</div>'
         )
@@ -623,7 +625,7 @@ class ExperimentPicker:
         self.widget = widgets.VBox([
             widgets.HTML(
                 f'<b>{_PIK["parent_section"]}</b> '
-                f'<small style="color:#888;">{_PIK["parent_section_note"]}</small>'
+                f'<small style="color:var(--jup-fg-faint);">{_PIK["parent_section_note"]}</small>'
             ),
             self.parent_chooser.widget,
             self._path_mirror,
@@ -636,7 +638,7 @@ class ExperimentPicker:
         """Right-anchored display of ``path`` (tail visible, head ellipsed)."""
         if not path:
             return (
-                f'<div style="color:#888; font-size:11px; padding:0 4px 4px 4px;">'
+                f'<div style="color:var(--jup-fg-faint); font-size:11px; padding:0 4px 4px 4px;">'
                 f'<i>{_PIK["path_mirror_empty"]}</i></div>'
             )
         escaped = html.escape(path)
@@ -645,7 +647,7 @@ class ExperimentPicker:
         return (
             f'<div title="{escaped}" '
             'style="font-family:Menlo,Consolas,monospace; font-size:11px; '
-            'padding:0 4px 4px 4px; color:#555; '
+            'padding:0 4px 4px 4px; color:var(--jup-fg-muted); '
             'white-space:nowrap; overflow:hidden; text-overflow:ellipsis; '
             'direction:rtl; text-align:left; max-width:520px;">'
             f'{escaped}</div>'

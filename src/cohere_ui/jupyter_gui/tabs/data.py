@@ -57,14 +57,14 @@ class DataTab(BaseTab):
 
         self.action_row = self._build_action_row(run_label='Format Data', run_width='140px')
 
-        self.log_panel = LogPanel(height='150px')
+        self.log_panel = LogPanel()
 
         self.tiff_viewer = TiffViewer(
             panes=[
                 {
                     'key': 'compare',
                     'label': 'Comparison source',
-                    'placeholder': 'dir / file / glob -- or use Quick load below',
+                    'placeholder': 'dir / file / glob, or use Quick load below',
                     'default_path': lambda: self._prep_default_path(),
                     'shortcuts': [
                         ('Raw scan', lambda: self._raw_default_path() or ''),

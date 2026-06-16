@@ -37,10 +37,10 @@ class PrepTab(BaseTab):
 
         self.action_row = self._build_action_row(run_label='Prepare', run_width='130px')
 
-        self.log_panel = LogPanel(height='150px')
+        self.log_panel = LogPanel()
 
         roi_tooltip = widgets.HTML(
-            f'<small style="color: #666;">{_MSG["prep"]["roi_formats"]}</small>'
+            f'<small style="color: var(--jup-fg-muted);">{_MSG["prep"]["roi_formats"]}</small>'
         )
 
         self.tiff_viewer = TiffViewer(
@@ -142,6 +142,20 @@ class PrepTab(BaseTab):
 
         return conf_map
 
+    def _pre_save_hook(self, conf_map: dict) -> None:
+        """Preserve ``outliers_scans`` across save+run cycles.
+
+        The prep backend writes the list back into ``config_prep`` after
+        each run; the form has no widget for it (the user only chooses
+        whether outlier removal is on). Without this hook, every save
+        would drop the prior list, defeating the cache.
+        """
+        if not self.remove_outliers.value:
+            return
+        current = self.main_gui.config_manager.load_config(self.conf_name)
+        if current and 'outliers_scans' in current:
+            conf_map['outliers_scans'] = current['outliers_scans']
+
     def clear_conf(self):
         """Reset all widgets to defaults."""
         self.min_frames.value = ''
@@ -166,23 +180,8 @@ class PrepTab(BaseTab):
         if skip_save:
             self.log_warning(_MSG['tab']['run_modified_warning'])
         else:
-            conf_map = self.get_config()
-            err = self.main_gui.config_manager.verify(self.conf_name, conf_map)
-            if err and not self.main_gui.no_verify:
-                self.log_error(_MSG['tab']['config_error'].format(error=err))
+            if self.save_and_verify():
                 return
-
-            # Preserve outliers_scans across runs when remove_outliers is on.
-            if self.remove_outliers.value:
-                current_prep = self.main_gui.config_manager.load_config(self.conf_name)
-                if current_prep and 'outliers_scans' in current_prep:
-                    conf_map['outliers_scans'] = current_prep['outliers_scans']
-
-            _, action = self.main_gui.config_manager.save_config(
-                self.conf_name, conf_map, self.main_gui.no_verify)
-            if action:
-                self._log_config_action(action)
-                self._notify_save()
 
         before = self._snapshot_outputs()
         try:

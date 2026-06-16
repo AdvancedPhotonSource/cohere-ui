@@ -26,8 +26,8 @@ _DELIMS = re.compile(r'\\[\(\)\[\]]')
 _TEXT_CMD = re.compile(r'\\text\{([^}]*)\}')
 
 _TEX = {
-    'pi': 'π', 'sigma': 'σ', 'sum': 'Σ',
-    'geq': '≥', 'approx': '≈', 'pm': '±', 'cdot': '·', 'times': '×',
+    'pi': chr(0x03c0), 'sigma': chr(0x03c3), 'sum': chr(0x03a3),
+    'geq': chr(0x2265), 'approx': chr(0x2248), 'pm': chr(0x00b1), 'times': chr(0x00d7),
 }
 _CMD_PATTERN = re.compile(r'\\(' + '|'.join(_TEX) + r')(?![A-Za-z])')
 

@@ -32,7 +32,7 @@ def frame_location(exc: BaseException) -> str:
 
 
 def format_error_summary(exc: BaseException, prefix: str = '') -> str:
-    """One-line ``trigger -> cause -- [prefix: ]ExcType: msg`` summary."""
+    """One-line ``trigger to cause: [prefix: ]ExcType: msg`` summary."""
     frames = _project_frames(exc)
     body = f"{type(exc).__name__}: {exc}"
     if prefix:
@@ -41,8 +41,8 @@ def format_error_summary(exc: BaseException, prefix: str = '') -> str:
         return body
     trigger = _format_frame(frames[0])
     cause = _format_frame(frames[-1])
-    loc = trigger if trigger == cause else f"{trigger} -> {cause}"
-    return f"{loc} -- {body}"
+    loc = trigger if trigger == cause else f"{trigger} to {cause}"
+    return f"{loc}: {body}"
 
 
 def safe_parse(field_name: str, value, *, log_error=None, log_debug=None):

@@ -3,13 +3,13 @@
 
 Both load when the GUI imports torch and then calls into xrayutilities (e.g.
 ``QConversion.area()`` from ``instr.get_geometry``), and the OpenMP runtime
-calls ``abort()`` — killing the Jupyter kernel with no Python traceback.
+calls ``abort()``, killing the Jupyter kernel with no Python traceback.
 The fix (per CLAUDE.md) is to replace torch's bundled libomp with a symlink
 to the Homebrew copy. This module DETECTS the misconfiguration so the GUI
 can surface a remediation banner instead of waiting for the kernel to die.
 
-Must not import torch or xrayutilities at module top level — defeats the
-purpose if their import order is part of the bug.
+Must not import torch or xrayutilities at module top level, which would
+defeat the purpose if their import order is part of the bug.
 """
 from __future__ import annotations
 
@@ -63,7 +63,7 @@ def check_libomp_consistency() -> EnvCheckResult:
     """Return :class:`EnvCheckResult` describing the current state.
 
     Non-darwin platforms, or environments without xrayutilities/torch, are
-    treated as OK — the conflict is macOS-and-torch-and-xrayutilities only.
+    treated as OK because the conflict only affects macOS with torch and xrayutilities.
     """
     if sys.platform != "darwin":
         return EnvCheckResult.ok_result()

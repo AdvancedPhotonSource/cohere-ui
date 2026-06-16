@@ -21,6 +21,24 @@ _UI = load_text('ui_strings')
 _copy_button_uid = _itertools.count()
 
 
+# Log-box height is expressed in "lines" so every panel shares one default.
+# The render div uses 11px font at 1.35 line-height (~15px/line) plus 6px
+# top/bottom padding; the grace keeps the last line from clipping.
+_LOG_LINE_PX = 15      # 11px font * 1.35 line-height, rounded up
+_LOG_PADDING_PX = 12   # 6px top + 6px bottom in the render div
+_LOG_GRACE_PX = 8      # breathing room so the last line never clips
+
+
+def log_box_height(lines: int) -> str:
+    """CSS height for a log box that shows ``lines`` rows without clipping.
+
+    5 lines -> '95px', 10 lines -> '170px'. Used as the shared default so
+    the init/header box and every tab log start the same compact size and
+    grow together when debug output is revealed.
+    """
+    return f'{lines * _LOG_LINE_PX + _LOG_PADDING_PX + _LOG_GRACE_PX}px'
+
+
 def make_copy_to_clipboard_html(text: str, icon: str = 'copy',
                                 label: str = '',
                                 tooltip: str = 'Copy to clipboard') -> tuple[str, str]:
@@ -57,11 +75,11 @@ def make_copy_to_clipboard_html(text: str, icon: str = 'copy',
     # handler.
     ok_html = (
         '<i class=&quot;fa fa-check&quot; '
-        'style=&quot;color:#1e7a1e;&quot;></i>'
+        'style=&quot;color:var(--jup-success);&quot;></i>'
     )
     fail_html = (
         '<i class=&quot;fa fa-times&quot; '
-        'style=&quot;color:#a02020;&quot;></i>'
+        'style=&quot;color:var(--jup-error);&quot;></i>'
     )
     onclick = (
         "(function(btn){"
@@ -95,9 +113,9 @@ def make_copy_to_clipboard_html(text: str, icon: str = 'copy',
         f'onclick="{onclick}" '
         # min-width prevents icon clipping on narrow toolbars;
         # line-height:1 keeps the bounding box snug around the glyph.
-        f'style="min-width:30px; padding:4px 8px; border:1px solid #bbb; '
-        f'border-radius:4px; background:#f7f7f7; cursor:pointer; '
-        f'font-size:13px; line-height:1; color:#444;">'
+        f'style="min-width:30px; padding:4px 8px; border:1px solid var(--jup-border-2); '
+        f'border-radius:4px; background:var(--jup-card-bg-2); cursor:pointer; '
+        f'font-size:13px; line-height:1; color:var(--jup-fg-muted);">'
         f'{button_inner}</button>'
         f'</span>'
     )
@@ -575,9 +593,9 @@ class ChoiceInput:
                 self.key_label.value = ''
                 return
             self.key_label.value = (
-                f'<small style="color:#888; '
+                f'<small style="color:var(--jup-fg-faint); '
                 f'font-family:Menlo,Consolas,monospace;">'
-                f'&rarr; {_html.escape(v)}</small>'
+                f'= {_html.escape(v)}</small>'
             )
         else:
             self.key_label.value = ''
@@ -886,7 +904,7 @@ def file_chooser(start_path: str = None, filter_pattern: str = '*', title: str =
 def output_area(height: str = '200px') -> widgets.Output:
     """Create an output area for messages and logs."""
     return widgets.Output(layout=widgets.Layout(
-        border='1px solid #ccc',
+        border='1px solid var(--jup-border)',
         height=height,
         overflow='auto'
     ))
@@ -894,18 +912,18 @@ def output_area(height: str = '200px') -> widgets.Output:
 
 def section_header(text: str) -> widgets.HTML:
     """Create a section header."""
-    return widgets.HTML(f'<h4 style="margin: 10px 0 5px 0; color: #333;">{text}</h4>')
+    return widgets.HTML(f'<h4 style="margin: 10px 0 5px 0; color: var(--jup-fg);">{text}</h4>')
 
 
 class LogPanel:
     """Auto-scrolling, level-styled log panel (info/success/warning/error/debug)."""
 
     _LEVEL_STYLE = {
-        'info':    'color:#222;',
-        'success': 'color:#1e7a1e; font-weight:600;',
-        'warning': 'color:#a06000;',
-        'error':   'color:#a02020; font-weight:600;',
-        'debug':   'color:#777; font-style:italic;',
+        'info':    'color:var(--jup-fg);',
+        'success': 'color:var(--jup-success); font-weight:600;',
+        'warning': 'color:var(--jup-warn);',
+        'error':   'color:var(--jup-error); font-weight:600;',
+        'debug':   'color:var(--jup-fg-faint); font-style:italic;',
     }
     _LEVEL_PREFIX = {
         'info':    '',
@@ -915,16 +933,27 @@ class LogPanel:
         'debug':   '[DEBUG] ',
     }
 
-    def __init__(self, height: str = '150px', max_lines: int = 500,
-                 show_by_default: bool = False):
+    def __init__(self, lines: int = 5, debug_lines: int = 10,
+                 max_lines: int = 500, show_by_default: bool = False,
+                 height: str | None = None):
         self._lines = []
         self._max_lines = max_lines
         self.show_debug = False
+        # Line-based heights so every panel starts compact (~5 lines) and
+        # grows to ~10 when debug is revealed. An explicit ``height`` (kept
+        # for back-compat) pins both states to that value.
+        self._h_normal = height or log_box_height(lines)
+        self._h_debug = height or log_box_height(debug_lines)
         self._html = widgets.HTML(
             value=self._render(),
-            layout=widgets.Layout(border='1px solid #ccc', height=height,
-                                  margin='4px 0 0 0', overflow='auto'),
+            # overflow='hidden': the inner render div owns the scrollbar
+            # (overflow-y:auto). 'auto' here would nest a second scroll
+            # container and show a perpetual outer scrollbar.
+            layout=widgets.Layout(border='1px solid var(--jup-border)', height=self._h_normal,
+                                  margin='4px 0 0 0', overflow='hidden'),
         )
+        # Drag-to-resize grip (styles.py .jup-gui-log-box: resize:vertical).
+        self._html.add_class('jup-gui-log-box')
         # Master "show log" toggle. Log panels are hidden by default
         # to keep tabs uncluttered until the user wants the chatter.
         self.show_log_checkbox = widgets.Checkbox(
@@ -1003,10 +1032,21 @@ class LogPanel:
         self.show_debug = value
         if self.show_debug_checkbox.value != value:
             self.show_debug_checkbox.value = value
+        self._apply_height()
         self._refresh()
 
+    def _apply_height(self):
+        """Grow the box to the debug height while debug output is shown,
+        shrink back to the compact height otherwise."""
+        self._html.layout.height = (
+            self._h_debug if self.show_debug else self._h_normal
+        )
+
     def _on_debug_toggle(self, change):
+        # This observer fires for both direct clicks and the linked master
+        # toggle (core._sync_debug_panels), so the height swap lives here.
         self.show_debug = bool(change['new'])
+        self._apply_height()
         self._refresh()
         self._refresh_copy_button()
 
@@ -1078,10 +1118,10 @@ class LogPanel:
             )
             visible_idx += 1
         return (
-            '<div style="height:100%;overflow-y:auto;'
+            '<div style="height:100%;box-sizing:border-box;overflow-y:auto;'
             'display:flex;flex-direction:column-reverse;'
             'font-family:Menlo,Consolas,monospace;font-size:11px;'
-            'line-height:1.35;padding:6px;background:#fafafa;'
+            'line-height:1.35;padding:6px;background:var(--jup-card-bg);'
             'white-space:pre-wrap;word-break:break-word;">'
             + ''.join(rows) + '</div>'
         )
@@ -1224,10 +1264,10 @@ class FeaturePanel:
         active = sum(1 for f in self.features.values() if f.active.value)
         total = len(self.features)
         return (
-            f'<div style="font-size:12px; color:#444;">'
+            f'<div style="font-size:12px; color:var(--jup-fg-muted);">'
             f'<b>Features</b> '
-            f'<span style="color:#666;">({active}/{total} active)</span> '
-            f'<span style="color:#888; font-size:11px;">'
+            f'<span style="color:var(--jup-fg-muted);">({active}/{total} active)</span> '
+            f'<span style="color:var(--jup-fg-faint); font-size:11px;">'
             f'&nbsp;- click a row to edit; '
             f'toggle <i>active</i> on the right to enable</span>'
             f'</div>'
@@ -1313,8 +1353,8 @@ class FeaturePanel:
         if not feature.disabled_reason:
             return ''
         return (
-            '<div style="background:#fdecea; color:#a02020; '
-            'border:1px solid #f5c2c0; padding:6px 8px; border-radius:4px; '
+            '<div style="background:var(--jup-error-bg); color:var(--jup-error); '
+            'border:1px solid var(--jup-error-border); padding:6px 8px; border-radius:4px; '
             'margin-bottom:8px; font-size:0.85em;">'
             f'<b>Disabled:</b> {feature.disabled_reason}</div>'
         )
@@ -1324,7 +1364,7 @@ class FeaturePanel:
         if not feature.description:
             return ''
         return (
-            '<div style="color:#555; font-size:0.9em; margin-bottom:8px;">'
+            '<div style="color:var(--jup-fg-muted); font-size:0.9em; margin-bottom:8px;">'
             f'{feature.description}</div>'
         )
 

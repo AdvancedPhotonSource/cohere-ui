@@ -134,8 +134,8 @@ def parse_algorithm_sequence(text: str) -> list[tuple[str, int]] | ValidationErr
     """Parse e.g. ``'3*(20*ER+180*HIO)+20*ER'`` into a list of ``(name, count)``.
 
     Returns a :class:`ValidationError` for unknown algorithm tokens,
-    unbalanced parentheses, or malformed multipliers. Case-sensitive — ``'er'``
-    is rejected with a suggestion of ``'ER'``.
+    unbalanced parentheses, or malformed multipliers. Case-sensitive, so
+    ``'er'`` is rejected with a suggestion of ``'ER'``.
 
     The sum of counts equals the total iteration count
     (``total_iters_from_alg_sequence`` from ``rec_subprocess/progress.py``).

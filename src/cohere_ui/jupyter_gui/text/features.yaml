@@ -3,7 +3,7 @@
 #
 # Math: a tiny TeX-to-Unicode pass runs at load time. Currently handles
 # \(...\) / \[...\] (delimiters), \text{x} (strips wrapper), and the
-# commands \pi \sigma \sum \geq \approx \pm \cdot \%. Extend the
+# commands \pi \sigma \sum \geq \approx \pm \times \%. Extend the
 # table in text/__init__.py if you need more (it's a 1-line addition).
 
 # --- Reconstruction features ---
@@ -159,7 +159,7 @@ crop:
     Crop the reconstructed image to the region containing the object.
     <code>fraction</code> keeps a fixed fraction of each dimension around
     the maximum; <code>tight</code> derives the crop bounds from points
-    above \(\text{threshold} \cdot max\) with a configurable margin.
+    above \(\text{threshold} \times max\) with a configurable margin.
     <br><br>
     <b>How to use:</b> <code>fraction</code> with <code>[0.5, 0.5, 0.5]</code>
     is a safe default. Use <code>tight</code> with margin <code>10</code>

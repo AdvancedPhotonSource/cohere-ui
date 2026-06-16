@@ -41,7 +41,7 @@ class InstrTab(BaseTab):
         self._spec_drivers: tuple = ()
 
     _PLACEHOLDER_HTML = (
-        f'<div style="padding:18px; color:#666; font-size:13px;">'
+        f'<div style="padding:18px; color:var(--jup-fg-muted); font-size:13px;">'
         f'{_MSG["instr"]["placeholder"]}</div>'
     )
 
@@ -53,7 +53,7 @@ class InstrTab(BaseTab):
         self._render_params_section()
 
         self.action_row = self._build_action_row(run_label=None)
-        self.log_panel = LogPanel(height='100px')
+        self.log_panel = LogPanel()
 
         return widgets.VBox([
             self.beamline_header,
@@ -95,7 +95,7 @@ class InstrTab(BaseTab):
         if self._schema_fields['spec']:
             sections.append(widgets.HTML(
                 '<div style="margin:8px 0 4px 0; padding-top:4px;'
-                ' border-top:1px solid #ddd;"><b>Spec parameters</b></div>'
+                ' border-top:1px solid var(--jup-border);"><b>Spec parameters</b></div>'
             ))
             spec_rows = [self._make_row(s) for s in self._schema_fields['spec']]
             sections.append(widgets.VBox(spec_rows))
@@ -179,7 +179,7 @@ class InstrTab(BaseTab):
         desc = spec.get('description') or ''
         # Unit appended in small grey after the name.
         unit_html = (
-            f' <small style="color:#888;">({_html.escape(unit)})</small>'
+            f' <small style="color:var(--jup-fg-faint);">({_html.escape(unit)})</small>'
             if unit else ''
         )
         if desc:

@@ -121,7 +121,7 @@ class TiffViewer:
             )
             self.image[key] = widgets.Image(
                 format='png',
-                layout=widgets.Layout(border='1px solid #ddd'),
+                layout=widgets.Layout(border='1px solid var(--jup-border)'),
             )
             self.slider[key] = widgets.IntSlider(
                 value=0, min=0, max=0, step=1, description='Slice',
@@ -280,7 +280,7 @@ class TiffViewer:
         path = resolver() if callable(resolver) else (resolver or '')
         path = (path or '').strip()
         if not path:
-            self.status[key].value = '<span style="color:#a00;">shortcut returned no path</span>'
+            self.status[key].value = '<span style="color:var(--jup-error);">shortcut returned no path</span>'
             return
         self.path[key].value = path
         self._load_from(key, path)
@@ -337,7 +337,7 @@ class TiffViewer:
     def _stack_frames(self, files, status, tifffile, np):
         first = tifffile.imread(files[0])
         if first.ndim != 2:
-            status.value = (f'<span style="color:#a00;">'
+            status.value = (f'<span style="color:var(--jup-error);">'
                             f'expected 2D frames, got ndim={first.ndim}</span>')
             return None
         arr = np.empty((len(files),) + first.shape, dtype=first.dtype)
@@ -350,11 +350,11 @@ class TiffViewer:
         status = self.status[key]
         slider = self.slider[key]
         if not path:
-            status.value = '<span style="color:#a00;">no path provided</span>'
+            status.value = '<span style="color:var(--jup-error);">no path provided</span>'
             return
         is_glob = '*' in path or '?' in path or '[' in path
         if not is_glob and not (os.path.isfile(path) or os.path.isdir(path)):
-            status.value = f'<span style="color:#a00;">not found: {path}</span>'
+            status.value = f'<span style="color:var(--jup-error);">not found: {path}</span>'
             return
         try:
             import numpy as np
@@ -363,7 +363,7 @@ class TiffViewer:
                 files = sorted(f for f in _glob.glob(path, recursive=True)
                                if os.path.isfile(f))
                 if not files:
-                    status.value = f'<span style="color:#a00;">no files match: {path}</span>'
+                    status.value = f'<span style="color:var(--jup-error);">no files match: {path}</span>'
                     return
                 arr = self._stack_frames(files, status, tifffile, np)
                 if arr is None:
@@ -375,7 +375,7 @@ class TiffViewer:
                     _glob.glob(os.path.join(path, '**', '*.tiff'), recursive=True)
                 ))
                 if not files:
-                    status.value = (f'<span style="color:#a00;">'
+                    status.value = (f'<span style="color:var(--jup-error);">'
                                     f'no *.tif / *.tiff under {path}</span>')
                     return
                 arr = self._stack_frames(files, status, tifffile, np)
@@ -387,11 +387,11 @@ class TiffViewer:
                 if arr.ndim == 2:
                     arr = arr[np.newaxis, :, :]
                 if arr.ndim != 3:
-                    status.value = f'<span style="color:#a00;">unexpected ndim={arr.ndim} (need 2 or 3)</span>'
+                    status.value = f'<span style="color:var(--jup-error);">unexpected ndim={arr.ndim} (need 2 or 3)</span>'
                     return
                 display_name = path.rsplit('/', 1)[-1]
         except Exception as e:
-            status.value = f'<span style="color:#a00;">load failed: {e}</span>'
+            status.value = f'<span style="color:var(--jup-error);">load failed: {e}</span>'
             self._log_debug(format_error_summary(e, prefix='_load_from'))
             self._log_debug(traceback.format_exc())
             return
@@ -399,7 +399,7 @@ class TiffViewer:
         self._tiff_scale_cache = None
         self.path[key].value = path
         status.value = (
-            f'<small style="color:#444;">{display_name} '
+            f'<small style="color:var(--jup-fg-muted);">{display_name} '
             f'shape={arr.shape} dtype={arr.dtype}</small>'
         )
         slider.max = max(0, arr.shape[0] - 1)
@@ -519,7 +519,7 @@ class TiffViewer:
         raw_mean = float(slice_2d.mean())
         fname = os.path.basename(path_widget.value) or '(unnamed)'
         status.value = (
-            f'<small style="color:#444;">'
+            f'<small style="color:var(--jup-fg-muted);">'
             f'<b>{fname}</b> &nbsp; slice <code>{idx}/{arr.shape[0] - 1}</code> &nbsp; '
             f'shape <code>{arr.shape[1]}x{arr.shape[2]}</code> &nbsp; '
             f'dtype <code>{arr.dtype}</code> &nbsp; '
@@ -535,7 +535,7 @@ class TiffViewer:
         path = path_widget.value.strip()
         if not path or not os.path.isfile(path):
             status.value = (
-                '<span style="color:#a00;">Open in ImageJ: load a file first.</span>'
+                '<span style="color:var(--jup-error);">Open in ImageJ: load a file first.</span>'
             )
             return
         cmd_prefix, source, tried = resolve_imagej_path()
@@ -544,7 +544,7 @@ class TiffViewer:
                 f'&nbsp;&nbsp;<code>{_html_escape(t)}</code>' for t in tried
             ) or '&nbsp;&nbsp;(nothing)'
             status.value = (
-                '<span style="color:#a00;">Open in ImageJ: install not '
+                '<span style="color:var(--jup-error);">Open in ImageJ: install not '
                 'detected. Set the path from a notebook cell:<br>'
                 '&nbsp;&nbsp;<code>import cohere_ui.jupyter_gui as cgui</code><br>'
                 "&nbsp;&nbsp;<code>cgui.IMAGEJ_PATH = '/path/to/ImageJ.app'</code>"
@@ -560,12 +560,12 @@ class TiffViewer:
                 start_new_session=True,
             )
             status.value = (
-                f'<small style="color:#2a7a2a;">Opened in ImageJ via '
+                f'<small style="color:var(--jup-success);">Opened in ImageJ via '
                 f'<i>{source}</i>: <code>{cmd_prefix[-1]}</code></small>'
             )
         except Exception as e:
             status.value = (
-                f'<span style="color:#a00;">Open in ImageJ failed: {e}</span>'
+                f'<span style="color:var(--jup-error);">Open in ImageJ failed: {e}</span>'
             )
             self._log_debug(format_error_summary(e, prefix='_open_imagej'))
             self._log_debug(traceback.format_exc())

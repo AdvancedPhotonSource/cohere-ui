@@ -74,7 +74,7 @@ tooltip:
     Tokens
       {root}        your project root (e.g. cdi)
       {date:fmt}    strftime spec; default %Y%m%d (date only)
-      {serial:fmt}  integer (auto-bumps; :03d -> 001) or
+      {serial:fmt}  integer (auto-bumps; :03d gives 001) or
                     scan range like 2-7,10-15 (kept verbatim)
 
     Date format examples

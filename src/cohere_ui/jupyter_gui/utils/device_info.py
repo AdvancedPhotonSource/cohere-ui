@@ -42,11 +42,11 @@ def format_devices(devices, selected=None) -> str:
         if selected and idx is not None and idx in selected:
             line = re.sub(
                 r'^\[(\d+)\]',
-                r'<span style="color:#1e7a1e;font-weight:600;">[\1]</span>',
+                r'<span style="color:var(--jup-success);font-weight:600;">[\1]</span>',
                 line,
             )
         rows.append(f'<div>{line}</div>')
-    return f'<small style="color:#666;">{"".join(rows)}</small>'
+    return f'<small style="color:var(--jup-fg-muted);">{"".join(rows)}</small>'
 
 
 def parse_device_field(value, devices):

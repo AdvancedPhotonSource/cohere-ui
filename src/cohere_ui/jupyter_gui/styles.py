@@ -20,11 +20,58 @@ BUTTON_PALETTE = {
 
 CUSTOM_CSS = """
 <style>
-/* Single source of truth for the selector column width so the divider,
-   the panel grid template, and any future overrides stay in lockstep. */
-:root {
+/* Single source of truth for the GUI's design tokens: the selector/label
+   column widths (so the divider, the panel grid template, and any future
+   overrides stay in lockstep) AND the color/theme tokens consumed via
+   var(--jup-*) throughout the widget tree.
+
+   Each color token prefers the host (JupyterLab / VS Code) --jp-* variable
+   and falls back to a literal default, so the GUI follows the host's chosen
+   theme automatically (and updates live when the host theme changes,
+   since the var() indirection is re-resolved by the browser and nothing
+   is baked in).
+   The @media (prefers-color-scheme: dark) block below swaps only the
+   *fallback* half to dark values for hosts that don't define --jp-* (classic
+   notebook, some VS Code states, bare contexts); when the host does define
+   --jp-*, that still wins.
+
+   Tokens are declared on :root AND body so the var(--jp-*, ...) indirection
+   resolves whether the host defines its --jp-* palette on :root or on body
+   (a custom property computes against the scope it's declared in, so a
+   :root-only declaration would miss host vars defined lower down). */
+:root, body {
     --jup-feature-selector-w: 170px;
     --jup-feature-label-w: 180px;
+
+    --jup-fg:           var(--jp-ui-font-color1, #222);
+    --jup-fg-muted:     var(--jp-ui-font-color2, #555);
+    --jup-fg-faint:     var(--jp-ui-font-color3, #888);
+    --jup-card-bg:      var(--jp-layout-color1, #fafafa);
+    --jup-card-bg-2:    var(--jp-layout-color2, #f7f7f7);
+    --jup-border:       var(--jp-border-color1, #d0d0d0);
+    --jup-border-2:     var(--jp-border-color2, #bbb);
+    --jup-accent:       var(--jp-brand-color1, #1670a8);
+    --jup-select-bg:    var(--jp-brand-color3, #e0eef9);
+    --jup-error:        var(--jp-error-color1, #a02020);
+    --jup-error-bg:     var(--jp-error-color3, #fdecea);
+    --jup-error-border: var(--jp-error-color2, #f5c2c0);
+    --jup-success:      var(--jp-success-color1, #1e7a1e);
+    --jup-warn:         var(--jp-warn-color1, #a06000);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root, body {
+    --jup-fg:           var(--jp-ui-font-color1, #e6e6e6);
+    --jup-fg-muted:     var(--jp-ui-font-color2, #b8b8b8);
+    --jup-fg-faint:     var(--jp-ui-font-color3, #8a8a8a);
+    --jup-card-bg:      var(--jp-layout-color1, #2b2b2b);
+    --jup-card-bg-2:    var(--jp-layout-color2, #333333);
+    --jup-border:       var(--jp-border-color1, #555555);
+    --jup-border-2:     var(--jp-border-color2, #666666);
+    --jup-select-bg:    var(--jp-brand-color3, #1a3a52);
+    --jup-error-bg:     var(--jp-error-color3, #3a1f1f);
+    --jup-error-border: var(--jp-error-color2, #5a2a2a);
+  }
 }
 
 /* Button color palette */
@@ -86,9 +133,9 @@ CUSTOM_CSS = """
     display: grid !important;
     grid-template-columns: var(--jup-feature-selector-w) minmax(0, 1fr) !important;
     align-items: stretch;
-    border: 1px solid #d0d0d0 !important;
+    border: 1px solid var(--jup-border) !important;
     border-radius: 4px !important;
-    background: #fafafa !important;
+    background: var(--jup-card-bg) !important;
     overflow: hidden;   /* clip selector edge to the rounded corners */
 }
 /* The .jup-gui-feature-params rule below sets `border-left` directly with
@@ -108,20 +155,20 @@ CUSTOM_CSS = """
     padding: 4px 6px;
 }
 .jup-gui-feature-select select option:checked {
-    background: #e0eef9 !important;
+    background: var(--jup-select-bg) !important;
     color: #000 !important;
     font-weight: 600;
 }
 
 /* Params area: borderless on three sides; the left border is the
    divider between selector and params columns of the feature body grid
-   (matches the body card's #d0d0d0 outline). */
+   (matches the body card's outline via var(--jup-border)). */
 .jup-gui-feature-params {
     background: transparent !important;
     border-top: none !important;
     border-right: none !important;
     border-bottom: none !important;
-    border-left: 1px solid #d0d0d0 !important;
+    border-left: 1px solid var(--jup-border) !important;
 }
 
 /* Feature title acts as a clickable heading that toggles the description.
@@ -133,7 +180,7 @@ CUSTOM_CSS = """
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
-    color: #222 !important;
+    color: var(--jup-fg) !important;
     font-weight: 600 !important;
     font-size: 1.05em !important;
     text-align: left !important;
@@ -142,7 +189,7 @@ CUSTOM_CSS = """
 }
 .jup-gui-feature-title-toggle:hover button,
 .jup-gui-feature-title-toggle.widget-button:hover {
-    color: #1670a8 !important;
+    color: var(--jup-accent) !important;
 }
 
 /* Per-feature params box: a two-column grid (label | value). Override
@@ -168,11 +215,12 @@ CUSTOM_CSS = """
 
 /* Postprocess tab: collapsible VTS/VTI viewer panel. Bordered card so
    it reads as a distinct section under the action row + log panel.
-   Background matches the FeaturePanel card so the two visually pair. */
+   Border/background use the same tokens as the FeaturePanel card so the
+   two visually pair (and theme together in dark mode). */
 .jup-gui-vts-viewer-frame {
-    border: 1px solid #d0d0d0;
+    border: 1px solid var(--jup-border);
     border-radius: 4px;
-    background: #fafafa;
+    background: var(--jup-card-bg);
 }
 
 /* Reconstruction tab: live-view snapshot + error-history plot row.
@@ -189,6 +237,24 @@ CUSTOM_CSS = """
 }
 .jup-gui-rec-images > .widget-image {
     box-sizing: border-box;
+    /* Flex items default to min-width:auto (their intrinsic content
+       width). The rendered PNGs are wider than half the row, so without
+       this they refuse to shrink below their natural width and wrap onto
+       a second line even though max-width caps them at calc(50% - 8px).
+       min-width:0 lets flex-grow honor the cap so the M layout keeps both
+       images side-by-side. (.widget-image is the <img> itself; ipywidgets
+       already ships max-width:100% for it, so no extra img rule is needed.) */
+    min-width: 0;
+}
+
+/* Log output boxes: user-resizable height via the browser's resize grip.
+   The grip needs a non-visible overflow, which the log widgets set inline
+   (auto / hidden). min-height keeps the box from collapsing to nothing when
+   dragged all the way up. The grip lives on the outer fixed-height widget;
+   the inner render div is height:100% and follows. */
+.jup-gui-log-box {
+    resize: vertical !important;
+    min-height: 40px;
 }
 
 /* A row that spans both grid columns: bare checkboxes, separators,

@@ -150,6 +150,14 @@ def _cap(items: list[tuple[str, Role]], n: int) -> list[tuple[str, Role]]:
     return items[:n] + [('...', 'overflow')]
 
 
+# Box-drawing glyphs for the project tree, built from codepoints to keep
+# this source ASCII. ASCII-art shapes shown in the trailing comments.
+_T_TEE = chr(0x251c) + chr(0x2500) * 2 + ' '    # "|-- "  branch
+_T_ELBOW = chr(0x2514) + chr(0x2500) * 2 + ' '  # "`-- "  last branch
+_T_VERT = chr(0x2502) + '   '                    # "|   "  vertical continuation
+_T_BLANK = '    '                                #         blank under a last branch
+
+
 def format_tree(
     entries: list[tuple[str, Role]],
     root: str,
@@ -199,14 +207,14 @@ def format_tree(
     last_idx = len(groups) - 1
     for i, (name, children) in enumerate(groups):
         is_last = (i == last_idx)
-        connector = '└── ' if is_last else '├── '
+        connector = _T_ELBOW if is_last else _T_TEE
         lines.append(f'{connector}{name}')
         if not children or collapse:
             continue
-        child_prefix = '    ' if is_last else '│   '
+        child_prefix = _T_BLANK if is_last else _T_VERT
         child_last = len(children) - 1
         for j, child in enumerate(children):
-            cc = '└── ' if j == child_last else '├── '
+            cc = _T_ELBOW if j == child_last else _T_TEE
             lines.append(f'{child_prefix}{cc}{child}')
     return '\n'.join(lines)
 
@@ -277,17 +285,17 @@ if __name__ == '__main__':
     tree = format_tree(entries, root='exp')
     expected = (
         'exp/\n'
-        '├── conf/\n'
-        '├── scan_54-59/\n'
-        '│   ├── preprocessed_data/\n'
-        '│   ├── phasing_data/\n'
-        '│   ├── results_phasing/\n'
-        '│   └── results_viz/\n'
-        '└── scan_9/\n'
-        '    ├── preprocessed_data/\n'
-        '    ├── phasing_data/\n'
-        '    ├── results_phasing/\n'
-        '    └── results_viz/'
+        f'{_T_TEE}conf/\n'
+        f'{_T_TEE}scan_54-59/\n'
+        f'{_T_VERT}{_T_TEE}preprocessed_data/\n'
+        f'{_T_VERT}{_T_TEE}phasing_data/\n'
+        f'{_T_VERT}{_T_TEE}results_phasing/\n'
+        f'{_T_VERT}{_T_ELBOW}results_viz/\n'
+        f'{_T_ELBOW}scan_9/\n'
+        f'{_T_BLANK}{_T_TEE}preprocessed_data/\n'
+        f'{_T_BLANK}{_T_TEE}phasing_data/\n'
+        f'{_T_BLANK}{_T_TEE}results_phasing/\n'
+        f'{_T_BLANK}{_T_ELBOW}results_viz/'
     )
     assert tree == expected, repr(tree)
 
@@ -295,25 +303,25 @@ if __name__ == '__main__':
     big = project_layout(folder_name='exp', scan='1-12',
                          mode='separate_scans')
     big_tree = format_tree(big, root='exp')
-    assert '├── scan_1/' in big_tree
-    assert '└── scan_12/' in big_tree
+    assert f'{_T_TEE}scan_1/' in big_tree
+    assert f'{_T_ELBOW}scan_12/' in big_tree
     assert 'preprocessed_data/' not in big_tree, big_tree
 
     # format_tree: single mode (no scan groups).
     s = project_layout(folder_name='cdi_001', scan='', mode='single')
     t = format_tree(s, root='cdi_001')
     assert t.splitlines()[0] == 'cdi_001/'
-    assert '├── conf/' in t
-    assert '└── results_viz/' in t
+    assert f'{_T_TEE}conf/' in t
+    assert f'{_T_ELBOW}results_viz/' in t
 
     # format_tree: multipeak with orientations.
     mp = project_layout(folder_name='cdi_x', scan='898-913,919-934',
                         mode='multipeak',
                         orientations=[[1, 1, 1], [1, 1, -1]])
     mp_tree = format_tree(mp, root='cdi_x')
-    assert '├── mp_898-913_111/' in mp_tree
-    assert '├── mp_919-934_11-1/' in mp_tree
-    assert '└── results_phasing/' in mp_tree
+    assert f'{_T_TEE}mp_898-913_111/' in mp_tree
+    assert f'{_T_TEE}mp_919-934_11-1/' in mp_tree
+    assert f'{_T_ELBOW}results_phasing/' in mp_tree
 
     # format_tree: overflow marker shown.
     cap = project_layout(folder_name='cdi_x', scan='1-100',

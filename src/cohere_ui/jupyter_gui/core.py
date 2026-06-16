@@ -63,9 +63,14 @@ def _find_default_parent_dir() -> str:
 
 
 class CoherenceGUI:
-    """Tab-based interface for Bragg CDI reconstruction."""
+    """Tab-based interface for Bragg CDI reconstruction.
 
-    _TAB_ORDER = ('instr', 'prep', 'data', 'rec', 'disp', 'mp')
+    The tab list is built from :func:`cohere_ui.jupyter_gui.tabs.get_registered_tabs`
+    once per GUI instance and frozen on ``self._tab_specs``. Mutating the
+    registry (via ``register_tab`` / ``unregister_tab``) AFTER a GUI is
+    constructed has no effect on that GUI. Re-instantiate to pick up
+    new tabs.
+    """
 
     def __init__(self):
         self.config_manager = ConfigManager()
@@ -75,6 +80,12 @@ class CoherenceGUI:
         self.debug = False
 
         self._folder_name: str | None = None
+
+        # Freeze the registry snapshot for this GUI instance so a later
+        # register_tab call cannot half-mount a tab into an existing GUI.
+        from cohere_ui.jupyter_gui.tabs import get_registered_tabs
+        self._tab_specs = list(get_registered_tabs())
+        self._tab_specs_by_key = {s.key: s for s in self._tab_specs}
 
         self._tabs: dict = {}
         self._widget = None
@@ -112,7 +123,7 @@ class CoherenceGUI:
 
     def _build_ui(self):
         """Build the main GUI widget tree."""
-        self.log_panel = LogPanel(height='220px')
+        self.log_panel = LogPanel()
         self.status_strip = StatusStrip()
         self.tab_widget = widgets.Tab()
 
@@ -148,8 +159,8 @@ class CoherenceGUI:
                     f'<a href="{_URLS["github"]}" target="_blank" rel="noopener" '
                     f'title="{_UI["tooltips"]["github_open"]}" '
                     f'style="text-decoration:none; font-size:13px; '
-                    f'padding:4px 10px; border:1px solid #bbb; '
-                    f'border-radius:4px; background:#f7f7f7;">'
+                    f'padding:4px 10px; border:1px solid var(--jup-border-2); '
+                    f'border-radius:4px; background:var(--jup-card-bg-2);">'
                     f'<i class="fa fa-github"></i> GitHub \u2197</a>',
                     layout=widgets.Layout(flex='0 0 auto', margin='6px 6px 0 0'),
                 ),
@@ -157,8 +168,8 @@ class CoherenceGUI:
                     f'<a href="{_URLS["docs"]}" target="_blank" rel="noopener" '
                     f'title="{_UI["tooltips"]["docs_open"]}" '
                     f'style="text-decoration:none; font-size:13px; '
-                    f'padding:4px 10px; border:1px solid #bbb; '
-                    f'border-radius:4px; background:#f7f7f7;">'
+                    f'padding:4px 10px; border:1px solid var(--jup-border-2); '
+                    f'border-radius:4px; background:var(--jup-card-bg-2);">'
                     f'\U0001f4d6 Docs \u2197</a>',
                     layout=widgets.Layout(flex='0 0 auto', margin='6px 4px 0 0'),
                 ),
@@ -194,38 +205,58 @@ class CoherenceGUI:
         ])
 
     def init_tabs(self):
-        """Build the five always-visible tabs. ``MpTab`` is added later
-        when an experiment is detected as multi-peak."""
-        from cohere_ui.jupyter_gui.tabs import (
-            DataTab, DispTab, InstrTab, PrepTab, RecTab,
-        )
+        """Build the always-visible tabs from the registry.
 
-        self._tabs = {
-            'instr': InstrTab(beamline=None),
-            'prep':  PrepTab(),
-            'data':  DataTab(),
-            'rec':   RecTab(),
-            'disp':  DispTab(),
-        }
+        Optional tabs (e.g. ``MpTab``) are mounted later by
+        :meth:`_refresh_optional_tabs` when their ``visible_when``
+        predicate first turns True.
+        """
+        self._tabs = {}
+        for spec in self._tab_specs:
+            if spec.optional:
+                continue
+            self._tabs[spec.key] = spec.factory()
         self._refresh_tab_widget()
         self._refresh_status()
 
+    def _refresh_optional_tabs(self):
+        """Mount or unmount every optional tab based on its predicate.
+
+        Replaces the old single-tab ``_set_multipeak_visibility``: any
+        future optional tab plugs in through ``TabSpec(optional=True,
+        visible_when=...)`` and gets the same lifecycle.
+        """
+        changed = False
+        for spec in self._tab_specs:
+            if not spec.optional:
+                continue
+            should_show = bool(spec.visible_when and spec.visible_when(self))
+            has_tab = spec.key in self._tabs
+            if should_show and not has_tab:
+                self._tabs[spec.key] = spec.factory()
+                changed = True
+            elif not should_show and has_tab:
+                self._tabs.pop(spec.key, None)
+                changed = True
+        if changed:
+            self._refresh_tab_widget()
+
     def _set_multipeak_visibility(self, visible: bool):
-        """Add or remove the Multi-peak tab from the strip."""
-        from cohere_ui.jupyter_gui.tabs import MpTab
-        has_mp = 'mp' in self._tabs
-        if visible and not has_mp:
-            self._tabs['mp'] = MpTab()
-            self._refresh_tab_widget()
-        elif not visible and has_mp:
-            self._tabs.pop('mp', None)
-            self._refresh_tab_widget()
+        """Back-compat shim: forces an optional-tab refresh.
+
+        Older entry points call this with an explicit boolean. The
+        boolean is ignored because the registry's ``visible_when``
+        predicate is the single source of truth, but the side effect
+        (mounting or unmounting the multi-peak tab) still happens.
+        """
+        del visible  # predicate decides
+        self._refresh_optional_tabs()
 
     def _refresh_tab_widget(self):
         tab_children = []
         tab_titles = []
-        for name in self._TAB_ORDER:
-            tab = self._tabs.get(name)
+        for spec in self._tab_specs:
+            tab = self._tabs.get(spec.key)
             if tab is None:
                 continue
             tab.init(self)
@@ -268,8 +299,11 @@ class CoherenceGUI:
         instr._widget = None
         new_widget = instr.widget
         children = list(self.tab_widget.children)
+        # Match the rendered tab strip's order, which equals the spec
+        # order minus optional tabs whose predicate is currently False.
+        rendered_keys = [s.key for s in self._tab_specs if s.key in self._tabs]
         try:
-            idx = self._TAB_ORDER.index('instr')
+            idx = rendered_keys.index('instr')
             if 0 <= idx < len(children):
                 children[idx] = new_widget
                 self.tab_widget.children = tuple(children)
@@ -528,10 +562,11 @@ class CoherenceGUI:
             except Exception:
                 pass
 
-        for idx, key in enumerate(self._TAB_ORDER):
-            tab = self._tabs.get(key)
-            if tab is None:
-                continue
+        # Iterate the rendered tab strip in the same order as the spec
+        # list so the tab-title status prefix lines up with the tab idx.
+        rendered = [(s.key, self._tabs[s.key])
+                    for s in self._tab_specs if s.key in self._tabs]
+        for idx, (key, tab) in enumerate(rendered):
             try:
                 if has_exp:
                     state = _compute_state(
@@ -603,10 +638,13 @@ class CoherenceGUI:
         if not self.experiment_unchanged():
             self.log_panel.error(_MSG['tab']['experiment_changed'])
             return
-        for key in self._TAB_ORDER:
-            tab = self._tabs.get(key)
-            if tab is None or key == 'instr':
+        for spec in self._tab_specs:
+            if spec.skip_in_run_all:
                 continue
+            tab = self._tabs.get(spec.key)
+            if tab is None:
+                continue
+            key = spec.key
             try:
                 tab.run_tab()
             except Exception as e:

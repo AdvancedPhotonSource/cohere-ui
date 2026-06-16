@@ -31,15 +31,15 @@ class StatusStrip:
         path_html = _esc(self._exp_path) if self._exp_path else '<i>(none)</i>'
         mp_suffix = (
             ' <span title="This experiment has multi-peak configuration." '
-            'style="color:#1e7a1e; font-weight:600; margin-left:8px;">'
-            '&middot; multipeak</span>'
+            'style="color:var(--jup-success); font-weight:600; margin-left:8px;">'
+            '| multipeak</span>'
             if self._is_multipeak else ''
         )
         return (
-            '<div style="border:1px solid #ddd; border-radius:4px; '
-            'background:#fafafa; margin:4px 0; '
+            '<div style="border:1px solid var(--jup-border); border-radius:4px; '
+            'background:var(--jup-card-bg); margin:4px 0; '
             'font-family:Menlo,Consolas,monospace; font-size:12px; '
-            'color:#222; padding:6px 10px;">'
+            'color:var(--jup-fg); padding:6px 10px;">'
             f'<b>Current:</b> {path_html}{mp_suffix}'
             '</div>'
         )

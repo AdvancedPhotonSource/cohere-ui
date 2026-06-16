@@ -8,7 +8,9 @@ from typing import Optional
 
 import ipywidgets as widgets
 
-from cohere_ui.jupyter_gui._validation import validate_field, validate_paths
+from cohere_ui.jupyter_gui._validation import (
+    ValidationError, validate_field, validate_paths,
+)
 from cohere_ui.jupyter_gui.utils.file_events import diff as file_diff, snapshot as file_snapshot
 from cohere_ui.jupyter_gui.utils.error_format import format_error_summary, safe_parse
 from cohere_ui.jupyter_gui.text import load_text
@@ -144,6 +146,11 @@ class BaseTab(ABC):
         Runs the local field validators and path-existence check before
         the cohere_core verifier so a bad entry surfaces with its field
         name and a suggestion, not as a generic backend error later.
+
+        Subclasses that need to mutate the config map between validation
+        and write (e.g. PrepTab preserving ``outliers_scans`` from disk)
+        override ``_pre_save_hook(conf_map)`` rather than reimplementing
+        this method.
         """
         try:
             conf_map = self.get_config()
@@ -156,6 +163,7 @@ class BaseTab(ABC):
             if err and not self.main_gui.no_verify:
                 self.log_error(_MSG['tab']['config_error'].format(error=err))
                 return err
+            self._pre_save_hook(conf_map)
             _, action = self.main_gui.config_manager.save_config(
                 self.conf_name, conf_map, self.main_gui.no_verify)
             if action:
@@ -167,8 +175,18 @@ class BaseTab(ABC):
             self.log_debug(traceback.format_exc())
             return str(e) or type(e).__name__
 
+    def _pre_save_hook(self, conf_map: dict) -> None:
+        """Mutate ``conf_map`` in place just before the on-disk save.
+
+        Default no-op. Override in tabs that need to preserve or inject
+        fields the form does not expose (e.g. PrepTab keeps the
+        ``outliers_scans`` list the prep backend writes back).
+        """
+        return None
+
     def _validate_fields(self, conf_map: dict) -> list:
-        """Run field validators and path-existence checks.
+        """Run field validators, path-existence checks, and per-feature
+        ``verify_active`` (when the tab owns a ``self.features`` dict).
 
         Returns a list of ValidationError (possibly empty). Skipped when
         the main GUI has ``no_verify`` set.
@@ -181,7 +199,25 @@ class BaseTab(ABC):
             if err is not None:
                 errors.append(err)
         errors.extend(validate_paths(conf_map, self.conf_name))
+        errors.extend(self._collect_feature_errors())
         return errors
+
+    def _collect_feature_errors(self) -> list:
+        """Run ``verify_active`` on every feature the tab owns.
+
+        No-op for tabs without a ``self.features`` dict. Inactive
+        features return ``""`` from the base ``verify_active`` and are
+        filtered out here.
+        """
+        features = getattr(self, 'features', None)
+        if not features:
+            return []
+        errs = []
+        for name, feat in features.items():
+            msg = (feat.verify_active() or "").strip()
+            if msg:
+                errs.append(ValidationError(name, msg))
+        return errs
 
     def _notify_save(self):
         """Tell the main GUI that this tab's on-disk config changed.
