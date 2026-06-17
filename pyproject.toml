@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cohere_ui"
-version = "4.5.2"
+version = "4.5.3"
 authors = [
   { name="Barbara Frosik", email="bfrosik@anl.gov" },
   { name="Ross Harder", email="rharder@anl.gov" }
@@ -69,11 +69,11 @@ cohere_reconstruction = "cohere_ui.cohere_reconstruction:main"
 simple_phasing = "cohere_ui.simple_phasing:main"
 standard_preprocess = "cohere_ui.standard_preprocess:main"
 
+[tool.setuptools.packages.find]
+    where = ["src"]
+
 [project.urls]
     Homepage = "https://github.com/AdvancedPhotonSource/cohere-ui"
-
-[tool.setuptools.package-data]
-"cohere_ui.jupyter_gui.text" = ["*.yaml"]
 
 [tool.sphinx-pyproject]
     extensions = [
