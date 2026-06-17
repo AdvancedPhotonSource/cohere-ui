@@ -7,7 +7,8 @@ import ipywidgets as widgets
 from cohere_ui.jupyter_gui.features.base import Feature
 from cohere_ui.jupyter_gui.text import load_text
 from cohere_ui.jupyter_gui.widgets import (
-    FEATURE_INPUT_WIDTH, checkbox, form_row, grid_field, grid_full, text_field,
+    FEATURE_INPUT_WIDTH, checkbox, form_row, grid_field, grid_full,
+    set_row_visible, text_field,
 )
 
 _TEXT = load_text('features')
@@ -623,12 +624,12 @@ class LiveFeature(Feature):
         is_2d = (value == 'matplotlib_2d')
         is_mosaic = (value == 'matplotlib_3d_mosaic')
         is_pyvista = (value == 'pyvista_static')
-        self._slice_row.layout.display = '' if is_2d else 'none'
-        self._method_row.layout.display = '' if (is_2d or is_mosaic) else 'none'
-        self._stride_row.layout.display = '' if is_pyvista else 'none'
-        self._iso_row.layout.display = '' if is_pyvista else 'none'
-        self._cmap_row.layout.display = '' if (is_2d or is_mosaic) else 'none'
-        self._mask_row.layout.display = '' if (is_2d or is_mosaic) else 'none'
+        set_row_visible(self._slice_row, is_2d)
+        set_row_visible(self._method_row, is_2d or is_mosaic)
+        set_row_visible(self._stride_row, is_pyvista)
+        set_row_visible(self._iso_row, is_pyvista)
+        set_row_visible(self._cmap_row, is_2d or is_mosaic)
+        set_row_visible(self._mask_row, is_2d or is_mosaic)
 
     def _run_benchmark(self):
         import time

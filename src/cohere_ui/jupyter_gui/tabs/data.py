@@ -53,9 +53,11 @@ class DataTab(BaseTab):
         self.shift = text_field(placeholder='e.g., [0, 0, 0]')
         self.crop_pad = text_field(placeholder='e.g., [0, 0, 0, 0, 0, 0]')
         self.binning = text_field(placeholder='e.g., [1, 1, 1]')
-        self.no_center_max = checkbox('not center max')
+        self.no_center_max = checkbox(
+            'not center max', tooltip=_UI['tooltips']['no_center_max']
+        )
 
-        self.action_row = self._build_action_row(run_label='Format Data', run_width='140px')
+        self.action_row = self._build_action_row(run_label='Save and Run', run_width='150px')
 
         self.log_panel = LogPanel()
 
@@ -84,13 +86,14 @@ class DataTab(BaseTab):
         )
 
         return widgets.VBox([
-            form_row('Alien Algorithm', self.alien_alg),
+            form_row('Alien Algorithm', self.alien_alg,
+                     title=_UI['tooltips']['alien_alg']),
             self.alien_params_box,
             self.auto_intensity_threshold,
             form_row('Intensity Threshold', self.intensity_threshold),
             form_row('Shift', self.shift),
             form_row('Crop/Pad', self.crop_pad),
-            form_row('Binning', self.binning),
+            form_row('Binning', self.binning, title=_UI['tooltips']['binning']),
             self.no_center_max,
             self.action_row,
             self.log_panel.widget,

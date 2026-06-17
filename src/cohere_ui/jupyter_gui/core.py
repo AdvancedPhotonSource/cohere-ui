@@ -147,6 +147,18 @@ class CoherenceGUI:
         self.run_all_btn.on_click(self._on_run_all_clicked)
         self._run_all_thread: threading.Thread | None = None
 
+        # Global Safe mode: when checked, each tab's Save and Run saves the
+        # form (with validation) before running. When unchecked, it runs
+        # against the on-disk config and ignores unsaved form changes.
+        self.safe_mode_checkbox = widgets.Checkbox(
+            value=True,
+            description=_UI['action_buttons']['safe_mode'],
+            indent=False,
+            tooltip=_UI['tooltips']['safe_mode'],
+            layout=widgets.Layout(width='auto', margin='0 8px 0 0'),
+        )
+        self.safe_mode_checkbox.observe(self._on_safe_mode_change, 'value')
+
         # Header bar: title on the left, docs link on the right.
         # The link opens in a new tab so the notebook session is not disturbed.
         header_bar = widgets.HBox(
@@ -188,6 +200,7 @@ class CoherenceGUI:
                     [self.status_strip.widget],
                     layout=widgets.Layout(flex='1 1 auto'),
                 ),
+                self.safe_mode_checkbox,
                 self.run_all_btn,
             ],
             layout=widgets.Layout(
@@ -204,6 +217,28 @@ class CoherenceGUI:
             self.tab_widget,
         ])
 
+    @property
+    def safe_mode(self) -> bool:
+        """When True, tab Save and Run buttons save (and validate) before running."""
+        cb = getattr(self, 'safe_mode_checkbox', None)
+        return True if cb is None else bool(cb.value)
+
+    def _on_safe_mode_change(self, change):
+        self._apply_safe_mode(bool(change['new']))
+
+    def _apply_safe_mode(self, safe: bool | None = None):
+        """Push the Safe mode flag to every tab's run button.
+
+        Safe -> plain Save and Run; unsafe -> the split caret + menu. Run
+        live from the header checkbox and after tabs (re)mount.
+        """
+        if safe is None:
+            safe = self.safe_mode
+        for tab in self._tabs.values():
+            btn = getattr(tab, 'split_run', None)
+            if btn is not None:
+                btn.set_safe(safe)
+
     def init_tabs(self):
         """Build the always-visible tabs from the registry.
 
@@ -218,6 +253,7 @@ class CoherenceGUI:
             self._tabs[spec.key] = spec.factory()
         self._refresh_tab_widget()
         self._refresh_status()
+        self._apply_safe_mode()
 
     def _refresh_optional_tabs(self):
         """Mount or unmount every optional tab based on its predicate.
@@ -240,6 +276,7 @@ class CoherenceGUI:
                 changed = True
         if changed:
             self._refresh_tab_widget()
+            self._apply_safe_mode()
 
     def _set_multipeak_visibility(self, visible: bool):
         """Back-compat shim: forces an optional-tab refresh.

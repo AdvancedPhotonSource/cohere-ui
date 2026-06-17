@@ -25,7 +25,8 @@ import ipywidgets as widgets
 from cohere_ui.jupyter_gui.features.base import Feature
 from cohere_ui.jupyter_gui.text import load_text
 from cohere_ui.jupyter_gui.widgets import (
-    FEATURE_INPUT_WIDTH, ChoiceInput, checkbox, dropdown, grid_field, text_field,
+    FEATURE_INPUT_WIDTH, ChoiceInput, checkbox, dropdown, grid_field,
+    set_row_visible, text_field,
 )
 
 _TEXT = load_text('features')
@@ -57,15 +58,19 @@ class CropFeature(Feature):
         self.thresh = text_field(placeholder='0.5', width=FEATURE_INPUT_WIDTH)
         self.fraction = text_field(placeholder='[0.5, 0.5, 0.5]', width=FEATURE_INPUT_WIDTH)
 
-        self._margin_row = grid_field('Margin (pixels)', self.margin)
-        self._thresh_row = grid_field('Threshold (fraction of max)', self.thresh)
-        self._fraction_row = grid_field('Fraction per axis', self.fraction)
+        tips = _TEXT['crop']['tooltips']
+        self._margin_row = grid_field('Margin (pixels)', self.margin,
+                                      title=tips['margin'])
+        self._thresh_row = grid_field('Threshold (fraction of max)', self.thresh,
+                                      title=tips['thresh'])
+        self._fraction_row = grid_field('Fraction per axis', self.fraction,
+                                        title=tips['fraction'])
 
         self.crop_type.observe(self._on_type_change, 'value')
         self._apply_type_visibility(self.crop_type.value)
 
         return [
-            grid_field('Crop type', self.crop_type),
+            grid_field('Crop type', self.crop_type, title=tips['crop_type']),
             self._margin_row,
             self._thresh_row,
             self._fraction_row,
@@ -75,12 +80,12 @@ class CropFeature(Feature):
         self._apply_type_visibility(change['new'])
 
     def _apply_type_visibility(self, kind: str) -> None:
-        # Empty string clears the inline display style, restoring the
-        # `display: contents` class rule that promotes the row's label
-        # and widget into the parent grid.
-        self._margin_row.layout.display = '' if kind == 'tight' else 'none'
-        self._thresh_row.layout.display = '' if kind == 'tight' else 'none'
-        self._fraction_row.layout.display = '' if kind == 'fraction' else 'none'
+        # Toggle the hidden class, not inline display: the row's
+        # `display: contents !important` rule outranks an inline
+        # display:none, so margin/thresh/fraction would never hide.
+        set_row_visible(self._margin_row, kind == 'tight')
+        set_row_visible(self._thresh_row, kind == 'tight')
+        set_row_visible(self._fraction_row, kind == 'fraction')
 
     def set_defaults(self):
         self.crop_type.value = 'fraction'
@@ -110,13 +115,21 @@ class CropFeature(Feature):
         kind = self.crop_type.value
         conf_map['crop_type'] = kind
         if kind == 'tight':
-            if self.margin.value:
-                conf_map['crop_margin'] = self.parse_value(self.margin.value)
-            if self.thresh.value:
-                conf_map['crop_thresh'] = self.parse_value(self.thresh.value)
+            # crop_margin/crop_thresh are hard-required companions of
+            # crop_type='tight' (the backend [] indexes them); always
+            # write both, falling back to set_defaults values when blank,
+            # so a 'tight' config is never emitted incomplete under
+            # no_verify. crop_margin must be int: find_datarange rejects
+            # a float plot_margin with TypeError.
+            margin = self.parse_value(self.margin.value) if self.margin.value else 10
+            if isinstance(margin, float) and margin.is_integer():
+                margin = int(margin)
+            conf_map['crop_margin'] = margin
+            conf_map['crop_thresh'] = (self.parse_value(self.thresh.value)
+                                       if self.thresh.value else 0.5)
         else:  # fraction
-            if self.fraction.value:
-                conf_map['crop_fraction'] = self.parse_value(self.fraction.value)
+            conf_map['crop_fraction'] = (self.parse_value(self.fraction.value)
+                                         if self.fraction.value else [0.5, 0.5, 0.5])
 
     def verify_active(self) -> str:
         if not self.active.value:
@@ -136,11 +149,14 @@ class InterpolationFeature(Feature):
 
     Output: ``direct_space_images_interpolated_<mode>.vti``.
 
-    Valid ``interpolation_resolution`` values:
-      * ``int`` / ``float``: uniform spacing in nm
-      * ``list[float]``: per-axis spacing in nm
+    Valid ``interpolation_resolution`` values (spacing is in the grid's
+    real-space coordinate units, NOT nm; match the native voxel scale or
+    the backend rejects an oversized grid):
+      * ``int`` / ``float``: uniform spacing
+      * ``list[float]``: per-axis spacing
       * ``"min_deconv_res"``: derive from the Resolution feature
-        (which must also be active; checked at the tab level)
+        (which must also be active; checked at the tab level). Recommended,
+        since it always matches the grid scale.
     """
 
     name = _TEXT['interpolation']['name']
@@ -153,9 +169,10 @@ class InterpolationFeature(Feature):
             placeholder='float, [x,y,z], or "min_deconv_res"',
             width=FEATURE_INPUT_WIDTH,
         )
+        tips = _TEXT['interpolation']['tooltips']
         return [
-            grid_field('Mode', self.mode),
-            grid_field('Resolution', self.resolution),
+            grid_field('Mode', self.mode, title=tips['mode']),
+            grid_field('Resolution', self.resolution, title=tips['resolution']),
         ]
 
     def set_defaults(self):
@@ -177,12 +194,15 @@ class InterpolationFeature(Feature):
         if not self.active.value:
             return
         conf_map['interpolation_mode'] = self.mode.value
-        if self.resolution.value:
-            # parse_value yields int/float/list for literals, or the
-            # raw string for named keys like "min_deconv_res".
-            conf_map['interpolation_resolution'] = self.parse_value(
-                self.resolution.value
-            )
+        # interpolation_resolution is required; a blank field would make
+        # the backend silently skip interpolation under no_verify. Always
+        # write it, defaulting to 'min_deconv_res' (same as set_defaults).
+        # parse_value yields int/float/list for literals, or the raw
+        # string for named keys like "min_deconv_res".
+        conf_map['interpolation_resolution'] = (
+            self.parse_value(self.resolution.value)
+            if self.resolution.value else 'min_deconv_res'
+        )
 
     def verify_active(self) -> str:
         if not self.active.value:
@@ -220,7 +240,8 @@ class ResolutionFeature(Feature):
     def fill_active(self) -> list:
         self.deconv_contrast = text_field(placeholder='0.25', width=FEATURE_INPUT_WIDTH)
         return [
-            grid_field('Deconvolution contrast', self.deconv_contrast),
+            grid_field('Deconvolution contrast', self.deconv_contrast,
+                       title=_TEXT['resolution']['tooltips']['deconv_contrast']),
         ]
 
     def set_defaults(self):
@@ -314,12 +335,13 @@ class DisplacementFeature(Feature):
     * ``"Q"``: d-spacing derived geometrically from the q-vector
       (uses energy, detector position, and sample orientation from
       ``config_instr``). Usual choice.
-    * ``<float>``: explicit d-spacing in angstroms; bypasses the geometric
-      derivation. Use when geometry metadata is incomplete or to lock
-      the conversion factor.
+    * ``<float>``: the conversion factor d-spacing/(2*pi) in angstroms,
+      used directly (not the Bragg d-spacing itself). Bypasses the
+      geometric derivation; use when geometry metadata is incomplete
+      or to lock the conversion factor.
 
-    ``make_image_viz`` computes ``displacement = phase * d_spacing / 10``
-    (angstroms to nm).
+    ``make_image_viz`` computes
+    ``displacement = phase * (d_spacing/(2*pi)) / 10`` (angstroms to nm).
     """
 
     name = _TEXT['displacement']['name']
@@ -334,7 +356,8 @@ class DisplacementFeature(Feature):
             value='Q',
         )
         return [
-            grid_field('Bragg displacement', self.bragg_disp.widget),
+            grid_field('Bragg displacement', self.bragg_disp.widget,
+                       title=_TEXT['displacement']['tooltips']['bragg_disp']),
         ]
 
     def set_defaults(self):

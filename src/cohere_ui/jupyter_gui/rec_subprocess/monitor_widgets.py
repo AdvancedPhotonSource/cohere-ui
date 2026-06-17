@@ -130,6 +130,9 @@ class RecMonitorWidgets:
         self.log_widget.layout.display = 'none'
 
         self._log_lines: list = []
+        # Optional (level, msg) callback fired on every appended line, so the
+        # Reconstruction tab can mirror the latest line into its status strip.
+        self.on_append = None
 
     # public stack
 
@@ -159,6 +162,13 @@ class RecMonitorWidgets:
         self._refresh_log()
         if level == 'error' and not self.show_log_checkbox.value:
             self.show_log_checkbox.value = True
+        if self.on_append is not None:
+            try:
+                self.on_append(level, str(msg))
+            except Exception as e:
+                sys.stderr.write(
+                    f"RecMonitorWidgets.on_append failed: {type(e).__name__}: {e}\n"
+                )
 
     def clear(self) -> None:
         """Clear the log widget."""

@@ -254,6 +254,19 @@ class RecMonitor:
 
     # log / debug forwarding to RecMonitorWidgets
 
+    @property
+    def on_append(self):
+        """(level, msg) callback fired on every appended log line.
+
+        Proxies to the embedded widgets so RecTab can mirror the latest
+        line into its status strip via ``monitor.on_append = ...``.
+        """
+        return self._w.on_append
+
+    @on_append.setter
+    def on_append(self, cb):
+        self._w.on_append = cb
+
     def log(self, msg, level: str = 'info'):
         """Append a line to the log widget at the given level."""
         self._w.append(msg, level=level)

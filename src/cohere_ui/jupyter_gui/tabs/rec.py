@@ -140,7 +140,7 @@ class RecTab(BaseTab):
         self.features = {name: cls() for name, cls in get_rec_features().items()}
         self.feature_panel = FeaturePanel(self.features)
 
-        self.action_row = self._build_action_row(run_label='Run Reconstruction', run_width='180px')
+        self.action_row = self._build_action_row(run_label='Save and Run', run_width='150px')
         self.stop_btn = button('Stop', style='danger', width='80px')
         self.stop_btn.disabled = True
         self.stop_btn.on_click(lambda b: self._on_stop_guarded())
@@ -218,7 +218,12 @@ class RecTab(BaseTab):
             params_section,
             # FeaturePanel draws its own "Features (k/N active)" header.
             self.feature_panel.widget,
-            widgets.HBox([self.action_row, self.stop_btn]),
+            # width:100% so the flex-growing action row (with its status
+            # strip) fills the gap and Stop stays pinned to the right.
+            widgets.HBox(
+                [self.action_row, self.stop_btn],
+                layout=widgets.Layout(width='100%', align_items='center'),
+            ),
             self.monitor.widgets_box(),
         ])
 
@@ -700,8 +705,15 @@ class RecTab(BaseTab):
                 self.rec_id_dropdown.observe(self._on_rec_id_change, 'value')
         self._refresh_rec_id_status()
 
+    def _wire_status_line(self):
+        """RecTab logs through its monitor, not a LogPanel, so mirror the
+        monitor's appended lines into the status strip."""
+        if self.status_label is not None:
+            self.monitor.on_append = self._set_status
+
     def clear_output(self):
         self.monitor.clear_log()
+        self._reset_status()
 
     def log(self, message: str):
         self.monitor.log(message)

@@ -150,6 +150,7 @@ buttons:
   save_saved: "Config on disk matches form; nothing to save."
   save_modified: "Form differs from saved config; click to save."
   save_absent: "No config on disk yet; click to write it."
+  run_safe: "Saves the form (with validation), then runs this step."
   run_saved: "Config on disk matches form; run now."
   run_modified: "Unsaved changes; click to choose Save & Run / Run anyway."
   run_absent: "No config on disk yet; click to save & run."
