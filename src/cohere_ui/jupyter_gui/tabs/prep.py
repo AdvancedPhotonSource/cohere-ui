@@ -7,8 +7,11 @@ import ipywidgets as widgets
 
 from cohere_ui.jupyter_gui.tabs.base import BaseTab, _MSG
 from cohere_ui.jupyter_gui.widgets import form_row, text_field, dropdown, checkbox, button, LogPanel
-from cohere_ui.jupyter_gui.tiff_viewer import TiffViewer
-from cohere_ui.jupyter_gui.error_format import format_error_summary
+from cohere_ui.jupyter_gui.viewers.tiff_viewer import TiffViewer
+from cohere_ui.jupyter_gui.utils.error_format import format_error_summary
+from cohere_ui.jupyter_gui.text import load_text
+
+_UI = load_text('ui_strings')
 
 
 class PrepTab(BaseTab):
@@ -17,7 +20,7 @@ class PrepTab(BaseTab):
     Handles min_frames, roi, exclude_scans, outlier removal.
     """
 
-    name = "Prep Data"
+    name = "Beamline Prep"
     conf_name = "config_prep"
 
     def _build_ui(self) -> widgets.Widget:
@@ -30,19 +33,14 @@ class PrepTab(BaseTab):
         )
         self.max_crop = text_field(placeholder='e.g., [100, 100]')
         self.remove_outliers = checkbox('remove outliers')
-        self.outliers_scans = text_field(placeholder='Auto-populated after prep')
+        self.outliers_scans = text_field(placeholder=_UI['placeholders']['auto_after_prep'])
 
-        self.load_btn = button('Load Config', style='warning', width='120px', role='load')
-        self.run_btn = button('Prepare', style='success', width='120px', role='run')
-        self.load_btn.on_click(lambda b: self._load_config_dialog())
-        self.run_btn.on_click(lambda b: self.run_tab())
+        self.action_row = self._build_action_row(run_label='Prepare', run_width='130px')
 
-        self.log_panel = LogPanel(height='150px')
+        self.log_panel = LogPanel()
 
         roi_tooltip = widgets.HTML(
-            '<small style="color: #666;">center_point_dist: [cx, cy, dx, dy] | '
-            'start_point_end_point: [x1, y1, x2, y2] | '
-            'start_point_dist: [x1, dx, y1, dy]</small>'
+            f'<small style="color: var(--jup-fg-muted);">{_MSG["prep"]["roi_formats"]}</small>'
         )
 
         self.tiff_viewer = TiffViewer(
@@ -74,7 +72,7 @@ class PrepTab(BaseTab):
             form_row('Max Crop', self.max_crop),
             self.remove_outliers,
             form_row('Outliers Scans', self.outliers_scans),
-            widgets.HBox([self.load_btn, self.run_btn]),
+            self.action_row,
             self.log_panel.widget,
             widgets.HTML('<hr style="margin:12px 0;">'),
             self.tiff_viewer.widget(),
@@ -144,6 +142,20 @@ class PrepTab(BaseTab):
 
         return conf_map
 
+    def _pre_save_hook(self, conf_map: dict) -> None:
+        """Preserve ``outliers_scans`` across save+run cycles.
+
+        The prep backend writes the list back into ``config_prep`` after
+        each run; the form has no widget for it (the user only chooses
+        whether outlier removal is on). Without this hook, every save
+        would drop the prior list, defeating the cache.
+        """
+        if not self.remove_outliers.value:
+            return
+        current = self.main_gui.config_manager.load_config(self.conf_name)
+        if current and 'outliers_scans' in current:
+            conf_map['outliers_scans'] = current['outliers_scans']
+
     def clear_conf(self):
         """Reset all widgets to defaults."""
         self.min_frames.value = ''
@@ -154,7 +166,7 @@ class PrepTab(BaseTab):
         self.outliers_scans.value = ''
         self.remove_outliers.value = False
 
-    def run_tab(self):
+    def run_tab(self, skip_save: bool = False):
         """Execute beamline preprocessing."""
         import cohere_ui.beamline_preprocess as prep
 
@@ -165,22 +177,11 @@ class PrepTab(BaseTab):
             self.log_error(err)
             return
 
-        conf_map = self.get_config()
-        err = self.main_gui.config_manager.verify(self.conf_name, conf_map)
-        if err and not self.main_gui.no_verify:
-            self.log_error(_MSG['tab']['config_error'].format(error=err))
-            return
-
-        # Preserve outliers_scans across runs when remove_outliers is on.
-        if self.remove_outliers.value:
-            current_prep = self.main_gui.config_manager.load_config(self.conf_name)
-            if current_prep and 'outliers_scans' in current_prep:
-                conf_map['outliers_scans'] = current_prep['outliers_scans']
-
-        _, action = self.main_gui.config_manager.save_config(
-            self.conf_name, conf_map, self.main_gui.no_verify)
-        if action:
-            self._log_config_action(action)
+        if skip_save:
+            self.log_warning(_MSG['tab']['run_modified_warning'])
+        else:
+            if self.save_and_verify():
+                return
 
         before = self._snapshot_outputs()
         try:

@@ -35,9 +35,9 @@ import cohere_ui.api.preprocessor as preprocessor
 import cohere_ui.api.balancer as balancer
 
 
-def calc_geometry(instr_obj, shape, scan, conf_maps, o_twin):
+def calc_geometry(instr_obj, max_ind, scan, conf_maps, o_twin):
     """Calculates the rotation matrix and voxel size for a given peak"""
-    B_recip, _ = instr_obj.get_geometry(shape, scan, conf_maps, xtal=True)
+    B_recip, _ = instr_obj.get_geometry(max_ind, scan, conf_maps, xtal=True)
     B_recip = np.stack([B_recip[1, :], B_recip[0, :], B_recip[2, :]])
     rs_voxel_size = np.max([np.linalg.norm(B_recip[:, i]) for i in range(3)])  # Units are inverse nanometers
     B_recip = o_twin @ B_recip
@@ -147,16 +147,25 @@ def preprocess(instr_obj, scans_dirs, experiment_dir, conf_maps):
     except KeyError:
         o_twin = np.identity(3)
 
-    shape = instr_obj.get_scan_array(scans_dirs[0][0][1]).shape
+    do_RSM = False
+    if 'config_prep' in conf_maps:
+        do_RSM = conf_maps['config_prep'].get('do_RSM', False)
 
     batches_rs_voxel_sizes = []
     batches_ds_voxel_sizes = []
     batches_B_recipes = []
     for batch in scans_dirs:
         first_scan = batch[0][0]
-        B_recip, rs_voxel_size = calc_geometry(instr_obj, shape, first_scan, conf_maps, o_twin)
+        # get_scan_array now returns (data, offset); compute the geometry
+        # locally around the offset-corrected Bragg-max index (mirrors
+        # preprocessor.save_results4scan).
+        arr, offset = instr_obj.get_scan_array(batch[0][1])
+        max_ind = [int(m) for m in np.unravel_index(np.argmax(arr), arr.shape)]
+        max_ind[0] += int(offset[0])
+        max_ind[1] += int(offset[1])
+        B_recip, rs_voxel_size = calc_geometry(instr_obj, max_ind, first_scan, conf_maps, o_twin)
         batches_rs_voxel_sizes.append(rs_voxel_size)   # reciprocal-space voxel size in inverse nanometers
-        batches_ds_voxel_sizes.append(2*np.pi/(rs_voxel_size*shape[0]))  # direct-space voxel size in nanometers
+        batches_ds_voxel_sizes.append(2*np.pi/(rs_voxel_size*arr.shape[0]))  # direct-space voxel size in nanometers
         batches_B_recipes.append(B_recip)
 
     rs_voxel_size = max(batches_rs_voxel_sizes)
@@ -174,7 +183,7 @@ def preprocess(instr_obj, scans_dirs, experiment_dir, conf_maps):
         save_dir = ut.join(experiment_dir, f'mp_{conf_scans[i]}_{orientation}')
         if not Path(save_dir).exists():
             Path(save_dir).mkdir()
-        outliers.extend(preprocessor.process_batch(instr_obj.get_scan_array, batch, save_dir, False, remove_outliers))
+        outliers.extend(preprocessor.process_batch(batch, save_dir, False, remove_outliers, instr_obj, do_RSM))
         geometry = {
             "peak_hkl": mp_conf_map.get('orientations')[i],
             "rmatrix": batches_B_recipes[i].tolist(),

@@ -44,29 +44,21 @@ def build_live_backend(backend_cfg, msg_queue):
     Returns ``None`` when the user has no live view active, in which case
     ``Rec`` falls back to ``MatplotlibBackend`` (which would try to open a
     window from the subprocess; harmless under Agg, but pointless).
+
+    Dispatches via ``_backends.get_backend_builders()`` so a plugin
+    that called ``register_backend(kind, builder)`` in the parent
+    process before the subprocess fork is picked up here.
     """
     if not backend_cfg:
         return None
     kind = backend_cfg.get('kind')
-    if kind == 'matplotlib':
-        from cohere_ui.jupyter_gui._backends import JupyterMatplotlibBackend
-        return JupyterMatplotlibBackend(
-            msg_queue,
-            mode=backend_cfg.get('mode', 'center_slice'),
-            slice_axis=backend_cfg.get('slice_axis', 2),
-            slice_method=backend_cfg.get('slice_method', 'center_of_mass'),
-            stride=backend_cfg.get('stride', 4),
-            phase_cmap=backend_cfg.get('phase_cmap', 'twilight'),
-            apply_support_mask=backend_cfg.get('apply_support_mask', True),
-        )
-    if kind == 'pyvista':
-        from cohere_ui.jupyter_gui._backends import PyVistaBackend
-        return PyVistaBackend(
-            msg_queue,
-            stride=backend_cfg.get('stride', 4),
-            iso_level=backend_cfg.get('iso_level', 0.3),
-        )
-    return None
+    if kind is None:
+        return None
+    from cohere_ui.jupyter_gui._backends import get_backend_builders
+    builder = get_backend_builders().get(kind)
+    if builder is None:
+        return None
+    return builder(msg_queue, backend_cfg)
 
 
 def run_reconstruction(experiment_dir, msg_queue, backend_cfg, kwargs):
@@ -96,7 +88,7 @@ def run_reconstruction(experiment_dir, msg_queue, backend_cfg, kwargs):
         run_rc.manage_reconstruction(experiment_dir, **kwargs)
         msg_queue.put({'kind': 'message', 'level': 'info', 'text': 'reconstruction finished'})
     except Exception as e:
-        from cohere_ui.jupyter_gui.error_format import format_error_summary
+        from cohere_ui.jupyter_gui.utils.error_format import format_error_summary
         msg_queue.put({
             'kind': 'message', 'level': 'error',
             'text': format_error_summary(e, prefix='run_reconstruction'),

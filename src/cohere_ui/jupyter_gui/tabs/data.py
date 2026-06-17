@@ -7,8 +7,11 @@ import ipywidgets as widgets
 
 from cohere_ui.jupyter_gui.tabs.base import BaseTab, _MSG
 from cohere_ui.jupyter_gui.widgets import form_row, text_field, dropdown, checkbox, button, LogPanel
-from cohere_ui.jupyter_gui.tiff_viewer import TiffViewer
-from cohere_ui.jupyter_gui.error_format import format_error_summary
+from cohere_ui.jupyter_gui.viewers.tiff_viewer import TiffViewer
+from cohere_ui.jupyter_gui.utils.error_format import format_error_summary
+from cohere_ui.jupyter_gui.text import load_text
+
+_UI = load_text('ui_strings')
 
 
 class DataTab(BaseTab):
@@ -17,8 +20,23 @@ class DataTab(BaseTab):
     Handles alien removal, intensity threshold, binning, shift, crop/pad.
     """
 
-    name = "Data"
+    name = "Standard Prep"
     conf_name = "config_data"
+
+    # Keys the form exposes. Other keys loaded from disk round-trip
+    # through _passthrough so save_conf keeps backend-set fields like ``pkg``.
+    _KNOWN_KEYS = frozenset({
+        'alien_alg', 'aliens', 'alien_file',
+        'AA1_size_threshold', 'AA1_asym_threshold', 'AA1_min_pts',
+        'AA1_eps', 'AA1_amp_threshold', 'AA1_save_arrs',
+        'AA1_expandcleanedsigma',
+        'auto_intensity_threshold', 'intensity_threshold',
+        'binning', 'shift', 'crop_pad', 'no_center_max',
+    })
+
+    def __init__(self):
+        super().__init__()
+        self._passthrough: dict = {}
 
     def _build_ui(self) -> widgets.Widget:
         # Alien algorithm selection
@@ -37,19 +55,16 @@ class DataTab(BaseTab):
         self.binning = text_field(placeholder='e.g., [1, 1, 1]')
         self.no_center_max = checkbox('not center max')
 
-        self.load_btn = button('Load Config', style='warning', width='120px', role='load')
-        self.run_btn = button('Format Data', style='success', width='120px', role='run')
-        self.load_btn.on_click(lambda b: self._load_config_dialog())
-        self.run_btn.on_click(lambda b: self.run_tab())
+        self.action_row = self._build_action_row(run_label='Format Data', run_width='140px')
 
-        self.log_panel = LogPanel(height='150px')
+        self.log_panel = LogPanel()
 
         self.tiff_viewer = TiffViewer(
             panes=[
                 {
                     'key': 'compare',
                     'label': 'Comparison source',
-                    'placeholder': 'dir / file / glob -- or use Quick load below',
+                    'placeholder': 'dir / file / glob, or use Quick load below',
                     'default_path': lambda: self._prep_default_path(),
                     'shortcuts': [
                         ('Raw scan', lambda: self._raw_default_path() or ''),
@@ -77,7 +92,7 @@ class DataTab(BaseTab):
             form_row('Crop/Pad', self.crop_pad),
             form_row('Binning', self.binning),
             self.no_center_max,
-            widgets.HBox([self.load_btn, self.run_btn]),
+            self.action_row,
             self.log_panel.widget,
             widgets.HTML('<hr style="margin:12px 0;">'),
             self.tiff_viewer.widget(),
@@ -124,7 +139,7 @@ class DataTab(BaseTab):
             self.alien_params_box.children = [form_row('Aliens', self.aliens)]
 
         elif alg == 'alien file':
-            self.alien_file = text_field(placeholder='Path to alien file')
+            self.alien_file = text_field(placeholder=_UI['placeholders']['alien_file'])
             self.alien_params_box.children = [form_row('Alien File', self.alien_file)]
 
         elif alg == 'AutoAlien1':
@@ -137,7 +152,7 @@ class DataTab(BaseTab):
             self.AA1_expandcleanedsigma = text_field(placeholder='')
 
             self.AA1_defaults_btn = button('Set AA1 Defaults', style='info', width='140px', role='info')
-            self.AA1_defaults_btn.on_click(lambda b: self._set_AA1_defaults())
+            self.AA1_defaults_btn.on_click(lambda b: self._set_AA1_defaults_guarded())
 
             self.alien_params_box.children = [
                 form_row('Size Threshold', self.AA1_size_threshold),
@@ -150,6 +165,10 @@ class DataTab(BaseTab):
                 self.AA1_defaults_btn
             ]
 
+    @BaseTab._guard
+    def _set_AA1_defaults_guarded(self):
+        self._set_AA1_defaults()
+
     def _set_AA1_defaults(self):
         """Set AutoAlien1 parameters to defaults."""
         self.AA1_size_threshold.value = '0.01'
@@ -161,6 +180,11 @@ class DataTab(BaseTab):
 
     def load_tab(self, conf_map: dict):
         """Populate widgets from config dictionary."""
+        # Hold any keys the form has no widget for so save_conf
+        # round-trips them instead of dropping them on disk.
+        self._passthrough = {
+            k: v for k, v in conf_map.items() if k not in self._KNOWN_KEYS
+        }
         # Alien algorithm
         alg = conf_map.get('alien_alg', 'random')
         if alg == 'random' or alg not in ['block_aliens', 'alien_file', 'AutoAlien1']:
@@ -253,6 +277,9 @@ class DataTab(BaseTab):
         if self.no_center_max.value:
             conf_map['no_center_max'] = True
 
+        # Preserve backend-set keys the form doesn't expose (e.g. 'pkg').
+        for k, v in self._passthrough.items():
+            conf_map.setdefault(k, v)
         return conf_map
 
     def clear_conf(self):
@@ -265,7 +292,7 @@ class DataTab(BaseTab):
         self.auto_intensity_threshold.value = False
         self.no_center_max.value = False
 
-    def run_tab(self):
+    def run_tab(self, skip_save: bool = False):
         """Execute data formatting."""
         import cohere_ui.standard_preprocess as run_dt
 
@@ -284,8 +311,11 @@ class DataTab(BaseTab):
             self.log_error(_MSG['data']['no_prep_data'])
             return
 
-        if self.save_and_verify():
-            return
+        if skip_save:
+            self.log_warning(_MSG['tab']['run_modified_warning'])
+        else:
+            if self.save_and_verify():
+                return
 
         before = self._snapshot_outputs()
         try:

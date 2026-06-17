@@ -7,42 +7,107 @@ Run / Stop buttons through ``RecMonitor``.
 """
 
 import ast
+import html as _html
+import importlib.util
 import os
+import shutil
 import sys
+from contextlib import nullcontext as _nullcontext
 
 import ipywidgets as widgets
 
+import cohere_core.utilities as ut
+
+from cohere_ui.jupyter_gui._validation import (
+    ValidationError as _ValidationError,
+    parse_algorithm_sequence,
+    validate_device_field,
+)
 from cohere_ui.jupyter_gui.tabs.base import BaseTab, _MSG
-from cohere_ui.jupyter_gui.widgets import form_row, text_field, dropdown, button, FeaturePanel
+from cohere_ui.jupyter_gui.widgets import (
+    FeaturePanel, PathChooser, button, dropdown, form_row, text_field,
+)
 from cohere_ui.jupyter_gui.rec_subprocess import RecMonitor
 from cohere_ui.jupyter_gui.rec_subprocess.progress import total_iters_from_alg_sequence
 import traceback
 
-from cohere_ui.jupyter_gui.device_info import (
+
+_MAIN_REC_ID_LABEL = 'main'  # User-facing label for the default config_rec.
+
+from cohere_ui.jupyter_gui.utils.device_info import (
     list_devices, format_devices, parse_device_field,
 )
-from cohere_ui.jupyter_gui.error_format import format_error_summary
+from cohere_ui.jupyter_gui.utils.error_format import format_error_summary
+from cohere_ui.jupyter_gui.text import load_text
+
+_UI = load_text('ui_strings')
+_URLS = load_text('urls')
 
 
 class RecTab(BaseTab):
-    """Tab for reconstruction configuration."""
+    """Tab for reconstruction configuration.
+
+    Supports the Qt GUI's named alternative rec configurations: a
+    ``rec_id`` dropdown above the form selects which of
+    ``config_rec`` / ``config_rec_<id>`` the widgets read from and
+    write to. The "+" button creates a new id by copying the current
+    config. The currently-selected id is also passed through to
+    ``manage_reconstruction(rec_id=...)``, so the subprocess writes its
+    output under ``results_phasing_<id>/`` instead of
+    ``results_phasing/``.
+    """
 
     name = "Reconstruction"
-    conf_name = "config_rec"
+    # conf_name is a property below to support config_rec_<id> dynamically.
     # Flip to True once the backend honors the 'precision' config key.
     _PRECISION_ENABLED = False
+
+    def __init__(self):
+        super().__init__()
+        # '' = the canonical 'config_rec' (UI label: 'main'); anything
+        # else maps to 'config_rec_<id>'. Mirrors Qt's old_rec_id.
+        self._rec_id: str = ''
+
+    @property
+    def conf_name(self) -> str:
+        """Effective config file name based on the selected rec id."""
+        return 'config_rec' if not self._rec_id else f'config_rec_{self._rec_id}'
+
+    def _output_dirname(self) -> str:
+        """Reconstruction output directory for the active rec id.
+
+        Mirrors manage_reconstruction(rec_id=...): 'main' writes to
+        results_phasing/, a named id to results_phasing_<id>/.
+        """
+        return 'results_phasing' if not self._rec_id else f'results_phasing_{self._rec_id}'
+
+    def _refresh_rec_id_status(self) -> None:
+        """Show which config file is active and where its output will land."""
+        if not hasattr(self, 'rec_id_status'):
+            return
+        label = _MAIN_REC_ID_LABEL if not self._rec_id else self._rec_id
+        self.rec_id_status.value = (
+            f'<span style="font-size:12px;color:var(--jup-fg-muted);">Editing '
+            f'<code>conf/{_html.escape(self.conf_name)}</code> '
+            f'(<b>{_html.escape(label)}</b>) | output to '
+            f'<code>{_html.escape(self._output_dirname())}/</code></span>'
+        )
 
     def _build_ui(self) -> widgets.Widget:
         self.init_guess = dropdown(
             options=['random', 'continue', 'AI algorithm'],
             value='random'
         )
+        # Colored-dot status beside Initial Guess; only shown for AI algorithm.
+        self.ai_status = widgets.HTML(
+            layout=widgets.Layout(width='180px', margin='0 0 0 8px')
+        )
         self.init_guess_params = widgets.VBox()
         self.init_guess.observe(self._on_init_guess_change, 'value')
 
-        proc_options = ['auto', 'np', 'torch']
-        if sys.platform != 'darwin':
-            proc_options.insert(1, 'cp')
+        # List all backends; the status dot shows which are available on this
+        # machine. An unavailable pick is refused at Run time with a clear message.
+        proc_options = ['auto', 'np', 'cp', 'torch']
         self.proc = dropdown(options=proc_options, value='auto')
         self.proc_status = widgets.HTML(
             layout=widgets.Layout(width='180px', margin='0 0 0 8px')
@@ -69,19 +134,16 @@ class RecTab(BaseTab):
         self.initial_support_area = text_field(placeholder='[0.5, 0.5, 0.5]')
 
         self.defaults_btn = button('Set Defaults', style='info', width='120px', role='info')
-        self.defaults_btn.on_click(lambda b: self._set_defaults())
+        self.defaults_btn.on_click(lambda b: self._set_defaults_guarded())
 
-        from cohere_ui.jupyter_gui.features import REC_FEATURES
-        self.features = {name: cls() for name, cls in REC_FEATURES.items()}
+        from cohere_ui.jupyter_gui.features import get_rec_features
+        self.features = {name: cls() for name, cls in get_rec_features().items()}
         self.feature_panel = FeaturePanel(self.features)
 
-        self.load_btn = button('Load Config', style='warning', width='120px', role='load')
-        self.run_btn = button('Run Reconstruction', style='success', width='150px', role='run')
+        self.action_row = self._build_action_row(run_label='Run Reconstruction', run_width='180px')
         self.stop_btn = button('Stop', style='danger', width='80px')
         self.stop_btn.disabled = True
-        self.load_btn.on_click(lambda b: self._load_config_dialog())
-        self.run_btn.on_click(lambda b: self.run_tab())
-        self.stop_btn.on_click(lambda b: self._on_stop())
+        self.stop_btn.on_click(lambda b: self._on_stop_guarded())
 
         self.monitor = RecMonitor()
         self.monitor.on_running_changed = self._on_running_changed
@@ -89,8 +151,9 @@ class RecTab(BaseTab):
         # log_panel stays None; logging routes through the monitor instead.
 
         proc_row = widgets.HBox([self.proc, self.proc_status])
+        init_guess_row = widgets.HBox([self.init_guess, self.ai_status])
         params_section = widgets.VBox([
-            form_row('Initial Guess', self.init_guess),
+            form_row('Initial Guess', init_guess_row),
             self.init_guess_params,
             form_row('Processor', proc_row),
             form_row('Device(s)', self.device),
@@ -115,17 +178,226 @@ class RecTab(BaseTab):
         self._refresh_device_hint()
         self._apply_device_enabled(self.proc.value)
 
+        # Named alternative rec configurations row. Hidden until the
+        # user creates the first non-'main' id (matches Qt parity).
+        self.rec_id_dropdown = dropdown(
+            options=[_MAIN_REC_ID_LABEL], value=_MAIN_REC_ID_LABEL, width='180px',
+        )
+        self.rec_id_dropdown.observe(self._on_rec_id_change, 'value')
+        self.new_rec_id_input = text_field(
+            placeholder='new id (letters / digits / _)', width='220px',
+        )
+        self.add_rec_id_btn = button(
+            '+ Add config', style='info', width='130px', role='info',
+        )
+        self.add_rec_id_btn.on_click(lambda b: self._on_add_rec_id())
+        self.rec_id_row = widgets.HBox(
+            [
+                widgets.HTML(
+                    '<span style="margin-right:6px;">Configuration</span>'
+                ),
+                self.rec_id_dropdown,
+                widgets.HTML('<span style="margin:0 6px 0 12px;">|</span>'),
+                self.new_rec_id_input,
+                self.add_rec_id_btn,
+            ],
+            layout=widgets.Layout(align_items='center', margin='4px 0 4px 0'),
+        )
+        # The dropdown is meaningful even when only 'main' exists (it
+        # advertises the feature); leave it visible.
+        # Status line: which config file is being edited and where its
+        # reconstruction output will land. Refreshed on every switch / load.
+        self.rec_id_status = widgets.HTML(
+            layout=widgets.Layout(margin='0 0 8px 0'),
+        )
+        self._refresh_rec_id_status()
+
         return widgets.VBox([
+            self.rec_id_row,
+            self.rec_id_status,
             params_section,
-            widgets.HTML('<h4>Features</h4>'),
+            # FeaturePanel draws its own "Features (k/N active)" header.
             self.feature_panel.widget,
-            widgets.HBox([self.load_btn, self.run_btn, self.stop_btn]),
+            widgets.HBox([self.action_row, self.stop_btn]),
             self.monitor.widgets_box(),
         ])
+
+    # --- Named alternative rec configs (Qt parity) ---
+
+    def _discover_rec_ids(self) -> list:
+        """Return the sorted list of '<id>' names found in ``conf/config_rec_*``.
+
+        Delegates to :meth:`ConfigManager.discover_rec_ids` (which excludes
+        the canonical ``config_rec`` and any ``*_backup`` copy). Returns an
+        empty list when no experiment is loaded.
+        """
+        if self.main_gui is None:
+            return []
+        return self.main_gui.config_manager.discover_rec_ids()
+
+    def refresh_rec_id_options(self) -> None:
+        """Repopulate the rec_id dropdown from on-disk config_rec_* files.
+
+        Preserves the current selection when the corresponding file
+        still exists; falls back to 'main' otherwise.
+        """
+        if not hasattr(self, 'rec_id_dropdown'):
+            return
+        ids = self._discover_rec_ids()
+        options = [_MAIN_REC_ID_LABEL] + ids
+        # Re-assigning .options unobserved would still fire the
+        # observer for the value transition; suppress with a manual
+        # unobserve/reobserve so the switch handler doesn't think the
+        # user picked something new during a programmatic refresh.
+        self.rec_id_dropdown.unobserve(self._on_rec_id_change, 'value')
+        try:
+            self.rec_id_dropdown.options = options
+            target = self._rec_id or _MAIN_REC_ID_LABEL
+            self.rec_id_dropdown.value = (
+                target if target in options else _MAIN_REC_ID_LABEL
+            )
+            if self.rec_id_dropdown.value == _MAIN_REC_ID_LABEL:
+                self._rec_id = ''
+        finally:
+            self.rec_id_dropdown.observe(self._on_rec_id_change, 'value')
+
+    @BaseTab._guard
+    def _on_rec_id_change(self, change):
+        """Save the previous selection's widget state, then load the new one.
+
+        Mirrors Qt's ``toggle_conf`` (cohere_gui.py:1418). Best-effort
+        save: a validation error on the OLD config still allows the
+        switch, because the user wants to look at the NEW config.
+        """
+        if self.main_gui is None or not self.main_gui.experiment_exists():
+            return
+        new_label = change['new']
+        # Persist the outgoing config under its old name first. _rec_id
+        # still holds the previous selection here, so save_and_verify
+        # writes to the right file; best-effort (a validation error on the
+        # old config must not block looking at the new one).
+        self.save_and_verify()
+        # Now switch. Capture the target so we can restore it after
+        # clear_conf() wipes _rec_id below.
+        target = '' if new_label == _MAIN_REC_ID_LABEL else new_label
+        self._rec_id = target
+        # Load the destination config; if it doesn't exist (deleted on
+        # disk between refresh and switch), fall back silently to main.
+        conf_map = self.main_gui.config_manager.load_config(self.conf_name)
+        if conf_map is None:
+            self.monitor.log(
+                f'config file for id {new_label!r} is missing; staying on main',
+                level='warning',
+            )
+            self._rec_id = ''
+            self._refresh_rec_id_status()
+            return
+        self.clear_conf()
+        # clear_conf() reset _rec_id to '' and the dropdown to 'main';
+        # restore the target so load_tab, which calls
+        # refresh_rec_id_options, re-selects it instead of bouncing the
+        # dropdown back to 'main'.
+        self._rec_id = target
+        self.load_tab(conf_map)
+        self._notify_save()  # refresh the status strip / titles
+        self._refresh_rec_id_status()
+        self.monitor.log(
+            f'Now editing conf/{self.conf_name}; output goes to '
+            f'{self._output_dirname()}/.',
+            level='info',
+        )
+        # Auto-follow: point the Postprocess tab at the same reconstruction.
+        self._follow_disp(self._rec_id)
+
+    def _follow_disp(self, rec_id: str) -> None:
+        """Tell the Postprocess (Disp) tab to follow this reconstruction id.
+
+        One-way notification (disp never calls back). Best-effort: a
+        missing or broken disp tab is logged at debug, never raised.
+        """
+        main_gui = self.main_gui
+        if main_gui is None:
+            return
+        disp = getattr(main_gui, '_tabs', {}).get('disp')
+        if disp is None or not hasattr(disp, 'update_tab'):
+            return
+        try:
+            disp.update_tab(rec_id=rec_id)
+        except Exception as e:
+            self.monitor.log(f'disp follow skipped: {e}', level='debug')
+
+    @BaseTab._guard
+    def _on_add_rec_id(self):
+        """Create config_rec_<new_id> by copying the current config.
+
+        New id is read from the inline text field; validated against
+        existing names and the filesystem regex. On success the
+        dropdown is refreshed and the new id becomes the active
+        selection (so subsequent edits target the new file).
+        """
+        if self.main_gui is None or not self.main_gui.experiment_exists():
+            self.monitor.log('No experiment loaded; cannot create a rec config.',
+                             level='warning')
+            return
+        raw = (self.new_rec_id_input.value or '').strip()
+        if not raw:
+            self.monitor.log('Enter a new id in the text field first.',
+                             level='warning')
+            return
+        # Restrict to filesystem-safe characters to avoid path tricks.
+        if not all(ch.isalnum() or ch == '_' for ch in raw):
+            self.monitor.log(
+                f'New id {raw!r}: use only letters, digits, and underscores.',
+                level='error',
+            )
+            return
+        if raw == _MAIN_REC_ID_LABEL:
+            self.monitor.log(f'{_MAIN_REC_ID_LABEL!r} is reserved.', level='error')
+            return
+        if raw in self._discover_rec_ids():
+            self.monitor.log(f'rec id {raw!r} already exists.', level='error')
+            return
+
+        # Save the current widget state to its file first, so the copy
+        # reflects the latest edits.
+        prior = self.save_and_verify()
+        if prior:
+            self.monitor.log(
+                'Validation failed; fix the current config before adding a new id.',
+                level='error',
+            )
+            return
+
+        conf_dir = self.main_gui.config_manager.conf_dir
+        src = ut.join(conf_dir, 'config_rec')
+        dst = ut.join(conf_dir, f'config_rec_{raw}')
+        if not os.path.isfile(src):
+            # No main config yet: write an empty placeholder so
+            # subsequent loads succeed. The dropdown change will load
+            # it back as an empty dict.
+            ut.write_config({}, dst)
+        else:
+            shutil.copyfile(src, dst)
+        self.new_rec_id_input.value = ''
+        self.refresh_rec_id_options()
+        # Switch to the new id (the observer was just re-attached by
+        # refresh_rec_id_options; setting .value triggers it).
+        self.rec_id_dropdown.value = raw
+        self.monitor.log(f'Created config_rec_{raw} (active).', level='success')
 
     def _refresh_device_hint(self):
         selected = parse_device_field(self.device.value, self._device_list)
         self.device_hint.value = format_devices(self._device_list, selected=selected)
+        # Flag typos / unknown device ids before Run so the user doesn't wait
+        # on a subprocess that crashes immediately.
+        text = (self.device.value or '').strip()
+        if not text or text == 'all':
+            return
+        if selected:
+            return
+        err = validate_device_field(text, self._device_list or [])
+        if err is not None:
+            self.monitor.log(str(err), level='warning')
 
     def _apply_device_enabled(self, proc_value):
         """Grey out Device(s) when np is selected; field value is preserved
@@ -143,6 +415,25 @@ class RecTab(BaseTab):
         self._apply_device_enabled(change['new'])
 
     @staticmethod
+    def _resolve_ai_runtime():
+        """Return (available, reason) for the AI init_guess runtime.
+
+        Checks tensorflow presence without importing it (importing tensorflow
+        pulls in CUDA libs and is slow). Presence on sys.path does not
+        guarantee a successful import, so _run_tab_impl re-checks at Run time.
+        """
+        try:
+            present = importlib.util.find_spec('tensorflow') is not None
+        except (ImportError, ValueError):
+            present = False
+        if present:
+            return True, ''
+        return False, (
+            'tensorflow is not installed. Run '
+            '`pip install tensorflow`, then restart the Jupyter kernel'
+        )
+
+    @staticmethod
     def _resolve_backend(name):
         """Resolve a Processor selection to (available, resolved_name, reason).
 
@@ -151,10 +442,12 @@ class RecTab(BaseTab):
         same chain get_pkg does: cupy, then torch, then numpy.
         """
         def _have(mod):
+            # Probe without importing. On macOS, importing torch loads its
+            # bundled libomp.dylib and later collides with xrayutilities'
+            # libomp during postprocessing (Fatal Python error: Aborted).
             try:
-                __import__(mod)
-                return True
-            except Exception:
+                return importlib.util.find_spec(mod) is not None
+            except (ImportError, ValueError):
                 return False
 
         if name == 'np':
@@ -179,9 +472,9 @@ class RecTab(BaseTab):
 
     def _update_proc_status(self, proc_value):
         available, resolved, reason = self._resolve_backend(proc_value)
-        color = '#2e7d32' if available else '#c62828'
+        color = 'var(--jup-success)' if available else 'var(--jup-error)'
         if proc_value == 'auto':
-            label = f'auto &rarr; {resolved}'
+            label = f'auto: {resolved}'
             tooltip = f'auto-resolves to {resolved} on this machine'
         elif available:
             label = resolved
@@ -216,12 +509,88 @@ class RecTab(BaseTab):
     def _on_init_guess_change(self, change):
         guess = change['new']
         self.init_guess_params.children = []
+        # Only show the tensorflow status dot when the AI path is selected.
+        if guess == 'AI algorithm':
+            self._update_ai_status()
+        else:
+            self.ai_status.value = ''
         if guess == 'continue':
-            self.cont_dir = text_field(placeholder='Path to continue directory')
-            self.init_guess_params.children = [form_row('Continue Directory', self.cont_dir)]
+            self.cont_dir = PathChooser(
+                kind='dir',
+                placeholder=_UI['placeholders']['prev_recon_dir'],
+                width='350px',
+            )
+            self.init_guess_params.children = [
+                form_row('Continue Directory', self.cont_dir.widget),
+            ]
         elif guess == 'AI algorithm':
-            self.ai_model = text_field(placeholder='Path to trained model .hdf5')
-            self.init_guess_params.children = [form_row('AI Model File', self.ai_model)]
+            # Same PathChooser used by InstrTab's specfile / data_dir fields.
+            self.ai_model = PathChooser(
+                kind='file',
+                placeholder=_UI['placeholders']['ai_model_path'],
+                width='350px',
+            )
+
+            # Link to the pre-trained .hdf5 model on the Globus distribution.
+            # FontAwesome `fa-download` is monochrome and inherits the
+            # link color; the previous Unicode downward-arrow glyph rendered
+            # as a color emoji on macOS/Windows and clashed with the rest of
+            # the GUI's FontAwesome iconography (copy, folder, etc.).
+            download_link = widgets.HTML(
+                value=(
+                    f'<a href="{_URLS["pretrained_ai"]}" '
+                    f'target="_blank" rel="noopener" '
+                    f'download="cohere-trained_model.hdf5" '
+                    f'title="{_UI["tooltips"]["ai_model_download"]}" '
+                    f'style="margin-left:8px; font-size:12px;">'
+                    f'<i class="fa fa-download" '
+                    f'style="margin-right:4px;"></i>'
+                    f'Download .hdf5</a>'
+                ),
+                layout=widgets.Layout(margin='4px 0 0 0'),
+            )
+
+            self.init_guess_params.children = [
+                form_row(
+                    'AI Model File',
+                    widgets.HBox(
+                        [self.ai_model.widget, download_link],
+                        layout=widgets.Layout(align_items='center'),
+                    ),
+                ),
+            ]
+
+    def _update_ai_status(self) -> None:
+        """Render the tensorflow availability dot beside Initial Guess.
+
+        Colored dot + label, with the full reason in the tooltip.
+        """
+        if not hasattr(self, 'ai_status'):
+            return
+        available, reason = self._resolve_ai_runtime()
+        color = 'var(--jup-success)' if available else 'var(--jup-error)'
+        if available:
+            label = 'tensorflow'
+            tooltip = (
+                'tensorflow is importable. Import may still fail if '
+                'CUDA/ROCm libraries are missing.'
+            )
+        else:
+            label = 'tensorflow unavailable'
+            tooltip = reason
+        self.ai_status.value = (
+            f'<span title="{tooltip}" style="line-height:24px;">'
+            f'<span style="color:{color}; font-size:14px;">&#9679;</span>'
+            f' {label}</span>'
+        )
+
+    @BaseTab._guard
+    def _set_defaults_guarded(self):
+        self._set_defaults()
+
+    @BaseTab._guard
+    def _on_stop_guarded(self):
+        self._on_stop()
 
     def _set_defaults(self):
         self.reconstructions.value = '1'
@@ -234,6 +603,10 @@ class RecTab(BaseTab):
         self.initial_support_area.value = '[0.5, 0.5, 0.5]'
 
     def load_tab(self, conf_map: dict):
+        # Discover any named alternative configs sitting in conf/ so
+        # the dropdown reflects what's actually on disk. The current
+        # _rec_id is preserved when its file is still present.
+        self.refresh_rec_id_options()
         init_guess = conf_map.get('init_guess', 'random')
         if init_guess == 'random':
             self.init_guess.value = 'random'
@@ -266,6 +639,7 @@ class RecTab(BaseTab):
             self.initial_support_area.value = self._fmt_value(conf_map['initial_support_area'])
 
         self.feature_panel.init_configs(conf_map)
+        self._refresh_rec_id_status()
 
     def get_config(self) -> dict:
         conf_map = {}
@@ -315,6 +689,18 @@ class RecTab(BaseTab):
         self.raar_beta.value = ''
         self.initial_support_area.value = ''
         self.feature_panel.clear_all()
+        # Reset rec-id state to 'main' on a full clear (matches Qt's
+        # clear_conf at cohere_gui.py:1257-1271). The dropdown options
+        # are refreshed on the next load_tab.
+        self._rec_id = ''
+        if hasattr(self, 'rec_id_dropdown'):
+            self.rec_id_dropdown.unobserve(self._on_rec_id_change, 'value')
+            try:
+                self.rec_id_dropdown.options = [_MAIN_REC_ID_LABEL]
+                self.rec_id_dropdown.value = _MAIN_REC_ID_LABEL
+            finally:
+                self.rec_id_dropdown.observe(self._on_rec_id_change, 'value')
+        self._refresh_rec_id_status()
 
     def clear_output(self):
         self.monitor.clear_log()
@@ -322,55 +708,118 @@ class RecTab(BaseTab):
     def log(self, message: str):
         self.monitor.log(message)
 
-    def run_tab(self):
+    # RecTab has no log_panel; route the level helpers through the
+    # monitor so BaseTab.save_and_verify (and any inherited code that
+    # calls self.log_error / log_warning / log_info / log_debug) lands
+    # with the right severity in the monitor's log widget.
+    def log_info(self, message: str):
+        self.monitor.log(message, level='info')
+
+    def log_success(self, message: str):
+        self.monitor.log(message, level='success')
+
+    def log_warning(self, message: str):
+        self.monitor.log(message, level='warning')
+
+    def log_error(self, message: str):
+        self.monitor.log(message, level='error')
+
+    def log_debug(self, message: str):
+        self.monitor.log(message, level='debug')
+
+    def run_tab(self, skip_save: bool = False):
         """Validate config, save, and ask the monitor to start the subprocess."""
         try:
-            self._run_tab_impl()
+            self._run_tab_impl(skip_save=skip_save)
         except Exception as e:
             self.monitor.log(format_error_summary(e, prefix='run_tab'), level='error')
             self.monitor.log(traceback.format_exc(), level='debug')
             self.monitor.progress_label.value = '<i>Idle (error)</i>'
             self._on_running_changed(False)
 
-    def _run_tab_impl(self):
+    def _run_tab_impl(self, *, skip_save: bool = False):
         if self.monitor.is_running:
             self.monitor.log(_MSG['rec']['already_running'])
             return
 
-        err = self._validate_experiment()
-        if err:
-            self.monitor.log(err)
+        # Refuse early if the selected Processor isn't available, to skip the
+        # 30 s subprocess spin-up that would crash on the cupy/torch import.
+        # Logging at 'error' triggers the auto-reveal so the user sees it.
+        ok, _resolved, reason = self._resolve_backend(self.proc.value)
+        if not ok:
+            self.monitor.log(
+                f"Cannot run: {reason}. Pick a different Processor.",
+                level='error',
+            )
             return
 
-        found = any(
-            'data.tif' in f or 'data.npy' in f
-            for _, _, f in os.walk(self.main_gui.experiment_dir)
-        )
-        if not found:
-            self.monitor.log(_MSG['rec']['no_input_data'])
-            return
-
-        for feat in self.features.values():
-            if not feat.active.value:
-                continue
-            err_msg = feat.verify_active()
-            if err_msg:
-                self.monitor.log(_MSG['rec']['feature_error'].format(error=err_msg))
+        # busy() blocks re-entry while the filesystem walk and feature checks run.
+        busy_cm = self.split_run.busy('Validating...') if self.split_run else _nullcontext()
+        with busy_cm:
+            err = self._validate_experiment()
+            if err:
+                self.monitor.log(err)
                 return
 
-        conf_map = self.get_config()
-        if not conf_map:
-            return
+            # Parse the algorithm sequence here so a typo surfaces inline
+            # ("did you mean 'ER'?") instead of crashing the subprocess later.
+            if self.alg_seq.value:
+                parsed = parse_algorithm_sequence(self.alg_seq.value)
+                if isinstance(parsed, _ValidationError):
+                    self.monitor.log(
+                        _MSG['tab']['config_error'].format(error=str(parsed)),
+                        level='error',
+                    )
+                    return
 
-        err = self.main_gui.config_manager.verify(self.conf_name, conf_map)
-        if err and not self.main_gui.no_verify:
-            self.monitor.log(_MSG['tab']['config_error'].format(error=err))
-            return
+            # AI guess requires tensorflow (imported by cohere_core.controller.AI_guess).
+            # Fail fast with an install hint rather than crashing 30 s into the subprocess.
+            if self.init_guess.value == 'AI algorithm':
+                if importlib.util.find_spec('tensorflow') is None:
+                    self.monitor.log(
+                        "init_guess='AI algorithm' selected but tensorflow "
+                        "is not installed in this environment. Install it "
+                        "first: `pip install tensorflow` (then restart the "
+                        "Jupyter kernel).",
+                        level='error',
+                    )
+                    return
+                model_path = (
+                    self.ai_model.value.strip()
+                    if hasattr(self, 'ai_model') and self.ai_model.value
+                    else ''
+                )
+                if not model_path or not os.path.isfile(model_path):
+                    self.monitor.log(
+                        f"init_guess='AI algorithm' requires AI_trained_model "
+                        f"to point at an existing model file (.keras or .hdf5)"
+                        f"{f' (got: {model_path!r})' if model_path else ''}. "
+                        f"Use the Download .hdf5 link to grab the public "
+                        f"trained model. On Python 3.11+ the .hdf5 file must "
+                        f"first be converted with "
+                        f"`python tools/convert_ai_model.py SRC.hdf5 DST.keras` "
+                        f"(see tools/convert_ai_model.py for the rationale).",
+                        level='error',
+                    )
+                    return
 
-        _, action = self.main_gui.config_manager.save_config(
-            self.conf_name, conf_map, self.main_gui.no_verify)
-        if action:
-            self._log_config_action(action)
+            found = any(
+                'data.tif' in f or 'data.npy' in f
+                for _, _, f in os.walk(self.main_gui.experiment_dir)
+            )
+            if not found:
+                self.monitor.log(_MSG['rec']['no_input_data'])
+                return
+
+        if skip_save:
+            self.monitor.log(_MSG['tab']['run_modified_warning'], level='warning')
+        else:
+            # save_and_verify (BaseTab) reads the config, validates the
+            # fields, runs the cohere_core verifier, and saves. Errors are
+            # already logged via self.log_error (routed to the monitor);
+            # a non-empty return means we should abort.
+            if self.save_and_verify():
+                return
 
         progress_feature = self.features.get('progress')
         show_bar_widget = getattr(progress_feature, 'show_progress_bar', None) if progress_feature else None
@@ -379,13 +828,20 @@ class RecTab(BaseTab):
 
         self._pre_run_snapshot = self._snapshot_outputs()
 
+        run_kwargs = {
+            'no_verify': self.main_gui.no_verify,
+            'debug': True,
+        }
+        # Pass the selected named rec id through to manage_reconstruction
+        # so output lands in results_phasing_<id>/ instead of
+        # results_phasing/. None signals the canonical 'main' config.
+        if self._rec_id:
+            run_kwargs['rec_id'] = self._rec_id
+
         self.monitor.start(
             experiment_dir=self.main_gui.experiment_dir,
             backend_cfg=self._collect_backend_config(),
-            kwargs={
-                'no_verify': self.main_gui.no_verify,
-                'debug': True,
-            },
+            kwargs=run_kwargs,
             total_iters=total_iters_from_alg_sequence(self.alg_seq.value),
             show_progress_bar=progress_active and show_bar,
         )
@@ -394,7 +850,12 @@ class RecTab(BaseTab):
         self.monitor.stop()
 
     def _on_running_changed(self, running: bool):
-        self.run_btn.disabled = running
+        if self.split_run is not None:
+            self.split_run.set_enabled(not running)
+        if self.save_button is not None:
+            self.save_button.widget.disabled = running or self.save_button.widget.disabled
+        if self.load_btn is not None:
+            self.load_btn.disabled = running
         self.stop_btn.disabled = not running
 
     def _on_rec_finished(self, exit_code):
@@ -417,6 +878,9 @@ class RecTab(BaseTab):
         if before is not None:
             self._log_file_changes(before)
             self._pre_run_snapshot = None
+        # Auto-follow: repoint the Postprocess tab at the reconstruction
+        # that just produced output.
+        self._follow_disp(self._rec_id)
 
     def _collect_backend_config(self):
         """Build the picklable BackendConfig dict for the wrapper subprocess.

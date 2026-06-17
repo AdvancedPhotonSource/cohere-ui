@@ -5,7 +5,10 @@ from typing import Optional
 import ipywidgets as widgets
 import ast
 
-from cohere_ui.jupyter_gui.widgets import checkbox, button
+from cohere_ui.jupyter_gui.text import load_text
+from cohere_ui.jupyter_gui.widgets import checkbox, button, grid_full
+
+_UI = load_text('ui_strings')
 
 
 class Feature(ABC):
@@ -29,8 +32,13 @@ class Feature(ABC):
     disabled_reason: str = ""
 
     def __init__(self):
-        self.active = checkbox(description='active')
+        self.active = checkbox(description=_UI['feature_options']['active'])
         self.params_box = widgets.VBox()
+        # Make params_box a CSS-grid container so every row emitted via
+        # grid_field / grid_full lines up with the rest of the feature's
+        # rows (and with every other feature's rows). The class is wired in
+        # styles.py and overrides ipywidgets' default flex column on .widget-vbox.
+        self.params_box.add_class('jup-gui-feature-grid')
         self.defaults_btn = button('Set Defaults', style='info', width='120px')
 
         if self.disabled_reason:
@@ -59,10 +67,19 @@ class Feature(ABC):
         """Show parameter widgets when feature is activated. Auto-applies
         set_defaults() so the feature is immediately usable. Without it,
         fields stay empty and add_config silently skips them, dropping the
-        feature from the saved config with no error."""
+        feature from the saved config with no error.
+
+        Boolean-only features (e.g. ReciprocalFeature, StrainFeature)
+        return [] from fill_active; the active checkbox is the entire UI,
+        so the "Set Defaults" button is omitted.
+        """
         param_widgets = self.fill_active()
         self.set_defaults()
-        param_widgets.append(self.defaults_btn)
+        if param_widgets:
+            # Right-align inside a full-row cell so the button hugs the
+            # right edge of the params column instead of dangling at x=0
+            # with no rhythm to either grid track.
+            param_widgets.append(grid_full(self.defaults_btn, justify='end'))
         self.params_box.children = param_widgets
 
     def _hide_params(self):

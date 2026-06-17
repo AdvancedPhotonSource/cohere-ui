@@ -10,11 +10,11 @@ import io
 
 
 _LEVEL_STYLE = {
-    'info':    'color:#222;',
-    'success': 'color:#1e7a1e;font-weight:600;',
-    'warning': 'color:#a06000;',
-    'error':   'color:#a02020;font-weight:600;',
-    'debug':   'color:#777;font-style:italic;',
+    'info':    'color:var(--jup-fg);',
+    'success': 'color:var(--jup-success);font-weight:600;',
+    'warning': 'color:var(--jup-warn);',
+    'error':   'color:var(--jup-error);font-weight:600;',
+    'debug':   'color:var(--jup-fg-faint);font-style:italic;',
 }
 _LEVEL_PREFIX = {
     'info':    '',
@@ -44,11 +44,11 @@ def render_log_html(lines, show_debug: bool = False):
         )
         visible_idx += 1
     return (
-        '<div style="height:100%;overflow-y:auto;'
+        '<div style="height:100%;box-sizing:border-box;overflow-y:auto;'
         'display:flex;flex-direction:column-reverse;'
         'font-family:Menlo,Consolas,monospace;font-size:11px;'
-        'line-height:1.35;padding:6px;background:#fafafa;'
-        'color:#222;white-space:pre-wrap;word-break:break-word;">'
+        'line-height:1.35;padding:6px;background:var(--jup-card-bg);'
+        'color:var(--jup-fg);white-space:pre-wrap;word-break:break-word;">'
         + ''.join(rows_html) + '</div>'
     )
 

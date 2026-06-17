@@ -7,6 +7,7 @@
 import numpy as np
 import cohere_core.utilities.dvc_utils as dvut
 import cohere_core.utilities as ut
+import cohere_ui.api.common as com
 import pyvista as pv
 from itertools import chain, repeat, islice
 from typing import List, Union
@@ -293,6 +294,7 @@ def extent_to_slice(extent):
     return tuple(slice)
 
 
+@com.preserve_devlib()
 def get_resolution_deconv(arr, thresh, max_iter=50, deconvdiffbreak=0.1):
     # extract a subregion to make deconvolution faster.
     # when we do PRTF this could also help speed up.  But will need to crop a collection of images.
@@ -311,6 +313,7 @@ def get_resolution_deconv(arr, thresh, max_iter=50, deconvdiffbreak=0.1):
     return res
 
 
+@com.preserve_devlib()
 def make_image_viz(geometry, image, support, config_maps, ds):
     # if it is important to log that some parameters are not configured, do it here
     viz_params = config_maps['config_disp']

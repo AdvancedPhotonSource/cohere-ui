@@ -3,7 +3,7 @@
 #
 # Math: a tiny TeX-to-Unicode pass runs at load time. Currently handles
 # \(...\) / \[...\] (delimiters), \text{x} (strips wrapper), and the
-# commands \pi \sigma \sum \geq \approx \pm \cdot \%. Extend the
+# commands \pi \sigma \sum \geq \approx \pm \times \%. Extend the
 # table in text/__init__.py if you need more (it's a 1-line addition).
 
 # --- Reconstruction features ---
@@ -145,10 +145,11 @@ live:
     feature auto-sets it to <code>[0, 1]</code> so the progress label
     and error-history plot update every iteration. Override via the
     Progress feature for sparser updates.
-  renderer_note: |
-    Renderer / slicing choices are GUI-only and not written to
-    <code>config_rec</code>. Lowest cost: matplotlib 2D slice. Higher
-    fidelity: 3D mosaic or PyVista (download larger downsampled volumes).
+    <br><br>
+    <b>Note:</b> renderer / slicing choices are GUI-only and not
+    written to <code>config_rec</code>. Lowest cost: matplotlib 2D
+    slice. Higher fidelity: 3D mosaic or PyVista (download larger
+    downsampled volumes).
 
 # --- Display features (visualization / postprocessing) ---
 
@@ -158,7 +159,7 @@ crop:
     Crop the reconstructed image to the region containing the object.
     <code>fraction</code> keeps a fixed fraction of each dimension around
     the maximum; <code>tight</code> derives the crop bounds from points
-    above \(\text{threshold} \cdot max\) with a configurable margin.
+    above \(\text{threshold} \times max\) with a configurable margin.
     <br><br>
     <b>How to use:</b> <code>fraction</code> with <code>[0.5, 0.5, 0.5]</code>
     is a safe default. Use <code>tight</code> with margin <code>10</code>
