@@ -13,6 +13,8 @@ To add a new beamline:
 import ast
 import html as _html
 import os
+import subprocess
+import sys
 import traceback
 
 import ipywidgets as widgets
@@ -23,7 +25,7 @@ from cohere_ui.jupyter_gui.header.beamlines import (
 from cohere_ui.jupyter_gui.tabs.base import BaseTab, _MSG
 from cohere_ui.jupyter_gui.utils.error_format import format_error_summary
 from cohere_ui.jupyter_gui.widgets import (
-    ChoiceInput, LogPanel, PathChooser, checkbox, form_row, text_field,
+    ChoiceInput, LogPanel, PathChooser, button, checkbox, form_row, text_field,
 )
 
 
@@ -49,6 +51,7 @@ class InstrTab(BaseTab):
         self.beamline_header = widgets.HTML(
             f'<b>Beamline: {self.beamline or "Not set"}</b>'
         )
+        self.placeholder_box = self._build_placeholder_banner()
         self.params_box = widgets.VBox()
         self._render_params_section()
 
@@ -57,10 +60,32 @@ class InstrTab(BaseTab):
 
         return widgets.VBox([
             self.beamline_header,
+            self.placeholder_box,
             self.params_box,
             widgets.Box([self.action_row], layout=widgets.Layout(margin='8px 0')),
             self.log_panel.widget,
         ])
+
+    def _build_placeholder_banner(self) -> widgets.VBox:
+        """Hidden-by-default banner offering to run ``init_examples.py``.
+
+        Revealed by :meth:`refresh_placeholder_state` when a loaded example's
+        configs still contain the ``EXP_DIR`` placeholder.
+        """
+        warning = widgets.HTML(
+            '<div style="background:rgba(160,96,0,0.10); color:var(--jup-warn); '
+            'border:1px solid var(--jup-warn); padding:6px 8px; border-radius:4px; '
+            'margin-bottom:6px; font-size:0.85em;">'
+            f'{_MSG["instr"]["init_examples_warning"]}</div>'
+        )
+        self.placeholder_btn = button(
+            _MSG['instr']['init_examples_button'], style='warning', width='220px',
+        )
+        self.placeholder_btn.on_click(lambda b: self._on_init_examples_click())
+        return widgets.VBox(
+            [warning, self.placeholder_btn],
+            layout=widgets.Layout(display='none', margin='4px 0'),
+        )
 
     def _render_params_section(self):
         """Build either the per-beamline form or the no-beamline placeholder."""
@@ -374,3 +399,92 @@ class InstrTab(BaseTab):
             return
         self.save_conf()
         self.log_success(_MSG['instr']['saved'])
+
+    # EXP_DIR placeholder detection / fix (uninitialized example checkouts)
+    def _init_script_path(self):
+        """Path to ``init_examples.py`` for the loaded example, or ``None``.
+
+        Examples live at ``<root>/example_workspace/<name>``; the script and
+        the ``example_workspace`` directory both sit at ``<root>``. Returns
+        ``None`` for anything that isn't a recognizable examples checkout.
+        """
+        if self.main_gui is None:
+            return None
+        exp_dir = self.main_gui.config_manager.experiment_dir
+        if not exp_dir:
+            return None
+        root = os.path.dirname(os.path.dirname(exp_dir))
+        script = os.path.join(root, 'init_examples.py')
+        if os.path.isfile(script) and os.path.isdir(
+                os.path.join(root, 'example_workspace')):
+            return script
+        return None
+
+    def _has_exp_dir_placeholder(self):
+        """True if any non-backup conf file holds the literal ``EXP_DIR``.
+
+        ``*_backup`` copies (left by ``convert`` on first load) are skipped:
+        ``init_examples.py`` never rewrites them, so they would otherwise keep
+        the warning stuck on after the live configs are fixed.
+        """
+        if self.main_gui is None:
+            return False
+        conf_dir = self.main_gui.config_manager.conf_dir
+        if not conf_dir or not os.path.isdir(conf_dir):
+            return False
+        for name in os.listdir(conf_dir):
+            if name.endswith('_backup'):
+                continue
+            path = os.path.join(conf_dir, name)
+            if not os.path.isfile(path):
+                continue
+            try:
+                with open(path, 'r') as f:
+                    if 'EXP_DIR' in f.read():
+                        return True
+            except (OSError, UnicodeDecodeError):
+                continue
+        return False
+
+    @BaseTab._guard
+    def refresh_placeholder_state(self):
+        """Show or hide the EXP_DIR banner for the loaded experiment.
+
+        Called after every load. Reveals the banner only when the configs
+        still contain the placeholder and an ``init_examples.py`` script is
+        available to expand it.
+        """
+        box = getattr(self, 'placeholder_box', None)
+        if box is None:
+            return
+        if self._has_exp_dir_placeholder() and self._init_script_path() is not None:
+            box.layout.display = ''
+            self.log_warning(_MSG['instr']['init_examples_detected'])
+        else:
+            box.layout.display = 'none'
+
+    @BaseTab._guard
+    def _on_init_examples_click(self):
+        """Run ``init_examples.py`` to expand EXP_DIR across all examples."""
+        script = self._init_script_path()
+        if script is None:
+            self.log_error(_MSG['instr']['init_examples_failed'].format(
+                error='init_examples.py not found beside example_workspace'))
+            return
+        self.log_info(_MSG['instr']['init_examples_running'])
+        result = subprocess.run(
+            [sys.executable, script],
+            capture_output=True, text=True, timeout=60,
+        )
+        if result.returncode != 0:
+            self.log_error(_MSG['instr']['init_examples_failed'].format(
+                error=(result.stderr or result.stdout or 'unknown error').strip()))
+            self.log_debug((result.stdout + result.stderr).strip())
+            return
+        self.log_success(_MSG['instr']['init_examples_done'])
+        # Re-read this tab's now-expanded config so spec parsing succeeds,
+        # without rebuilding the widget (keeps the log lines above intact).
+        conf = self.main_gui.config_manager.load_config(self.conf_name)
+        if conf is not None:
+            self.load_tab(conf)
+        self.refresh_placeholder_state()

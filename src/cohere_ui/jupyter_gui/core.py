@@ -451,6 +451,11 @@ class CoherenceGUI:
             self.log_panel.info(_MSG['main']['configs_missing'].format(
                 names=', '.join(missing),
             ))
+        # Warn (in the Instrument tab) if this example still has unexpanded
+        # EXP_DIR placeholders, and offer to run init_examples.py.
+        instr = self._tabs.get('instr')
+        if instr is not None:
+            instr.refresh_placeholder_state()
         self._refresh_status(compare_modified=True)
 
     def _load_main(self, conf_map: dict):
