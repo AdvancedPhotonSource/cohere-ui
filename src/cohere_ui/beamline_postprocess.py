@@ -328,7 +328,7 @@ def handle_visualization(experiment_dir, **kwargs):
         df = pd.DataFrame(res)
         df.to_excel(ut.join(experiment_dir, 'visualization_results.xlsx'), index=False)
 
-    print ('done with processing display')
+    print ('done with post-processing')
     return ''
 
 

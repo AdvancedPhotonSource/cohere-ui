@@ -572,7 +572,7 @@ class PrepTab(QWidget):
         Constructor, initializes the tabs.
         """
         super(PrepTab, self).__init__(parent)
-        self.name = 'Prep Data'
+        self.name = 'Beamline Prep'
         self.conf_name = 'config_prep'
 
 
@@ -799,7 +799,7 @@ class DataTab(QWidget):
         Constructor, initializes the tabs.
         """
         super(DataTab, self).__init__(parent)
-        self.name = 'Data'
+        self.name = 'Standard Prep'
         self.conf_name = 'config_data'
 
 
@@ -3179,7 +3179,7 @@ class DispTab(QWidget):
         Constructor, initializes the tabs.
         """
         super(DispTab, self).__init__(parent)
-        self.name = 'Display'
+        self.name = 'Postprocess'
         self.conf_name = 'config_disp'
 
 

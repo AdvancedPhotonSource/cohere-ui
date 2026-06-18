@@ -29,15 +29,8 @@ dependencies = [
                 'openpyxl',
                 'xlsxwriter',
                 'numpy>=2.0',
-                'ipywidgets',
-                'ipympl',
-                'ipyfilechooser',
-                'matplotlib',
-                'trame',
-                'trame-vtk',
-                'trame-vuetify',
-                'trame-jupyter-extension',
                 ]
+
 [tool.setuptools.package-data]
 "cohere_ui.jupyter_gui.text" = ["*.yaml"]
 
