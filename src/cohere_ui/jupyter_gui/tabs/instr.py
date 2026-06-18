@@ -155,7 +155,7 @@ class InstrTab(BaseTab):
                 widget.continuous_update = False
         elif field_type in ('dir', 'file'):
             widget = PathChooser(
-                kind=field_type, placeholder=placeholder, width='500px',
+                kind=field_type, placeholder=placeholder, full_width=True,
             )
         else:  # text, float, int (text-input backed)
             widget = text_field(placeholder=placeholder, width='480px')

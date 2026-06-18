@@ -690,15 +690,21 @@ class PathChooser:
     """
 
     def __init__(self, kind: str = 'dir', placeholder: str = '',
-                 width: str = '420px'):
+                 width: str = '420px', full_width: bool = False):
         if kind not in ('dir', 'file'):
             raise ValueError(f'kind must be "dir" or "file", got {kind!r}')
         self.kind = kind
 
-        self.text = widgets.Text(
-            placeholder=placeholder,
-            layout=widgets.Layout(width=width, flex='0 0 auto'),
-        )
+        # full_width: the input flex-grows to fill the row (minus the browse
+        # button) so long paths show as much tail as possible. min_width:0
+        # lets it shrink past its content so the button never overflows.
+        if full_width:
+            text_layout = widgets.Layout(
+                width='auto', flex='1 1 auto', min_width='0',
+            )
+        else:
+            text_layout = widgets.Layout(width=width, flex='0 0 auto')
+        self.text = widgets.Text(placeholder=placeholder, layout=text_layout)
         self.text.continuous_update = False
         self.text.add_class('jup-gui-path-input')
         self.text.observe(self._on_text_change, 'value')
@@ -707,7 +713,7 @@ class PathChooser:
         self.browse_btn = widgets.Button(
             description='', icon='folder-open',
             tooltip=f'Browse for {kind}',
-            layout=widgets.Layout(width='38px'),
+            layout=widgets.Layout(width='38px', flex='0 0 auto'),
         )
         self.browse_btn.on_click(self._toggle_chooser)
 
@@ -716,10 +722,19 @@ class PathChooser:
         )
         self._chooser_open = False
 
-        self.widget = widgets.VBox([
-            widgets.HBox([self.text, self.browse_btn]),
-            self._chooser_box,
-        ])
+        # When full_width, the outer VBox grows into the row's free space via
+        # flex-basis 0 (flex='1 1 0%'). A 100% basis would overflow past the
+        # form_row label and make flexbox shrink the *label* column, so path
+        # rows would no longer align with the fixed-width rows above/below.
+        # Basis 0 leaves the label untouched and just claims what's left.
+        input_row = widgets.HBox([self.text, self.browse_btn])
+        outer_layout = widgets.Layout()
+        if full_width:
+            input_row.layout.width = '100%'
+            outer_layout = widgets.Layout(flex='1 1 0%', min_width='0')
+        self.widget = widgets.VBox(
+            [input_row, self._chooser_box], layout=outer_layout,
+        )
 
     @property
     def value(self) -> str:

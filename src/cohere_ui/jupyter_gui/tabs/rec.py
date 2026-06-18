@@ -522,7 +522,7 @@ class RecTab(BaseTab):
             self.cont_dir = PathChooser(
                 kind='dir',
                 placeholder=_UI['placeholders']['prev_recon_dir'],
-                width='350px',
+                full_width=True,
             )
             self.init_guess_params.children = [
                 form_row('Continue Directory', self.cont_dir.widget),
@@ -532,7 +532,7 @@ class RecTab(BaseTab):
             self.ai_model = PathChooser(
                 kind='file',
                 placeholder=_UI['placeholders']['ai_model_path'],
-                width='350px',
+                full_width=True,
             )
 
             # Link to the pre-trained .hdf5 model on the Globus distribution.
@@ -546,12 +546,15 @@ class RecTab(BaseTab):
                     f'target="_blank" rel="noopener" '
                     f'download="cohere-trained_model.hdf5" '
                     f'title="{_UI["tooltips"]["ai_model_download"]}" '
-                    f'style="margin-left:8px; font-size:12px;">'
+                    f'style="margin-left:8px; font-size:12px; '
+                    f'white-space:nowrap;">'
                     f'<i class="fa fa-download" '
                     f'style="margin-right:4px;"></i>'
                     f'Download .hdf5</a>'
                 ),
-                layout=widgets.Layout(margin='4px 0 0 0'),
+                # flex 0 0 auto so the full-width path field can't squeeze the
+                # link into wrapping; it keeps its natural single-line width.
+                layout=widgets.Layout(flex='0 0 auto'),
             )
 
             self.init_guess_params.children = [
@@ -559,7 +562,13 @@ class RecTab(BaseTab):
                     'AI Model File',
                     widgets.HBox(
                         [self.ai_model.widget, download_link],
-                        layout=widgets.Layout(align_items='center'),
+                        # flex-basis 0 (not width 100%) so this wrapper claims
+                        # only the row's free space and never squeezes the
+                        # form_row label, keeping it aligned with other rows.
+                        layout=widgets.Layout(
+                            align_items='center',
+                            flex='1 1 0%', min_width='0',
+                        ),
                     ),
                 ),
             ]

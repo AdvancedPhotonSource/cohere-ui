@@ -77,7 +77,7 @@ class DispTab(BaseTab):
         self.result_dir = PathChooser(
             kind='dir',
             placeholder=_UI['placeholders']['phasing_results'],
-            width='350px',
+            full_width=True,
         )
         # A manual edit of the path should best-effort re-select the
         # matching reconstruction in the dropdown (or mark it custom).
