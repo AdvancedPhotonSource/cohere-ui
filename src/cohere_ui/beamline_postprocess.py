@@ -315,24 +315,16 @@ def handle_visualization(experiment_dir, **kwargs):
             last_scan = int(main_conf_map['scan'].split(',')[-1].split('-')[-1])
             scans_dirs = [[last_scan, dir] for dir in scandirs]
 
-        n_recon = len(scans_dirs)
-        print(f'postprocessing {n_recon} reconstruction(s)')
-        if n_recon == 1:
-            res = [process_dir(conf_maps, scans_dirs[0])]
-            print(f'finished reconstruction 1 of {n_recon}')
+        if len(scans_dirs) == 1:
+            result = [process_dir(conf_maps, scans_dirs[0])]
         else:
             func = partial(process_dir, conf_maps)
             no_proc = min(cpu_count(), len(scandirs))
-            res = []
             with ProcessPoolExecutor(max_workers=no_proc) as exe:
-                # Submit all (run in parallel), then collect in submission
-                # order so visualization_results.xlsx keeps scan order while a
-                # progress line is emitted as each reconstruction completes.
-                futures = [exe.submit(func, sd) for sd in scans_dirs]
-                for k, fut in enumerate(futures, 1):
-                    res.append(fut.result())
-                    print(f'finished reconstruction {k} of {n_recon}')
+                # Maps the function with a iterable
+                result = exe.map(func, scans_dirs)
 
+        res = [r for r in result]
         df = pd.DataFrame(res)
         df.to_excel(ut.join(experiment_dir, 'visualization_results.xlsx'), index=False)
 

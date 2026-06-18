@@ -38,20 +38,22 @@ dependencies = [
                 'trame-vuetify',
                 'trame-jupyter-extension',
                 ]
+[tool.setuptools.package-data]
+"cohere_ui.jupyter_gui.text" = ["*.yaml"]
 
-#[project.optional-dependencies]
+[project.optional-dependencies]
 # Opt in to the Jupyter GUI deps with: pip install cohere-ui[jupyter]
 # Headless users (CLI / Qt only) can skip these to avoid the widget stack.
-#jupyter = [
-#    'ipywidgets',
-#    'ipympl',
-#    'ipyfilechooser',
-#    'matplotlib',
-#    'trame',
-#    'trame-vtk',
-#    'trame-vuetify',
-#    'trame-jupyter-extension',
-#]
+jupyter = [
+    'ipywidgets',
+    'ipympl',
+    'ipyfilechooser',
+    'matplotlib',
+    'trame',
+    'trame-vtk',
+    'trame-vuetify',
+    'trame-jupyter-extension',
+]
 # Opt in to the test stack with: pip install cohere-ui[jupyter,test]
 # test = [
 #     'pytest>=8',
