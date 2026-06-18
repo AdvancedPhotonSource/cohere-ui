@@ -40,6 +40,10 @@ def _get_common():
 # it sorted to the top by python-config writers that sort alphabetically.
 SCHEMA_VERSION_KEY = '_schema_version'
 
+# Config schema versioning is disabled for now: no _schema_version key is
+# written into config files. Flip to True to re-enable stamping + migration.
+SCHEMA_VERSIONING_ENABLED = False
+
 
 # Current version for each config_* file. Looked up by conf_name; absent
 # entries default to 1. Bump this when a structural change to a config
@@ -92,7 +96,13 @@ def _strip_version(conf_map: Optional[dict]) -> Optional[dict]:
 
 
 def _stamp_version(conf_name: str, conf_map: Optional[dict]) -> dict:
-    """Return a copy of ``conf_map`` with the current schema_version inserted."""
+    """Return a copy of ``conf_map`` with the current schema_version inserted.
+
+    No-op while ``SCHEMA_VERSIONING_ENABLED`` is False: the key is not
+    written, so config files stay free of GUI metadata.
+    """
+    if not SCHEMA_VERSIONING_ENABLED:
+        return dict(_strip_version(conf_map) or {})
     target = SCHEMA_CURRENT_VERSIONS.get(conf_name, 1)
     out = dict(conf_map or {})
     out[SCHEMA_VERSION_KEY] = target

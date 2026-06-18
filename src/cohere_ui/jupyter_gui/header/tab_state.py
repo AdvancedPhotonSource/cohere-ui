@@ -12,6 +12,8 @@ from typing import Callable, Literal, Optional
 
 import cohere_core.utilities as ut
 
+from cohere_ui.jupyter_gui.config import _strip_version
+
 State = Literal['saved', 'modified', 'absent']
 
 
@@ -30,7 +32,9 @@ def compute(tab, config_manager, *, deep: bool = False) -> State:
         return 'saved'
     try:
         widget_map = tab.get_config()
-        disk_map = ut.read_config(conf_path) or {}
+        # Ignore any legacy _schema_version stamp on disk: widget maps never
+        # carry it, so leaving it in would make every saved tab look modified.
+        disk_map = _strip_version(ut.read_config(conf_path)) or {}
     except Exception:
         return 'saved'
     return 'modified' if widget_map != disk_map else 'saved'

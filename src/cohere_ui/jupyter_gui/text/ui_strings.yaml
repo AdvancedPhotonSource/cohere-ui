@@ -22,6 +22,7 @@ progress_warning:
 # Action-row buttons visible on every tab.
 action_buttons:
   save:         Save
+  safe_mode:    Safe mode
   save_and_run: Save & Run
   run_anyway:   Run anyway
   cancel:       Cancel
@@ -38,6 +39,7 @@ status:
 
 # Hover tooltips. Multi-line entries render as multi-line tooltips.
 tooltips:
+  safe_mode:      'On: Save and Run saves the form (with validation) before running. Off: runs the on-disk config and ignores unsaved form changes.'
   run_all:        'Run Prep, Data, Reconstruction, then Display in sequence'
   back_to_picker: Back to picker
   rescan_parent:  Re-scan parent dir
@@ -50,13 +52,63 @@ tooltips:
   ai_model_download: Download the pre-trained AI model (.hdf5)
   docs_open:         Open the documentation in a new tab
   github_open:       Open the GitHub repository in a new tab
+  # Beamline Prep tab
+  remove_outliers: |
+    Automatically find and drop scans that disagree with the rest of the
+    batch before the scans are combined.
+    Helpful when a scan was spoiled by beam loss, sample drift, or
+    instability.
+    Only takes effect when a batch has more than three scans; the scans it
+    removes are reported afterward in the Outliers Scans field.
+  outliers_scans: |
+    Filled in for you. After preprocessing runs with outlier removal turned
+    on, the scans judged to be outliers are listed here.
+    You do not need to type anything; the list is recalculated on every run.
+
+  # Data tab
+  alien_alg: |
+    Choose how to remove "aliens": stray bright spots in the diffraction
+    pattern that come from other crystals or detector artifacts rather than
+    your sample.
+    "none" leaves the data as is.
+    "block aliens" zeroes out regions you specify by hand.
+    "alien file" applies a mask you prepared earlier.
+    "AutoAlien1" detects and removes them automatically.
+    Removing aliens before phasing usually gives a cleaner result.
+  binning: |
+    Merge neighboring pixels by adding them together, set as a factor per
+    dimension (for example 2, 2, 1 combines pixels in pairs along the first
+    two directions).
+    Use it to shrink large datasets and strengthen the signal per pixel, at
+    the cost of resolution.
+    Leave blank, or use 1, 1, 1, for no change.
+  no_center_max: |
+    Normally the brightest point of the diffraction pattern is moved to the
+    center before phasing.
+    Turn this on to leave the data exactly where it is.
+    Use it when your data is already centered, or when you do not want it
+    shifted for you.
+
+  # Postprocess tab
   make_twin: |
-    Write a conjugate-flipped copy of the reconstruction
-    (twin_direct_space_images.vts) for ambiguity diagnostics.
+    Also save the "twin" of your reconstruction: the flipped-and-mirrored
+    version that phasing cannot tell apart from the true one.
+    Comparing the two helps you decide which orientation is physically
+    correct.
+    It is saved as an extra result and does not change the main one.
   unwrap: |
-    Run skimage phase unwrap and write unwrapped_phase into the
-    direct-space VTS. Note: displacement still uses wrapped phase per
-    the postprocessor; this only adds an extra array to the VTS.
+    Add a version of the phase with the abrupt jumps removed, so it changes
+    gradually across the object instead of wrapping around.
+    Useful for inspecting slow phase variation across the sample.
+    It is added as an extra field; your standard results stay the same.
+  rampups: |
+    Remove an overall phase tilt across the object, which otherwise shows up
+    as a smooth color gradient that is an artifact rather than real
+    structure.
+    The number controls how finely the correction is made: 1 turns it off,
+    and larger values such as 2 or 3 apply a finer correction but take a
+    little longer.
+    Leaving it at 1 or 2 is fine for most work.
 
 # Descriptive placeholders (user-help text shown in empty fields).
 # Format-example placeholders ('e.g., [1, 2, 3]', '0.9', etc.) stay

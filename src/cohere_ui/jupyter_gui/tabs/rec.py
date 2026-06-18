@@ -47,7 +47,7 @@ _URLS = load_text('urls')
 class RecTab(BaseTab):
     """Tab for reconstruction configuration.
 
-    Supports the Qt GUI's named alternative rec configurations: a
+    Supports named alternative rec configurations: a
     ``rec_id`` dropdown above the form selects which of
     ``config_rec`` / ``config_rec_<id>`` the widgets read from and
     write to. The "+" button creates a new id by copying the current
@@ -65,7 +65,7 @@ class RecTab(BaseTab):
     def __init__(self):
         super().__init__()
         # '' = the canonical 'config_rec' (UI label: 'main'); anything
-        # else maps to 'config_rec_<id>'. Mirrors Qt's old_rec_id.
+        # else maps to 'config_rec_<id>'.
         self._rec_id: str = ''
 
     @property
@@ -76,8 +76,8 @@ class RecTab(BaseTab):
     def _output_dirname(self) -> str:
         """Reconstruction output directory for the active rec id.
 
-        Mirrors manage_reconstruction(rec_id=...): 'main' writes to
-        results_phasing/, a named id to results_phasing_<id>/.
+        'main' writes to results_phasing/, a named id to
+        results_phasing_<id>/.
         """
         return 'results_phasing' if not self._rec_id else f'results_phasing_{self._rec_id}'
 
@@ -140,7 +140,7 @@ class RecTab(BaseTab):
         self.features = {name: cls() for name, cls in get_rec_features().items()}
         self.feature_panel = FeaturePanel(self.features)
 
-        self.action_row = self._build_action_row(run_label='Run Reconstruction', run_width='180px')
+        self.action_row = self._build_action_row(run_label='Save and Run', run_width='150px')
         self.stop_btn = button('Stop', style='danger', width='80px')
         self.stop_btn.disabled = True
         self.stop_btn.on_click(lambda b: self._on_stop_guarded())
@@ -179,7 +179,7 @@ class RecTab(BaseTab):
         self._apply_device_enabled(self.proc.value)
 
         # Named alternative rec configurations row. Hidden until the
-        # user creates the first non-'main' id (matches Qt parity).
+        # user creates the first non-'main' id.
         self.rec_id_dropdown = dropdown(
             options=[_MAIN_REC_ID_LABEL], value=_MAIN_REC_ID_LABEL, width='180px',
         )
@@ -218,11 +218,16 @@ class RecTab(BaseTab):
             params_section,
             # FeaturePanel draws its own "Features (k/N active)" header.
             self.feature_panel.widget,
-            widgets.HBox([self.action_row, self.stop_btn]),
+            # width:100% so the flex-growing action row (with its status
+            # strip) fills the gap and Stop stays pinned to the right.
+            widgets.HBox(
+                [self.action_row, self.stop_btn],
+                layout=widgets.Layout(width='100%', align_items='center'),
+            ),
             self.monitor.widgets_box(),
         ])
 
-    # --- Named alternative rec configs (Qt parity) ---
+    # Named alternative rec configs
 
     def _discover_rec_ids(self) -> list:
         """Return the sorted list of '<id>' names found in ``conf/config_rec_*``.
@@ -265,9 +270,8 @@ class RecTab(BaseTab):
     def _on_rec_id_change(self, change):
         """Save the previous selection's widget state, then load the new one.
 
-        Mirrors Qt's ``toggle_conf`` (cohere_gui.py:1418). Best-effort
-        save: a validation error on the OLD config still allows the
-        switch, because the user wants to look at the NEW config.
+        Best-effort save: a validation error on the OLD config still
+        allows the switch, because the user wants to look at the NEW config.
         """
         if self.main_gui is None or not self.main_gui.experiment_exists():
             return
@@ -518,7 +522,7 @@ class RecTab(BaseTab):
             self.cont_dir = PathChooser(
                 kind='dir',
                 placeholder=_UI['placeholders']['prev_recon_dir'],
-                width='350px',
+                full_width=True,
             )
             self.init_guess_params.children = [
                 form_row('Continue Directory', self.cont_dir.widget),
@@ -528,7 +532,7 @@ class RecTab(BaseTab):
             self.ai_model = PathChooser(
                 kind='file',
                 placeholder=_UI['placeholders']['ai_model_path'],
-                width='350px',
+                full_width=True,
             )
 
             # Link to the pre-trained .hdf5 model on the Globus distribution.
@@ -542,12 +546,15 @@ class RecTab(BaseTab):
                     f'target="_blank" rel="noopener" '
                     f'download="cohere-trained_model.hdf5" '
                     f'title="{_UI["tooltips"]["ai_model_download"]}" '
-                    f'style="margin-left:8px; font-size:12px;">'
+                    f'style="margin-left:8px; font-size:12px; '
+                    f'white-space:nowrap;">'
                     f'<i class="fa fa-download" '
                     f'style="margin-right:4px;"></i>'
                     f'Download .hdf5</a>'
                 ),
-                layout=widgets.Layout(margin='4px 0 0 0'),
+                # flex 0 0 auto so the full-width path field can't squeeze the
+                # link into wrapping; it keeps its natural single-line width.
+                layout=widgets.Layout(flex='0 0 auto'),
             )
 
             self.init_guess_params.children = [
@@ -555,7 +562,13 @@ class RecTab(BaseTab):
                     'AI Model File',
                     widgets.HBox(
                         [self.ai_model.widget, download_link],
-                        layout=widgets.Layout(align_items='center'),
+                        # flex-basis 0 (not width 100%) so this wrapper claims
+                        # only the row's free space and never squeezes the
+                        # form_row label, keeping it aligned with other rows.
+                        layout=widgets.Layout(
+                            align_items='center',
+                            flex='1 1 0%', min_width='0',
+                        ),
                     ),
                 ),
             ]
@@ -689,9 +702,8 @@ class RecTab(BaseTab):
         self.raar_beta.value = ''
         self.initial_support_area.value = ''
         self.feature_panel.clear_all()
-        # Reset rec-id state to 'main' on a full clear (matches Qt's
-        # clear_conf at cohere_gui.py:1257-1271). The dropdown options
-        # are refreshed on the next load_tab.
+        # Reset rec-id state to 'main' on a full clear. The dropdown
+        # options are refreshed on the next load_tab.
         self._rec_id = ''
         if hasattr(self, 'rec_id_dropdown'):
             self.rec_id_dropdown.unobserve(self._on_rec_id_change, 'value')
@@ -702,8 +714,15 @@ class RecTab(BaseTab):
                 self.rec_id_dropdown.observe(self._on_rec_id_change, 'value')
         self._refresh_rec_id_status()
 
+    def _wire_status_line(self):
+        """RecTab logs through its monitor, not a LogPanel, so mirror the
+        monitor's appended lines into the status strip."""
+        if self.status_label is not None:
+            self.monitor.on_append = self._set_status
+
     def clear_output(self):
         self.monitor.clear_log()
+        self._reset_status()
 
     def log(self, message: str):
         self.monitor.log(message)

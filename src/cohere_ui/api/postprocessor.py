@@ -272,6 +272,24 @@ def interpolate(sgrid, resolution):
 
     dims = [int(r // resolution[i]) for i, r in enumerate(ranges)]
 
+    # interpolation_resolution is in the grid's real-space coordinate units.
+    # A value far finer than the native voxel (e.g. a nm-scale value against
+    # picometer-scale coords) asks for an astronomically large grid and the
+    # process aborts on allocation. Reject it with the native voxel size so
+    # the user can pick a sane value (or 'min_deconv_res').
+    native = [r / max(n - 1, 1) for r, n in zip(ranges, sgrid.dimensions)]
+    total = 1
+    for d in dims:
+        total *= max(d, 1)
+    if min(dims) < 2 or total > 512 ** 3:
+        raise ValueError(
+            f"interpolation_resolution {resolution} does not match the grid scale: "
+            f"axis extents are {[round(r) for r in ranges]} and the native voxel is "
+            f"~{[round(v) for v in native]}, so it would build a {dims} grid "
+            f"({total:.2e} voxels). Use a value near or above the native voxel size, "
+            f"or set interpolation_resolution to 'min_deconv_res' to derive it."
+        )
+
     image_data = pv.ImageData(
         dimensions=dims,
         origin=starts,

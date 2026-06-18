@@ -130,6 +130,15 @@ instr:
   parse_spec_failed: "Couldn't parse scan metadata: {error}"
   no_beamline_save: "No beamline selected; nothing to save."
   nothing_to_run: "Nothing to run on this tab; use Save to write the configuration."
+  init_examples_button: "Initialize example configs"
+  init_examples_warning: >-
+    This experiment's configuration still contains the <b>EXP_DIR</b>
+    placeholder. Click below to run <code>init_examples.py</code>, which
+    expands it to the real path across all example experiments.
+  init_examples_detected: "Found EXP_DIR placeholder; example configs need initialization. Use the button above to run init_examples.py."
+  init_examples_running: "Running init_examples.py to initialize example configs..."
+  init_examples_done: "Example configs initialized."
+  init_examples_failed: "init_examples.py failed: {error}"
   placeholder: >-
     No beamline selected. Open the <b>Create new</b> wizard in the
     header above to pick one, or load an existing experiment that
@@ -150,6 +159,7 @@ buttons:
   save_saved: "Config on disk matches form; nothing to save."
   save_modified: "Form differs from saved config; click to save."
   save_absent: "No config on disk yet; click to write it."
+  run_safe: "Saves the form (with validation), then runs this step."
   run_saved: "Config on disk matches form; run now."
   run_modified: "Unsaved changes; click to choose Save & Run / Run anyway."
   run_absent: "No config on disk yet; click to save & run."

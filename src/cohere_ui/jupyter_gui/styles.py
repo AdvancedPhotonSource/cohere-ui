@@ -106,6 +106,15 @@ CUSTOM_CSS = """
     background-color: rgb(155, 188, 136) !important;
 }
 
+/* Split-run caret: a one-glyph down-caret (U+25BC) button. ipywidgets'
+   default ~10px side padding leaves a ~28px button too little room for the
+   glyph, so it collapses to an ellipsis; zero the padding so it shows.
+   Double selector covers both ipywidgets 7 and 8 DOM trees. */
+.jup-gui-caret button,
+.jup-gui-caret.widget-button {
+    padding: 0 !important;
+}
+
 /* Info/defaults buttons, keep teal */
 .jup-gui-info {
     background-color: rgb(0, 151, 167) !important;
@@ -211,6 +220,13 @@ CUSTOM_CSS = """
    JupyterLab front-end. */
 .jup-gui-feature-row {
     display: contents !important;
+}
+
+/* Hide a feature row. The `display: contents !important` above outranks an
+   inline display:none, so conditional rows toggle this higher-specificity
+   class instead (see widgets.set_row_visible). */
+.jup-gui-feature-row.jup-gui-row-hidden {
+    display: none !important;
 }
 
 /* Postprocess tab: collapsible VTS/VTI viewer panel. Bordered card so

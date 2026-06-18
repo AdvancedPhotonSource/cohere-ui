@@ -186,6 +186,20 @@ def grid_full(widget, *, justify: str = 'start') -> widgets.Box:
     return box
 
 
+def set_row_visible(row, visible: bool) -> None:
+    """Show or hide a grid_field row.
+
+    grid_field rows carry `.jup-gui-feature-row` (display: contents
+    !important, to promote their label and widget into the parent grid),
+    which an inline display:none cannot override. Toggle the hidden class
+    instead; its rule wins by higher specificity.
+    """
+    if visible:
+        row.remove_class('jup-gui-row-hidden')
+    else:
+        row.add_class('jup-gui-row-hidden')
+
+
 def form_row(label: str, widget, label_width: str = '180px',
              right_align: bool = False, title: str = '') -> widgets.HBox:
     """Create a horizontal label-widget pair.
@@ -304,19 +318,22 @@ class SaveButton:
 
 
 class SplitRunButton:
-    """Run button with an inline 3-way menu for unsaved-changes choices.
+    """Run button with an optional inline 3-way menu for unsaved changes.
 
-    When the tab is clean, the main face triggers a plain run. When
-    modified or absent, the row swaps to ``[Save & Run] [Run anyway]
-    [Cancel]`` and collapses back after any choice.
+    In safe mode (the default) it is a single face: clicking always saves
+    the form (with validation) then runs. When safe mode is off a caret is
+    shown and a modified tab expands to ``[Save & Run] [Run anyway]
+    [Cancel]`` so the user can run against the on-disk config. The header's
+    Safe mode checkbox flips this live via :meth:`set_safe`.
     """
 
     def __init__(self, description: str, *, on_save_and_run, on_run_only,
-                 width: str = '160px'):
+                 width: str = '160px', safe: bool = True):
         self._description = description
         self._on_save_and_run = on_save_and_run
         self._on_run_only = on_run_only
         self._state = 'saved'
+        self._safe = safe
 
         self.main_btn = widgets.Button(
             description=description,
@@ -324,11 +341,12 @@ class SplitRunButton:
         )
         apply_button_role(self.main_btn, 'run')
         self.caret_btn = widgets.Button(
-            description='\u25bc',
+            description='\u25bc',  # down-pointing caret
             tooltip=_BTN['run_options'],
-            layout=widgets.Layout(width='28px'),
+            layout=widgets.Layout(width='30px'),
         )
         apply_button_role(self.caret_btn, 'run')
+        self.caret_btn.add_class('jup-gui-caret')
 
         self.save_and_run_btn = widgets.Button(
             description=_UI['action_buttons']['save_and_run'],
@@ -352,11 +370,12 @@ class SplitRunButton:
         self.run_only_btn.on_click(lambda b: self._choose(self._on_run_only))
         self.cancel_btn.on_click(lambda b: self._close_menu())
 
-        self._collapsed_row = widgets.HBox([self.main_btn, self.caret_btn])
+        self._collapsed_row = widgets.HBox([])
         self._expanded_row = widgets.HBox(
             [self.save_and_run_btn, self.run_only_btn, self.cancel_btn]
         )
         self._container = widgets.HBox([self._collapsed_row])
+        self._render_collapsed()
         self._update_visuals()
 
     @property
@@ -367,6 +386,16 @@ class SplitRunButton:
         if state == self._state:
             return
         self._state = state
+        self._update_visuals()
+
+    def set_safe(self, safe: bool):
+        """Switch between safe (plain) and split (caret + menu) modes live."""
+        safe = bool(safe)
+        if safe == self._safe:
+            return
+        self._safe = safe
+        self._close_menu()
+        self._render_collapsed()
         self._update_visuals()
 
     def set_enabled(self, enabled: bool):
@@ -399,8 +428,18 @@ class SplitRunButton:
                 return False
         return _Busy()
 
+    def _render_collapsed(self):
+        self._collapsed_row.children = (
+            [self.main_btn] if self._safe
+            else [self.main_btn, self.caret_btn]
+        )
+        self._container.children = [self._collapsed_row]
+
     def _update_visuals(self):
-        if self._state == 'saved':
+        if self._safe:
+            self.main_btn.description = self._description
+            self.main_btn.tooltip = _BTN['run_safe']
+        elif self._state == 'saved':
             self.main_btn.description = self._description
             self.main_btn.tooltip = _BTN['run_saved']
         elif self._state == 'modified':
@@ -411,13 +450,15 @@ class SplitRunButton:
             self.main_btn.tooltip = _BTN['run_absent']
 
     def _on_main_click(self, _b):
-        if self._state == 'modified':
+        if not self._safe and self._state == 'modified':
             self._open_menu()
         else:
-            # saved -> no-op save; absent -> first-write save.
+            # safe mode, or clean/absent split mode -> save then run.
             self._choose(self._on_save_and_run)
 
     def _open_menu(self):
+        if self._safe:
+            return
         self._container.children = [self._expanded_row]
 
     def _close_menu(self):
@@ -649,15 +690,21 @@ class PathChooser:
     """
 
     def __init__(self, kind: str = 'dir', placeholder: str = '',
-                 width: str = '420px'):
+                 width: str = '420px', full_width: bool = False):
         if kind not in ('dir', 'file'):
             raise ValueError(f'kind must be "dir" or "file", got {kind!r}')
         self.kind = kind
 
-        self.text = widgets.Text(
-            placeholder=placeholder,
-            layout=widgets.Layout(width=width, flex='0 0 auto'),
-        )
+        # full_width: the input flex-grows to fill the row (minus the browse
+        # button) so long paths show as much tail as possible. min_width:0
+        # lets it shrink past its content so the button never overflows.
+        if full_width:
+            text_layout = widgets.Layout(
+                width='auto', flex='1 1 auto', min_width='0',
+            )
+        else:
+            text_layout = widgets.Layout(width=width, flex='0 0 auto')
+        self.text = widgets.Text(placeholder=placeholder, layout=text_layout)
         self.text.continuous_update = False
         self.text.add_class('jup-gui-path-input')
         self.text.observe(self._on_text_change, 'value')
@@ -666,7 +713,7 @@ class PathChooser:
         self.browse_btn = widgets.Button(
             description='', icon='folder-open',
             tooltip=f'Browse for {kind}',
-            layout=widgets.Layout(width='38px'),
+            layout=widgets.Layout(width='38px', flex='0 0 auto'),
         )
         self.browse_btn.on_click(self._toggle_chooser)
 
@@ -675,10 +722,19 @@ class PathChooser:
         )
         self._chooser_open = False
 
-        self.widget = widgets.VBox([
-            widgets.HBox([self.text, self.browse_btn]),
-            self._chooser_box,
-        ])
+        # When full_width, the outer VBox grows into the row's free space via
+        # flex-basis 0 (flex='1 1 0%'). A 100% basis would overflow past the
+        # form_row label and make flexbox shrink the *label* column, so path
+        # rows would no longer align with the fixed-width rows above/below.
+        # Basis 0 leaves the label untouched and just claims what's left.
+        input_row = widgets.HBox([self.text, self.browse_btn])
+        outer_layout = widgets.Layout()
+        if full_width:
+            input_row.layout.width = '100%'
+            outer_layout = widgets.Layout(flex='1 1 0%', min_width='0')
+        self.widget = widgets.VBox(
+            [input_row, self._chooser_box], layout=outer_layout,
+        )
 
     @property
     def value(self) -> str:
@@ -939,6 +995,10 @@ class LogPanel:
         self._lines = []
         self._max_lines = max_lines
         self.show_debug = False
+        # Optional (level, msg) callback fired on every appended line. The
+        # owning tab points this at its status strip so the latest log line
+        # mirrors into the one-liner next to the action buttons.
+        self.on_append = None
         # Line-based heights so every panel starts compact (~5 lines) and
         # grows to ~10 when debug is revealed. An explicit ``height`` (kept
         # for back-compat) pins both states to that value.
@@ -1100,6 +1160,11 @@ class LogPanel:
         self._refresh_copy_button()
         if level == 'error':
             self.set_show_log(True)
+        if self.on_append is not None:
+            try:
+                self.on_append(level, str(msg))
+            except Exception as e:
+                sys.stderr.write(f"LogPanel.on_append failed: {type(e).__name__}: {e}\n")
 
     def _refresh(self):
         try:

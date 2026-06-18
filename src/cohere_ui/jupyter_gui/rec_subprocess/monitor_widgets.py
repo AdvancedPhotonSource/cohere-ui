@@ -35,12 +35,12 @@ class RecMonitorWidgets:
         # M's calc() subtracts half the container gap (6 px) plus a 2 px
         # safety margin to avoid wrapping to a second row.
         'S': {'min_height': '180px', 'max_width': '420px', 'flex': '0 1 auto'},
-        'M': {'min_height': '260px', 'max_width': 'calc(50% - 8px)', 'flex': '1 1 0'},
+        'M': {'min_height': '260px', 'max_width': 'calc(50% - 10px)', 'flex': '1 1 0'},
         'L': {'min_height': '360px', 'max_width': '900px', 'flex': '0 1 auto'},
     }
 
     def __init__(self):
-        # --- progress label + bar -------------------------------------
+        # progress label + bar
         self.progress_label = widgets.HTML(value=_UI['status']['idle'])
         self.progress_bar = widgets.IntProgress(
             value=0, min=0, max=1,
@@ -49,7 +49,7 @@ class RecMonitorWidgets:
         )
         self.progress_bar.layout.visibility = 'hidden'
 
-        # --- live view + error plot -----------------------------------
+        # live view + error plot
         self.live_view_caption = widgets.HTML(
             value=_UI['snapshot_panel']['idle'],
         )
@@ -83,7 +83,7 @@ class RecMonitorWidgets:
         # The size selector is only meaningful once an image is showing.
         self.image_toolbar.layout.display = 'none'
 
-        # --- log widget + toolbar -------------------------------------
+        # log widget + toolbar
         # Compact by default (~5 lines), grows to ~10 when debug is on
         # (see _on_debug_toggle), and is drag-resizable via .jup-gui-log-box.
         self._log_h_normal = log_box_height(5)
@@ -130,8 +130,11 @@ class RecMonitorWidgets:
         self.log_widget.layout.display = 'none'
 
         self._log_lines: list = []
+        # Optional (level, msg) callback fired on every appended line, so the
+        # Reconstruction tab can mirror the latest line into its status strip.
+        self.on_append = None
 
-    # --- public stack ------------------------------------------------
+    # public stack
 
     def widgets_box(self) -> widgets.VBox:
         """Return the monitor's widgets stacked in display order."""
@@ -145,7 +148,7 @@ class RecMonitorWidgets:
             self.log_widget,
         ])
 
-    # --- log API used by RecMonitor ----------------------------------
+    # log API used by RecMonitor
 
     def append(self, msg, level: str = 'info') -> None:
         """Append a line to the log widget at ``level``.
@@ -159,6 +162,13 @@ class RecMonitorWidgets:
         self._refresh_log()
         if level == 'error' and not self.show_log_checkbox.value:
             self.show_log_checkbox.value = True
+        if self.on_append is not None:
+            try:
+                self.on_append(level, str(msg))
+            except Exception as e:
+                sys.stderr.write(
+                    f"RecMonitorWidgets.on_append failed: {type(e).__name__}: {e}\n"
+                )
 
     def clear(self) -> None:
         """Clear the log widget."""
@@ -181,7 +191,7 @@ class RecMonitorWidgets:
             self._log_h_debug if self.show_debug else self._log_h_normal
         )
 
-    # --- live view / error plot visibility ---------------------------
+    # live view / error plot visibility
 
     def set_live_view(self, png) -> None:
         """Set the live-view image and reveal it only when it has bytes."""
@@ -206,7 +216,7 @@ class RecMonitorWidgets:
         self.error_plot.layout.display = '' if has_err else 'none'
         self.image_toolbar.layout.display = '' if (has_live or has_err) else 'none'
 
-    # --- internal handlers -------------------------------------------
+    # internal handlers
 
     def _make_shared_image_toolbar(self) -> widgets.HBox:
         """Shared image-size selector above the live_view + error_plot stack."""

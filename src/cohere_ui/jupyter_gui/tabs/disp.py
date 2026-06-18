@@ -14,10 +14,9 @@ from cohere_ui.jupyter_gui.widgets import (
     FeaturePanel, LogPanel, PathChooser, button, checkbox, dropdown,
     form_row, text_field,
 )
-import traceback
 
-from cohere_ui.jupyter_gui.utils.error_format import format_error_summary
 from cohere_ui.jupyter_gui.viewers.vts_viewer import VtsViewer
+from cohere_ui.jupyter_gui.viz_subprocess.monitor import VizMonitor
 
 _UI = load_text('ui_strings')
 
@@ -42,7 +41,20 @@ class DispTab(BaseTab):
         # file whose results_dir pointer encodes the choice.
         self._rec_id: str = ''
 
-    # reconstruction-id helpers (mirror RecTab) 
+        # Postprocess now runs in a subprocess; this holds the pre-run output
+        # snapshot until the child finishes (see run_tab / _on_viz_finished).
+        self._viz_before_snapshot = None
+
+        # Captured on the main (kernel) thread so the watchdog thread can
+        # marshal the post-run viewer refresh back onto it: PyVista/trame
+        # touch an OpenGL context that must run on the main thread.
+        try:
+            import tornado.ioloop
+            self._main_loop = tornado.ioloop.IOLoop.current(instance=False)
+        except Exception:
+            self._main_loop = None
+
+    # reconstruction-id helpers
 
     def _output_dirname(self) -> str:
         """Input reconstruction dir for the active id."""
@@ -65,7 +77,7 @@ class DispTab(BaseTab):
         self.result_dir = PathChooser(
             kind='dir',
             placeholder=_UI['placeholders']['phasing_results'],
-            width='350px',
+            full_width=True,
         )
         # A manual edit of the path should best-effort re-select the
         # matching reconstruction in the dropdown (or mark it custom).
@@ -79,7 +91,7 @@ class DispTab(BaseTab):
             tooltip=_UI['tooltips']['unwrap'],
         )
         self.rampups = text_field(
-            placeholder='e.g., 1 (no smoothing) or 3', width='100px',
+            placeholder='e.g., 1 (no ramp removal) or 2', width='100px',
         )
         self.complex_mode = dropdown(
             options=['AmpPhase', 'ReIm'], value='AmpPhase', width='140px',
@@ -90,9 +102,18 @@ class DispTab(BaseTab):
         self.features = {name: cls() for name, cls in get_disp_features().items()}
         self.feature_panel = FeaturePanel(self.features)
 
-        self.action_row = self._build_action_row(run_label='Process Display', run_width='160px')
+        self.action_row = self._build_action_row(run_label='Save and Run', run_width='150px')
+        self.stop_btn = button('Stop', style='danger', width='80px')
+        self.stop_btn.disabled = True
+        self.stop_btn.on_click(lambda b: self._on_stop())
 
         self.log_panel = LogPanel()
+
+        # Runs handle_visualization off the kernel thread, streaming its
+        # stdout into log_panel so the UI stays responsive with live progress.
+        self.viz_monitor = VizMonitor(log=self._viz_log)
+        self.viz_monitor.on_running_changed = self._on_running_changed
+        self.viz_monitor.on_finished = self._on_viz_finished
 
         # Collapsible 3D viewer for results_viz/*.vts and *.vti files.
         # Construction is lazy (no GL context until the user expands it
@@ -106,17 +127,30 @@ class DispTab(BaseTab):
             'Options', widgets.HBox([self.make_twin, self.unwrap])
         )
 
+        # Rows hidden in multipeak (mp.process_dir honors only rampups and
+        # make_twin from config_disp); stored so _apply_multipeak_visibility
+        # can toggle their display.
+        self._results_dir_row = form_row('Results directory', self.result_dir.widget)
+        self._complex_mode_row = form_row('Complex mode', self.complex_mode)
+        self._multipeak_note = widgets.HTML(
+            '<span style="font-size:12px;color:var(--jup-fg-muted);">Multipeak '
+            'postprocessing honors only <b>Rampups</b> and <b>Make twin</b>; '
+            'voxel size comes from <code>config_mp</code> ds_voxel_size.</span>',
+            layout=widgets.Layout(margin='0 0 8px 0'),
+        )
+
         params_section = widgets.VBox([
-            form_row('Results directory', self.result_dir.widget),
-            form_row('Complex mode', self.complex_mode),
-            form_row('Rampups (smoothing passes)', self.rampups),
+            self._results_dir_row,
+            self._complex_mode_row,
+            form_row('Ramp upscale', self.rampups,
+                     title=_UI['tooltips']['rampups']),
             options_row,
         ])
 
         # Reconstruction selector: quick-switch which reconstruction this
-        # tab post-processes. Mirrors the rec tab's config dropdown.
-        # Selecting an id points result_dir at results_phasing[_<id>]/ so
-        # output lands in results_viz[_<id>]/ (backend-derived).
+        # tab post-processes. Selecting an id points result_dir at
+        # results_phasing[_<id>]/ so output lands in results_viz[_<id>]/
+        # (backend-derived).
         self.disp_rec_id_dropdown = dropdown(
             options=[_MAIN_DISP_ID_LABEL], value=_MAIN_DISP_ID_LABEL, width='180px',
         )
@@ -136,9 +170,15 @@ class DispTab(BaseTab):
             self.disp_rec_id_row,
             self.disp_rec_id_status,
             params_section,
+            self._multipeak_note,
             # FeaturePanel renders its own "Features (k/N active)" header.
             self.feature_panel.widget,
-            self.action_row,
+            # width:100% so the flex-growing action row (with its status
+            # strip) fills the gap and Stop stays pinned to the right.
+            widgets.HBox(
+                [self.action_row, self.stop_btn],
+                layout=widgets.Layout(width='100%', align_items='center'),
+            ),
             self.log_panel.widget,
             # 3D viewer lives at the bottom: collapsed by default, only
             # meaningful once Process Display has written results_viz/.
@@ -152,15 +192,19 @@ class DispTab(BaseTab):
 
         return layout
 
-    # --- reconstruction selector machinery (mirror RecTab) ---
+    # reconstruction selector machinery
 
     def _apply_multipeak_visibility(self) -> None:
-        """Hide the reconstruction selector in multipeak experiments.
+        """Hide the reconstruction selector and the options mp.process_dir
+        ignores in multipeak experiments.
 
         The multipeak postprocess path (mp.process_dir) hardcodes
         results_phasing/results_viz and ignores rec_id, so the selector
         would be misleading; the viewer is left unscoped to show every
-        results_viz_<hkl>/.
+        results_viz_<hkl>/. It also honors only rampups and make_twin from
+        config_disp, so results_dir, complex_mode, unwrap, and the display
+        features are hidden too (make_twin stays, so hide only self.unwrap,
+        not the whole options row).
         """
         if not hasattr(self, 'disp_rec_id_row'):
             return
@@ -171,6 +215,11 @@ class DispTab(BaseTab):
         display = 'none' if is_mp else ''
         self.disp_rec_id_row.layout.display = display
         self.disp_rec_id_status.layout.display = display
+        self._results_dir_row.layout.display = display
+        self._complex_mode_row.layout.display = display
+        self.unwrap.layout.display = display
+        self.feature_panel.widget.layout.display = display
+        self._multipeak_note.layout.display = '' if is_mp else 'none'
         if is_mp:
             self._rec_id = ''
             if hasattr(self, 'viewer'):
@@ -322,14 +371,31 @@ class DispTab(BaseTab):
         """Read current widget values into config dictionary."""
         conf_map = {}
 
-        if self.result_dir.value:
-            conf_map['results_dir'] = self.result_dir.value
         if self.make_twin.value:
             conf_map['make_twin'] = True
+        if self.rampups.value:
+            # rampups must be an int (the verifier rejects floats and the
+            # backend multiplies array dims by it). Coerce a whole-number
+            # float to int; leave anything else for verification to flag.
+            rampups = self._parse_field('rampups', self.rampups.value)
+            if isinstance(rampups, float) and rampups.is_integer():
+                rampups = int(rampups)
+            conf_map['rampups'] = rampups
+
+        # Multipeak postprocessing (mp.process_dir) honors only rampups and
+        # make_twin; results_dir, complex_mode, unwrap, and the display
+        # features are ignored, so don't write them.
+        try:
+            is_mp = bool(self.main_gui and self.main_gui._is_multipeak_experiment())
+        except Exception:
+            is_mp = False
+        if is_mp:
+            return conf_map
+
+        if self.result_dir.value:
+            conf_map['results_dir'] = self.result_dir.value
         if self.unwrap.value:
             conf_map['unwrap'] = True
-        if self.rampups.value:
-            conf_map['rampups'] = self._parse_field('rampups', self.rampups.value)
         # Always write complex_mode: the postprocessor branches on it for
         # interpolation, so saving it explicitly pins behaviour even if the
         # upstream default changes.
@@ -384,7 +450,7 @@ class DispTab(BaseTab):
         self.rampups.value = ''
         self.complex_mode.value = 'AmpPhase'
         self.feature_panel.clear_all()
-        # Reset the reconstruction selector to 'main' (mirrors RecTab).
+        # Reset the reconstruction selector to 'main'.
         self._rec_id = ''
         if hasattr(self, 'disp_rec_id_dropdown'):
             self.disp_rec_id_dropdown.unobserve(self._on_disp_rec_id_change, 'value')
@@ -398,14 +464,21 @@ class DispTab(BaseTab):
         self._refresh_disp_status()
 
     def run_tab(self, skip_save: bool = False):
-        """Execute visualization/postprocessing."""
-        import cohere_ui.beamline_postprocess as dp
+        """Validate + save synchronously, then run postprocessing in a subprocess.
 
+        The heavy ``handle_visualization`` call is offloaded to ``viz_monitor``
+        so the kernel stays responsive and the backend's stdout streams live
+        into the log. Post-run bookkeeping moves to ``_on_viz_finished``.
+        """
         self.clear_output()
 
         err = self._validate_experiment()
         if err:
             self.log_error(err)
+            return
+
+        if self.viz_monitor.is_running:
+            self.log_warning('Visualization already running. Click Stop first.')
             return
 
         if not self.result_dir.value:
@@ -431,34 +504,67 @@ class DispTab(BaseTab):
             if self.save_and_verify():
                 return
 
-        before = self._snapshot_outputs()
-        try:
-            self.log_info(_MSG['disp']['running'])
-            dp.handle_visualization(self.main_gui.experiment_dir, no_verify=self.main_gui.no_verify)
+        self._viz_before_snapshot = self._snapshot_outputs()
+        self.log_info(_MSG['disp']['running'])
+        self.viz_monitor.start(
+            self.main_gui.experiment_dir,
+            {'no_verify': self.main_gui.no_verify},
+        )
+
+    def _viz_log(self, text, level='info'):
+        """Route a VizMonitor record to the tab's log panel by level."""
+        {
+            'success': self.log_success,
+            'warning': self.log_warning,
+            'error': self.log_error,
+            'debug': self.log_debug,
+        }.get(level, self.log_info)(text)
+
+    def _on_stop(self):
+        self.viz_monitor.stop()
+
+    def _on_running_changed(self, running: bool):
+        """Disable Run / Load while a subprocess is live; enable Stop."""
+        if self.split_run is not None:
+            self.split_run.set_enabled(not running)
+        if self.load_btn is not None:
+            self.load_btn.disabled = running
+        self.stop_btn.disabled = not running
+
+    def _on_viz_finished(self, exit_code):
+        """Post-run bookkeeping. Fires on the watchdog thread, so marshal the
+        viewer refresh onto the kernel's main loop (PyVista/trame need it)."""
+        if exit_code == 0:
             self.log_success(_MSG['disp']['complete'])
-        except Exception as e:
-            self.log_error(format_error_summary(e))
-            self.log_debug(traceback.format_exc())
-        finally:
+        loop = self._main_loop
+        if loop is not None:
+            loop.add_callback(self._finish_on_main)
+        else:
+            self._finish_on_main()
+
+    def _finish_on_main(self):
+        before = self._viz_before_snapshot
+        self._viz_before_snapshot = None
+        if before is not None:
             self._log_file_changes(before)
-            # Refresh the viewer if it's currently visible so a re-run
-            # is reflected without a manual Reload click. When collapsed
-            # we still refresh its file picker so the next expand is
-            # current, but skip the expensive re-read of the iframe.
-            try:
-                if self.viewer.is_visible:
-                    self.viewer.reload()
-                else:
-                    self.viewer._refresh_file_options()
-                    self.viewer._refresh_title()
-            except Exception as e:
-                self.log_debug(f'viewer post-run refresh skipped: {e}')
+        # Refresh the viewer if it's currently visible so a re-run is
+        # reflected without a manual Reload click. When collapsed we still
+        # refresh its file picker so the next expand is current, but skip
+        # the expensive re-read of the iframe.
+        try:
+            if self.viewer.is_visible:
+                self.viewer.reload()
+            else:
+                self.viewer._refresh_file_options()
+                self.viewer._refresh_title()
+        except Exception as e:
+            self.log_debug(f'viewer post-run refresh skipped: {e}')
 
     def _missing_required_inputs(self) -> list:
         """Return descriptions of any required input file that's absent.
 
-        Mirrors ``handle_visualization``'s search: at least one
-        ``results_phasing/<*>/image.npy`` must exist under the experiment dir.
+        At least one ``results_phasing/<*>/image.npy`` must exist under
+        the experiment dir.
         """
         if not self.main_gui or not self.main_gui.experiment_dir:
             return ["experiment directory not set"]

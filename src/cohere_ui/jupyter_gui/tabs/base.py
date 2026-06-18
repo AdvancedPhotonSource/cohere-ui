@@ -56,10 +56,31 @@ class BaseTab(ABC):
     name: str = "Tab"
     conf_name: str = "config"
 
+    # Status-strip styling: latest log line mirrored next to the action
+    # buttons. Palette and prefixes mirror LogPanel so the one-liner reads
+    # the same as the line it echoes from the log.
+    _STATUS_STYLE = {
+        'info':    'color:var(--jup-fg-muted);',
+        'success': 'color:var(--jup-success);',
+        'warning': 'color:var(--jup-warn);',
+        'error':   'color:var(--jup-error);font-weight:600;',
+    }
+    _STATUS_PREFIX = {
+        'info': '', 'success': '[OK] ',
+        'warning': '[WARN] ', 'error': '[ERROR] ',
+    }
+    _STATUS_IDLE_HTML = (
+        '<div style="color:var(--jup-fg-faint);font-size:11px;font-style:italic;'
+        'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Ready</div>'
+    )
+
     def __init__(self):
         self.main_gui = None
         self.log_panel = None
         self._widget = None
+        # One-line status strip in the action row; mirrors the latest log
+        # line. Populated by _build_action_row(), wired by _wire_status_line().
+        self.status_label: Optional[widgets.HTML] = None
         # Populated by _build_action_row() for the standard [Load][Save][Run]
         # row; refresh_action_state silently no-ops if a tab skips the helper.
         self.save_button: Optional[SaveButton] = None
@@ -70,6 +91,7 @@ class BaseTab(ABC):
         """Initialize the tab with reference to main GUI."""
         self.main_gui = main_gui
         self._widget = self._build_ui()
+        self._wire_status_line()
         self._install_state_observers()
 
     @staticmethod
@@ -316,8 +338,12 @@ class BaseTab(ABC):
         """Return the standard [Load][Save] (+ optional [SplitRun]) HBox.
 
         Pass ``run_label=None`` for tabs with no backend step to omit
-        SplitRun. Sets ``self.load_btn``, ``self.save_button``, and
-        ``self.split_run``.
+        SplitRun. Sets ``self.load_btn``, ``self.save_button``,
+        ``self.split_run``, and ``self.status_label``.
+
+        The status strip is the last child and flex-grows to fill the
+        leftover width. Tabs that wrap this row with a trailing ``Stop``
+        button (Rec/Disp) keep the strip filling the gap before Stop.
         """
         self.load_btn = button('Load Config', style='warning', width='120px', role='load')
         self.load_btn.on_click(lambda b: self._load_config_dialog())
@@ -336,7 +362,62 @@ class BaseTab(ABC):
             children.append(self.split_run.widget)
         else:
             self.split_run = None
-        return widgets.HBox(children)
+
+        # min_width:0 lets the strip shrink below its text so ellipsis can
+        # kick in inside the flex row; flex:1 makes it fill the rest.
+        self.status_label = widgets.HTML(
+            value=self._STATUS_IDLE_HTML,
+            layout=widgets.Layout(
+                flex='1 1 0%', min_width='0', overflow='hidden',
+                margin='0 0 0 12px', align_self='center',
+            ),
+        )
+        children.append(self.status_label)
+
+        # flex on the row itself so it grows beside a trailing Stop button
+        # in the Rec/Disp wrapper HBox; harmless when it's a VBox child.
+        return widgets.HBox(
+            children, layout=widgets.Layout(align_items='center', flex='1 1 0%'),
+        )
+
+    def _wire_status_line(self):
+        """Point the tab's log sink at the status strip.
+
+        Base wiring covers tabs that own a ``LogPanel`` (Instr/Prep/Data/
+        Disp). RecTab overrides this to wire its monitor instead.
+        """
+        if self.status_label is not None and self.log_panel is not None:
+            self.log_panel.on_append = self._set_status
+
+    def _set_status(self, level: str, msg: str):
+        """Mirror the latest log line into the action-row status strip.
+
+        Fed by the ``on_append`` hooks on LogPanel / RecMonitorWidgets, so
+        it runs on whichever thread produced the line (the subprocess
+        listener thread for Rec/Postprocess); the ipywidgets ``.value`` set
+        marshals to the kernel thread the same way the progress bar does.
+        Debug lines are skipped, matching the log panel hiding them by default.
+        """
+        if self.status_label is None or level == 'debug':
+            return
+        from html import escape
+        text = str(msg).strip()
+        if not text:
+            return
+        safe = escape(text, quote=True)
+        style = self._STATUS_STYLE.get(level, self._STATUS_STYLE['info'])
+        prefix = escape(self._STATUS_PREFIX.get(level, ''))
+        self.status_label.value = (
+            f'<div title="{safe}" style="{style}'
+            'font-size:11px;font-family:Menlo,Consolas,monospace;'
+            'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'
+            f'{prefix}{safe}</div>'
+        )
+
+    def _reset_status(self):
+        """Reset the status strip to its idle text (called when the log clears)."""
+        if self.status_label is not None:
+            self.status_label.value = self._STATUS_IDLE_HTML
 
     def _on_save_clicked(self):
         """Standalone Save button handler (no run)."""
@@ -440,6 +521,7 @@ class BaseTab(ABC):
         """Clear the log panel. Subclasses with a different sink override this."""
         if self.log_panel is not None:
             self.log_panel.clear()
+        self._reset_status()
 
     def _validate_experiment(self) -> Optional[str]:
         """Return an error message if the experiment is not ready, else None."""

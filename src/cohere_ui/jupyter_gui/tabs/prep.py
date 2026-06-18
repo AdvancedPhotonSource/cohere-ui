@@ -32,10 +32,12 @@ class PrepTab(BaseTab):
             value=''
         )
         self.max_crop = text_field(placeholder='e.g., [100, 100]')
-        self.remove_outliers = checkbox('remove outliers')
+        self.remove_outliers = checkbox(
+            'remove outliers', tooltip=_UI['tooltips']['remove_outliers']
+        )
         self.outliers_scans = text_field(placeholder=_UI['placeholders']['auto_after_prep'])
 
-        self.action_row = self._build_action_row(run_label='Prepare', run_width='130px')
+        self.action_row = self._build_action_row(run_label='Save and Run', run_width='150px')
 
         self.log_panel = LogPanel()
 
@@ -71,7 +73,8 @@ class PrepTab(BaseTab):
             roi_tooltip,
             form_row('Max Crop', self.max_crop),
             self.remove_outliers,
-            form_row('Outliers Scans', self.outliers_scans),
+            form_row('Outliers Scans', self.outliers_scans,
+                     title=_UI['tooltips']['outliers_scans']),
             self.action_row,
             self.log_panel.widget,
             widgets.HTML('<hr style="margin:12px 0;">'),

@@ -165,12 +165,32 @@ crop:
     is a safe default. Use <code>tight</code> with margin <code>10</code>
     and threshold <code>0.5</code> when the object is well-separated from
     the array edges.
+  tooltips:
+    crop_type: >-
+      How to crop the output volume around the object. 'fraction' keeps a
+      set fraction of each axis around the center; 'tight' uses the
+      object's bright-voxel bounding box plus a margin. The fields below
+      change to match.
+    margin: >-
+      Tight mode. Extra voxels kept on every side of the object's bounding
+      box. Whole number, e.g. 10. Larger leaves more empty space around the
+      object.
+    thresh: >-
+      Tight mode. Amplitude cutoff that marks the object's edge, as a
+      fraction of the peak amplitude. Between 0 and 1, e.g. 0.5. Lower keeps
+      more faint outer signal; higher crops tighter.
+    fraction: >-
+      Fraction mode. Fraction of each axis to keep around the center, one
+      value per dimension. Three numbers from 0 to 1, e.g. [0.5, 0.5, 0.5]
+      keeps the central half of each axis.
 
 interpolation:
   name: interpolation
   description: |
     Interpolate the reconstructed image to a target resolution and write
-    a <code>.vts</code> file alongside the standard outputs.
+    a <code>direct_space_images_interpolated_&lt;mode&gt;.vti</code> file
+    alongside the standard outputs (interpolation lands on a uniform grid,
+    hence ImageData / <code>.vti</code>).
     <code>AmpPhase</code> interpolates amplitudes and phases directly;
     <code>ReIm</code> interpolates real and imaginary, then derives
     amplitude / phase.
@@ -179,6 +199,19 @@ interpolation:
     <code>min_deconv_res</code> (requires the Resolution feature),
     a single integer (same value per dimension), a single float, or a
     list giving per-dimension resolution.
+  tooltips:
+    mode: >-
+      Which representation is resampled onto the uniform grid. 'AmpPhase'
+      interpolates amplitude and phase directly; 'ReIm' interpolates real
+      and imaginary, then derives amplitude/phase. Writes
+      direct_space_images_interpolated_<mode>.vti.
+    resolution: >-
+      Target grid spacing in the reconstruction's real-space coordinate
+      units (NOT nm). Easiest: 'min_deconv_res' to derive it automatically
+      (needs the Resolution feature). A manual number must match the grid
+      scale, near or above its native voxel size; a too-small value builds
+      an enormous grid and the run is rejected. Accepts one number, a list
+      of 3 (per axis), or 'min_deconv_res'.
 
 resolution:
   name: resolution
@@ -186,11 +219,16 @@ resolution:
     Compute resolution in direct and reciprocal space and write a
     <code>.vts</code> file containing the result.
     <br><br>
-    <b>How to use:</b> <code>determine_type</code> selects the method
-    (e.g. <code>deconv</code>). <code>deconv_contrast</code> sets the
+    <b>How to use:</b> the method is fixed to <code>deconv</code>, the
+    only one the backend supports. <code>deconv_contrast</code> sets the
     contrast threshold for the deconvolution method; <code>0.25</code>
     is a typical starting point. Required if Interpolation uses
     <code>min_deconv_res</code>.
+  tooltips:
+    deconv_contrast: >-
+      Contrast threshold for the deconvolution resolution estimate. A
+      number strictly between 0 and 1, e.g. 0.25. Sets where the resolution
+      edge is drawn; 0.25 is a good starting point.
 
 reciprocal:
   name: reciprocal
@@ -210,7 +248,7 @@ strain:
     phase along the diffraction vector.
     <br><br>
     <b>How to use:</b> just enable the feature; no parameters required.
-    Pairs naturally with the Displacement feature.
+    Requires the Displacement feature to be active.
 
 displacement:
   name: displacement
@@ -219,4 +257,15 @@ displacement:
     along the Bragg vector) from the reconstructed phase and include it
     in the output <code>.vts</code> file.
     <br><br>
-    <b>How to use:</b> just enable the feature; no parameters required.
+    <b>How to use:</b> the <b>Bragg displacement</b> selector controls the
+    d-spacing. <code>Q</code> derives it geometrically from the
+    diffractometer Q vector (needs the Instrument config); a custom number
+    is the conversion factor \(d/(2\pi)\) in &#x212B; (used directly by the
+    backend, not the raw d-spacing).
+  tooltips:
+    bragg_disp: >-
+      Sets the d-spacing used to turn phase into displacement.
+      'Q (geometric)' computes it from the diffractometer Q vector (needs
+      the Instrument config); or enter a number = the d-spacing/(2*pi)
+      factor in angstroms, used directly. Output: a Displacement array in
+      nm added to the .vts.
