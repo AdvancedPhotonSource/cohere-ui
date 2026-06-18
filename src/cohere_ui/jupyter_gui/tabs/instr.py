@@ -257,7 +257,7 @@ class InstrTab(BaseTab):
         # det_roi, ...) that aren't in the saved config_instr.
         # Persist them so the tab doesn't show as 'modified' on load.
         if self.main_gui is not None:
-            new_conf = self.get_config()
+            new_conf = {**conf_map, **self.get_config()}
             if new_conf != conf_map:
                 try:
                     self.main_gui.config_manager.save_config(
@@ -291,7 +291,7 @@ class InstrTab(BaseTab):
         for key in self._spec_drivers:
             w = self._fields.get(key)
             if w is None:
-                continue
+                return
             val = getattr(w, 'value', '')
             if isinstance(val, str):
                 val = val.strip()
@@ -334,19 +334,24 @@ class InstrTab(BaseTab):
             except ImportError:
                 instr_cls = None
 
+            config_instr = {**self.get_config(), **params}
             if instr_cls is not None:
                 instr_obj = instr_cls(
                     None, diff_mod.Diffractometer(),
-                    {'config': {}, 'config_instr': dict(params)},
+                    {'config': {}, 'config_instr': config_instr},
                 )
                 spec_dict = instr_obj.parse_metadata(first_scan)
             elif hasattr(diff_mod, 'create_diffractometer'):
                 diff_field = self._fields.get('diffractometer')
                 diff_name = getattr(diff_field, 'value', None)
                 spec_dict = diff_mod.create_diffractometer(
-                    diff_name, params).parse_metadata(first_scan)
+                    diff_name, config_instr).parse_metadata(first_scan)
             else:
                 return
+        except KeyError as e:
+            self.log_debug(
+                f'spec auto-parse skipped; config incomplete (missing {e})')
+            return
         except Exception as e:
             self.log_error(_MSG['instr']['parse_spec_failed'].format(
                 error=format_error_summary(e)))
