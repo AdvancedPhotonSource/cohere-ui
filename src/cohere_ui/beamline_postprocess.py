@@ -49,7 +49,7 @@ import pandas as pd
 from concurrent.futures import ProcessPoolExecutor
 
 
-def process_dir(config_maps, res_dir_scan):
+def process_dir(experiment_dir, config_maps, res_dir_scan):
     """
     Loads arrays with reconstructed image from files in results directory and applies postprocessing according to
     configuration.
@@ -98,7 +98,7 @@ def process_dir(config_maps, res_dir_scan):
     ds['res_dir'] = res_dir
     # get max intensity location from preprocess.xlsx file
     try:
-        df = pd.read_excel(ut.join(Path(res_dir).parent, 'preprocessed_data', 'preprocess.xlsx'), nrows=2)
+        df = pd.read_excel(ut.join(experiment_dir, 'preprocessed_data', 'preprocess.xlsx'), nrows=2)
     except:
         print('preprocessed_data is missing preprocess.xlsx file, rerun the preprocessing step')
         raise
@@ -316,9 +316,9 @@ def handle_visualization(experiment_dir, **kwargs):
             scans_dirs = [[last_scan, dir] for dir in scandirs]
 
         if len(scans_dirs) == 1:
-            result = [process_dir(conf_maps, scans_dirs[0])]
+            result = [process_dir(experiment_dir, conf_maps, scans_dirs[0])]
         else:
-            func = partial(process_dir, conf_maps)
+            func = partial(process_dir, experiment_dir, conf_maps)
             no_proc = min(cpu_count(), len(scandirs))
             with ProcessPoolExecutor(max_workers=no_proc) as exe:
                 # Maps the function with a iterable

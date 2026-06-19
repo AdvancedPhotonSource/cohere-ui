@@ -281,7 +281,7 @@ def manage_reconstruction(experiment_dir, **kwargs):
     # This is the simplest case, i.e. one scan range, single reconstruction, no GA
     if want_dev_no == 1:
         datafile, dir = exp_dirs_data[0]
-        if sys.platform == 'darwin':
+        if sys.platform == 'darwin' or pkg == 'np':
             dev = devices[0]
         else:
             dev = balancer.get_one_dev(devices)
