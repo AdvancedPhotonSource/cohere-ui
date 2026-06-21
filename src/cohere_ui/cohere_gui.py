@@ -1180,7 +1180,7 @@ class RecTab(QWidget):
         self.set_defaults_button = QPushButton('set to defaults', self)
         ulayout.addWidget(self.set_defaults_button)
 
-        feature_ids = ['GA', 'low resolution', 'shrink wrap', 'phase constrain', 'pcdi', 'twin', 'average', 'progress', 'live']
+        feature_ids = ['GA', 'low resolution', 'shrink wrap', 'phase constrain', 'pcdi', 'twin', 'average', 'progress', 'live', 'global min', 'new feature']
         feature_dir = {'GA' : GA(),
                             'low resolution' : low_resolution(),
                             'shrink wrap' : shrink_wrap(),
@@ -1189,7 +1189,9 @@ class RecTab(QWidget):
                             'twin' : twin(),
                             'average' : average(),
                             'progress' : progress(),
-                            'live' : live()
+                            'live' : live(),
+                            'global min' : global_min(), 
+                            'new feature' : new_feature()
                             }
         self.features = Features(self, mlayout, feature_ids, feature_dir)
 
@@ -2633,6 +2635,174 @@ class live(Feature):
         nothing
         """
         conf_map['live_trigger'] = ast.literal_eval(str(self.live_triggers.text()).replace(os.linesep,''))
+
+
+class global_min(Feature):
+    """
+    This class encapsulates global min feature.
+    """
+    def __init__(self):
+        super(global_min, self).__init__()
+        self.id = 'global min'
+
+
+    def init_config(self, conf_map):
+        """
+        This function sets phase constrain feature's parameters to parameters in dictionary and displays in the window.
+        Parameters
+        ----------
+        conf_map : dict
+            contains parameters for reconstruction
+        Returns
+        -------
+        nothing
+        """
+        if 'global_min_trigger' in conf_map:
+            triggers = conf_map['global_min_trigger']
+            self.active.setChecked(True)
+            self.global_min_triggers.setText(str(triggers).replace(" ", ""))
+        else:
+            self.active.setChecked(False)
+            return
+
+
+    def fill_active(self, layout):
+        """
+        This function displays the feature's parameters when the feature becomes active.
+        Parameters
+        ----------
+        layout : Layout widget
+            a layout with the feature
+        Returns
+        -------
+        nothing
+        """
+        self.global_min_triggers = QLineEdit()
+        layout.addRow("global min triggers", self.global_min_triggers)
+
+
+    def verify_active(self):
+        msg = ''
+        if self.active.isChecked() and len(self.global_min_triggers.text()) == 0:
+            msg = 'pglobal_min is set to active but trigger is not configured'
+        return msg
+
+
+    def set_defaults(self):
+        """
+        This function sets global_min feature's parameters to hardcoded default values.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        self.global_min_triggers.setText('[[0,1]]')
+ 
+
+    def add_feat_conf(self, conf_map):
+        """
+        This function adds global_min feature's parameters to dictionary.
+        Parameters
+        ----------
+        conf_map : dict
+            contains parameters for reconstruction
+        Returns
+        -------
+        nothing
+        """
+        if len(self.global_min_triggers.text()) > 0:
+            conf_map['global_min_trigger'] = ast.literal_eval(str(self.global_min_triggers.text()).replace(os.linesep,''))
+
+
+class new_feature(Feature):
+    """
+    This class encapsulates new_feature feature.
+    """
+    def __init__(self):
+        super(new_feature, self).__init__()
+        self.id = 'new feature'
+
+
+    def init_config(self, conf_map):
+        """
+        This function sets new_feature feature's parameters to parameters in dictionary and displays in the window.
+        Parameters
+        ----------
+        conf_map : dict
+            contains parameters for reconstruction
+        Returns
+        -------
+        nothing
+        """
+        if 'new_feature_trigger' in conf_map:
+            triggers = conf_map['new_feature_trigger']
+            self.active.setChecked(True)
+            self.new_feature_triggers.setText(str(triggers).replace(" ", ""))
+        else:
+            self.active.setChecked(False)
+            return
+        if 'new_param' in conf_map:
+            self.new_param.setText(str(conf_map['new_param']).replace(" ", ""))
+        else:
+            self.new_param.setText('')
+
+
+    def fill_active(self, layout):
+        """
+        This function displays the feature's parameters when the feature becomes active.
+        Parameters
+        ----------
+        layout : Layout widget
+            a layout with the feature
+        Returns
+        -------
+        nothing
+        """
+        self.new_feature_triggers = QLineEdit()
+        layout.addRow(" new feature triggers", self.new_feature_triggers)
+        self.new_param = QLineEdit()
+        layout.addRow("new param", self.new_param)
+ 
+
+    def verify_active(self):
+        msg = ''
+        if self.active.isChecked() and len(self.new_feature_triggers.text()) == 0:
+            msg = 'new feature is set to active but trigger is not configured'
+        return msg
+
+
+    def set_defaults(self):
+        """
+        This function sets new_featurefeature's parameters to hardcoded default values.
+        Parameters
+        ----------
+        none
+        Returns
+        -------
+        nothing
+        """
+        self.new_feature_triggers.setText('[1,5,20]')
+        self.new_param.setText('1')
+    
+
+    def add_feat_conf(self, conf_map):
+        """
+        This function adds new_feature feature's parameters to dictionary.
+        Parameters
+        ----------
+        conf_map : dict
+            contains parameters for reconstruction
+        Returns
+        -------
+        nothing
+        """
+        if len(self.new_feature_triggers.text()) > 0:
+            conf_map['new_feature_trigger'] = ast.literal_eval(str(self.new_feature_triggers.text()).replace(os.linesep,''))
+        if len(self.new_param.text()) > 0:
+            conf_map['new_param'] = ast.literal_eval(str(self.new_param.text()))
+
 
 
 class crop(Feature):
