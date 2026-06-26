@@ -55,7 +55,7 @@ config_data_map = {'aliens': 'aliens',
 config_instr_map = {'roi': 'det_roi'}
 config_mp_map = {}
 
-beamlinedefaultvalue = '"aps_34idc"'
+beamlinedefaultvalue = "aps_34idc"
 
 config_maps = {'config': config_map,
                'config_prep': config_prep_map,
@@ -70,7 +70,7 @@ config_maps = {'config': config_map,
 move_dict = {'config':{'config_instr':['specfile'], 'config_prep':['auto_data'], 'config_data':['auto_data']},
              'config_prep':{'config':['separate_scans', 'separate_scan_ranges'],
                             'config_instr':['specfile', 'data_dir', 'whitefield_filename', 'darkfield_filename',
-                                            'roi', 'Imult', 'detector_module']},
+                                            'Imult', 'detector_module']},
              'config_disp':{'config_instr':['energy', 'delta', 'gamma', 'detdist', 'th', 'chi', 'phi', 'scanmot',
                                             'scanmot_del', 'detector', 'diffractometer']}}
 
@@ -108,10 +108,16 @@ def replace_keys(dic, cfile):
 
 
 def convert_dict(conf_dicts, prev_ver=0):
+    if 'config_instr' in conf_dicts:
+        config_dict = conf_dicts['config_instr']
+        if 'detector' in config_dict.keys() and config_dict.get('detector').endswith(':'):
+            config_dict['detector'] = config_dict['detector'][0:-1]
+
     if 'config' in conf_dicts.keys():
         conf_dict = conf_dicts['config']
         if not 'beamline' in conf_dict.keys():
             conf_dict['beamline'] = beamlinedefaultvalue
+            print('setting beamline to "aps_34idc"')
         conf_dict['converter_ver'] = get_version()
     # Look to see if aliens is set and if it is a directory or a block of coordinates
     if 'config_data' in conf_dicts.keys():
@@ -144,7 +150,10 @@ def convert_dict(conf_dicts, prev_ver=0):
                     s = s + last_char
             return s
 
-        alg_seq = conf_dict['algorithm_sequence'].replace(' ','')
+        alg_seq = conf_dict['algorithm_sequence']
+        conf_dict['algorithm_sequence'] = alg_seq
+        if not isinstance(alg_seq, str):
+            alg_seq = str(alg_seq).replace(' ', '')
         if alg_seq.startswith('('):    # old format
             s = '"'
             alg_seq = ast.literal_eval(alg_seq)
@@ -155,10 +164,13 @@ def convert_dict(conf_dicts, prev_ver=0):
             s = s + '"'
             conf_dict['algorithm_sequence'] = s
 
-        pc_interval = conf_dict['pc_interval'].replace(' ','')
-        if not pc_interval.isnumeric():
-            pc_interval = ast.literal_eval(pc_interval)[1]
-        conf_dict['pc_interval'] = str(pc_interval)
+        if 'pc_interval' in conf_dict.keys():
+            pc_interval = conf_dict['pc_interval']
+            if not isinstance(pc_interval, str):
+                pc_interval = str(pc_interval).replace(' ', '')
+            if not pc_interval.isnumeric():
+                pc_interval = ast.literal_eval(pc_interval)[1]
+            conf_dict['pc_interval'] = str(pc_interval)
 
     return conf_dicts
 
@@ -246,20 +258,28 @@ def convert(conf_dir):
             # nothing to convert
             return
     else:
-        conf_version = None
+        conf_version = -1
 
     config_dicts = {}
+    config_to_save = []
     for cfile in config_maps.keys():
         conf_file = ut.join(conf_dir, cfile)
         # check if file exist
         if os.path.isfile(conf_file):
             config_dicts[cfile] = ut.read_config(conf_file)
+            config_to_save.append(cfile)
             if os.access(os.path.dirname(conf_dir), os.W_OK):
                 shutil.copy(conf_file, f'{conf_file}_backup')
         else:
             config_dicts[cfile] = {}
+    if 'config_instr' not in config_to_save:
+        config_to_save.append('config_instr')
 
     # move parameters between files
+    # special case "roi" parameter in config_prep is used now as user entered roi
+    # but it used to be a detector roi before version 5
+    if conf_version < 5:
+        move_dict['config_prep']['config_instr'].append('roi')
     for k,v in move_dict.items():
         to_pop = set()
         for nk, sv in v.items():
@@ -270,7 +290,6 @@ def convert(conf_dir):
         for item in to_pop:
             config_dicts[k].pop(item)
         to_pop.clear()
-
 
     for cfile in config_maps.keys():
         # Use the defined maps to determine what parameter names need to be changed.
@@ -283,7 +302,7 @@ def convert(conf_dir):
     #         set the converter version to current version
     # config_data: if it has the older aliens format of coordinates/file then update to new layout
     # config_rec: algorithm_sequence and pc_interval changed
-    if conf_version is None:
+    if conf_version < 0:
         config_dicts = convert_dict(config_dicts)
 
     # special case for config_disp: if crop was defined in previous versions, the name is changed 
@@ -298,7 +317,7 @@ def convert(conf_dir):
     # Write the data out to the same-named file
     if os.access(os.path.dirname(conf_dir), os.W_OK):
         for k, v in config_dicts.items():
-            if len(v) > 0:
+            if k in config_to_save:
                 file_name = ut.join(conf_dir, k)
                 ut.write_config(v, file_name)
 
