@@ -150,19 +150,25 @@ def convert_dict(conf_dicts, prev_ver=0):
                     s = s + last_char
             return s
 
-        alg_seq = conf_dict['algorithm_sequence']
-        conf_dict['algorithm_sequence'] = alg_seq
-        if not isinstance(alg_seq, str):
-            alg_seq = str(alg_seq).replace(' ', '')
-        if alg_seq.startswith('('):    # old format
-            s = '"'
-            alg_seq = ast.literal_eval(alg_seq)
-            for i in range(len(alg_seq)):
-                s = add_iter(alg_seq[i], s)
-                if i < len(alg_seq)-1:
-                    s = f'{s}+'
-            s = s + '"'
-            conf_dict['algorithm_sequence'] = s
+        alg_seq = conf_dict.get('algorithm_sequence', None)
+        if alg_seq is not None and not isinstance(alg_seq, str):
+            def factor_to_str(f):
+                # ("ER", 20) -> "20*ER"
+                name, coeff = f
+                return f"{coeff}*{name}"
+
+            terms = []
+            for item in alg_seq:
+                multiplier = item[0]
+                factors = item[1:]
+
+                inner = "+".join(factor_to_str(f) for f in factors)
+
+                if multiplier == 1:
+                    terms.append(inner)
+                else:
+                    terms.append(f"{multiplier}*({inner})")
+            conf_dict['algorithm_sequence'] = "+".join(terms)
 
         if 'pc_interval' in conf_dict.keys():
             pc_interval = conf_dict['pc_interval']
