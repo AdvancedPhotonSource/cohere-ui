@@ -72,6 +72,7 @@ def format_data(experiment_dir, **kwargs):
 
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
+        data_conf_map['data_dir'] = data_dir
 
         # add parameters setting dimensions to the best for fast fourier transform processing.
         pkg = 'auto'
@@ -88,8 +89,10 @@ def format_data(experiment_dir, **kwargs):
 
     # This will work for a single reconstruction.
     # For separate scan the last auto-calculated values will be saved
+    # remove the 'data_dir' parameter as they differ depending on case
     # TODO:
     # make the parameters like threshold a list for the separate scans scenario
+    data_conf_map.pop('data_dir')
     ut.write_config(data_conf_map, ut.join(experiment_dir,'conf', 'config_data'))
 
 

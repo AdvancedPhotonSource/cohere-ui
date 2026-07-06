@@ -60,7 +60,7 @@ def process_dir(experiment_dir, config_maps, res_dir_scan):
         no_verify : boolean switch to determine if the verification error throws exception
     """
     [scan, res_dir] = res_dir_scan
-    is_sep = config_maps['config'].get('separate_scans', False) or config_maps['config'].get('separate_scan_ranges', False)
+    is_separate = config_maps['config'].get('separate_scans', False) or config_maps['config'].get('separate_scan_ranges', False)
 
     save_dir = res_dir.replace('_phasing', '_viz')
     # create dir if it does not exist
@@ -98,21 +98,23 @@ def process_dir(experiment_dir, config_maps, res_dir_scan):
     ds = {}
     ds['res_dir'] = res_dir
     # get max intensity location from preprocess.xlsx file
-    try:
-        if is_sep:
-            prep_dir = ut.join(Path(res_dir).parent, 'preprocessed_data')
-        else:
-            prep_dir = ut.join(experiment_dir, 'preprocessed_data')
+    if is_separate:
+        prep_dir = ut.join(Path(res_dir).parent, 'preprocessed_data')
+    else:
+        prep_dir = ut.join(experiment_dir, 'preprocessed_data')
+    infofile = ut.join(prep_dir, 'preprocess.xlsx')
+    if os.path.isfile(infofile):
         df = pd.read_excel(ut.join(prep_dir, 'preprocess.xlsx'), nrows=2)
-    except:
-        print('preprocessed_data is missing preprocess.xlsx file, rerun the preprocessing step')
-        raise
+        max_ind_x = df.loc[0, 'max ind (x)']
+        max_ind_y = df.loc[0, 'max ind (y)']
+        max_ind_frame = df.loc[0, 'max ind frame']
+        max_ind = [max_ind_x, max_ind_y, max_ind_frame]
+        geometry = instr_obj.get_geometry(max_ind, scan, config_maps)
+    else:
+        # handling an odd case where beamline is not supported
+        print('missing preprocess.xlsx file, the beamline will use motor positions if configured')
+        geometry = instr_obj.get_geometry_no_beamline(scan, config_maps)
 
-    max_ind_x = df.loc[0, 'max ind (x)']
-    max_ind_y = df.loc[0, 'max ind (y)']
-    max_ind_frame = df.loc[0, 'max ind frame']
-
-    geometry = instr_obj.get_geometry([max_ind_x, max_ind_y, max_ind_frame], scan, config_maps)
     myq = geometry[2]
     ki = geometry[3]
     kf = geometry[4]

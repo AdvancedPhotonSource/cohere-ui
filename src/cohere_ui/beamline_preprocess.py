@@ -73,7 +73,7 @@ def handle_prep(experiment_dir, **kwargs):
     beamline = main_conf_map['beamline']
     try:
         instr_module = importlib.import_module(f'cohere_beamlines.{beamline}.instrument')
-        instr_obj = instr_module.create_instr(conf_maps)
+        instr_obj = instr_module.create_instr(conf_maps, need_det=True)
     except Exception as ex:
         print('exiting pre-processing')
         raise ex

@@ -44,7 +44,7 @@ def reconstruction(datafile, **kwargs):
 
     List of supported arguments:
      save_dir : str
-        directory where results of reconstruction are saved as npy files. If not present, the reconstruction outcome will be save in the same directory where datafile is.
+        directory where results of reconstruction are saved as npy files. If not present, the reconstruction outcome will be saved in the same directory where datafile is.
     processing : str
         the library used when running reconstruction. When the 'auto' option is selected the program will use the best performing library that is available, in the following order: cupy, numpy. The 'cp' option will utilize cupy, and 'np' will utilize numpy. Default is auto.
     device : list of int
