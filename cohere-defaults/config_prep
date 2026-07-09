@@ -1,17 +1,24 @@
-//min_frames = 80
+// min_frames = 80
                                             // Only scans containing minimum of defined number of frames will be included.
 
-//exclude_scans = [78,81]
+// exclude_scans = [78,81]
                                             // A list containing scan indexes that will be excluded when adding scans.
 
-remove_outliers = False
+// remove_outliers = False
                                             // for auto removal of outlier scans in large data sets
 
-//ouliers_scans = [78,81]
+// ouliers_scans = [78,81]
                                             // A list containing scan indexes that will be excluded when adding scans.
                                             // This list is determined when running auto-data preprocessing.
-
-//max_crop = [200,200]
+// roi_format = "center_point_dist"
+                                            // Mandatory if user_roi is defined, interprets the user_roi entry. Supported values:
+                                            // "center_point_dist" : [center_point_x, center_point_y, distance_x, distance_y]
+                                            // "start_point_end_point" : [start_point_x, start_point_y, end_point_x, end_point_y]
+                                            // "start_point_distance" : [start_point_x, distance_x, start_point_y, distance_y]
+// roi = [76,64,200,200]
+                                            // Optional, defines user region of interest within frame. The indices are related 
+                                            // to the data already cropped to the area detector roi.
+// max_crop = [200,200]
                                             // Size of frame cut out around maximum
 
-do_RSM = True                              // Optional, boolean conveying if the reciprocal space mapping will be generated.
+// do_RSM = True                            // Optional, boolean conveying if the reciprocal space mapping will be generated.
