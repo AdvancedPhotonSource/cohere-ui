@@ -42,15 +42,15 @@ processing = "auto"
                              // Supported values: 'cp' for cupy, 'np' for numpy, 'torch' for torch.
 
 device = [0,1]
-device = 'all'
-device = {'host1':'all', 'host2':[0,1,2,3,4]}
+// device = 'all'
+// device = {'host1':'all', 'host2':[0,1,2,3,4]}
                              // Defines GPU id(s) that should be used for reconstruction(s) when using cupy or torch
                              // library. Not needed for numpy.
                              // Can be defined as list of GPU IDs or 'all' if all available GPUs should be used.
                              // For cluster configuration it is defined as dict with hosts names as keys.
 
-algorithm_sequence = "3* (20*ER + 180*HIO) + 20*ER"
-algorithm_sequence = "3* (20*ER.SW0 + 180*HIO.SW1) + 20*ER.SW0"
+algorithm_sequence = "3*(20*ER+180*HIO)+20*ER"
+// algorithm_sequence = "3* (20*ER.SW0 + 180*HIO.SW1) + 20*ER.SW0"
                             // Mandatory, defines algorithm applied in each iteration during modulus projection and
                             // during modulus. The "*" character means repeat, and the "+" means add to the sequence.
                             // The sequence may contain single brackets defining a group that will be repeated by the
@@ -164,18 +164,18 @@ twin_halves = [0, 0]
 // shrink wrap trigger iteration. The calculation employ an algorithm defined here as shrink_wrap_type.
 
 shrink_wrap_trigger = [1, 1]
-shrink_wrap_trigger = [[1, 2], [0, 5]]
+// shrink_wrap_trigger = [[1, 2], [0, 5]]
                              // Defines when to update support array using the parameters below.
 shrink_wrap_type = "GAUSS"
-shrink_wrap_type = ["GAUSS", "GAUSS"]
+// shrink_wrap_type = ["GAUSS", "GAUSS"]
                              // Type of shrink wrap, currently supporting GAUSS type.
                              // The second line shows configuration when two sub-triggers are defined.
 shrink_wrap_threshold = 0.1
-shrink_wrap_threshold = [0.1, 0.2]
+// shrink_wrap_threshold = [0.1, 0.2]
                              // Applies to Gauss type of shrink wrap and defines threshold.
                              // The second line shows configuration when two sub-triggers are defined.
 shrink_wrap_gauss_sigma = 1.0
-shrink_wrap_gauss_sigma = [1.0, 1.1]
+// shrink_wrap_gauss_sigma = [1.0, 1.1]
                              // Applies to Gauss type of shrink wrap and defines gauss sigma.
                              // The second line shows configuration when two sub-triggers are defined.
 initial_support_area = [.5,.5,.5]
@@ -239,6 +239,6 @@ progress_trigger = [0, 5]
                              // Defines when to print info on the console.
                              // The info includes current iteration and error.
 
-live_trigger = [0, 10]
+// live_trigger = [0, 10]
                              // Defines when to update the live view.
 
