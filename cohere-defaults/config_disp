@@ -1,18 +1,18 @@
-results_dir = "<experiment_dir>/results_phasing"
+results_dir = "ANLDIR/results_phasing"
                            // Optional, defaults to <experiment_dir>/results_phasing. A directory that has a tree,
                            // or leaf with reconstruction results. The results will be used as input to the
                            // visualization processing. There could be several results in the given directory tree,
                            // and all will be processed concurrently.
 
-rampups = 1                
+// rampups = 1                
                            // Optional, upsize when running ramp removal, default is 1. Expect long processing
                            // time for greater numbers.
 
-unwrap = True
+// unwrap = True
                            // Switch, if True the image.vts file will contain unwrapped phase in addition to phase
                            // and amplitude.
 
-make_twin = True
+// make_twin = True
                            // A switch to whether visualize twin image.
 
 crop_type = "tight"
@@ -32,7 +32,7 @@ crop_thresh = 0.5
                            // Required parameter when crop is configured "tight". The threshold will
                            // determine the extend of the array.
 
-crop_fraction = [0.3, 0.25, 1]
+// crop_fraction = [0.3, 0.25, 1]
                            // Required parameter when crop is configured "fraction". Defines size of the
                            // cropped array relative to the full image array. The full array is cropped around
                            // maximum value.
@@ -44,13 +44,13 @@ complex_mode = "AmpPhase"
                            // if mode is "ReIm" the "imRe" and "imImag" arrays will be saved that hold real
                            // values and imaginary values.
 
-interpolation_mode = "AmpPhase"
+// interpolation_mode = "AmpPhase"
                            // Defines how the image is interpolated. Supported values: "AmpPhase" and "ReIm".
                            // If defined as "AmpPhase" the image amplitudes and image phases are interpolated.
                            // If defined as "ReIm" the image real values and imaginary are interpolated, and
                            // then the interpolated image amplitudes and image phases are calculated.
 
-interpolation_resolution = "min_deconv_res"
+// interpolation_resolution = "min_deconv_res"
                            // Required parameter for interpolation. Supported values: "min_deconv_res", int value,
                            // float value, list.
                            // If set to "min_deconv_res" the resolution will be determined by including the
@@ -59,29 +59,23 @@ interpolation_resolution = "min_deconv_res"
                            // If defined as list, the list will define resolution in corresponding dimension.
 
 
-determine_resolution_type = "deconv"
+// determine_resolution_type = "deconv"
                            // If present, the resolution in direct and reciprocal spaces will be found.
                            // Supported value: "deconv".
 
-resolution_deconv_contrast = 0.25
+// resolution_deconv_contrast = 0.25
 
-write_recip = True
+// write_recip = True
                            // If True the reciprocal_space.vts file will be saved with arrays of
                            // phasing data and inverse fourier of that data
 
 
-Bragg_displacement = "Q"
+// Bragg_displacement = "Q"
                            // If configured the vts file with image will also include displacement array.
                            // Currently supporting a float value and "Q", where the Q vector from the diffractometer
                            // is used for the projection of the derivative of displacement field.
 
-compute strain = True
+// compute_strain = True
                            // If True the vts file with image will also include strain. For this to work
                            // the Bragg_displacement parameter has to be configured.
-
-::
-
-    compute strain = True
-
-#determine_resolution="prtf"  #needs many reconstructions isn't done yet
 
