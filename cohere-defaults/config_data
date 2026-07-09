@@ -59,7 +59,7 @@
                              // If given the algorithm will apply last step of cleaning
                              // the data using the configured sigma
 
-auto_intensity_threshold = False
+auto_intensity_threshold = True
                              // optional, defaults to False
                              // if set to True the intensity threshold is automatically set based
                              // on data characteristic
@@ -67,7 +67,7 @@ intensity_threshold = 2.0
                              // mandatory if auto_intensity_threshold is False
                              // min data threshold.  Values below this are set to 0. The
                              // threshold is applied after removing aliens.
-crop_pad = [-65, -65, -65, -65, -13, -13]
+// crop_pad = [-65, -65, -65, -65, -13, -13]
                              // optional
                              // enter adjust dimensions list
                              // If number is positive, the array will be padded. If negative, cropped.
@@ -75,7 +75,7 @@ crop_pad = [-65, -65, -65, -65, -13, -13]
                              // The final dimensions will be adjusted up to the good number for the FFT which
                              // also is compatible with opencl supported dimensions
                              // powers of 2 or a*2^n, where a is 3, 5, or 9
-no_center_max = False
+// no_center_max = False
                              // optional, defaults to False
                              // if False the array maximum is centered, otherwise max is not moved
 // shift = [0,0,0]
