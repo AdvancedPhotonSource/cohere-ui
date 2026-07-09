@@ -8,7 +8,7 @@ experiment_id = "cohere-defaults"
                                             // mandatory
                                             // an arbitrary string id
 
-scan = "2-7"
+scan = "1"
                                             // optional (but typically needed)
                                             // a single number, a range, or combination of numbers and ranges
                                             // separated by comma, defining scans
@@ -38,6 +38,6 @@ multipeak = False
                                             // True if running multipeak experiment.
                                             // This requires config_mp file in conf directory
 
-converter_ver = 2
+converter_ver = 5
                                             // mandatory after converter_ver 0, if current, the configuration files
                                             // won't be converted
