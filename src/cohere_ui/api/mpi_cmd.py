@@ -50,13 +50,17 @@ def run_with_mpi(lib, conf_file, datafile, dir, devices, hostfile=None):
 
     script = os.path.realpath(os.path.dirname(__file__)).replace(os.sep, '/') + script
     if hostfile is None:
-        command = ['mpiexec', '-n', str(len(devices)), 'python', script,
+        command = ['mpiexec', '--oversubscribe', '-np', str(len(devices)), 'python', script,
                    lib, conf_file, datafile, dir, str(devices), log_file]
     else:
-        command = ['mpiexec', '-n', str(len(devices)), '--hostfile', hostfile, 'python', script,
+        command = ['mpiexec', '--oversubscribe', '-np', str(len(devices)), '--hostfile', hostfile, 'python', script,
                    lib, conf_file, datafile, dir, str(devices), log_file]
-
-    subprocess.run(command, check=True, capture_output=True)
+    try:
+        subprocess.run(command, check=True, capture_output=True, text=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error Message: {e.stderr}")
+        print(f"Exit Code: {e.returncode}")
+        raise
     run_time = time.time() - start_time
 
     # The process p was created to monitor log file and print progress info, i.e. the start of generation
