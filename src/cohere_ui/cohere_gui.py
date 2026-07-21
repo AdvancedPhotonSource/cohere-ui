@@ -614,15 +614,19 @@ class PrepTab(QWidget):
         layout.addRow("outliers scans", self.outliers_scans)
 
         cmd_layout = QHBoxLayout()
+        self.upload_button = QPushButton("Upload ready file")
+        self.upload_button.setStyleSheet("background-color:rgb(150,100,50)")
         self.set_prep_conf_from_button = QPushButton("Load prep conf from")
         self.set_prep_conf_from_button.setStyleSheet("background-color:rgb(205,178,102)")
         self.prep_button = QPushButton('prepare', self)
         self.prep_button.setStyleSheet("background-color:rgb(175,208,156)")
+        cmd_layout.addWidget(self.upload_button)
         cmd_layout.addWidget(self.set_prep_conf_from_button)
         cmd_layout.addWidget(self.prep_button)
         layout.addRow(cmd_layout)
         self.setLayout(layout)
 
+        self.upload_button.clicked.connect(self.upload_prep_ready)
         self.prep_button.clicked.connect(self.run_tab)
         self.set_prep_conf_from_button.clicked.connect(self.load_prep_conf)
 
@@ -661,6 +665,20 @@ class PrepTab(QWidget):
         self.remove_outliers.setChecked('remove_outliers' in conf_map and conf_map['remove_outliers'])
         if 'outliers_scans' in conf_map:
             self.outliers_scans.setText(str(conf_map['outliers_scans']).replace(" ", ""))
+
+
+    def upload_prep_ready(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Open File",
+            "",
+            "All Files (*);;Python Files (*.py);;Images (*.png *.jpg)"
+        )
+
+        if file_path:
+            prep_dir = ut.join(self.main_win.experiment_dir, 'preprocessed_data')
+            os.makedirs(prep_dir, exist_ok=True)
+            shutil.copy(file_path, prep_dir)
 
 
     def clear_conf(self):

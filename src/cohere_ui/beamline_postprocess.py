@@ -109,11 +109,11 @@ def process_dir(experiment_dir, config_maps, res_dir_scan):
         max_ind_y = df.loc[0, 'max ind (y)']
         max_ind_frame = df.loc[0, 'max ind frame']
         max_ind = [max_ind_x, max_ind_y, max_ind_frame]
-        geometry = instr_obj.get_geometry(max_ind, scan, config_maps)
     else:
-        # handling an odd case where beamline is not supported
-        print('missing preprocess.xlsx file, the beamline will use motor positions if configured')
-        geometry = instr_obj.get_geometry_no_beamline(scan, config_maps)
+        # handling an odd case where no preprocess.xlsx file was discovered.
+        max_ind = None
+        print('missing preprocess.xlsx file, the beamline will use configured motor positions to get geometry')
+    geometry = instr_obj.get_geometry(max_ind, scan, config_maps)
 
     myq = geometry[2]
     ki = geometry[3]
