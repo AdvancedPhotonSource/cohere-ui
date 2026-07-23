@@ -237,6 +237,7 @@ def get_one_dev(ids):
         selected GPU ID
     """
     import socket
+    import GPUtil
 
     # if cluster configuration, look only at devices on local machine
     if issubclass(type(ids), dict):  # a dict with cluster configuration
