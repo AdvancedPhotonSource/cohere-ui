@@ -12,13 +12,12 @@ This module returns available, balanced devices suited for given job.
 """
 import os
 import ast
-import GPUtil
 from multiprocessing import cpu_count
 import psutil
 import subprocess
 from functools import reduce
 import cohere_core.utilities as ut
-
+# import GPUtil  # imported in function
 
 __author__ = "Barbara Frosik"
 __copyright__ = "Copyright (c), UChicago Argonne, LLC."
@@ -66,6 +65,9 @@ def get_avail_gpu_runs(devices, run_mem):
     :return: dict
         pairs of GPU IDs, number of available jobs
     """
+    # not used when running on supercomputer
+    import GPUtil
+
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     gpus = GPUtil.getGPUs()
     available = {}

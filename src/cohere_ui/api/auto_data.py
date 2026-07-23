@@ -28,7 +28,6 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from functools import partial
 import matplotlib.pyplot as plt
 import numpy as np
-from cohere_ui.api import balancer
 
 
 def set_lib(pkg):
