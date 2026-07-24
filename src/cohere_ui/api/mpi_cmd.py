@@ -37,7 +37,7 @@ def run_with_mpi(lib, conf_file, datafile, dir, devices, hostfile=None):
         given when cluster configuration is used
     :return:
     """
-    os.environ['OPENBLAS_NUM_THREADS'] = str(len(devices))
+    os.environ['OPENBLAS_NUM_THREADS'] = '1'
 
     start_time = time.time()
 
