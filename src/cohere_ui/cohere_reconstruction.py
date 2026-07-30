@@ -193,6 +193,8 @@ def manage_reconstruction(experiment_dir, **kwargs):
     """
     print('started reconstruction')
 
+    hpc = kwargs.get('hpc', False)
+
     conf_list = ['config_rec', 'config_mp']
     conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, **kwargs)
 
@@ -392,8 +394,10 @@ def main():
                         help="if True the verifier has no effect on processing, error is always printed when incorrect configuration")
     parser.add_argument("--debug", action="store_true",
                         help="if True the exceptions are not handled")
+    parser.add_argument("--hpc", action="store_true",
+                        help="pass it when running on HPC")
     args = parser.parse_args()
-    manage_reconstruction(args.experiment_dir, rec_id=args.rec_id, no_verify=args.no_verify, debug=args.debug)
+    manage_reconstruction(args.experiment_dir, rec_id=args.rec_id, no_verify=args.no_verify, debug=args.debug, hpc=args.hpc)
 
 
 if __name__ == "__main__":
