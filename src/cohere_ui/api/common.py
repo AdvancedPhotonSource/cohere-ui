@@ -121,13 +121,13 @@ def get_config_maps(experiment_dir, configs, **kwargs):
     return maps, converted
 
 
-def get_pkg(proc, dev):
+def get_pkg(proc, dev, **kwargs):
     pkg = 'np'
-
+    hpc = kwargs.get('hpc', False)
     if proc == 'auto':
         try:
             import cupy
-            if dev == [-1]:
+            if dev == [-1] and not hpc:
                 raise ValueError('cupy processing is available, define device')
             pkg = 'cp'
         except:
@@ -143,7 +143,7 @@ def get_pkg(proc, dev):
             import cupy
         except:
             raise ValueError('cupy is not installed, select different processing')
-        if dev == [-1]:
+        if dev == [-1] and not hpc:
             raise ValueError('when using cupy processing, define a valid device')
         pkg = 'cp'
     elif proc == 'torch':

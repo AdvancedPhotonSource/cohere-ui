@@ -193,8 +193,6 @@ def manage_reconstruction(experiment_dir, **kwargs):
     """
     print('started reconstruction')
 
-    hpc = kwargs.get('hpc', False)
-
     conf_list = ['config_rec', 'config_mp']
     conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, **kwargs)
 
@@ -216,7 +214,7 @@ def manage_reconstruction(experiment_dir, **kwargs):
     proc = rec_config_map.get('processing', 'auto')
     devices = rec_config_map.get('device', [-1])
     # find which library to run it on, default is numpy ('np')
-    pkg = com.get_pkg(proc, devices)
+    pkg = com.get_pkg(proc, devices, **kwargs)
 
     if pkg == 'np':
         devices = [-1]
@@ -283,7 +281,9 @@ def manage_reconstruction(experiment_dir, **kwargs):
     # This is the simplest case, i.e. one scan range, single reconstruction, no GA
     if want_dev_no == 1:
         datafile, dir = exp_dirs_data[0]
-        if sys.platform == 'darwin' or pkg == 'np':
+        if kwargs.get('hpc', False):
+            dev = 0  # it will be ignored in phasing and will get device from env variable instead
+        elif sys.platform == 'darwin' or pkg == 'np':
             dev = devices[0]
         else:
             dev = balancer.get_one_dev(devices)
