@@ -54,16 +54,28 @@ def handle_prep(experiment_dir, **kwargs):
     print('pre-processing data')
 
     # requesting the configuration files that provide parameters for preprocessing
-    conf_list = ['config_prep', 'config_instr', 'config_mp', 'config_data']
-    conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, **kwargs)
+    conf_list = ['config_prep', 'config_instr', 'config_mp']
+    conf_maps, converted, errs = com.get_config_maps(experiment_dir, conf_list, **kwargs)
+    no_verify = kwargs.get('no_verify', False)
+    if no_verify:
+        # print the errors and proceed
+        for v in errs.values():
+            if len(v) > 0:
+               print (v)
+    if len(errs['config']) > 0:
+        raise ValueError(errs['config'])
 
     # check the maps
     if 'config_instr' not in conf_maps.keys():
         print('exiting pre-processing')
-        raise FileNotFoundError ('missing config_instr file, exiting')
+        raise FileNotFoundError('missing config_instr file, exiting')
+    elif len(errs['config_instr']) > 0:
+        raise ValueError(errs['config_instr'])
     if 'config_prep' not in conf_maps.keys():
         print('info: no config_prep file, continuing')
         remove_outliers = False
+    elif len(errs['config_prep']) > 0:
+        raise ValueError(errs['config_prep'])
     else:
         remove_outliers = conf_maps['config_prep'].get('remove_outliers', False)
 

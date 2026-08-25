@@ -49,11 +49,24 @@ def format_data(experiment_dir, **kwargs):
     print('formatting data')
 
     conf_list = ['config_data', 'config_rec']
-    conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, **kwargs)
+    conf_maps, converted, errs = com.get_config_maps(experiment_dir, conf_list, **kwargs)
+    no_verify = kwargs.get('no_verify', False)
+    if no_verify:
+        # print the errors and proceed
+        for v in errs.values():
+            if len(v) > 0:
+               print (v)
+    if len(errs['config']) > 0:
+        raise ValueError(errs['config'])
+
     if 'config_data' not in conf_maps: # not possible to get intensity threshold
-        print('exiting')
         msg = 'Missing config_data file, cannot determine intensity threshold.'
-        raise ValueError(msg)
+        raise FileNotFoundError(msg)
+    elif len(errs['config_data']) > 0:
+        raise ValueError(errs['config_data'])
+    if 'config_rec' in conf_maps and len(errs['config_rec']) > 0 and 'processing' in errs['config_rec']:
+        # only processing is important in beamline standard preprocess, no need to look at other params
+        raise ValueError(errs['config_rec'])
 
     # check the maps
     data_conf_map = conf_maps.get('config_data')

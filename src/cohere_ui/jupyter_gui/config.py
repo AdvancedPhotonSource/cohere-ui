@@ -231,7 +231,7 @@ class ConfigManager:
             raise ValueError("Experiment directory not set")
 
         com = _get_common()
-        raw_maps, _ = com.get_config_maps(
+        raw_maps, _, _ = com.get_config_maps(
             self.experiment_dir,
             conf_list,
             no_verify=no_verify,

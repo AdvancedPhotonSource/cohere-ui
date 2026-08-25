@@ -1,6 +1,6 @@
 // GENERAL
 // data_dir = "phasing_data"
-                             // directory where prepared data is saved, default <experiment_dir>/data
+                             // directory where preprocessed data is saved, default <experiment_dir>/data
 
 // PARAMETER FOR DATA PREPARATION
 // alien_alg = 'block_aliens'
@@ -11,7 +11,7 @@
                              // 'alien_file' method will use given file as a mask,
                              // and 'AutoAlien1' method  will use auto mechanism to remove aliens.
                              // each of these algorithms require different parameters
-// aliens = [[170,220,112,195,245,123], [50,96,10,60,110,20]
+// aliens = [[170,220,112,195,245,123], [50,96,10,60,110,20]]
                              // needed for the 'block_aliens' method
                              // comment out aliens for no removal, otherwise input them as
                              // aliens=[[x0,y0,z0,x1,y1,z1],[x2,y2,z2,x3,y3,z3]]

@@ -37,6 +37,14 @@ import ast
 import cohere_core.utilities as ut
 import cohere_ui.api.common as com
 import cohere_ui.api.convertconfig as conv
+import cohere_ui.beamline_preprocess as prep
+import cohere_ui.beamline_postprocess as dp
+import cohere_ui.standard_preprocess as run_dt
+import cohere_core.utilities.schemas.beam_prep_schema as prep_schema
+import cohere_core.utilities.schemas.exp_schema as exp_schema
+import cohere_core.utilities.schemas.post_schema as post_schema
+import cohere_core.utilities.schemas.recon_schema as recon_schema
+import cohere_core.utilities.schemas.standard_prep_schema as st_prep_schema
 
 
 def select_file(start_dir):
@@ -261,11 +269,12 @@ class cdi_gui(QWidget):
         conf_list = ['config_prep', 'config_data', 'config_rec', 'config_disp', 'config_instr', 'config_mp']
         # set no_verify to True so the configuration is loaded even it's wrong. The user will be able to fix it
         # it is loading the main configuration, so that rec_id is not passed in
-        try:
-            conf_dicts, converted = com.get_config_maps(load_dir, conf_list, no_verify=True)
-        except Exception as e:
-            msg_window(str(e))
-            return
+        conf_dicts, converted, errs = com.get_config_maps(load_dir, conf_list)
+        # print the errors and proceed with showing the values in tabs
+        # The parameters will be verified when running the tabs
+        for v in errs.values():
+            if len(v) > 0:
+               print (v)
 
         self.load_main(conf_dicts['config'])
 
@@ -289,7 +298,7 @@ class cdi_gui(QWidget):
 
     def load_main(self, conf_map):
         """
-        It verifies parameters in dictionary and displays the fields in gui to the parameters values.
+        It reads parameters from conf_map and displays the fields in gui to the parameters values.
 
         :param conf_map: a directory to load the main configuration from
         """
@@ -340,11 +349,14 @@ class cdi_gui(QWidget):
         if self.separate_scan_ranges.isChecked():
             conf_map['separate_scan_ranges'] = True
         conf_map['converter_ver'] = conv.get_version()
-        er_msg = ut.verify('config', conf_map)
-        if len(er_msg) > 0:
-            msg_window(er_msg)
-            if self.no_verify:
-                ut.write_config(conf_map, ut.join(self.experiment_dir, 'conf', 'config'))
+
+        # verifying types and mandatory params
+        schema = exp_schema.get_config_schema()
+        msg = ut.verify_types(schema, conf_map)
+        if len(msg) == 0:
+            msg = ut.verify_params('config', conf_map)
+        if len(msg) > 0:
+            msg_window(msg + ' config not saved.')
         else:
             ut.write_config(conf_map, ut.join(self.experiment_dir, 'conf', 'config'))
 
@@ -486,10 +498,6 @@ class Tabs(QTabWidget):
         self.instr_tab = self.beam.InstrTab()
         self.insertTab(0, self.instr_tab, self.instr_tab.name)
         self.instr_tab.init(self, self.main_win)
-        # self.prep_tab = self.beam.PrepTab()
-        # self.insertTab(1, self.prep_tab, self.prep_tab.name)
-        # self.prep_tab.init(self, self.main_win)
-        # self.tabs = self.tabs + [self.instr_tab, self.prep_tab]
         self.tabs = self.tabs + [self.instr_tab]
 
     def notify(self, **args):
@@ -511,7 +519,6 @@ class Tabs(QTabWidget):
 
 
     def run_prep(self):
-        import cohere_ui.beamline_preprocess as prep
 
         # this line is passing all parameters from command line to prep script. 
         # if there are other parameters, one can add some code here        
@@ -526,8 +533,6 @@ class Tabs(QTabWidget):
 
 
     def run_viz(self):
-        import cohere_ui.beamline_postprocess as dp
-
         try:
             dp.handle_visualization(self.main_win.experiment_dir, no_verify=self.main_win.no_verify)
         except ValueError as e:
@@ -633,7 +638,7 @@ class PrepTab(QWidget):
 
     def load_tab(self, conf_map):
         """
-        It verifies given configuration file, reads the parameters, and fills out the window.
+        It reads the parameters, and fills out the window.
         Parameters
         ----------
         conf : dict
@@ -766,18 +771,21 @@ class PrepTab(QWidget):
             return
         else:
             conf_map = self.get_prep_config()
-        # verify that prep configuration is ok
-        er_msg = ut.verify('config_prep', conf_map)
-        if len(er_msg) > 0:
-            msg_window(er_msg)
-            if not self.main_win.no_verify:
-              return
 
-        if 'remove_outliers' in conf_map and conf_map['remove_outliers']:
-            # exclude outliers_scans from saving
-            current_prep_map = ut.read_config(ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
-            if current_prep_map is not None and 'outliers_scans' in current_prep_map:
-                conf_map['outliers_scans'] = current_prep_map['outliers_scans']
+        if not self.main_win.no_verify:
+            # verify that prep configuration is ok
+            # verifying types, no mandatory params are now in config_prep
+            schema = prep_schema.get_config_schema()
+            msg = ut.verify_types(schema, conf_map)
+            if len(msg) > 0:
+                msg_window(msg)
+                return
+        #
+        # if 'remove_outliers' in conf_map and conf_map['remove_outliers']:
+        #     # exclude outliers_scans from saving
+        #     current_prep_map = ut.read_config(ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
+        #     if current_prep_map is not None and 'outliers_scans' in current_prep_map:
+        #         conf_map['outliers_scans'] = current_prep_map['outliers_scans']
         ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
 
         try:
@@ -798,10 +806,12 @@ class PrepTab(QWidget):
             return
 
         conf_map = self.get_prep_config()
-        er_msg = ut.verify('config_prep', conf_map)
-        if len(er_msg) > 0:
-            msg_window(er_msg)
-            if not self.main_win.no_verify:
+        if not self.main_win.no_verify:
+            # verifying types, no mandatory params are now in config_prep
+            schema = prep_schema.get_config_schema()
+            msg = ut.verify_types(schema, conf_map)
+            if len(msg) > 0:
+                msg_window(msg)
                 return
         if len(conf_map) > 0:
             ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_prep'))
@@ -887,7 +897,7 @@ class DataTab(QWidget):
 
     def load_tab(self, conf_map):
         """
-        It verifies given configuration file, reads the parameters, and fills out the window.
+        It reads the parameters from conf_map, and fills out the window.
         Parameters
         ----------
         conf_map : dict
@@ -957,7 +967,7 @@ class DataTab(QWidget):
         if self.alien_alg.currentIndex() == 1:
             conf_map['alien_alg'] = 'block_aliens'
             if len(self.aliens.text()) > 0:
-                conf_map['aliens'] = str(self.aliens.text()).replace(os.linesep, '')
+                conf_map['aliens'] = ast.literal_eval(str(self.aliens.text()).replace(os.linesep, ''))
         if self.alien_alg.currentIndex() == 2:
             conf_map['alien_alg'] = 'alien_file'
             if len(self.alien_file.text()) > 0:
@@ -1061,8 +1071,6 @@ class DataTab(QWidget):
         -------
         nothing
         """
-        import cohere_ui.standard_preprocess as run_dt
-
         if not self.main_win.is_exp_exists():
             msg_window('the experiment has not been created yet')
             return
@@ -1078,11 +1086,12 @@ class DataTab(QWidget):
             if found_file:
                 conf_map = self.get_data_config()
                 if len(conf_map) > 0:
-                    # verify that data configuration is ok
-                    er_msg = ut.verify('config_data', conf_map)
-                    if len(er_msg) > 0:
-                        msg_window(er_msg)
-                        if not self.main_win.no_verify:
+                    if not self.main_win.no_verify:
+                        # verifying types
+                        schema = st_prep_schema.get_config_schema()
+                        msg = ut.verify_types(schema, conf_map)
+                        if len(msg) > 0:
+                            msg_window(msg)
                             return
                     ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_data'))
                 try:
@@ -1103,12 +1112,13 @@ class DataTab(QWidget):
     def save_conf(self):
         # save data config
         conf_map = self.get_data_config()
-        if len(conf_map) > 0:
-            er_msg = ut.verify('config_data', conf_map)
-            if len(er_msg) > 0:
-                msg_window(er_msg)
-                if not self.main_win.no_verify:
-                    return
+        if not self.main_win.no_verify:
+            # verifying types, no mandatory params are now in config_prep
+            schema = st_prep_schema.get_config_schema()
+            msg = ut.verify_types(schema, conf_map)
+            if len(msg) > 0:
+                msg_window(msg)
+                return
             ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_data'))
 
 
@@ -1370,10 +1380,12 @@ class RecTab(QWidget):
         conf_map = self.get_rec_config()
         if len(conf_map) == 0:
             return
-        er_msg = ut.verify('config_rec', conf_map)
-        if len(er_msg) > 0:
-            msg_window(er_msg)
-            if not self.main_win.no_verify:
+        if not self.main_win.no_verify:
+            # verifying types
+            schema = recon_schema.get_config_schema()
+            msg = ut.verify_types(schema, conf_map)
+            if len(msg) > 0:
+                msg_window(msg)
                 return
 
         ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_rec'))
@@ -1551,17 +1563,21 @@ class RecTab(QWidget):
                 return
 
             # verify that reconstruction configuration is ok
-            er_msg = ut.verify('config_rec', conf_map)
-            if len(er_msg) > 0:
-                msg_window(er_msg)
-                if not self.main_win.no_verify:
+            if not self.main_win.no_verify:
+                # verifying types
+                schema = recon_schema.get_config_schema()
+                msg = ut.verify_types(schema, conf_map)
+                if len(msg) > 0:
+                    msg_window(msg)
                     return
+
             ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', conf_file))
             try:
                 run_rc.manage_reconstruction(self.main_win.experiment_dir,
                                          rec_id=rec_id,
                                          no_verify=self.main_win.no_verify,
-                                         debug=self.main_win.debug)
+                                         debug=self.main_win.debug,
+                                         )
             except Exception as e:
                 msg_window(str(e))
                 return
@@ -3348,7 +3364,7 @@ class DispTab(QWidget):
 
     def load_tab(self, conf_map):
         """
-        It verifies given configuration file, reads the parameters, and fills out the window.
+        It reads the parameters, and fills out the window.
         Parameters
         ----------
         conf : dict
@@ -3470,15 +3486,20 @@ class DispTab(QWidget):
             msg_window('Info: The results directory is being set to experiment directory. All phasing results in this directory tree will be processed for visualization.')
 
         conf_map = self.get_disp_config()
-        er_msg = ut.verify('config_disp', conf_map)
-        if len(er_msg) > 0:
-            msg_window(er_msg)
-            if not self.main_win.no_verify:
+        if not self.main_win.no_verify:
+            # verifying types
+            schema = post_schema.get_config_schema()
+            msg = ut.verify_types(schema, conf_map)
+            if len(msg) > 0:
+                msg_window(msg)
                 return
         if len(conf_map) > 0:
             ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
 
-        self.tabs.run_viz()
+        try:
+            self.tabs.run_viz()
+        except Exception as e:
+            msg_window(e)
 
 
     def save_conf(self):
@@ -3487,10 +3508,12 @@ class DispTab(QWidget):
             return
 
         conf_map = self.get_disp_config()
-        er_msg = ut.verify('config_disp', conf_map)
-        if len(er_msg) > 0:
-            msg_window(er_msg)
-            if not self.main_win.no_verify:
+        if not self.main_win.no_verify:
+            # verifying types
+            schema = post_schema.get_config_schema()
+            msg = ut.verify_types(schema, conf_map)
+            if len(msg) > 0:
+                msg_window(msg)
                 return
         if len(conf_map) > 0:
             ut.write_config(conf_map, ut.join(self.main_win.experiment_dir, 'conf', 'config_disp'))
@@ -3651,7 +3674,7 @@ class MpTab(QWidget):
 
     def load_tab(self, conf_map):
         """
-        It verifies given configuration file, reads the parameters, and fills out the window.
+        It reads the parameters, and fills out the window.
         Parameters
         ----------
         conf : dict

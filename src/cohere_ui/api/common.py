@@ -7,8 +7,14 @@
 import sys
 import os
 import contextlib
-import cohere_core.utilities as ut
+import importlib
 import cohere_ui.api.convertconfig as conv
+import cohere_core.utilities as ut
+import cohere_core.utilities.schemas.beam_prep_schema as prep_schema
+import cohere_core.utilities.schemas.exp_schema as exp_schema
+import cohere_core.utilities.schemas.post_schema as post_schema
+import cohere_core.utilities.schemas.recon_schema as recon_schema
+import cohere_core.utilities.schemas.standard_prep_schema as st_prep_schema
 
 
 @contextlib.contextmanager
@@ -50,7 +56,7 @@ def get_config_maps(experiment_dir, configs, **kwargs):
         directory where the experiment files are loacted
     :param configs: list str
         list of configuaration files key names requested by calling function
-        The main config is always processed.
+        The main config is always processed, thus not present in the list.
     :param kwargs: ver parameters
         may contain:
         - rec_id : reconstruction id, pointing to alternate config
@@ -60,8 +66,14 @@ def get_config_maps(experiment_dir, configs, **kwargs):
         configuration dictionaries
         boolean value telling if conversion happened
     """
-    no_verify = kwargs.pop('no_verify', False)
+    schema_imports = {'config_prep': prep_schema,
+                        'config': exp_schema,
+                        'config_disp': post_schema,
+                        'config_rec': recon_schema,
+                        'config_data': st_prep_schema
+                    }
     maps = {}
+    errs = {} # verification results
     # always get main config
     conf_dir = ut.join(experiment_dir, 'conf')
     main_conf = ut.join(conf_dir, 'config')
@@ -70,11 +82,16 @@ def get_config_maps(experiment_dir, configs, **kwargs):
         raise ValueError('no main config, exiting.')
     main_config_map = ut.read_config(main_conf)
 
-    msg = ut.verify('config', main_config_map)
-    if len(msg) > 0:
-        if not no_verify:
-            raise ValueError(msg)
-           # return msg, maps, None
+    # verifying types and mandatory params
+    schema = exp_schema.get_config_schema()
+    msg_type_err = ut.verify_types(schema, main_config_map)
+    msg_param_err = ut.verify_params('config', main_config_map)
+    err = ''
+    if len(msg_type_err) > 0:
+        err += msg_type_err + '\n'
+    if len(msg_param_err) > 0:
+        err += msg_param_err + '\n'
+    errs['config'] = err
 
     converted = False
 
@@ -83,25 +100,22 @@ def get_config_maps(experiment_dir, configs, **kwargs):
         conv.convert(conf_dir)
         main_config_map = ut.read_config(main_conf)
         converted = True
-
     maps['config'] = main_config_map
 
-    if 'config_instr' in configs or 'config_mp' in configs:
-        # the configuration file applies to specific beamline and needs to be imported
-        beamline = main_config_map.get('beamline', None)
-        if beamline is None:
-            raise ValueError(f'cannot import cohere_ui.beamlines.{beamline} module, exiting.')
-            # return f'cannot import cohere_ui.beamlines.{beamline} module, exiting.', maps, None
-        import importlib
-        beam_ver = importlib.import_module(f'cohere_beamlines.{beamline}.beam_verifier')
-    else:
-        beam_ver = None
-
-    verifier_map = {'config_data' : ut, 'config_rec' : ut, 'config_instr' : beam_ver,
-                    'config_prep' : ut, 'config_disp' : ut, 'config_mp' : beam_ver}
+    if 'config_mp' in configs and not main_config_map.get('multipeak', False):
+        configs.remove('config_mp')
 
     rec_id = kwargs.get('rec_id')
     for conf in configs:
+        if conf == 'config_instr':
+            # the configuration file applies to specific beamline and needs to be imported
+            beamline = main_config_map.get('beamline', None)
+            if beamline is None:
+                raise ValueError(f'cannot import cohere_beamlines.{beamline} module, exiting.')
+            instr_schema_mod = importlib.import_module(f'cohere_beamlines.{beamline}.instr_schema')
+            schema =  instr_schema_mod.get_config_schema()
+        else:
+            schema = schema_imports[conf].get_config_schema()
         # special case for rec_id
         if rec_id is not None and conf == 'config_rec':
             conf_file = ut.join(experiment_dir, 'conf', f'{conf}_{rec_id}')
@@ -110,15 +124,19 @@ def get_config_maps(experiment_dir, configs, **kwargs):
         if not os.path.isfile(conf_file):
             continue
         config_map = ut.read_config(conf_file)
-        # verify the config map, for beamline specific conf file the verifier has to be imported
-        msg = verifier_map[conf].verify(conf, config_map)
-        if len(msg) > 0:
-            if not no_verify:
-                raise ValueError(msg)
+        # verify the config map
+        msg_type_err = ut.verify_types(schema, config_map)
+        msg_param_err = ut.verify_params(conf, config_map)
+        err = ''
+        if len(msg_type_err) > 0:
+            err += msg_type_err + '\n'
+        if len(msg_param_err) > 0:
+            err += msg_param_err + '\n'
 
+        errs[conf] = err
         maps[conf] = config_map
 
-    return maps, converted
+    return maps, converted, errs
 
 
 def get_pkg(proc, dev, **kwargs):

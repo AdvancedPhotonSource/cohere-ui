@@ -62,10 +62,10 @@ def format_data(experiment_dir, **kwargs):
 
     print('formatting data')
 
-    conf_list = ['config_data', config_rec]
-    err_msg, conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, **kwargs)
-    if len(err_msg) > 0:
-        return err_msg
+    conf_list = ['config_data', 'config_rec']
+    conf_maps, converted, errs = com.get_config_maps(experiment_dir, conf_list, **kwargs)
+    # if len(err_msg) > 0:
+    #     return err_msg
 
     main_conf_map = conf_maps['config']
     auto_data = main_conf_map.get('auto_data', False)

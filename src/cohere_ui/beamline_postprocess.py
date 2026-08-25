@@ -263,16 +263,30 @@ def handle_visualization(experiment_dir, **kwargs):
     print ('starting post-processing')
 
     conf_list = ['config_disp', 'config_instr', 'config_data', 'config_mp']
-    conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, **kwargs)
-
+    conf_maps, converted, errs = com.get_config_maps(experiment_dir, conf_list, **kwargs)
+    no_verify = kwargs.get('no_verify', False)
+    if no_verify:
+        # print the errors and proceed
+        for v in errs.values():
+            if len(v) > 0:
+               print (v)
+    if len(errs['config']) > 0:
+        raise ValueError(errs['config'])
     if 'config_disp' not in conf_maps.keys():
         print('exiting post-processing')
         raise FileNotFoundError('missing config_disp file, exiting')
+    elif len(errs['config_disp']) > 0:
+        raise ValueError(errs['config_disp'])
     if 'config_instr' not in conf_maps.keys():
         print('exiting post-processing')
         raise FileNotFoundError('missing config_instr file, exiting')
+    elif len(errs['config_instr']) > 0:
+        raise ValueError(errs['config_instr'])
     if 'config_data' not in conf_maps.keys():
         print('no config_data file')
+    elif len(errs['config_data']) > 0 and 'binning' in errs['config_data']:
+        # only binning is important in beamline preprocess, no need to look at other params
+        raise ValueError(errs['config_data'])
 
     main_conf_map = conf_maps['config']
 

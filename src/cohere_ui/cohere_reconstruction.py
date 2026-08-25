@@ -194,8 +194,15 @@ def manage_reconstruction(experiment_dir, **kwargs):
     print('started reconstruction')
 
     conf_list = ['config_rec', 'config_mp']
-    conf_maps, converted = com.get_config_maps(experiment_dir, conf_list, **kwargs)
-
+    conf_maps, converted, errs = com.get_config_maps(experiment_dir, conf_list, **kwargs)
+    no_verify = kwargs.get('no_verify', False)
+    if no_verify:
+        # print the errors and proceed
+        for v in errs.values():
+            if len(v) > 0:
+               print (v)
+    if len(errs['config']) > 0:
+        raise ValueError(errs['config'])
     # check the maps
     rec_id = kwargs.pop('rec_id', None)
     if 'config_rec' not in conf_maps.keys():
@@ -205,6 +212,9 @@ def manage_reconstruction(experiment_dir, **kwargs):
             con = f'{con}_{rec_id}'
         msg = f'missing {con} file, exiting'
         raise FileNotFoundError(msg)
+    elif len(errs['config_rec']) > 0:
+        raise ValueError(errs['config_rec'])
+
     main_config_map = conf_maps['config']
     rec_config_map = conf_maps['config_rec']
 
