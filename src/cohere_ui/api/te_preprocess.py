@@ -64,24 +64,26 @@ def format_data(experiment_dir, **kwargs):
 
     conf_list = ['config_data', 'config_rec']
     conf_maps, converted, errs = com.get_config_maps(experiment_dir, conf_list, **kwargs)
-    # if len(err_msg) > 0:
-    #     return err_msg
-
-    main_conf_map = conf_maps['config']
-    auto_data = main_conf_map.get('auto_data', False)
+    no_verify = kwargs.get('no_verify', False)
+    if no_verify:
+        # print the errors and proceed
+        for v in errs.values():
+            if len(v) > 0:
+               print (v)
 
     # check the config data
     if 'config_data' not in conf_maps.keys():
-        # it can still process if auto_data is set
-        if auto_data:
-            intensity_threshold = None
-            no_center_max = False
-        else:
-            return 'missing config_data file'
-    else:
-        data_conf_map = conf_maps['config_data']
-        intensity_threshold = data_conf_map.get('intensity_threshold', None)
-        no_center_max = data_conf_map.get('no_center_max', None)
+        print('exiting post-processing')
+        raise FileNotFoundError('missing config_disp file, exiting')
+    if len(errs['config_data']) > 0:
+        raise ValueError(errs['config_data'])
+    if 'config_rec' in conf_maps and len(errs['config_rec']) > 0 and 'processing' in errs['config_rec']:
+        # only processing is important in beamline standard preprocess, no need to look at other params
+        raise ValueError(errs['config_rec'])
+
+    data_conf_map = conf_maps['config_data']
+    auto_data = kwargs.get('auto_intensity_threshold', False)
+    intensity_threshold = data_conf_map.get('intensity_threshold', None)
 
     # Find scan directories, read the data, and apply pre-format, i.e. threshold and sqroot
     # Store the data in a list, each scan data as tuple (data, scan dir, scan number)
@@ -145,6 +147,7 @@ def format_data(experiment_dir, **kwargs):
         data = ut.adjust_dimensions(data, pairs, next_fast_len=True, pkg=pkg)
 
         # do the centering now
+        no_center_max = data_conf_map.get('no_center_max', False)
         if not no_center_max:
             data, shift = ut.center_max(data)
 

@@ -300,14 +300,16 @@ def process_dir(exp_dir, conf_maps):
     support = np.load(f"{res_dir}/support.npy")
 
     image, support = center_mp(image, support)
-    rampups = conf_maps['config_disp'].get('rampups', 1)
+    rampups = 1
+    if 'config_disp' in conf_maps:
+        rampups = conf_maps['config_disp'].get('rampups', 1)
     if rampups > 1:
         image[0] = ut.remove_ramp(image[0], ups=rampups)
     np.save(f"{res_dir}/reconstruction.npy", np.moveaxis(image, 0, -1))
 
     write_vti(image, conf_maps, save_dir)
 
-    make_twin = conf_maps['config_disp'].get('make_twin', False)
+    make_twin = 'config_disp' in conf_maps and conf_maps['config_disp'].get('make_twin', False)
     if make_twin:
         image = np.flip(image, axis=(1, 2, 3))
         image[1:-1] *= -1

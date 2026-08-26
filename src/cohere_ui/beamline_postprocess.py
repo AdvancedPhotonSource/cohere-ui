@@ -264,14 +264,20 @@ def handle_visualization(experiment_dir, **kwargs):
 
     conf_list = ['config_disp', 'config_instr', 'config_data', 'config_mp']
     conf_maps, converted, errs = com.get_config_maps(experiment_dir, conf_list, **kwargs)
+    main_conf_map = conf_maps['config']
+    if len(errs['config']) > 0:
+        raise ValueError(errs['config'])
+
+    if 'multipeak' in main_conf_map and main_conf_map['multipeak']:
+        mp.process_dir(experiment_dir, conf_maps)
+        return
+
     no_verify = kwargs.get('no_verify', False)
     if no_verify:
         # print the errors and proceed
         for v in errs.values():
             if len(v) > 0:
                print (v)
-    if len(errs['config']) > 0:
-        raise ValueError(errs['config'])
     if 'config_disp' not in conf_maps.keys():
         print('exiting post-processing')
         raise FileNotFoundError('missing config_disp file, exiting')
@@ -288,66 +294,61 @@ def handle_visualization(experiment_dir, **kwargs):
         # only binning is important in beamline preprocess, no need to look at other params
         raise ValueError(errs['config_data'])
 
-    main_conf_map = conf_maps['config']
-
-    if 'multipeak' in main_conf_map and main_conf_map['multipeak']:
-        mp.process_dir(experiment_dir, conf_maps)
-    else:
-        separate = main_conf_map.get('separate_scans', False) or main_conf_map.get('separate_scan_ranges', False)
-        rec_id = kwargs.get('rec_id', None)
-        if 'results_dir' in conf_maps['config_disp']:
-            results_dir = conf_maps['config_disp']['results_dir'].replace(os.sep, '/')
-            if rec_id is not None and not results_dir.endswith(rec_id):
-                print(f'Verify the results_directory. Currently set to {results_dir}')
-            if separate and results_dir != experiment_dir:
-                print(f'Verify the results_directory. Currently set to {results_dir}')
-            if not os.path.isdir(results_dir):
-                msg = f'the configured results_dir: {results_dir} does not exist'
-                raise FileNotFoundError(msg)
-        else:
-            results_dir = ut.join(experiment_dir, 'results_phasing')
-
-        # find directories with image.npy file in the root of results_dir
-        scandirs = []
-        for (dirpath, dirnames, filenames) in os.walk(results_dir):
-            for file in filenames:
-                if file.endswith('image.npy'):
-                    scandirs.append((dirpath).replace(os.sep, '/'))
-        if len(scandirs) == 0:
-            print('exiting post-processing')
-            msg = f'no image.npy files found in the directory tree {results_dir}'
+    separate = main_conf_map.get('separate_scans', False) or main_conf_map.get('separate_scan_ranges', False)
+    rec_id = kwargs.get('rec_id', None)
+    if 'results_dir' in conf_maps['config_disp']:
+        results_dir = conf_maps['config_disp']['results_dir'].replace(os.sep, '/')
+        if rec_id is not None and not results_dir.endswith(rec_id):
+            print(f'Verify the results_directory. Currently set to {results_dir}')
+        if separate and results_dir != experiment_dir:
+            print(f'Verify the results_directory. Currently set to {results_dir}')
+        if not os.path.isdir(results_dir):
+            msg = f'the configured results_dir: {results_dir} does not exist'
             raise FileNotFoundError(msg)
+    else:
+        results_dir = ut.join(experiment_dir, 'results_phasing')
 
-        scans_dirs = []
-        if separate:
-            # the scan that will be used to derive geometry is determined from the scan directory
-            # the code below finds the last scan
-            for dir in scandirs:
-                # go up dir until reaching scan dir
-                scandir_path = dir.split('/')
-                i = -1
+    # find directories with image.npy file in the root of results_dir
+    scandirs = []
+    for (dirpath, dirnames, filenames) in os.walk(results_dir):
+        for file in filenames:
+            if file.endswith('image.npy'):
+                scandirs.append((dirpath).replace(os.sep, '/'))
+    if len(scandirs) == 0:
+        print('exiting post-processing')
+        msg = f'no image.npy files found in the directory tree {results_dir}'
+        raise FileNotFoundError(msg)
+
+    scans_dirs = []
+    if separate:
+        # the scan that will be used to derive geometry is determined from the scan directory
+        # the code below finds the last scan
+        for dir in scandirs:
+            # go up dir until reaching scan dir
+            scandir_path = dir.split('/')
+            i = -1
+            temp = scandir_path[i]
+            while not temp.startswith('scan'):
+                i -= 1
                 temp = scandir_path[i]
-                while not temp.startswith('scan'):
-                    i -= 1
-                    temp = scandir_path[i]
-                scan_subdir = temp
-                scans_dirs.append((int(scan_subdir.split('_')[-1].split('-')[-1]), dir))
-        else:
-            last_scan = int(main_conf_map['scan'].split(',')[-1].split('-')[-1])
-            scans_dirs = [[last_scan, dir] for dir in scandirs]
+            scan_subdir = temp
+            scans_dirs.append((int(scan_subdir.split('_')[-1].split('-')[-1]), dir))
+    else:
+        last_scan = int(main_conf_map['scan'].split(',')[-1].split('-')[-1])
+        scans_dirs = [[last_scan, dir] for dir in scandirs]
 
-        if len(scans_dirs) == 1:
-            result = [process_dir(experiment_dir, conf_maps, scans_dirs[0])]
-        else:
-            func = partial(process_dir, experiment_dir, conf_maps)
-            no_proc = min(cpu_count(), len(scandirs))
-            with ProcessPoolExecutor(max_workers=no_proc) as exe:
-                # Maps the function with a iterable
-                result = exe.map(func, scans_dirs)
+    if len(scans_dirs) == 1:
+        result = [process_dir(experiment_dir, conf_maps, scans_dirs[0])]
+    else:
+        func = partial(process_dir, experiment_dir, conf_maps)
+        no_proc = min(cpu_count(), len(scandirs))
+        with ProcessPoolExecutor(max_workers=no_proc) as exe:
+            # Maps the function with a iterable
+            result = exe.map(func, scans_dirs)
 
-        res = [r for r in result]
-        df = pd.DataFrame(res)
-        df.to_excel(ut.join(experiment_dir, 'visualization_results.xlsx'), index=False)
+    res = [r for r in result]
+    df = pd.DataFrame(res)
+    df.to_excel(ut.join(experiment_dir, 'visualization_results.xlsx'), index=False)
 
     print ('done with post-processing')
     return ''

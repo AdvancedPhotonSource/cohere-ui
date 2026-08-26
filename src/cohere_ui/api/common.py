@@ -15,6 +15,7 @@ import cohere_core.utilities.schemas.exp_schema as exp_schema
 import cohere_core.utilities.schemas.post_schema as post_schema
 import cohere_core.utilities.schemas.recon_schema as recon_schema
 import cohere_core.utilities.schemas.standard_prep_schema as st_prep_schema
+import cohere_core.utilities.schemas.mp_schema as mp_schema
 
 
 @contextlib.contextmanager
@@ -70,8 +71,9 @@ def get_config_maps(experiment_dir, configs, **kwargs):
                         'config': exp_schema,
                         'config_disp': post_schema,
                         'config_rec': recon_schema,
-                        'config_data': st_prep_schema
-                    }
+                        'config_data': st_prep_schema,
+                        'config_mp': mp_schema,
+                      }
     maps = {}
     errs = {} # verification results
     # always get main config

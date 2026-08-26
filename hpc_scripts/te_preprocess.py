@@ -9,7 +9,7 @@ This script formats data for reconstruction according to configuration.
 """
 
 import argparse
-from cohere_scripts.inner_scripts import te_preprocess as tp
+from cohere_ui.api import te_preprocess as tp
 
 __author__ = "Barbara Frosik"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
