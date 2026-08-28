@@ -144,8 +144,11 @@ def format_data(experiment_dir, **kwargs):
         crops_pads = kwargs.get('crop_pad', (0, 0, 0, 0, 0, 0))
         # adjust the size, either pad with 0s or crop array
         pairs = [crops_pads[2 * i:2 * i + 2] for i in range(int(len(crops_pads) / 2))]
-        data = ut.adjust_dimensions(data, pairs, next_fast_len=True, pkg=pkg)
+        data = ut.adjust_dimensions(data, pairs)
+        # in regular BCDI data preprocessing binning is available at this step, but it does not make sense for this scenario
 
+        # correct dimensions to ensure good performance
+        data = ut.array_to_good_dims(data, pkg)
         # do the centering now
         no_center_max = data_conf_map.get('no_center_max', False)
         if not no_center_max:
