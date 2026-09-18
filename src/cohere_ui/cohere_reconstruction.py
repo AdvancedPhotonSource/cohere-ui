@@ -35,7 +35,9 @@ __all__ = ['get_job_size',
 import os
 import sys
 import argparse
-from multiprocessing import Process, Queue, Pool
+from multiprocessing import Process, Queue
+import ast
+import numpy as np
 import cohere_core.controller as rec
 import cohere_core.utilities as ut
 import cohere_ui.api.common as com
@@ -145,12 +147,12 @@ def reconstruction_single(pkg, conf_file, datafile, dir, dev, **kwargs):
     return ''
 
 
-def process_scan_range(ga_method, pkg, conf_file, datafile, dir, picked_devs, hostfile=None, q=None, debug=None):
+def process_scan_range(rec_type, pkg, conf_file, datafile, dir, picked_devs, hostfile=None, q=None, debug=None):
     """
     Calls the reconstruction function appropriate to the ga_method. In some scenarios the devices may be reused and
     thus a list of GPU ids that completed reconstruction is enqued for the distributing process to get and reuse.
 
-    :param ga_method: defines what type of GA was requested, or None
+    :param rec_type: defines what type of GA was requested, or None
     :param pkg: defines library to run reconstruction with
     :param conf_file: configuration file with reconstruction parameters
     :param datafile: name of file containing data
@@ -161,9 +163,9 @@ def process_scan_range(ga_method, pkg, conf_file, datafile, dir, picked_devs, ho
     """
     if len(picked_devs) == 1:
         return reconstruction_single(pkg, conf_file, datafile, dir, picked_devs[0], debug=debug)
-    elif ga_method is None:
+    elif rec_type is None:
         reconstruction_populous.reconstruction(pkg, conf_file, datafile, dir, picked_devs)
-    elif ga_method == 'ga_fast':
+    elif rec_type == 'ga_fast':
         if pkg == 'torch':
             picked_devs = [-1 for d in picked_devs]
         mpi_cmd.run_with_mpi(pkg, conf_file, datafile, dir, picked_devs, hostfile)
@@ -195,41 +197,43 @@ def manage_reconstruction(experiment_dir, **kwargs):
 
     conf_list = ['config_rec', 'config_mp']
     conf_maps, converted, errs = com.get_config_maps(experiment_dir, conf_list, **kwargs)
+    rec_id = kwargs.pop('rec_id', None)
     no_verify = kwargs.get('no_verify', False)
-    if no_verify:
+    if not no_verify:
+        # check the maps
+        if len(errs['config']) > 0:
+            raise ValueError(errs['config'])
+        if 'config_rec' not in conf_maps.keys():
+            con = 'config_rec'
+            if rec_id is not None:
+                con = f'{con}_{rec_id}'
+            msg = f'missing {con} file, exiting'
+            raise FileNotFoundError(msg)
+        elif len(errs['config_rec']) > 0:
+            raise ValueError(errs['config_rec'])
+    else:
         # print the errors and proceed
         for v in errs.values():
             if len(v) > 0:
                print (v)
-    if len(errs['config']) > 0:
-        raise ValueError(errs['config'])
-    # check the maps
-    rec_id = kwargs.pop('rec_id', None)
-    if 'config_rec' not in conf_maps.keys():
-        print('exiting')
-        con = 'config_rec'
-        if rec_id is not None:
-            con = f'{con}_{rec_id}'
-        msg = f'missing {con} file, exiting'
-        raise FileNotFoundError(msg)
-    elif len(errs['config_rec']) > 0:
-        raise ValueError(errs['config_rec'])
 
     main_config_map = conf_maps['config']
     rec_config_map = conf_maps['config_rec']
 
+    chrono = 'chrono' in main_config_map and main_config_map['chrono']
     separate = main_config_map.get('separate_scans', False) or main_config_map.get('separate_scan_ranges', False)
     debug = kwargs.get('debug', False)
+    hpc = kwargs.get('hpc', False)
 
     proc = rec_config_map.get('processing', 'auto')
     devices = rec_config_map.get('device', [-1])
     # find which library to run it on, default is numpy ('np')
     pkg = com.get_pkg(proc, devices, **kwargs)
-
     if pkg == 'np':
         devices = [-1]
     elif sys.platform == 'darwin' and devices != [-1]:
         devices = [0]
+    reconstructions = rec_config_map.get('reconstructions', 1)
 
     # for multipeak reconstruction divert here
     if 'config_mp' in conf_maps:
@@ -248,11 +252,20 @@ def manage_reconstruction(experiment_dir, **kwargs):
         multipeak.reconstruction(pkg, config_map, peak_dirs, devices, **kwargs)
         return
 
+    if chrono and reconstructions > 1:
+        raise ValueError('For chrono reconstruction, configure reconstructions to 1, exiting.')
+
     # exp_dirs_data list hold pairs of data and directory, where the directory is the root of phasing_data/data.tif file, and
     # data is the data.tif file in this directory.
     exp_dirs_data = []
 
-    if separate:
+    if chrono:
+        with open(ut.join(experiment_dir, 'phasing_dirs'), 'r') as f:
+            dirs = f.readline()
+        dirs = ast.literal_eval(dirs)
+        dfiles = [ut.join(d, 'phasing_data', 'data.npy') for d in dirs]
+        exp_dirs_data = list(zip(dfiles, dirs))
+    elif separate:
         # experiment may be multi-scan(s) in which case reconstruction will run for each scan, or scan range
         for dir in os.listdir(experiment_dir):
             if dir.startswith('scan'):
@@ -277,13 +290,12 @@ def manage_reconstruction(experiment_dir, **kwargs):
     else:
         conf_file = ut.join(experiment_dir, 'conf', f'config_rec_{rec_id}')
 
-    ga_method = None
+    rec_type = None
     if 'ga_generations' in rec_config_map and rec_config_map['ga_generations'] > 1:
         if 'ga_fast' in rec_config_map and rec_config_map['ga_fast']:
-            ga_method = 'ga_fast'
+            rec_type = 'ga_fast'
         else:
-            ga_method = 'populous'
-    reconstructions = rec_config_map.get('reconstructions', 1)
+            rec_type = 'populous'
 
     # number of wanted devices to accommodate all reconstructions is a product of no_scan_ranges and reconstructions
     want_dev_no = no_scan_ranges * reconstructions
@@ -291,7 +303,7 @@ def manage_reconstruction(experiment_dir, **kwargs):
     # This is the simplest case, i.e. one scan range, single reconstruction, no GA
     if want_dev_no == 1:
         datafile, dir = exp_dirs_data[0]
-        if kwargs.get('hpc', False):
+        if hpc:
             dev = 0  # it will be ignored in phasing and will get device from env variable instead
         elif sys.platform == 'darwin' or pkg == 'np':
             dev = devices[0]
@@ -306,14 +318,20 @@ def manage_reconstruction(experiment_dir, **kwargs):
 
     hostfile = None
     # if device is [-1] it will be run on cpu
-    if devices == [-1] or sys.platform == 'darwin':
-        # for now run locally on cpu, will be enhanced to support cluster conf
+    if devices == [-1] or sys.platform == 'darwin' or hpc:
+        #
         picked_devs, avail_jobs, hostfile = devices * want_dev_no, want_dev_no, None
     else:
         # based on configured devices find what is available
         # this code below assigns jobs for GPUs
-        data_size = ut.read_tif(exp_dirs_data[0][0]).size
-        job_size = get_job_size(data_size, ga_method, 'pc' in rec_config_map['algorithm_sequence'])
+        if exp_dirs_data[0][0].endswith('.tif'):
+            data_size = ut.read_tif(exp_dirs_data[0][0]).size
+        elif exp_dirs_data[0][0].endswith('.npy'):
+            data_size = np.load(exp_dirs_data[0][0]).size
+        else:
+            raise ValueError(f'unsupported format of data file: {exp_dirs_data[0][0]}')
+
+        job_size = get_job_size(data_size, rec_type, 'pc' in rec_config_map['algorithm_sequence'])
         picked_devs, avail_jobs, hostfile = balancer.get_gpu_use(devices, want_dev_no, job_size)
 
     if hostfile is not None:
@@ -321,13 +339,21 @@ def manage_reconstruction(experiment_dir, **kwargs):
     kwargs['hostfile'] = hostfile
 
     # if fast_ga and there is not enough available devices, exit
-    if ga_method == 'ga_fast' and avail_jobs < want_dev_no:
+    if rec_type == 'ga_fast' and avail_jobs < want_dev_no:
         print('exiting')
         raise ValueError(f'requested {want_dev_no} reconstructions but only {avail_jobs} is available')
+    # if chrono and there is not enough available devices, exit
+    if chrono and avail_jobs < want_dev_no:
+        print('exiting')
+        raise ValueError(f'chrono method requires {want_dev_no} reconstructions but only {avail_jobs} is available')
 
+    if chrono:
+        mpi_cmd.te_rec(experiment_dir, hostfile, picked_devs)
+        print('finished reconstruction')
+        return
     if no_scan_ranges == 1:
-        datafile, dir = exp_dirs_data[0]
-        process_scan_range(ga_method, pkg, conf_file, datafile, dir, picked_devs, hostfile, None, debug)
+            datafile, dir = exp_dirs_data[0]
+            process_scan_range(rec_type, pkg, conf_file, datafile, dir, picked_devs, hostfile, None, debug)
     else:  # multiple scans or scan ranges
         q = None
         if avail_jobs >= want_dev_no:
@@ -359,7 +385,7 @@ def manage_reconstruction(experiment_dir, **kwargs):
             datafile, dir = exp_dirs_data[i]
             # run parallel
             p = Process(target=process_scan_range,
-                        args=(ga_method, pkg, conf_file, datafile, dir, scan_picked_devs[i], hostfiles[i], q))
+                        args=(rec_type, pkg, conf_file, datafile, dir, scan_picked_devs[i], hostfiles[i], q))
             p.start()
             pr[p.pid] = p
 
@@ -371,7 +397,7 @@ def manage_reconstruction(experiment_dir, **kwargs):
             if pid in pr.keys():
                 del pr[pid]
             p = Process(target=process_scan_range,
-                        args=(ga_method, pkg, conf_file, datafile, dir, devs, hostfile, q))
+                        args=(rec_type, pkg, conf_file, datafile, dir, devs, hostfile, q))
             p.start()
             pr[p.pid] = p
 

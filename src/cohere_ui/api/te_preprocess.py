@@ -23,7 +23,7 @@ __all__ = ['format_data',
            'main']
 
 
-def format_data(experiment_dir, **kwargs):
+def format_data(experiment_dir, conf_maps):
     """
     This script does standard preprocessing for series of data files collected during time evolving experiment.
 
@@ -60,29 +60,10 @@ def format_data(experiment_dir, **kwargs):
         # square root data
         return np.sqrt(ar)
 
-    print('formatting data')
-
-    conf_list = ['config_data', 'config_rec']
-    conf_maps, converted, errs = com.get_config_maps(experiment_dir, conf_list, **kwargs)
-    no_verify = kwargs.get('no_verify', False)
-    if no_verify:
-        # print the errors and proceed
-        for v in errs.values():
-            if len(v) > 0:
-               print (v)
-
-    # check the config data
-    if 'config_data' not in conf_maps.keys():
-        print('exiting post-processing')
-        raise FileNotFoundError('missing config_disp file, exiting')
-    if len(errs['config_data']) > 0:
-        raise ValueError(errs['config_data'])
-    if 'config_rec' in conf_maps and len(errs['config_rec']) > 0 and 'processing' in errs['config_rec']:
-        # only processing is important in beamline standard preprocess, no need to look at other params
-        raise ValueError(errs['config_rec'])
+    print('formatting data, chrono')
 
     data_conf_map = conf_maps['config_data']
-    auto_data = kwargs.get('auto_intensity_threshold', False)
+    auto_data = data_conf_map.get('auto_intensity_threshold', False)
     intensity_threshold = data_conf_map.get('intensity_threshold', None)
 
     # Find scan directories, read the data, and apply pre-format, i.e. threshold and sqroot
@@ -122,41 +103,32 @@ def format_data(experiment_dir, **kwargs):
     # find fill_ratio
     fill_ratio = int(full_no_frames / partial_no_frames + .5)
 
+    # The shape should be adjusted for the workable size
+    scan_dim = ut.get_good_dim(full_no_frames, 'cp')
+
     # add slices filled with -1.0 in place of not collected frames in data files with partial data
     for dfile in dfiles:
         if dfile[0].shape[-1] != full_no_frames:
             full_data = np.full(full_shape, -1.0)
             for i in range(partial_no_frames):
-                full_data[:,:,i * fill_ratio] = data[:,:,i]
+                full_data[:,:,i * fill_ratio] = dfile[0][:,:,i]
             data = full_data
         else:
             data = dfile[0]
+        # add slices at the end to the 'good dimension'
+        if scan_dim != full_no_frames:
+            pad_width = ((0, 0), (0, 0), (0, scan_dim - full_no_frames))
+            data = np.pad(data, pad_width, mode='constant', constant_values=0)
+        # adjust all dimensions to the 'good' values.
+        data = ut.array_to_good_dims(data, 'cp')
 
-        print('dfile full', dfile[1],(data < 0).sum() == 0)
-
-        # add parameters setting dimensions to the best for fast fourier transform processing.
-        pkg = 'auto'
-        if 'config_rec' in conf_maps and 'processing' in conf_maps['config_rec']:
-            pkg = conf_maps['config_rec']['processing']
-        pkg = com.get_pkg(pkg, [0])
-
-        # even with crops_pads not given the size still has to be adjusted to the optimal dimension
-        crops_pads = kwargs.get('crop_pad', (0, 0, 0, 0, 0, 0))
-        # adjust the size, either pad with 0s or crop array
-        pairs = [crops_pads[2 * i:2 * i + 2] for i in range(int(len(crops_pads) / 2))]
-        data = ut.adjust_dimensions(data, pairs)
-        # in regular BCDI data preprocessing binning is available at this step, but it does not make sense for this scenario
-
-        # correct dimensions to ensure good performance
-        data = ut.array_to_good_dims(data, pkg)
-        # do the centering now
-        no_center_max = data_conf_map.get('no_center_max', False)
-        if not no_center_max:
-            data, shift = ut.center_max(data)
+        # the adjust dims, binning should not be done for chrono
 
         # save in npy format to keep -1
         scan_dir = dfile[1]
         np.save(ut.join(scan_dir, 'phasing_data', 'data.npy'), data)
+
+    print('finished preprocessing')
 
 
 def main():

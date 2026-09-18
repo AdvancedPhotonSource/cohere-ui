@@ -76,6 +76,22 @@ def run_with_mpi(lib, conf_file, datafile, dir, devices, hostfile=None):
     print(f'GA reconstruction took {run_time} seconds')
 
 
+def te_rec(experiment_dir, hostfile, devices):
+    script = '/te_rec.py'
+    script = os.path.realpath(os.path.dirname(__file__)).replace(os.sep, '/') + script
+    command = ['mpiexec', '--oversubscribe', '-np', str(len(devices)), 'python', script,
+               experiment_dir, str(devices)]
+    start_time = time.time()
+    try:
+        subprocess.run(command, check=True, capture_output=True, text=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error Message: {e.stderr}")
+        print(f"Exit Code: {e.returncode}")
+        raise
+
+    run_time = time.time() - start_time
+    print(f'chrono reconstruction took {run_time} seconds')
+
 
 def main():
     import ast

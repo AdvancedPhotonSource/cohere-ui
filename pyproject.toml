@@ -69,6 +69,7 @@ run_reconstruction = "cohere_ui.run_reconstruction:main"
 cohere_reconstruction = "cohere_ui.cohere_reconstruction:main"
 simple_phasing = "cohere_ui.simple_phasing:main"
 standard_preprocess = "cohere_ui.standard_preprocess:main"
+te_rec = "cohere_ui.api.te_rec:main"
 
 [tool.setuptools.packages.find]
     where = ["src"]

@@ -57,27 +57,25 @@ def handle_prep(experiment_dir, **kwargs):
     conf_list = ['config_prep', 'config_instr', 'config_mp']
     conf_maps, converted, errs = com.get_config_maps(experiment_dir, conf_list, **kwargs)
     no_verify = kwargs.get('no_verify', False)
-    if no_verify:
+    if not no_verify:
+        # check the maps
+        if len(errs['config']) > 0:
+            raise ValueError(errs['config'])
+        # check the maps
+        if 'config_instr' not in conf_maps.keys():
+            print('exiting pre-processing')
+            raise FileNotFoundError('missing config_instr file, exiting')
+        elif len(errs['config_instr']) > 0:
+            raise ValueError(errs['config_instr'])
+        if 'config_prep' not in conf_maps.keys():
+            print('info: no config_prep file, continuing')
+        elif len(errs['config_prep']) > 0:
+            raise ValueError(errs['config_prep'])
+    else:
         # print the errors and proceed
         for v in errs.values():
             if len(v) > 0:
                print (v)
-    if len(errs['config']) > 0:
-        raise ValueError(errs['config'])
-
-    # check the maps
-    if 'config_instr' not in conf_maps.keys():
-        print('exiting pre-processing')
-        raise FileNotFoundError('missing config_instr file, exiting')
-    elif len(errs['config_instr']) > 0:
-        raise ValueError(errs['config_instr'])
-    if 'config_prep' not in conf_maps.keys():
-        print('info: no config_prep file, continuing')
-        remove_outliers = False
-    elif len(errs['config_prep']) > 0:
-        raise ValueError(errs['config_prep'])
-    else:
-        remove_outliers = conf_maps['config_prep'].get('remove_outliers', False)
 
     main_conf_map = conf_maps['config']
 
@@ -113,6 +111,7 @@ def handle_prep(experiment_dir, **kwargs):
 
     do_RSM = conf_maps['config_prep'].get('do_RSM', None)
 
+    remove_outliers = 'config_prep' in conf_maps and conf_maps['config_prep'].get('remove_outliers', False)
     outliers = []
     if separate_scans:
         # get all (scan, data info) tuples, process each scan and save the data in scans directories.

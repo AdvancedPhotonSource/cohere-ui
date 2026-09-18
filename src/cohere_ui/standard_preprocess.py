@@ -27,6 +27,7 @@ import os
 import cohere_core.data as fd
 import cohere_core.utilities as ut
 import cohere_ui.api.common as com
+import cohere_ui.api.te_preprocess as te
 
 
 __author__ = "Barbara Frosik"
@@ -50,23 +51,29 @@ def format_data(experiment_dir, **kwargs):
 
     conf_list = ['config_data', 'config_rec']
     conf_maps, converted, errs = com.get_config_maps(experiment_dir, conf_list, **kwargs)
+
     no_verify = kwargs.get('no_verify', False)
-    if no_verify:
+    if not no_verify:
+        # check the maps
+        if len(errs['config']) > 0:
+            raise ValueError(errs['config'])
+        if 'config_data' not in conf_maps:  # not possible to get intensity threshold
+            msg = 'Missing config_data file, cannot determine intensity threshold.'
+            raise FileNotFoundError(msg)
+        elif len(errs['config_data']) > 0:
+            raise ValueError(errs['config_data'])
+        if 'config_rec' in conf_maps and len(errs['config_rec']) > 0 and 'processing' in errs['config_rec']:
+            # only processing is important in beamline standard preprocess, no need to look at other params
+            raise ValueError(errs['config_rec'])
+    else:
         # print the errors and proceed
         for v in errs.values():
             if len(v) > 0:
                print (v)
-    if len(errs['config']) > 0:
-        raise ValueError(errs['config'])
 
-    if 'config_data' not in conf_maps: # not possible to get intensity threshold
-        msg = 'Missing config_data file, cannot determine intensity threshold.'
-        raise FileNotFoundError(msg)
-    elif len(errs['config_data']) > 0:
-        raise ValueError(errs['config_data'])
-    if 'config_rec' in conf_maps and len(errs['config_rec']) > 0 and 'processing' in errs['config_rec']:
-        # only processing is important in beamline standard preprocess, no need to look at other params
-        raise ValueError(errs['config_rec'])
+    if conf_maps['config'].get('chrono', False):
+        te.format_data(experiment_dir, conf_maps)
+        return
 
     # check the maps
     data_conf_map = conf_maps.get('config_data')

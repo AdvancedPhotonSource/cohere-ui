@@ -132,6 +132,9 @@ class cdi_gui(QWidget):
         self.multipeak = QCheckBox('multi peak')
         self.multipeak.setChecked(False)
         scan_layout.addWidget(self.multipeak)
+        self.chrono = QCheckBox('chrono CDI')
+        self.chrono.setChecked(False)
+        scan_layout.addWidget(self.chrono)
         luplayout.addRow(scan_layout)
 
         self.vbox = QVBoxLayout()
@@ -196,6 +199,7 @@ class cdi_gui(QWidget):
         self.separate_scans.setChecked(False)
         self.separate_scan_ranges.setChecked(False)
         self.multipeak.setChecked(False)
+        self.chrono.setChecked(False)
 
         if self.t is not None:
             self.t.clear_configs()
@@ -318,6 +322,8 @@ class cdi_gui(QWidget):
             self.separate_scan_ranges.setChecked(True)
         if 'multipeak' in conf_map and conf_map['multipeak']:
             self.multipeak.setChecked(True)
+        if 'chrono' in conf_map and conf_map['chrono']:
+            self.chrono.setChecked(True)
 
 
     def assure_experiment_dir(self):
@@ -344,6 +350,8 @@ class cdi_gui(QWidget):
             conf_map['beamline'] = self.beamline
         if self.multipeak.isChecked():
             conf_map['multipeak'] = True
+        if self.chrono.isChecked():
+            conf_map['chrono'] = True
         if self.separate_scans.isChecked():
             conf_map['separate_scans'] = True
         if self.separate_scan_ranges.isChecked():
