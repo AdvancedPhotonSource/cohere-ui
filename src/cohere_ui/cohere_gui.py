@@ -102,6 +102,7 @@ class cdi_gui(QWidget):
         super(cdi_gui, self).__init__(parent)
 
         self.loaded = False
+        self.state = 'no_experiment'
         self.beamline = None
         self.id = None
         self.exp_id = None
@@ -260,6 +261,7 @@ class cdi_gui(QWidget):
         It shows a dialog for user to select previously created experiment directory. If no main configuration file is
         found user will see info message.
         """
+        self.state = 'loading'
         self.loaded = False
         self.reset_window()
         load_dir = select_dir(os.getcwd())
@@ -298,6 +300,7 @@ class cdi_gui(QWidget):
         if converted:
             self.save_main()
             self.t.save_conf()
+        self.state = 'in_experiment'
 
 
     def load_main(self, conf_map):
@@ -381,6 +384,12 @@ class cdi_gui(QWidget):
         -------
         nothing
         """
+        if self.state == 'no_experiment':
+            self.state = 'creating'
+        elif self.state == 'loading':
+            self.state = 'loading'
+        elif self.state == 'in_experiment':
+            self.state = 'cloning'
         working_dir = self.set_work_dir_button.text().replace(os.sep, '/')
         if len(working_dir) == 0:
             msg_window(
@@ -430,6 +439,8 @@ class cdi_gui(QWidget):
             self.save_main()
             self.t.save_conf()
 
+        if self.state != 'loading':
+            self.state = 'in_experiment'
         #self.t.notify(**{'experiment_dir': self.experiment_dir})
 
     def toggle_multipeak(self):
