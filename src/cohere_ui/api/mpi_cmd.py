@@ -11,6 +11,23 @@ from multiprocessing import Process
 import argparse
 
 
+def is_open_mpi(mpiexec="mpiexec"):
+    result = subprocess.run(
+        [mpiexec, "--version"],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Cannot identify MPI launcher: {result.stdout}\n{result.stderr}"
+        )
+
+    version = (result.stdout + result.stderr).lower()
+    return "open mpi" in version or "openrte" in version
+
+
 def show_log(file):
     file = open(file, 'r')
     while True:
@@ -39,8 +56,6 @@ def run_with_mpi(lib, conf_file, datafile, dir, devices, hostfile=None):
     """
     os.environ['OPENBLAS_NUM_THREADS'] = '1'
 
-    start_time = time.time()
-
     script = '/reconstruction_ga.py'
     # start process that will monitor log file and print progress
     log_file = f'ga_{os.getpid()}.log'
@@ -48,20 +63,44 @@ def run_with_mpi(lib, conf_file, datafile, dir, devices, hostfile=None):
     p = Process(target=show_log, args=(log_file,))
     p.start()
 
-
     script = os.path.realpath(os.path.dirname(__file__)).replace(os.sep, '/') + script
-    if hostfile is None:
-        command = ['mpiexec', '--oversubscribe', '-np', str(len(devices)), 'python', script,
-                   lib, conf_file, datafile, dir, str(devices), log_file]
-    else:
-        command = ['mpiexec', '--oversubscribe', '-np', str(len(devices)), '--hostfile', hostfile, 'python', script,
-                   lib, conf_file, datafile, dir, str(devices), log_file]
+
+    mpiexec = "mpiexec"  # Or an explicit path to the desired launcher
+
+    command = [mpiexec]
+
+    if is_open_mpi(mpiexec):
+        command.append("--oversubscribe")
+
+    command.extend(["-np", str(len(devices))])
+
+    if hostfile is not None:
+        command.extend(["--hostfile", str(hostfile)])
+
+    command.extend([
+        'python',
+        str(script),
+        str(lib),
+        str(conf_file),
+        str(datafile),
+        str(dir),
+        str(devices),
+        str(log_file),
+    ])
+
+    start_time = time.time()
     try:
-        subprocess.run(command, check=True, capture_output=True, text=True)
+        result = subprocess.run(
+            command,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
     except subprocess.CalledProcessError as e:
         print(f"Error Message: {e.stderr}")
         print(f"Exit Code: {e.returncode}")
         raise
+
     run_time = time.time() - start_time
 
     # The process p was created to monitor log file and print progress info, i.e. the start of generation
@@ -79,8 +118,21 @@ def run_with_mpi(lib, conf_file, datafile, dir, devices, hostfile=None):
 def te_rec(experiment_dir, hostfile, devices):
     script = '/te_rec.py'
     script = os.path.realpath(os.path.dirname(__file__)).replace(os.sep, '/') + script
-    command = ['mpiexec', '--oversubscribe', '-np', str(len(devices)), 'python', script,
-               experiment_dir, str(devices)]
+    mpiexec = "mpiexec"  # Or an explicit path to the desired launcher
+
+    command = [mpiexec]
+
+    if is_open_mpi(mpiexec):
+        command.append("--oversubscribe")
+
+    command.extend(["-np", str(len(devices))])
+    command.extend([
+        'python',
+        str(script),
+        str(experiment_dir),
+        str(devices),
+    ])
+
     start_time = time.time()
     try:
         subprocess.run(command, check=True, capture_output=True, text=True)
