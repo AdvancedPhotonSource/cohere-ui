@@ -12,17 +12,23 @@ import argparse
 
 
 def is_open_mpi(mpiexec="mpiexec"):
-    result = subprocess.run(
-        [mpiexec, "--version"],
-        capture_output=True,
-        text=True,
-        timeout=10,
-    )
+    try:
+        result = subprocess.run(
+            [mpiexec, "--version"],
+            capture_output=True,
+            text=True,
+            errors="replace",
+            timeout=10,
+        )
+    except FileNotFoundError:
+        raise RuntimeError(
+            f"MPI launcher not found: {mpiexec}"
+        ) from None
+    except (OSError, subprocess.TimeoutExpired):
+        return False
 
     if result.returncode != 0:
-        raise RuntimeError(
-            f"Cannot identify MPI launcher: {result.stdout}\n{result.stderr}"
-        )
+        return False
 
     version = (result.stdout + result.stderr).lower()
     return "open mpi" in version or "openrte" in version
