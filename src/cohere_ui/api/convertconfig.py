@@ -7,6 +7,7 @@
 import os
 import argparse
 import shutil
+import copy
 import cohere_core.utilities as ut
 
 
@@ -284,9 +285,11 @@ def convert(conf_dir):
     # move parameters between files
     # special case "roi" parameter in config_prep is used now as user entered roi
     # but it used to be a detector roi before version 5
+    moves = copy.deepcopy(move_dict)
     if conf_version < 5:
-        move_dict['config_prep']['config_instr'].append('roi')
-    for k,v in move_dict.items():
+        moves["config_prep"]["config_instr"].append("roi")
+
+    for k, v in moves.items():
         to_pop = set()
         for nk, sv in v.items():
             for p in sv:

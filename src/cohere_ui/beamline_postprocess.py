@@ -232,8 +232,7 @@ def process_dir(experiment_dir, config_maps, res_dir_scan):
 
     if viz_params.get('make_twin', False):
         twin_image = np.conjugate(np.flip(image))
-        if support is not None:
-            twin_support = np.flip(support)
+        twin_support = np.flip(support) if support is not None else None
         twin_viz = pu.make_image_viz(geometry, twin_image, twin_support, config_maps, ds)
         twin_viz.write(ut.join(save_dir, "twin_direct_space_images.vts"))
         print('saved twin_direct_space_images.vts file')

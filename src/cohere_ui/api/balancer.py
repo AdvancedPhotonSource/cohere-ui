@@ -113,8 +113,8 @@ def get_balanced_load(avail_runs, runs):
     :return: dict, int
         a dictionary with the same structure as avail_runs input parameter, but with values indicating runs modified to achieve balanced distribution.
     """
-    if len(avail_runs) == 0:
-        return {}
+    if not avail_runs or runs <= 0:
+        return {}, 0
 
     # if total number of available runs is less or equal runs, return the avail_runs,
     # and total number of available jobs

@@ -106,17 +106,17 @@ def run_with_mpi(lib, conf_file, datafile, dir, devices, hostfile=None):
         print(f"Error Message: {e.stderr}")
         print(f"Exit Code: {e.returncode}")
         raise
+    finally:
+        # The process p was created to monitor log file and print progress info, i.e. the start of generation
+        if p is not None:
+            p.terminate()
+            while p.is_alive():
+                time.sleep(.1)
+            p.close()
+            if os.path.isfile(log_file):
+                os.remove(log_file)
 
     run_time = time.time() - start_time
-
-    # The process p was created to monitor log file and print progress info, i.e. the start of generation
-    if p is not None:
-        p.terminate()
-        while p.is_alive():
-            time.sleep(.1)
-        p.close()
-        if os.path.isfile(log_file):
-            os.remove(log_file)
 
     print(f'GA reconstruction took {run_time} seconds')
 

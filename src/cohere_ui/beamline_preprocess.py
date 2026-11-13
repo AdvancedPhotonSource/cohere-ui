@@ -109,7 +109,7 @@ def handle_prep(experiment_dir, **kwargs):
         print('no data found for scans, exiting')
         return 'no data found for scans, exiting'
 
-    do_RSM = conf_maps['config_prep'].get('do_RSM', None)
+    do_RSM = conf_maps.get('config_prep', {}).get('do_RSM', None)
 
     remove_outliers = 'config_prep' in conf_maps and conf_maps['config_prep'].get('remove_outliers', False)
     outliers = []

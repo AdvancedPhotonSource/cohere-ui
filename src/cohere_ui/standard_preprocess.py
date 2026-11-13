@@ -112,7 +112,7 @@ def format_data(experiment_dir, **kwargs):
     # remove the 'data_dir' parameter as they differ depending on case
     # TODO:
     # make the parameters like threshold a list for the separate scans scenario
-    data_conf_map.pop('data_dir')
+    data_conf_map.pop('data_dir', None)
     ut.write_config(data_conf_map, ut.join(experiment_dir,'conf', 'config_data'))
 
 
