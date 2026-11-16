@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 
-import simple_phasing as sp  # Adjust to your package path.
+import cohere_ui.simple_phasing as sp
 
 
 @pytest.fixture

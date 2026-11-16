@@ -2,12 +2,8 @@ import copy
 import sys
 from types import SimpleNamespace
 from unittest.mock import Mock
-
 import pytest
-
-import converterconfig as conv
-# Alternatively:
-# import cohere_ui.api.convertconfig as conv
+import cohere_ui.api.convertconfig as conv
 
 
 @pytest.fixture(autouse=True)

@@ -5,7 +5,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from cohere_core import reconstruction_GA as ga  # Adjust import if needed
+from cohere_ui.api import reconstruction_ga as ga
 
 
 def test_order_ranks_sorts_ascending_metrics_and_detects_better_previous_alpha():

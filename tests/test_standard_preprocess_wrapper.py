@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 
-import standard_preprocess as sp  # Adjust to your package path.
+import cohere_ui.standard_preprocess as sp
 
 
 @pytest.fixture

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-import cohere_reconstruction as cr  # Adjust to your package path.
+import cohere_ui.cohere_reconstruction as cr
 
 
 # ---------------------------------------------------------------------------

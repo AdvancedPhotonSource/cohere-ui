@@ -200,7 +200,7 @@ class Rec:
         if dir is None or not os.path.isfile(ut.join(dir, 'support.npy')):
             init_support = [int(self.params['initial_support_area'][i] * self.dims[i]) for i in range(len(self.dims))]
             center = devlib.full(init_support, 1)
-            self.support = dvut.pad_around(center, self.dims, 0)
+            self.support = dvut.pad_around(center, self.dims)
         else:
             self.support = devlib.load(ut.join(dir, 'support.npy'))
 

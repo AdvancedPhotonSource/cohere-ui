@@ -2,7 +2,7 @@
 import numpy as np
 import pytest
 
-from cohere_ui.api import post_processor as pp
+from cohere_ui.api import postprocessor as pp
 
 
 class FakeStructuredGrid:

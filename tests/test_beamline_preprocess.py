@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 
-import beamline_preprocess as bp  # Adjust if this lives inside a package.
+import cohere_ui.beamline_preprocess as bp
 
 
 @pytest.fixture

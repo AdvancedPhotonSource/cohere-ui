@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import beamline_postprocess as bp  # Adjust to your package path if needed.
+import cohere_ui.beamline_postprocess as bp
 
 
 @pytest.fixture

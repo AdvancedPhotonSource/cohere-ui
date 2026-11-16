@@ -7,7 +7,7 @@ from unittest.mock import Mock
 import numpy as np
 import pytest
 
-from cohere_core import reconstruction_populous as rp  # Adjust if needed
+from cohere_ui.api import reconstruction_populous as rp
 
 
 def test_devices_assign_gpu_to_current_thread():
